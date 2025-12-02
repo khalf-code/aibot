@@ -4,6 +4,7 @@ import path from "node:path";
 import express, { type Express } from "express";
 import { danger } from "../globals.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
+import { detectMime } from "./mime.js";
 import { cleanOldMedia, getMediaDir } from "./store.js";
 
 const DEFAULT_TTL_MS = 2 * 60 * 1000;
@@ -25,13 +26,14 @@ export function attachMediaRoutes(
         res.status(410).send("expired");
         return;
       }
-      res.sendFile(file);
+      const data = await fs.readFile(file);
+      const mime = detectMime({ buffer: data, filePath: file });
+      if (mime) res.type(mime);
+      res.send(data);
       // best-effort single-use cleanup after response ends
-      res.on("finish", () => {
-        setTimeout(() => {
-          fs.rm(file).catch(() => {});
-        }, 500);
-      });
+      setTimeout(() => {
+        fs.rm(file).catch(() => {});
+      }, 500);
     } catch {
       res.status(404).send("not found");
     }
