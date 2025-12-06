@@ -42,23 +42,38 @@ function formatTimestamp(ts: number, config?: ReturnType<typeof loadConfig>): st
 /**
  * Convert ProviderMessage to MsgContext for auto-reply system.
  */
-function providerMessageToContext(
+async function providerMessageToContext(
   message: ProviderMessage,
   config?: ReturnType<typeof loadConfig>,
-): MsgContext {
+): Promise<MsgContext> {
   const timestampPrefix = formatTimestamp(message.timestamp, config);
   const bodyWithTimestamp = timestampPrefix
     ? `${timestampPrefix}${message.body}`
     : message.body;
+
+  // Handle media: if buffer exists but no URL, save the buffer and create a file path
+  let mediaUrl = message.media?.[0]?.url;
+  let mediaPath = message.media?.[0]?.fileName;
+
+  if (!mediaUrl && message.media?.[0]?.buffer) {
+    // Save Telegram media buffer to disk
+    const { saveMediaBuffer } = await import("../media/store.js");
+    const saved = await saveMediaBuffer(
+      message.media[0].buffer,
+      message.media[0].mimeType,
+      "telegram",
+    );
+    mediaPath = saved.path;
+  }
 
   return {
     Body: bodyWithTimestamp,
     From: message.from,
     To: message.to,
     MessageSid: message.id,
-    MediaUrl: message.media?.[0]?.url,
+    MediaUrl: mediaUrl,
     MediaType: message.media?.[0]?.mimeType,
-    MediaPath: message.media?.[0]?.fileName,
+    MediaPath: mediaPath,
   };
 }
 
@@ -144,7 +159,7 @@ async function handleInboundMessage(
   runtime: RuntimeEnv,
 ): Promise<void> {
   const config = loadConfig();
-  const ctx = providerMessageToContext(message, config);
+  const ctx = await providerMessageToContext(message, config);
 
   // Check allowFrom filter
   const allowFrom = config.inbound?.allowFrom;

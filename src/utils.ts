@@ -25,8 +25,19 @@ export function normalizeAllowFromEntry(
   if (!trimmed) return "";
 
   if (provider === "telegram") {
-    // Telegram uses @username format
-    return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+    // Strip telegram: prefix if present (allowFrom entries may or may not have it)
+    const withoutPrefix = trimmed.startsWith("telegram:")
+      ? trimmed.slice("telegram:".length)
+      : trimmed;
+
+    // Ensure @username format, then add telegram: prefix
+    const username = withoutPrefix.startsWith("@")
+      ? withoutPrefix
+      : withoutPrefix.match(/^\d+$/)
+        ? withoutPrefix  // numeric ID, keep as-is
+        : `@${withoutPrefix}`;
+
+    return `telegram:${username}`;
   }
 
   // WhatsApp (both web and twilio) use E.164 phone numbers

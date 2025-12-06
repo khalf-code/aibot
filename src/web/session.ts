@@ -232,6 +232,19 @@ export async function pickProvider(pref: Provider | "auto"): Promise<Provider> {
  * Select providers for multi-provider relay.
  * Validates authentication and filters out unavailable providers.
  */
+/**
+ * Check if Twilio is configured via environment variables.
+ */
+function isTwilioConfigured(): boolean {
+	const required = ["TWILIO_ACCOUNT_SID", "TWILIO_WHATSAPP_FROM"];
+	const hasRequired = required.every((k) => Boolean(process.env[k]));
+	const hasToken = Boolean(process.env.TWILIO_AUTH_TOKEN);
+	const hasKey = Boolean(
+		process.env.TWILIO_API_KEY && process.env.TWILIO_API_SECRET,
+	);
+	return hasRequired && (hasToken || hasKey);
+}
+
 export async function selectProviders(
 	prefs: (Provider | "auto")[],
 ): Promise<Provider[]> {
@@ -259,7 +272,14 @@ export async function selectProviders(
 			);
 		}
 
-		// Note: twilio not heavily used in this branch
+		// Check twilio
+		if (isTwilioConfigured()) {
+			available.push("twilio");
+		} else {
+			skipped.push(
+				"twilio (not configured - set TWILIO_ACCOUNT_SID, TWILIO_WHATSAPP_FROM, and auth credentials in .env)",
+			);
+		}
 
 		if (available.length > 0 && skipped.length > 0) {
 			console.log(
@@ -295,7 +315,13 @@ export async function selectProviders(
 				);
 			}
 		} else if (pref === "twilio") {
-			skipped.push("twilio (not heavily used in this branch)");
+			if (isTwilioConfigured()) {
+				available.push("twilio");
+			} else {
+				skipped.push(
+					"twilio (not configured - set TWILIO_ACCOUNT_SID, TWILIO_WHATSAPP_FROM, and auth credentials in .env)",
+				);
+			}
 		}
 	}
 

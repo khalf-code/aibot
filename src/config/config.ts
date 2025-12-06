@@ -233,11 +233,6 @@ const WarelaySchema = z.object({
         .optional(),
     })
     .optional(),
-  telegram: z
-    .object({
-      allowFrom: z.array(z.string()).optional(),
-    })
-    .optional(),
 });
 
 export function loadConfig(): WarelayConfig {

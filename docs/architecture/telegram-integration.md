@@ -9,7 +9,7 @@ This document provides architectural guidance for adding Telegram as a third mes
 1. **MTProto client**: Users log in with their personal Telegram account (phone + 2FA)
 2. **Same security model**: `allowFrom` whitelist controls who can trigger auto-replies
 3. **Provider abstraction**: Unified interface across Twilio, Web, and Telegram providers
-4. **Session storage**: File-based session like WhatsApp Web (`~/.warelay/telegram/session/`)
+4. **Session storage**: File-based session like WhatsApp Web (`~/.clawdis/telegram/session/`)
 
 ---
 
@@ -32,7 +32,7 @@ This document provides architectural guidance for adding Telegram as a third mes
 
 ```mermaid
 flowchart LR
-  subgraph Warelay["warelay CLI (Container)"]
+  subgraph Warelay["clawdis CLI (Container)"]
     CLI[[CLI / Commander]]
     Send[[Send Command]]
     Relay[[Relay Command]]
@@ -57,7 +57,7 @@ flowchart LR
   WhatsApp -->|Baileys| IDP
 ```
 
-**Caption:** warelay system context showing CLI entry points and provider connections.
+**Caption:** clawdis system context showing CLI entry points and provider connections.
 
 **Evidence:** `src/cli/program.ts:L1-L50`, `src/commands/send.ts:L1-L150`
 
@@ -156,7 +156,7 @@ export async function pickProvider(pref: Provider | "auto"): Promise<Provider> {
 | **Auth Model** | QR code scan | Phone + code + 2FA |
 | **Connection Type** | Persistent WebSocket | Persistent TCP/WebSocket |
 | **Library** | Baileys | GramJS |
-| **Session Storage** | `~/.warelay/credentials/` | `~/.warelay/telegram/session/` |
+| **Session Storage** | `~/.clawdis/credentials/` | `~/.clawdis/telegram/session/` |
 | **Message Send** | Socket message | MTProto request |
 | **Inbound Handling** | Event listener | Event listener |
 | **Delivery Status** | Limited (receipts) | Full (receipts + read) |
@@ -189,7 +189,7 @@ sequenceDiagram
 
 **Key characteristics:**
 - Persistent connection with session state
-- QR-based authentication stored at `~/.warelay/credentials/`
+- QR-based authentication stored at `~/.clawdis/credentials/`
 - Media sent as buffers with automatic optimization
 - IPC server for relay mode to prevent session corruption
 
@@ -216,7 +216,7 @@ sequenceDiagram
 
 **Key characteristics:**
 - Persistent connection with session state (like WhatsApp Web)
-- Phone-based authentication stored at `~/.warelay/telegram/session/`
+- Phone-based authentication stored at `~/.clawdis/telegram/session/`
 - Media sent as buffers
 - Same patterns as Baileys for session management
 
@@ -276,7 +276,7 @@ flowchart TB
   end
 
   subgraph Storage["Local Storage"]
-    SessionFile[("~/.warelay/telegram/session/")]
+    SessionFile[("~/.clawdis/telegram/session/")]
   end
 
   Login -->|phone + code| Client
@@ -640,7 +640,7 @@ TELEGRAM_API_ID=12345678
 TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
 ```
 
-### 5.2 Extended warelay.json Schema
+### 5.2 Extended clawdis.json Schema
 
 ```typescript
 // Extended WarelayConfig type
@@ -668,13 +668,13 @@ export type WarelayConfig = {
 };
 ```
 
-### 5.3 Sample warelay.json with Telegram
+### 5.3 Sample clawdis.json with Telegram
 
 ```json5
 {
   "logging": {
     "level": "info",
-    "file": "~/.warelay/logs/warelay.log"
+    "file": "~/.clawdis/logs/clawdis.log"
   },
 
   // Telegram-specific settings
@@ -979,27 +979,13 @@ warelay relay --provider telegram --verbose
 
 **Context:** Need to store Telegram session like WhatsApp Web credentials.
 
-**Decision:** Store at `~/.warelay/telegram/session/` following existing patterns.
+**Decision:** Store at `~/.clawdis/telegram/session/` following existing patterns.
 
 **Consequences:**
-- Consistent with `~/.warelay/credentials/` for WhatsApp
+- Consistent with `~/.clawdis/credentials/` for WhatsApp
 - User-specific storage
 - Easy to backup/restore
 - Clear separation between providers
-
-### ADR-004: Security Model Consistency
-
-**Status:** Accepted
-
-**Context:** WhatsApp uses `allowFrom` whitelist. Telegram needs same model.
-
-**Decision:** Use `telegram.allowFrom` in config with usernames and user IDs.
-
-**Consequences:**
-- Consistent security model across providers
-- Users understand the pattern already
-- Supports both `@username` and numeric IDs
-- Same behavior: whitelist = only listed users trigger auto-reply
 
 ---
 

@@ -42,7 +42,7 @@ export interface DownloadResult {
 
 /**
  * Get temp directory for Telegram downloads.
- * Uses ~/.warelay/telegram-temp for consistency with media store.
+ * Uses ~/.clawdis/telegram-temp for consistency with media store.
  */
 export function getTelegramTempDir(): string {
   return TEMP_DIR;

@@ -33,23 +33,25 @@ You'll be prompted for:
 2. **SMS verification code** (sent to your Telegram app or SMS)
 3. **2FA password** (if you have two-factor authentication enabled)
 
-Session is saved to `~/.warelay/telegram/session/` and persists across restarts.
+Session is saved to `~/.clawdis/telegram/session/` (or `~/.warelay/telegram/session/` for legacy compatibility) and persists across restarts.
 
 ### 4. Configure Whitelist (Optional)
 
-In `~/.warelay/warelay.json`:
+In `~/.clawdis/clawdis.json` (or `~/.warelay/warelay.json` for legacy):
 ```json5
 {
-  telegram: {
-    // Only these users can trigger auto-replies
+  inbound: {
+    // Only these users can trigger auto-replies (works for both Telegram and WhatsApp)
     allowFrom: [
-      "@username",        // Telegram username (with @)
-      "+1234567890",      // Phone number (with +)
-      "123456789"         // User ID (numeric)
+      "telegram:@username",    // Telegram username (with telegram: prefix)
+      "telegram:123456789",    // Telegram user ID (numeric)
+      "+1234567890"            // WhatsApp phone number (E.164 format)
     ]
   }
 }
 ```
+
+**Note:** Telegram identifiers in `allowFrom` should use the `telegram:` prefix (e.g., `telegram:@alice`). WhatsApp uses E.164 phone numbers (e.g., `+1234567890`).
 
 **Security note:** If `allowFrom` is empty or omitted, all incoming messages will trigger auto-replies. Use a whitelist in production.
 
@@ -113,7 +115,7 @@ Shows recent sent/received messages with delivery status.
 warelay logout --provider telegram
 ```
 
-Removes the saved session from `~/.warelay/telegram/session/`.
+Removes the saved session from `~/.clawdis/telegram/session/` (or `~/.warelay/telegram/session/` for legacy).
 
 ## Features
 
@@ -150,21 +152,22 @@ Control who can trigger auto-replies via `allowFrom` config:
 
 ```json5
 {
-  telegram: {
-    allowFrom: ["@alice", "@bob", "123456789"]
+  inbound: {
+    allowFrom: ["telegram:@alice", "telegram:@bob", "telegram:123456789"]
   }
 }
 ```
 
-- **Username** (`@alice`): Match by Telegram username
-- **Phone number** (`+15551234567`): Match by phone number
-- **User ID** (`123456789`): Match by numeric Telegram user ID
+- **Username** (`telegram:@alice`): Match by Telegram username (requires `telegram:` prefix)
+- **User ID** (`telegram:123456789`): Match by numeric Telegram user ID (requires `telegram:` prefix)
+
+**Note:** The `telegram:` prefix is required for Telegram identifiers in the shared `inbound.allowFrom` config to distinguish them from WhatsApp phone numbers.
 
 If `allowFrom` is empty or omitted, **all messages trigger auto-replies** (use with caution).
 
 ### Session Storage
 
-Session files are stored encrypted at `~/.warelay/telegram/session/`:
+Session files are stored encrypted at `~/.clawdis/telegram/session/` (or `~/.warelay/telegram/session/` for legacy):
 - Contains authentication tokens and keys
 - Persists across restarts
 - Should be treated as sensitive (equivalent to login credentials)
@@ -236,7 +239,7 @@ warelay login --provider telegram
 **Solution:**
 ```bash
 # Remove corrupted session
-rm -rf ~/.warelay/telegram/session/
+rm -rf ~/.clawdis/telegram/session/
 
 # Re-login
 warelay login --provider telegram
@@ -248,10 +251,8 @@ warelay login --provider telegram
 
 ```json5
 {
-  telegram: {
-    allowFrom: ["@alice", "@bob"]
-  },
   inbound: {
+    allowFrom: ["telegram:@alice", "telegram:@bob"],
     reply: {
       mode: "text",
       text: "Thanks for your message! I'll get back to you soon."
@@ -264,10 +265,8 @@ warelay login --provider telegram
 
 ```json5
 {
-  telegram: {
-    allowFrom: ["@alice", "+15551234567"]
-  },
   inbound: {
+    allowFrom: ["telegram:@alice", "+15551234567"],
     reply: {
       mode: "command",
       bodyPrefix: "You are a helpful assistant on Telegram. Be concise.\n\n",
@@ -287,10 +286,8 @@ warelay login --provider telegram
 
 ```json5
 {
-  telegram: {
-    allowFrom: ["@alice", "@bob", "@charlie"]
-  },
   inbound: {
+    allowFrom: ["telegram:@alice", "telegram:@bob", "telegram:@charlie"],
     reply: {
       mode: "command",
       command: ["claude", "{{BodyStripped}}"],
@@ -347,10 +344,10 @@ Telegram has rate limits for personal accounts:
 Session files contain authentication tokens:
 ```bash
 # Backup
-cp -r ~/.warelay/telegram/session/ ~/backups/warelay-telegram-session/
+cp -r ~/.clawdis/telegram/session/ ~/backups/clawdis-telegram-session/
 
 # Restore
-cp -r ~/backups/warelay-telegram-session/ ~/.warelay/telegram/session/
+cp -r ~/backups/clawdis-telegram-session/ ~/.clawdis/telegram/session/
 ```
 
 ### 4. Monitor Logs
@@ -391,14 +388,7 @@ tmux new -s warelay-telegram -d "warelay relay --provider telegram --verbose"
 
 ### Custom Session Storage
 
-Override session path in config:
-```json5
-{
-  telegram: {
-    sessionPath: "/custom/path/to/session/"
-  }
-}
-```
+Session storage location is currently fixed at `~/.warelay/telegram/session/` (legacy path) or `~/.clawdis/telegram/session/` (new path). Custom session paths via config are not yet supported.
 
 ### Verbose Output
 
@@ -428,7 +418,7 @@ Output includes:
 
 Media downloads use streaming to temporary files, eliminating memory buffering:
 
-- Files downloaded to `~/.warelay/telegram-temp`
+- Files downloaded to `~/.clawdis/telegram-temp`
 - No memory spike regardless of file size
 - Automatic cleanup after send (success or failure)
 - Orphaned files cleaned on process restart (1 hour TTL)
@@ -491,7 +481,7 @@ If you encounter issues:
 1. **Check logs:** Run with `--verbose` flag
 2. **Verify credentials:** Ensure API ID/Hash are correct
 3. **Test login:** Try `warelay login --provider telegram` manually
-4. **Check session:** Verify `~/.warelay/telegram/session/` exists and is readable
-5. **Review config:** Ensure `~/.warelay/warelay.json` is valid JSON5
+4. **Check session:** Verify `~/.clawdis/telegram/session/` (or `~/.warelay/telegram/session/` for legacy) exists and is readable
+5. **Review config:** Ensure `~/.clawdis/clawdis.json` (or `~/.warelay/warelay.json` for legacy) is valid JSON5
 
 For bugs or feature requests, file an issue on GitHub.

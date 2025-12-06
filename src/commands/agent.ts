@@ -27,10 +27,41 @@ import { ensureTwilioEnv } from "../env.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { pickProvider } from "../provider-web.js";
 import { createInitializedProvider } from "../providers/factory.js";
-import type { TelegramProviderConfig } from "../providers/base/types.js";
+import type { TelegramProviderConfig, ProviderMedia } from "../providers/base/types.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import type { Provider } from "../utils.js";
 import { sendViaIpc } from "../web/ipc.js";
+
+/**
+ * Detect media type from URL/file extension.
+ * Falls back to 'image' for unknown types.
+ */
+function detectMediaType(url: string): ProviderMedia["type"] {
+  const lower = url.toLowerCase();
+
+  // Video extensions
+  if (lower.match(/\.(mp4|mov|avi|mkv|webm|m4v)($|\?)/)) {
+    return "video";
+  }
+
+  // Audio extensions
+  if (lower.match(/\.(mp3|wav|ogg|m4a|aac|flac|opus)($|\?)/)) {
+    return "audio";
+  }
+
+  // Voice (specific audio formats)
+  if (lower.match(/\.(ogg|opus)($|\?)/) && lower.includes("voice")) {
+    return "voice";
+  }
+
+  // Document extensions
+  if (lower.match(/\.(pdf|doc|docx|txt|xls|xlsx|ppt|pptx|zip|rar)($|\?)/)) {
+    return "document";
+  }
+
+  // Image extensions (or default)
+  return "image";
+}
 
 type AgentCommandOpts = {
   message: string;
@@ -413,21 +444,27 @@ export async function agentCommand(
         };
         const telegramProvider =
           await createInitializedProvider("telegram", telegramConfig);
-        const chunks = chunkText(text, 4096);
-        if (chunks.length > 0 || media.length > 0) {
-          const firstChunk = chunks.length > 0 ? chunks[0] : "";
-          const firstMedia = media[0];
-          await telegramProvider.send(opts.to, firstChunk, {
-            media: firstMedia ? [{ type: "image", url: firstMedia }] : undefined,
-          });
-        }
-        for (let i = 1; i < chunks.length; i++) {
-          await telegramProvider.send(opts.to, chunks[i]);
-        }
-        for (let i = 1; i < media.length; i++) {
-          await telegramProvider.send(opts.to, "", {
-            media: [{ type: "image", url: media[i] }],
-          });
+
+        try {
+          const chunks = chunkText(text, 4096);
+          if (chunks.length > 0 || media.length > 0) {
+            const firstChunk = chunks.length > 0 ? chunks[0] : "";
+            const firstMedia = media[0];
+            await telegramProvider.send(opts.to, firstChunk, {
+              media: firstMedia ? [{ type: detectMediaType(firstMedia), url: firstMedia }] : undefined,
+            });
+          }
+          for (let i = 1; i < chunks.length; i++) {
+            await telegramProvider.send(opts.to, chunks[i]);
+          }
+          for (let i = 1; i < media.length; i++) {
+            await telegramProvider.send(opts.to, "", {
+              media: [{ type: detectMediaType(media[i]), url: media[i] }],
+            });
+          }
+        } finally {
+          // Always disconnect to prevent connection leaks
+          await telegramProvider.disconnect();
         }
       } else {
         const chunks = chunkText(text, 1600);

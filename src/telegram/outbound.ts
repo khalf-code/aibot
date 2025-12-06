@@ -39,7 +39,7 @@ export async function sendTextMessage(
  *
  * Media sources:
  * - Buffer: Sent directly from memory (existing behavior)
- * - URL: Streamed to temp file (~/.warelay/telegram-temp), sent, then cleaned up
+ * - URL: Streamed to temp file (~/.clawdis/telegram-temp), sent, then cleaned up
  *
  * Streaming eliminates OOM risk for large files by avoiding memory buffering.
  * Temp files are automatically cleaned up after send (success or failure).
