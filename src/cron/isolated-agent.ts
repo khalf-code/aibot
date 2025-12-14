@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import { chunkText } from "../auto-reply/chunk.js";
 import { runCommandReply } from "../auto-reply/command-reply.js";
+import { stripJsonEventLines } from "../auto-reply/strip-json-events.js";
 import {
   applyTemplate,
   type TemplateContext,
@@ -286,7 +287,11 @@ export async function runCronIsolatedAgentTurn(params: {
           const mediaList =
             payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []);
           const primaryMedia = mediaList[0];
-          await params.deps.sendMessageWhatsApp(to, payload.text ?? "", {
+          // Filter out internal JSON events before external delivery
+          const cleanedText = stripJsonEventLines(payload.text ?? "");
+          // Skip empty payloads unless they have media
+          if (!cleanedText && !primaryMedia) continue;
+          await params.deps.sendMessageWhatsApp(to, cleanedText, {
             verbose: false,
             mediaUrl: primaryMedia,
           });
@@ -320,8 +325,12 @@ export async function runCronIsolatedAgentTurn(params: {
         for (const payload of payloads) {
           const mediaList =
             payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []);
+          // Filter out internal JSON events before external delivery
+          const cleanedText = stripJsonEventLines(payload.text ?? "");
+          // Skip empty payloads unless they have media
+          if (!cleanedText && mediaList.length === 0) continue;
           if (mediaList.length === 0) {
-            for (const chunk of chunkText(payload.text ?? "", 4000)) {
+            for (const chunk of chunkText(cleanedText, 4000)) {
               await params.deps.sendMessageTelegram(chatId, chunk, {
                 verbose: false,
               });
@@ -329,7 +338,7 @@ export async function runCronIsolatedAgentTurn(params: {
           } else {
             let first = true;
             for (const url of mediaList) {
-              const caption = first ? (payload.text ?? "") : "";
+              const caption = first ? cleanedText : "";
               first = false;
               await params.deps.sendMessageTelegram(chatId, caption, {
                 verbose: false,

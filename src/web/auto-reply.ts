@@ -1,6 +1,7 @@
 import { chunkText } from "../auto-reply/chunk.js";
 import { formatAgentEnvelope } from "../auto-reply/envelope.js";
 import { getReplyFromConfig } from "../auto-reply/reply.js";
+import { stripJsonEventLines } from "../auto-reply/strip-json-events.js";
 import type { ReplyPayload } from "../auto-reply/types.js";
 import { waitForever } from "../cli/wait.js";
 import { loadConfig } from "../config/config.js";
@@ -38,6 +39,8 @@ import { formatError, getWebAuthAgeMs, readWebSelfId } from "./session.js";
 
 const WEB_TEXT_LIMIT = 4000;
 const DEFAULT_GROUP_HISTORY_LIMIT = 50;
+
+// stripJsonEventLines is now imported from ../auto-reply/strip-json-events.js
 
 let heartbeatsEnabled = true;
 export function setHeartbeatsEnabled(enabled: boolean) {
@@ -342,7 +345,14 @@ export async function runWebHeartbeatOnce(opts: {
       );
     }
 
-    const finalText = stripped.text || replyPayload.text || "";
+    // Filter out internal JSON events before sending to WhatsApp
+    const rawText = stripped.text || replyPayload.text || "";
+    const finalText = stripJsonEventLines(rawText);
+    if (!finalText) {
+      heartbeatLogger.info({ to }, "heartbeat produced no deliverable content after filtering");
+      emitHeartbeatEvent({ status: "ok-token", to });
+      return;
+    }
     if (dryRun) {
       heartbeatLogger.info(
         { to, reason: "dry-run", chars: finalText.length },

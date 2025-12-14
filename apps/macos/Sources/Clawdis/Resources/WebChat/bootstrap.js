@@ -160,7 +160,7 @@ class ChatTransport {
         this.pendingRuns.delete(runId);
         return;
       }
-      if (payload.state === "delta") return; // ignore partials for now
+      if (payload.state === "delta") return;
       pending.resolve(payload);
       this.pendingRuns.delete(runId);
     });

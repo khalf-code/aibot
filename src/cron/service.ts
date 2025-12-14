@@ -279,8 +279,15 @@ export class CronService {
     if (!job.enabled) return undefined;
     if (job.schedule.kind === "at") {
       // One-shot jobs stay due until they successfully finish.
-      if (job.state.lastStatus === "ok" && job.state.lastRunAtMs)
+      // But if the schedule was edited to a new future time after the last run,
+      // we should schedule it again.
+      if (job.state.lastStatus === "ok" && job.state.lastRunAtMs) {
+        // If atMs is after the last run, the user edited the schedule - run again
+        if (job.schedule.atMs > job.state.lastRunAtMs) {
+          return job.schedule.atMs;
+        }
         return undefined;
+      }
       return job.schedule.atMs;
     }
     return computeNextRunAtMs(job.schedule, nowMs);
