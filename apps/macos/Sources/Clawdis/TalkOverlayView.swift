@@ -1,24 +1,30 @@
+import AppKit
 import SwiftUI
 
 struct TalkOverlayView: View {
     var controller: TalkOverlayController
     @State private var appState = AppStateStore.shared
     @State private var hoveringWindow = false
-    private static let orbCornerNudge: CGFloat = 12
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
+            let isPaused = self.controller.model.isPaused
+            Color.clear
             TalkOrbView(
                 phase: self.controller.model.phase,
                 level: self.controller.model.level,
-                accent: self.seamColor)
-                .frame(width: 96, height: 96)
-                .padding(.top, 6 + TalkOverlayController.windowInset - Self.orbCornerNudge)
-                .padding(.trailing, 6 + TalkOverlayController.windowInset - Self.orbCornerNudge)
+                accent: self.seamColor,
+                isPaused: isPaused)
+                .frame(width: TalkOverlayController.orbSize, height: TalkOverlayController.orbSize)
+                .padding(.top, TalkOverlayController.orbPadding)
+                .padding(.trailing, TalkOverlayController.orbPadding)
                 .contentShape(Circle())
-                .onTapGesture {
-                    TalkModeController.shared.stopSpeaking(reason: .userTap)
-                }
+                .opacity(isPaused ? 0.55 : 1)
+                .background(
+                    TalkOrbInteractionView(
+                        onSingleClick: { TalkModeController.shared.togglePaused() },
+                        onDoubleClick: { TalkModeController.shared.stopSpeaking(reason: .userTap) },
+                        onDragStart: { TalkModeController.shared.setPaused(true) }))
                 .overlay(alignment: .topLeading) {
                     Button {
                         TalkModeController.shared.exitTalkMode()
@@ -35,12 +41,13 @@ struct TalkOverlayView: View {
                 .offset(x: -2, y: -2)
                 .opacity(self.hoveringWindow ? 1 : 0)
                 .animation(.easeOut(duration: 0.12), value: self.hoveringWindow)
-                .allowsHitTesting(self.hoveringWindow)
             }
+            .onHover { self.hoveringWindow = $0 }
         }
-        .frame(width: TalkOverlayController.overlaySize, height: TalkOverlayController.overlaySize, alignment: .center)
-        .contentShape(Rectangle())
-        .onHover { self.hoveringWindow = $0 }
+        .frame(
+            width: TalkOverlayController.overlaySize,
+            height: TalkOverlayController.overlaySize,
+            alignment: .topTrailing)
     }
 
     private static let defaultSeamColor = Color(red: 79 / 255.0, green: 122 / 255.0, blue: 154 / 255.0)
@@ -61,28 +68,101 @@ struct TalkOverlayView: View {
     }
 }
 
+private struct TalkOrbInteractionView: NSViewRepresentable {
+    let onSingleClick: () -> Void
+    let onDoubleClick: () -> Void
+    let onDragStart: () -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = OrbInteractionNSView()
+        view.onSingleClick = self.onSingleClick
+        view.onDoubleClick = self.onDoubleClick
+        view.onDragStart = self.onDragStart
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.clear.cgColor
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let view = nsView as? OrbInteractionNSView else { return }
+        view.onSingleClick = self.onSingleClick
+        view.onDoubleClick = self.onDoubleClick
+        view.onDragStart = self.onDragStart
+    }
+}
+
+private final class OrbInteractionNSView: NSView {
+    var onSingleClick: (() -> Void)?
+    var onDoubleClick: (() -> Void)?
+    var onDragStart: (() -> Void)?
+    private var mouseDownEvent: NSEvent?
+    private var didDrag = false
+    private var suppressSingleClick = false
+
+    override var acceptsFirstResponder: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        self.mouseDownEvent = event
+        self.didDrag = false
+        self.suppressSingleClick = event.clickCount > 1
+        if event.clickCount == 2 {
+            self.onDoubleClick?()
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let startEvent = self.mouseDownEvent else { return }
+        if !self.didDrag {
+            let dx = event.locationInWindow.x - startEvent.locationInWindow.x
+            let dy = event.locationInWindow.y - startEvent.locationInWindow.y
+            if abs(dx) + abs(dy) < 2 { return }
+            self.didDrag = true
+            self.onDragStart?()
+            self.window?.performDrag(with: startEvent)
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if !self.didDrag && !self.suppressSingleClick {
+            self.onSingleClick?()
+        }
+        self.mouseDownEvent = nil
+        self.didDrag = false
+        self.suppressSingleClick = false
+    }
+}
+
 private struct TalkOrbView: View {
     let phase: TalkModePhase
     let level: Double
     let accent: Color
+    let isPaused: Bool
 
     var body: some View {
-        TimelineView(.animation) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            let listenScale = phase == .listening ? (1 + CGFloat(self.level) * 0.12) : 1
-            let pulse = phase == .speaking ? (1 + 0.06 * sin(t * 6)) : 1
+        if self.isPaused {
+            Circle()
+                .fill(self.orbGradient)
+                .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
+        } else {
+            TimelineView(.animation) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                let listenScale = phase == .listening ? (1 + CGFloat(self.level) * 0.12) : 1
+                let pulse = phase == .speaking ? (1 + 0.06 * sin(t * 6)) : 1
 
-            ZStack {
-                Circle()
-                    .fill(self.orbGradient)
-                    .overlay(Circle().stroke(Color.white.opacity(0.45), lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 5)
-                    .scaleEffect(pulse * listenScale)
+                ZStack {
+                    Circle()
+                        .fill(self.orbGradient)
+                        .overlay(Circle().stroke(Color.white.opacity(0.45), lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.22), radius: 10, x: 0, y: 5)
+                        .scaleEffect(pulse * listenScale)
 
-                TalkWaveRings(phase: phase, level: level, time: t, accent: self.accent)
+                    TalkWaveRings(phase: phase, level: level, time: t, accent: self.accent)
 
-                if phase == .thinking {
-                    TalkOrbitArcs(time: t)
+                    if phase == .thinking {
+                        TalkOrbitArcs(time: t)
+                    }
                 }
             }
         }

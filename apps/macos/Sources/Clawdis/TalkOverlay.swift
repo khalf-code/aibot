@@ -8,20 +8,23 @@ import SwiftUI
 final class TalkOverlayController {
     static let shared = TalkOverlayController()
     static let overlaySize: CGFloat = 440
-    static let windowInset: CGFloat = 88
+    static let orbSize: CGFloat = 96
+    static let orbPadding: CGFloat = 12
+    static let orbHitSlop: CGFloat = 10
 
     private let logger = Logger(subsystem: "com.steipete.clawdis", category: "talk.overlay")
 
     struct Model {
         var isVisible: Bool = false
         var phase: TalkModePhase = .idle
+        var isPaused: Bool = false
         var level: Double = 0
     }
 
     var model = Model()
     private var window: NSPanel?
     private var hostingView: NSHostingView<TalkOverlayView>?
-    private let padding: CGFloat = 8
+    private let screenInset: CGFloat = 0
 
     func present() {
         self.ensureWindow()
@@ -73,9 +76,24 @@ final class TalkOverlayController {
         self.model.phase = phase
     }
 
+    func updatePaused(_ paused: Bool) {
+        guard self.model.isPaused != paused else { return }
+        self.logger.info("talk overlay paused=\(paused)")
+        self.model.isPaused = paused
+    }
+
     func updateLevel(_ level: Double) {
         guard self.model.isVisible else { return }
         self.model.level = max(0, min(1, level))
+    }
+
+    func currentWindowOrigin() -> CGPoint? {
+        self.window?.frame.origin
+    }
+
+    func setWindowOrigin(_ origin: CGPoint) {
+        guard let window else { return }
+        window.setFrameOrigin(origin)
     }
 
     // MARK: - Private
@@ -94,12 +112,13 @@ final class TalkOverlayController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
+        panel.acceptsMouseMovedEvents = true
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
 
-        let host = NSHostingView(rootView: TalkOverlayView(controller: self))
+        let host = TalkOverlayHostingView(rootView: TalkOverlayView(controller: self))
         host.translatesAutoresizingMaskIntoConstraints = false
         panel.contentView = host
         self.hostingView = host
@@ -107,12 +126,21 @@ final class TalkOverlayController {
     }
 
     private func targetFrame() -> NSRect {
-        guard let screen = NSScreen.main else { return .zero }
+        let screen = self.window?.screen
+            ?? NSScreen.main
+            ?? NSScreen.screens.first
+        guard let screen else { return .zero }
         let size = NSSize(width: Self.overlaySize, height: Self.overlaySize)
         let visible = screen.visibleFrame
         let origin = CGPoint(
-            x: visible.maxX - size.width - self.padding + Self.windowInset,
-            y: visible.maxY - size.height - self.padding + Self.windowInset)
+            x: visible.maxX - size.width - self.screenInset,
+            y: visible.maxY - size.height - self.screenInset)
         return NSRect(origin: origin, size: size)
+    }
+}
+
+private final class TalkOverlayHostingView: NSHostingView<TalkOverlayView> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
     }
 }

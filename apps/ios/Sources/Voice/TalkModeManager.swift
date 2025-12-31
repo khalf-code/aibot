@@ -9,6 +9,7 @@ import Speech
 @Observable
 final class TalkModeManager: NSObject {
     private typealias SpeechRequest = SFSpeechAudioBufferRecognitionRequest
+    private static let defaultModelIdFallback = "eleven_v3"
     var isEnabled: Bool = false
     var isListening: Bool = false
     var isSpeaking: Bool = false
@@ -33,13 +34,17 @@ final class TalkModeManager: NSObject {
     private var modelOverrideActive = false
     private var defaultOutputFormat: String?
     private var apiKey: String?
+    private var voiceAliases: [String: String] = [:]
     private var interruptOnSpeech: Bool = true
     private var mainSessionKey: String = "main"
+    private var fallbackVoiceId: String?
+    private var lastPlaybackWasPCM: Bool = false
+    var pcmPlayer: PCMStreamingAudioPlaying = PCMStreamingAudioPlayer.shared
+    var mp3Player: StreamingAudioPlaying = StreamingAudioPlayer.shared
 
     private var bridge: BridgeSession?
     private let silenceWindow: TimeInterval = 0.7
 
-    private var player: AVAudioPlayer?
     private var chatSubscribedSessionKeys = Set<String>()
 
     private let logger = Logger(subsystem: "com.steipete.clawdis", category: "TalkMode")
@@ -419,7 +424,12 @@ final class TalkModeManager: NSObject {
         let cleaned = parsed.stripped.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return }
 
-        if let voice = directive?.voiceId {
+        let requestedVoice = directive?.voiceId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedVoice = self.resolveVoiceAlias(requestedVoice)
+        if requestedVoice?.isEmpty == false, resolvedVoice == nil {
+            self.logger.warning("unknown voice alias \(requestedVoice ?? "?", privacy: .public)")
+        }
+        if let voice = resolvedVoice {
             if directive?.once != true {
                 self.currentVoiceId = voice
                 self.voiceOverrideActive = true
@@ -440,44 +450,49 @@ final class TalkModeManager: NSObject {
             let started = Date()
             let language = ElevenLabsTTSClient.validatedLanguage(directive?.language)
 
-            let voiceId = (directive?.voiceId ?? self.currentVoiceId ?? self.defaultVoiceId)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
             let resolvedKey =
                 (self.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? self.apiKey : nil) ??
                 ProcessInfo.processInfo.environment["ELEVENLABS_API_KEY"]
             let apiKey = resolvedKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let preferredVoice = resolvedVoice ?? self.currentVoiceId ?? self.defaultVoiceId
+            let voiceId: String? = if let apiKey, !apiKey.isEmpty {
+                await self.resolveVoiceId(preferred: preferredVoice, apiKey: apiKey)
+            } else {
+                nil
+            }
             let canUseElevenLabs = (voiceId?.isEmpty == false) && (apiKey?.isEmpty == false)
 
             if canUseElevenLabs, let voiceId, let apiKey {
-                let desiredOutputFormat = directive?.outputFormat ?? self.defaultOutputFormat
-                let outputFormat = ElevenLabsTTSClient.validatedOutputFormat(desiredOutputFormat)
-                if outputFormat == nil, let desiredOutputFormat, !desiredOutputFormat.isEmpty {
+                let desiredOutputFormat = (directive?.outputFormat ?? self.defaultOutputFormat)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let requestedOutputFormat = (desiredOutputFormat?.isEmpty == false) ? desiredOutputFormat : nil
+                let outputFormat = ElevenLabsTTSClient.validatedOutputFormat(requestedOutputFormat ?? "pcm_44100")
+                if outputFormat == nil, let requestedOutputFormat {
                     self.logger.warning(
-                        "talk output_format unsupported for local playback: \(desiredOutputFormat, privacy: .public)")
+                        "talk output_format unsupported for local playback: \(requestedOutputFormat, privacy: .public)")
                 }
 
-                let request = ElevenLabsTTSRequest(
-                    text: cleaned,
-                    modelId: directive?.modelId ?? self.currentModelId ?? self.defaultModelId,
-                    outputFormat: outputFormat,
-                    speed: TalkTTSValidation.resolveSpeed(speed: directive?.speed, rateWPM: directive?.rateWPM),
-                    stability: TalkTTSValidation.validatedUnit(directive?.stability),
-                    similarity: TalkTTSValidation.validatedUnit(directive?.similarity),
-                    style: TalkTTSValidation.validatedUnit(directive?.style),
-                    speakerBoost: directive?.speakerBoost,
-                    seed: TalkTTSValidation.validatedSeed(directive?.seed),
-                    normalize: ElevenLabsTTSClient.validatedNormalize(directive?.normalize),
-                    language: language)
+                let modelId = directive?.modelId ?? self.currentModelId ?? self.defaultModelId
+                func makeRequest(outputFormat: String?) -> ElevenLabsTTSRequest {
+                    ElevenLabsTTSRequest(
+                        text: cleaned,
+                        modelId: modelId,
+                        outputFormat: outputFormat,
+                        speed: TalkTTSValidation.resolveSpeed(speed: directive?.speed, rateWPM: directive?.rateWPM),
+                        stability: TalkTTSValidation.validatedStability(directive?.stability, modelId: modelId),
+                        similarity: TalkTTSValidation.validatedUnit(directive?.similarity),
+                        style: TalkTTSValidation.validatedUnit(directive?.style),
+                        speakerBoost: directive?.speakerBoost,
+                        seed: TalkTTSValidation.validatedSeed(directive?.seed),
+                        normalize: ElevenLabsTTSClient.validatedNormalize(directive?.normalize),
+                        language: language,
+                        latencyTier: TalkTTSValidation.validatedLatencyTier(directive?.latencyTier))
+                }
 
-                let synthTimeoutSeconds = max(20.0, min(90.0, Double(cleaned.count) * 0.12))
+                let request = makeRequest(outputFormat: outputFormat)
+
                 let client = ElevenLabsTTSClient(apiKey: apiKey)
-                let audio = try await client.synthesizeWithHardTimeout(
-                    voiceId: voiceId,
-                    request: request,
-                    hardTimeoutSeconds: synthTimeoutSeconds)
-                self.logger
-                    .info(
-                        "elevenlabs ok bytes=\(audio.count, privacy: .public) dur=\(Date().timeIntervalSince(started), privacy: .public)s")
+                let stream = client.streamSynthesize(voiceId: voiceId, request: request)
 
                 if self.interruptOnSpeech {
                     do {
@@ -489,7 +504,31 @@ final class TalkModeManager: NSObject {
                 }
 
                 self.statusText = "Speaking…"
-                try await self.playAudio(data: audio)
+                let sampleRate = TalkTTSValidation.pcmSampleRate(from: outputFormat)
+                let result: StreamingPlaybackResult
+                if let sampleRate {
+                    self.lastPlaybackWasPCM = true
+                    var playback = await self.pcmPlayer.play(stream: stream, sampleRate: sampleRate)
+                    if !playback.finished, playback.interruptedAt == nil {
+                        let mp3Format = ElevenLabsTTSClient.validatedOutputFormat("mp3_44100")
+                        self.logger.warning("pcm playback failed; retrying mp3")
+                        self.lastPlaybackWasPCM = false
+                        let mp3Stream = client.streamSynthesize(
+                            voiceId: voiceId,
+                            request: makeRequest(outputFormat: mp3Format))
+                        playback = await self.mp3Player.play(stream: mp3Stream)
+                    }
+                    result = playback
+                } else {
+                    self.lastPlaybackWasPCM = false
+                    result = await self.mp3Player.play(stream: stream)
+                }
+                self.logger
+                    .info(
+                        "elevenlabs stream finished=\(result.finished, privacy: .public) dur=\(Date().timeIntervalSince(started), privacy: .public)s")
+                if !result.finished, let interruptedAt = result.interruptedAt {
+                    self.lastInterruptedAtSeconds = interruptedAt
+                }
             } else {
                 self.logger.warning("tts unavailable; falling back to system voice (missing key or voiceId)")
                 if self.interruptOnSpeech {
@@ -528,30 +567,17 @@ final class TalkModeManager: NSObject {
         self.isSpeaking = false
     }
 
-    private func playAudio(data: Data) async throws {
-        self.player?.stop()
-        let player = try AVAudioPlayer(data: data)
-        self.player = player
-        player.prepareToPlay()
-        self.logger.info("play start")
-        guard player.play() else {
-            throw NSError(domain: "TalkMode", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "audio player refused to play",
-            ])
-        }
-        while player.isPlaying {
-            try? await Task.sleep(nanoseconds: 120_000_000)
-        }
-        self.logger.info("play done")
-    }
-
     private func stopSpeaking(storeInterruption: Bool = true) {
         guard self.isSpeaking else { return }
+        let interruptedAt = self.lastPlaybackWasPCM
+            ? self.pcmPlayer.stop()
+            : self.mp3Player.stop()
         if storeInterruption {
-            self.lastInterruptedAtSeconds = self.player?.currentTime
+            self.lastInterruptedAtSeconds = interruptedAt
         }
-        self.player?.stop()
-        self.player = nil
+        _ = self.lastPlaybackWasPCM
+            ? self.mp3Player.stop()
+            : self.pcmPlayer.stop()
         TalkSystemSpeechSynthesizer.shared.stop()
         self.isSpeaking = false
     }
@@ -565,6 +591,53 @@ final class TalkModeManager: NSObject {
         return true
     }
 
+    private func resolveVoiceAlias(_ value: String?) -> String? {
+        let trimmed = (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.lowercased()
+        if let mapped = self.voiceAliases[normalized] { return mapped }
+        if self.voiceAliases.values.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return trimmed
+        }
+        return Self.isLikelyVoiceId(trimmed) ? trimmed : nil
+    }
+
+    private func resolveVoiceId(preferred: String?, apiKey: String) async -> String? {
+        let trimmed = preferred?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmed.isEmpty {
+            if let resolved = self.resolveVoiceAlias(trimmed) { return resolved }
+            self.logger.warning("unknown voice alias \(trimmed, privacy: .public)")
+        }
+        if let fallbackVoiceId { return fallbackVoiceId }
+
+        do {
+            let voices = try await ElevenLabsTTSClient(apiKey: apiKey).listVoices()
+            guard let first = voices.first else {
+                self.logger.warning("elevenlabs voices list empty")
+                return nil
+            }
+            self.fallbackVoiceId = first.voiceId
+            if self.defaultVoiceId == nil {
+                self.defaultVoiceId = first.voiceId
+            }
+            if !self.voiceOverrideActive {
+                self.currentVoiceId = first.voiceId
+            }
+            let name = first.name ?? "unknown"
+            self.logger
+                .info("default voice selected \(name, privacy: .public) (\(first.voiceId, privacy: .public))")
+            return first.voiceId
+        } catch {
+            self.logger.error("elevenlabs list voices failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private static func isLikelyVoiceId(_ value: String) -> Bool {
+        guard value.count >= 10 else { return false }
+        return value.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+    }
+
     private func reloadConfig() async {
         guard let bridge else { return }
         do {
@@ -576,10 +649,24 @@ final class TalkModeManager: NSObject {
             let rawMainKey = (session?["mainKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             self.mainSessionKey = rawMainKey.isEmpty ? "main" : rawMainKey
             self.defaultVoiceId = (talk?["voiceId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let aliases = talk?["voiceAliases"] as? [String: Any] {
+                var resolved: [String: String] = [:]
+                for (key, value) in aliases {
+                    guard let id = value as? String else { continue }
+                    let normalizedKey = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    let trimmedId = id.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !normalizedKey.isEmpty, !trimmedId.isEmpty else { continue }
+                    resolved[normalizedKey] = trimmedId
+                }
+                self.voiceAliases = resolved
+            } else {
+                self.voiceAliases = [:]
+            }
             if !self.voiceOverrideActive {
                 self.currentVoiceId = self.defaultVoiceId
             }
-            self.defaultModelId = (talk?["modelId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let model = (talk?["modelId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            self.defaultModelId = (model?.isEmpty == false) ? model : Self.defaultModelIdFallback
             if !self.modelOverrideActive {
                 self.currentModelId = self.defaultModelId
             }
@@ -590,7 +677,10 @@ final class TalkModeManager: NSObject {
                 self.interruptOnSpeech = interrupt
             }
         } catch {
-            // ignore
+            self.defaultModelId = Self.defaultModelIdFallback
+            if !self.modelOverrideActive {
+                self.currentModelId = self.defaultModelId
+            }
         }
     }
 

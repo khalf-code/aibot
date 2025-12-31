@@ -5,8 +5,11 @@
 ### Features
 - Talk mode: continuous speech conversations (macOS/iOS/Android) with ElevenLabs TTS, reply directives, and optional interrupt-on-speech.
 - UI: add optional `ui.seamColor` accent to tint the Talk Mode side bubble (macOS/iOS/Android).
+- Agent runtime: accept legacy `Z_AI_API_KEY` for Z.AI provider auth (maps to `ZAI_API_KEY`).
+- Tests: add a Z.AI live test gate for smoke validation when keys are present.
 
 ### Fixes
+- Docs/agent tools: clarify that browser `wait` should be avoided by default and used only in exceptional cases.
 - macOS: Voice Wake now fully tears down the Speech pipeline when disabled (cancel pending restarts, drop stale callbacks) to avoid high CPU in the background.
 - macOS menu: add a Talk Mode action alongside the Open Dashboard/Chat/Canvas entries.
 - macOS Debug: hide “Restart Gateway” when the app won’t start a local gateway (remote mode / attach-only).
@@ -17,11 +20,16 @@
 - macOS Talk Mode: throttle audio-level updates (avoid per-buffer task creation) to reduce CPU/task churn.
 - macOS Talk Mode: increase overlay window size so wave rings don’t clip; close button is hover-only and closer to the orb.
 - Talk Mode: fall back to system TTS when ElevenLabs is unavailable, returns non-audio, or playback fails (macOS/iOS/Android).
+- Talk Mode: stream PCM on macOS/iOS for lower latency (incremental playback); Android continues MP3 streaming.
+- Talk Mode: validate ElevenLabs v3 stability and latency tier directives before sending requests.
+- iOS/Android Talk Mode: auto-select the first ElevenLabs voice when none is configured.
 - ElevenLabs: add retry/backoff for 429/5xx and include content-type in errors for debugging.
 - Talk Mode: align to the gateway’s main session key and fall back to history polling when chat events drop (prevents stuck “thinking” / missing messages).
 - Talk Mode: treat history timestamps as seconds or milliseconds to avoid stale assistant picks (macOS/iOS/Android).
 - Chat UI: clear streaming/tool bubbles when external runs finish, preventing duplicate assistant bubbles.
 - Chat UI: user bubbles use `ui.seamColor` (fallback to a calmer default blue).
+- Control UI: sync sidebar navigation with the URL for deep-linking, and auto-scroll chat to the latest message.
+- Control UI: disable Web Chat + Talk when no iOS/Android node is connected; refreshed Web Chat styling and keyboard send.
 - Talk Mode: wait for chat history to surface the assistant reply before starting TTS (macOS/iOS/Android).
 - iOS Talk Mode: fix chat completion wait to time out even if no events arrive (prevents “Thinking…” hangs).
 - iOS Talk Mode: keep recognition running during playback to support interrupt-on-speech.
@@ -35,12 +43,15 @@
 - iOS/Android nodes: enable scrolling for loaded web pages in the Canvas WebView (default scaffold stays touch-first).
 - macOS menu: device list now uses `node.list` (devices only; no agent/tool presence entries).
 - macOS menu: device list now shows connected nodes only.
+- macOS menu: device rows now pack platform/version on the first line, and command lists wrap in submenus.
+- macOS menu: split device platform/version across first and second rows for better fit.
 - iOS node: fix ReplayKit screen recording crash caused by queue isolation assertions during capture.
 - iOS Talk Mode: avoid audio tap queue assertions when starting recognition.
 - iOS/Android nodes: bridge auto-connect refreshes stale tokens and settings now show richer bridge/device details.
 - iOS/Android nodes: status pill now surfaces camera activity instead of overlay toasts.
 - iOS/Android/macOS nodes: camera snaps recompress to keep base64 payloads under 5 MB.
 - iOS/Android nodes: status pill now surfaces pairing, screen recording, voice wake, and foreground-required states.
+- iOS/Android nodes: avoid duplicating “Gateway reconnecting…” when the bridge is already connecting.
 - iOS/Android nodes: Talk Mode now lives on a side bubble (with an iOS toggle to hide it), and Android settings no longer show the Talk Mode switch.
 - macOS menu: top status line now shows pending node pairing approvals (incl. repairs).
 - CLI: avoid spurious gateway close errors after successful request/response cycles.

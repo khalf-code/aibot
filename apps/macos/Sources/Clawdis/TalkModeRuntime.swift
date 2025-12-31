@@ -10,6 +10,7 @@ actor TalkModeRuntime {
 
     private let logger = Logger(subsystem: "com.steipete.clawdis", category: "talk.runtime")
     private let ttsLogger = Logger(subsystem: "com.steipete.clawdis", category: "talk.tts")
+    private static let defaultModelIdFallback = "eleven_v3"
 
     private final class RMSMeter: @unchecked Sendable {
         private let lock = NSLock()
@@ -41,6 +42,7 @@ actor TalkModeRuntime {
     private var silenceTask: Task<Void, Never>?
     private var phase: TalkModePhase = .idle
     private var isEnabled = false
+    private var isPaused = false
     private var lifecycleGeneration: Int = 0
 
     private var lastHeard: Date?
@@ -57,9 +59,11 @@ actor TalkModeRuntime {
     private var defaultOutputFormat: String?
     private var interruptOnSpeech: Bool = true
     private var lastInterruptedAtSeconds: Double?
+    private var voiceAliases: [String: String] = [:]
     private var lastSpokenText: String?
     private var apiKey: String?
     private var fallbackVoiceId: String?
+    private var lastPlaybackWasPCM: Bool = false
 
     private let silenceWindow: TimeInterval = 0.7
     private let minSpeechRMS: Double = 1e-3
@@ -78,6 +82,29 @@ actor TalkModeRuntime {
         }
     }
 
+    func setPaused(_ paused: Bool) async {
+        guard paused != self.isPaused else { return }
+        self.isPaused = paused
+        await MainActor.run { TalkModeController.shared.updateLevel(0) }
+
+        guard self.isEnabled else { return }
+
+        if paused {
+            self.lastTranscript = ""
+            self.lastHeard = nil
+            self.lastSpeechEnergyAt = nil
+            await self.stopRecognition()
+            return
+        }
+
+        if self.phase == .idle || self.phase == .listening {
+            await self.startRecognition()
+            self.phase = .listening
+            await MainActor.run { TalkModeController.shared.updatePhase(.listening) }
+            self.startSilenceMonitor()
+        }
+    }
+
     private func isCurrent(_ generation: Int) -> Bool {
         generation == self.lifecycleGeneration && self.isEnabled
     }
@@ -91,6 +118,14 @@ actor TalkModeRuntime {
         }
         await self.reloadConfig()
         guard self.isCurrent(gen) else { return }
+        if self.isPaused {
+            self.phase = .idle
+            await MainActor.run {
+                TalkModeController.shared.updateLevel(0)
+                TalkModeController.shared.updatePhase(.idle)
+            }
+            return
+        }
         await self.startRecognition()
         guard self.isCurrent(gen) else { return }
         self.phase = .listening
@@ -211,6 +246,7 @@ actor TalkModeRuntime {
 
     private func handleRecognition(_ update: RecognitionUpdate) async {
         guard update.generation == self.recognitionGeneration else { return }
+        guard !self.isPaused else { return }
         if let errorDescription = update.errorDescription {
             self.logger.debug("talk recognition error: \(errorDescription, privacy: .public)")
         }
@@ -256,6 +292,7 @@ actor TalkModeRuntime {
     }
 
     private func checkSilence() async {
+        guard !self.isPaused else { return }
         guard self.phase == .listening else { return }
         let transcript = self.lastTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !transcript.isEmpty else { return }
@@ -292,11 +329,10 @@ actor TalkModeRuntime {
         guard self.isCurrent(gen) else { return }
         let prompt = self.buildPrompt(transcript: transcript)
         let activeSessionKey = await MainActor.run { WebChatManager.shared.activeSessionKey }
-        let sessionKey: String
-        if let activeSessionKey {
-            sessionKey = activeSessionKey
+        let sessionKey: String = if let activeSessionKey {
+            activeSessionKey
         } else {
-            sessionKey = await GatewayConnection.shared.mainSessionKey()
+            await GatewayConnection.shared.mainSessionKey()
         }
         let runId = UUID().uuidString
         let startedAt = Date().timeIntervalSince1970
@@ -329,15 +365,27 @@ actor TalkModeRuntime {
             self.logger.info("talk assistant text len=\(assistantText.count, privacy: .public)")
             await self.playAssistant(text: assistantText)
             guard self.isCurrent(gen) else { return }
-            await self.startListening()
-            await self.startRecognition()
+            await self.resumeListeningIfNeeded()
             return
         } catch {
             self.logger.error("talk chat.send failed: \(error.localizedDescription, privacy: .public)")
-            await self.startListening()
-            await self.startRecognition()
+            await self.resumeListeningIfNeeded()
             return
         }
+    }
+
+    private func resumeListeningIfNeeded() async {
+        if self.isPaused {
+            self.lastTranscript = ""
+            self.lastHeard = nil
+            self.lastSpeechEnergyAt = nil
+            await MainActor.run {
+                TalkModeController.shared.updateLevel(0)
+            }
+            return
+        }
+        await self.startListening()
+        await self.startRecognition()
     }
 
     private func buildPrompt(transcript: String) -> String {
@@ -376,7 +424,7 @@ actor TalkModeRuntime {
                 return TalkHistoryTimestamp.isAfter(timestamp, sinceSeconds: since)
             }
             guard let assistant else { return nil }
-            let text = assistant.content.compactMap { $0.text }.joined(separator: "\n")
+            let text = assistant.content.compactMap(\.text).joined(separator: "\n")
             let trimmed = text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
         } catch {
@@ -394,10 +442,16 @@ actor TalkModeRuntime {
         guard self.isCurrent(gen) else { return }
 
         if !parse.unknownKeys.isEmpty {
-            self.logger.warning("talk directive ignored keys: \(parse.unknownKeys.joined(separator: ","), privacy: .public)")
+            self.logger
+                .warning("talk directive ignored keys: \(parse.unknownKeys.joined(separator: ","), privacy: .public)")
         }
 
-        if let voice = directive?.voiceId {
+        let requestedVoice = directive?.voiceId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedVoice = self.resolveVoiceAlias(requestedVoice)
+        if let requestedVoice, !requestedVoice.isEmpty, resolvedVoice == nil {
+            self.logger.warning("talk unknown voice alias \(requestedVoice, privacy: .public)")
+        }
+        if let voice = resolvedVoice {
             if directive?.once == true {
                 self.logger.info("talk voice override (once) voiceId=\(voice, privacy: .public)")
             } else {
@@ -417,18 +471,17 @@ actor TalkModeRuntime {
         }
 
         let apiKey = self.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let requestedVoice =
-            directive?.voiceId ??
+        let preferredVoice =
+            resolvedVoice ??
             self.currentVoiceId ??
             self.defaultVoiceId
 
         let language = ElevenLabsTTSClient.validatedLanguage(directive?.language)
 
-        let voiceId: String?
-        if let apiKey, !apiKey.isEmpty {
-            voiceId = await self.resolveVoiceId(preferred: requestedVoice, apiKey: apiKey)
+        let voiceId: String? = if let apiKey, !apiKey.isEmpty {
+            await self.resolveVoiceId(preferred: preferredVoice, apiKey: apiKey)
         } else {
-            voiceId = nil
+            nil
         }
 
         if apiKey?.isEmpty != false {
@@ -436,7 +489,8 @@ actor TalkModeRuntime {
         } else if voiceId == nil {
             self.ttsLogger.warning("talk missing voiceId; falling back to system voice")
         } else if let voiceId {
-            self.ttsLogger.info("talk TTS request voiceId=\(voiceId, privacy: .public) chars=\(cleaned.count, privacy: .public)")
+            self.ttsLogger
+                .info("talk TTS request voiceId=\(voiceId, privacy: .public) chars=\(cleaned.count, privacy: .public)")
         }
         self.lastSpokenText = cleaned
 
@@ -444,33 +498,37 @@ actor TalkModeRuntime {
 
         do {
             if let apiKey, !apiKey.isEmpty, let voiceId {
-                let desiredOutputFormat = directive?.outputFormat ?? self.defaultOutputFormat
+                let desiredOutputFormat = directive?.outputFormat ?? self.defaultOutputFormat ?? "pcm_44100"
                 let outputFormat = ElevenLabsTTSClient.validatedOutputFormat(desiredOutputFormat)
-                if outputFormat == nil, let desiredOutputFormat, !desiredOutputFormat.isEmpty {
-                    self.logger.warning("talk output_format unsupported for local playback: \(desiredOutputFormat, privacy: .public)")
+                if outputFormat == nil, !desiredOutputFormat.isEmpty {
+                    self.logger
+                        .warning(
+                            "talk output_format unsupported for local playback: \(desiredOutputFormat, privacy: .public)")
                 }
 
-                let request = ElevenLabsTTSRequest(
-                    text: cleaned,
-                    modelId: directive?.modelId ?? self.currentModelId ?? self.defaultModelId,
-                    outputFormat: outputFormat,
-                    speed: TalkTTSValidation.resolveSpeed(speed: directive?.speed, rateWPM: directive?.rateWPM),
-                    stability: TalkTTSValidation.validatedUnit(directive?.stability),
-                    similarity: TalkTTSValidation.validatedUnit(directive?.similarity),
-                    style: TalkTTSValidation.validatedUnit(directive?.style),
-                    speakerBoost: directive?.speakerBoost,
-                    seed: TalkTTSValidation.validatedSeed(directive?.seed),
-                    normalize: ElevenLabsTTSClient.validatedNormalize(directive?.normalize),
-                    language: language)
+                let modelId = directive?.modelId ?? self.currentModelId ?? self.defaultModelId
+                func makeRequest(outputFormat: String?) -> ElevenLabsTTSRequest {
+                    ElevenLabsTTSRequest(
+                        text: cleaned,
+                        modelId: modelId,
+                        outputFormat: outputFormat,
+                        speed: TalkTTSValidation.resolveSpeed(speed: directive?.speed, rateWPM: directive?.rateWPM),
+                        stability: TalkTTSValidation.validatedStability(directive?.stability, modelId: modelId),
+                        similarity: TalkTTSValidation.validatedUnit(directive?.similarity),
+                        style: TalkTTSValidation.validatedUnit(directive?.style),
+                        speakerBoost: directive?.speakerBoost,
+                        seed: TalkTTSValidation.validatedSeed(directive?.seed),
+                        normalize: ElevenLabsTTSClient.validatedNormalize(directive?.normalize),
+                        language: language,
+                        latencyTier: TalkTTSValidation.validatedLatencyTier(directive?.latencyTier))
+                }
+
+                let request = makeRequest(outputFormat: outputFormat)
 
                 self.ttsLogger.info("talk TTS synth timeout=\(synthTimeoutSeconds, privacy: .public)s")
                 let client = ElevenLabsTTSClient(apiKey: apiKey)
-                let audio = try await client.synthesizeWithHardTimeout(
-                    voiceId: voiceId,
-                    request: request,
-                    hardTimeoutSeconds: synthTimeoutSeconds)
+                let stream = client.streamSynthesize(voiceId: voiceId, request: request)
                 guard self.isCurrent(gen) else { return }
-                self.ttsLogger.info("talk TTS response bytes=\(audio.count, privacy: .public)")
 
                 if self.interruptOnSpeech {
                     await self.startRecognition()
@@ -480,10 +538,29 @@ actor TalkModeRuntime {
                 await MainActor.run { TalkModeController.shared.updatePhase(.speaking) }
                 self.phase = .speaking
 
-                let result = await TalkAudioPlayer.shared.play(data: audio)
-                self.ttsLogger.info("talk audio result finished=\(result.finished, privacy: .public) interruptedAt=\(String(describing: result.interruptedAt), privacy: .public)")
+                let sampleRate = TalkTTSValidation.pcmSampleRate(from: outputFormat)
+                var result: StreamingPlaybackResult
+                if let sampleRate {
+                    self.lastPlaybackWasPCM = true
+                    result = await self.playPCM(stream: stream, sampleRate: sampleRate)
+                    if !result.finished, result.interruptedAt == nil {
+                        let mp3Format = ElevenLabsTTSClient.validatedOutputFormat("mp3_44100")
+                        self.ttsLogger.warning("talk pcm playback failed; retrying mp3")
+                        self.lastPlaybackWasPCM = false
+                        let mp3Stream = client.streamSynthesize(
+                            voiceId: voiceId,
+                            request: makeRequest(outputFormat: mp3Format))
+                        result = await self.playMP3(stream: mp3Stream)
+                    }
+                } else {
+                    self.lastPlaybackWasPCM = false
+                    result = await self.playMP3(stream: stream)
+                }
+                self.ttsLogger
+                    .info(
+                        "talk audio result finished=\(result.finished, privacy: .public) interruptedAt=\(String(describing: result.interruptedAt), privacy: .public)")
                 if !result.finished, result.interruptedAt == nil {
-                    throw NSError(domain: "TalkAudioPlayer", code: 1, userInfo: [
+                    throw NSError(domain: "StreamingAudioPlayer", code: 1, userInfo: [
                         NSLocalizedDescriptionKey: "audio playback failed",
                     ])
                 }
@@ -505,7 +582,8 @@ actor TalkModeRuntime {
                 self.ttsLogger.info("talk system voice done")
             }
         } catch {
-            self.ttsLogger.error("talk TTS failed: \(error.localizedDescription, privacy: .public); falling back to system voice")
+            self.ttsLogger
+                .error("talk TTS failed: \(error.localizedDescription, privacy: .public); falling back to system voice")
             do {
                 if self.interruptOnSpeech {
                     await self.startRecognition()
@@ -528,7 +606,10 @@ actor TalkModeRuntime {
 
     private func resolveVoiceId(preferred: String?, apiKey: String) async -> String? {
         let trimmed = preferred?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !trimmed.isEmpty { return trimmed }
+        if !trimmed.isEmpty {
+            if let resolved = self.resolveVoiceAlias(trimmed) { return resolved }
+            self.ttsLogger.warning("talk unknown voice alias \(trimmed, privacy: .public)")
+        }
         if let fallbackVoiceId { return fallbackVoiceId }
 
         do {
@@ -545,7 +626,8 @@ actor TalkModeRuntime {
                 self.currentVoiceId = first.voiceId
             }
             let name = first.name ?? "unknown"
-            self.ttsLogger.info("talk default voice selected \(name, privacy: .public) (\(first.voiceId, privacy: .public))")
+            self.ttsLogger
+                .info("talk default voice selected \(name, privacy: .public) (\(first.voiceId, privacy: .public))")
             return first.voiceId
         } catch {
             self.ttsLogger.error("elevenlabs list voices failed: \(error.localizedDescription, privacy: .public)")
@@ -553,8 +635,26 @@ actor TalkModeRuntime {
         }
     }
 
+    private func resolveVoiceAlias(_ value: String?) -> String? {
+        let trimmed = (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.lowercased()
+        if let mapped = self.voiceAliases[normalized] { return mapped }
+        if self.voiceAliases.values.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return trimmed
+        }
+        return Self.isLikelyVoiceId(trimmed) ? trimmed : nil
+    }
+
+    private static func isLikelyVoiceId(_ value: String) -> Bool {
+        guard value.count >= 10 else { return false }
+        return value.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+    }
+
     func stopSpeaking(reason: TalkStopReason) async {
-        let interruptedAt = await MainActor.run { TalkAudioPlayer.shared.stop() }
+        let usePCM = self.lastPlaybackWasPCM
+        let interruptedAt = usePCM ? await self.stopPCM() : await self.stopMP3()
+        _ = usePCM ? await self.stopMP3() : await self.stopPCM()
         await TalkSystemSpeechSynthesizer.shared.stop()
         guard self.phase == .speaking else { return }
         if reason == .speech, let interruptedAt {
@@ -571,11 +671,37 @@ actor TalkModeRuntime {
         await MainActor.run { TalkModeController.shared.updatePhase(.thinking) }
     }
 
+    // MARK: - Audio playback (MainActor helpers)
+
+    @MainActor
+    private func playPCM(
+        stream: AsyncThrowingStream<Data, Error>,
+        sampleRate: Double) async -> StreamingPlaybackResult
+    {
+        await PCMStreamingAudioPlayer.shared.play(stream: stream, sampleRate: sampleRate)
+    }
+
+    @MainActor
+    private func playMP3(stream: AsyncThrowingStream<Data, Error>) async -> StreamingPlaybackResult {
+        await StreamingAudioPlayer.shared.play(stream: stream)
+    }
+
+    @MainActor
+    private func stopPCM() -> Double? {
+        PCMStreamingAudioPlayer.shared.stop()
+    }
+
+    @MainActor
+    private func stopMP3() -> Double? {
+        StreamingAudioPlayer.shared.stop()
+    }
+
     // MARK: - Config
 
     private func reloadConfig() async {
         let cfg = await self.fetchTalkConfig()
         self.defaultVoiceId = cfg.voiceId
+        self.voiceAliases = cfg.voiceAliases
         if !self.voiceOverrideActive {
             self.currentVoiceId = cfg.voiceId
         }
@@ -589,11 +715,14 @@ actor TalkModeRuntime {
         let hasApiKey = (cfg.apiKey?.isEmpty == false)
         let voiceLabel = (cfg.voiceId?.isEmpty == false) ? cfg.voiceId! : "none"
         let modelLabel = (cfg.modelId?.isEmpty == false) ? cfg.modelId! : "none"
-        self.logger.info("talk config voiceId=\(voiceLabel, privacy: .public) modelId=\(modelLabel, privacy: .public) apiKey=\(hasApiKey, privacy: .public) interrupt=\(cfg.interruptOnSpeech, privacy: .public)")
+        self.logger
+            .info(
+                "talk config voiceId=\(voiceLabel, privacy: .public) modelId=\(modelLabel, privacy: .public) apiKey=\(hasApiKey, privacy: .public) interrupt=\(cfg.interruptOnSpeech, privacy: .public)")
     }
 
     private struct TalkRuntimeConfig {
         let voiceId: String?
+        let voiceAliases: [String: String]
         let modelId: String?
         let outputFormat: String?
         let interruptOnSpeech: Bool
@@ -618,7 +747,16 @@ actor TalkModeRuntime {
                 AppStateStore.shared.seamColorHex = rawSeam.isEmpty ? nil : rawSeam
             }
             let voice = talk?["voiceId"]?.stringValue
-            let model = talk?["modelId"]?.stringValue
+            let rawAliases = talk?["voiceAliases"]?.dictionaryValue
+            let resolvedAliases: [String: String] =
+                rawAliases?.reduce(into: [:]) { acc, entry in
+                    let key = entry.key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    let value = entry.value.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    guard !key.isEmpty, !value.isEmpty else { return }
+                    acc[key] = value
+                } ?? [:]
+            let model = talk?["modelId"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedModel = (model?.isEmpty == false) ? model! : Self.defaultModelIdFallback
             let outputFormat = talk?["outputFormat"]?.stringValue
             let interrupt = talk?["interruptOnSpeech"]?.boolValue
             let apiKey = talk?["apiKey"]?.stringValue
@@ -631,7 +769,8 @@ actor TalkModeRuntime {
                 (apiKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? apiKey : nil)
             return TalkRuntimeConfig(
                 voiceId: resolvedVoice,
-                modelId: model,
+                voiceAliases: resolvedAliases,
+                modelId: resolvedModel,
                 outputFormat: outputFormat,
                 interruptOnSpeech: interrupt ?? true,
                 apiKey: resolvedApiKey)
@@ -642,7 +781,8 @@ actor TalkModeRuntime {
             let resolvedApiKey = envApiKey?.isEmpty == false ? envApiKey : nil
             return TalkRuntimeConfig(
                 voiceId: resolvedVoice,
-                modelId: nil,
+                voiceAliases: [:],
+                modelId: Self.defaultModelIdFallback,
                 outputFormat: nil,
                 interruptOnSpeech: true,
                 apiKey: resolvedApiKey)
@@ -652,7 +792,7 @@ actor TalkModeRuntime {
     // MARK: - Audio level handling
 
     private func noteAudioLevel(rms: Double) async {
-        if self.phase != .listening && self.phase != .speaking { return }
+        if self.phase != .listening, self.phase != .speaking { return }
         let alpha: Double = rms < self.noiseFloorRMS ? 0.08 : 0.01
         self.noiseFloorRMS = max(1e-7, self.noiseFloorRMS + (rms - self.noiseFloorRMS) * alpha)
 
@@ -731,7 +871,7 @@ actor TalkModeRuntime {
 
     private static func validatedSeed(_ value: Int?, logger: Logger) -> UInt32? {
         guard let value else { return nil }
-        if value < 0 || value > 4294967295 {
+        if value < 0 || value > 4_294_967_295 {
             logger.warning("talk seed out of range: \(value, privacy: .public)")
             return nil
         }
@@ -747,5 +887,4 @@ actor TalkModeRuntime {
         }
         return normalized
     }
-
 }
