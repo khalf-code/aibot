@@ -1,7 +1,35 @@
-# Repository Guidelines
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Overview
+
+Clawdis is a personal AI assistant gateway bridging WhatsApp (Baileys), Telegram (grammY), and Discord (discord.js) with Pi agent runners. The Gateway is the single source of truth for sessions and providers; all clients connect via WebSocket.
+
+```
+WhatsApp / Telegram / Discord
+           ↓
+   ┌────────────────────┐
+   │    Gateway         │  ws://127.0.0.1:18789 (loopback)
+   │  (control plane)   │  tcp://0.0.0.0:18790 (Bridge for nodes)
+   └─────────┬──────────┘
+             ├─ Pi agent (RPC)
+             ├─ CLI (clawdis …)
+             ├─ macOS app (menu bar)
+             └─ iOS/Android nodes
+```
+
+## Key Files
+
+- **Entry point:** `src/index.ts` (CLI bootstrap via Commander.js)
+- **Gateway server:** `src/gateway/server.ts` (WebSocket server, owns provider connections)
+- **Protocol schemas:** `src/gateway/protocol/schema.ts` (TypeBox + AJV validation)
+- **Configuration:** `src/config/config.ts` (Zod-based, loads from `~/.clawdis/clawdis.json`)
+- **Agent runner:** `src/agents/pi-embedded-runner.ts` (Pi RPC execution + streaming)
+- **Dependency injection:** `src/cli/deps.ts` (testable CLI wiring via `createDefaultDeps`)
 
 ## Project Structure & Module Organization
-- Source code: `src/` (CLI wiring in `src/cli`, commands in `src/commands`, web provider in `src/provider-web.ts`, infra in `src/infra`, media pipeline in `src/media`).
+- Source code: `src/` (CLI wiring in `src/cli`, commands in `src/commands`, web provider in `src/providers/web/`, infra in `src/infra`, media pipeline in `src/media`).
 - Tests: colocated `*.test.ts`.
 - Docs: `docs/` (images, queue, Pi config). Built output lives in `dist/`.
 
@@ -11,6 +39,7 @@
 - Type-check/build: `pnpm build` (tsc)
 - Lint/format: `pnpm lint` (biome check), `pnpm format` (biome format)
 - Tests: `pnpm test` (vitest); coverage: `pnpm test:coverage`
+- Run single test: `pnpm test src/path/to/file.test.ts` or `pnpm test -t "test name pattern"`
 
 ## Coding Style & Naming Conventions
 - Language: TypeScript (ESM). Prefer strict typing; avoid `any`.
