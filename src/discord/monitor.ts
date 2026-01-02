@@ -107,6 +107,7 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
       if (!message.author) return;
 
       const isDirectMessage = !message.guild;
+      const shouldRequireMention = !isDirectMessage && requireMention;
       const botId = client.user?.id;
       const wasMentioned =
         !isDirectMessage && Boolean(botId && message.mentions.has(botId));
@@ -129,7 +130,7 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
         guildHistories.set(message.channelId, history);
       }
 
-      if (!isDirectMessage && requireMention) {
+      if (shouldRequireMention) {
         if (botId && !wasMentioned) {
           logger.info(
             {
@@ -243,7 +244,7 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
             ? message.channel.name
             : undefined,
         Surface: "discord" as const,
-        WasMentioned: wasMentioned,
+        WasMentioned: wasMentioned || !shouldRequireMention,
         MessageSid: message.id,
         Timestamp: message.createdTimestamp,
         MediaPath: media?.path,
