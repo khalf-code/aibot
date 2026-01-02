@@ -1,0 +1,118 @@
+/**
+ * Deep Research inline button handling
+ * @see docs/sdd/deep-research/ui-flow.md
+ */
+
+import { Buffer } from "node:buffer";
+
+import { InlineKeyboard } from "grammy";
+
+// Callback data prefix for deep research buttons
+export const CALLBACK_PREFIX = "dr:";
+const BASE64_PREFIX = "b64:";
+
+export const CallbackActions = {
+  EXECUTE: "execute",
+  RETRY: "retry",
+  CANCEL: "cancel",
+} as const;
+
+const MAX_CALLBACK_DATA_BYTES = 64;
+function encodeTopic(topic: string, maxBytes: number): string {
+  const rawBytes = Buffer.byteLength(topic, "utf-8");
+  if (rawBytes <= maxBytes && !topic.startsWith(BASE64_PREFIX)) {
+    return topic;
+  }
+
+  const base64 = Buffer.from(topic).toString("base64");
+  const available = Math.max(0, maxBytes - BASE64_PREFIX.length);
+  if (base64.length <= available) {
+    return `${BASE64_PREFIX}${base64}`;
+  }
+  return `${BASE64_PREFIX}${base64.slice(0, available)}`;
+}
+
+function buildCallbackData(
+  action: string,
+  topic: string,
+  ownerId?: number,
+): string {
+  const ownerSegment = ownerId ? `${ownerId}:` : "";
+  const prefix = `${CALLBACK_PREFIX}${action}:${ownerSegment}`;
+  const maxTopicBytes =
+    MAX_CALLBACK_DATA_BYTES - Buffer.byteLength(prefix, "utf-8");
+  const topicData = encodeTopic(topic, Math.max(0, maxTopicBytes));
+  return `${prefix}${topicData}`;
+}
+
+/**
+ * Create execute button with topic encoded in callback data
+ */
+export function createExecuteButton(
+  topic: string,
+  ownerId?: number,
+): InlineKeyboard {
+  // Encode topic in callback (Telegram limit: 64 bytes)
+  // Use base64 if topic too long
+  return new InlineKeyboard().text(
+    "🚀 Сделать депресерч",
+    buildCallbackData(CallbackActions.EXECUTE, topic, ownerId),
+  );
+}
+
+/**
+ * Create retry button after failure
+ */
+export function createRetryButton(
+  topic: string,
+  ownerId?: number,
+): InlineKeyboard {
+  return new InlineKeyboard().text(
+    "🔄 Повторить",
+    buildCallbackData(CallbackActions.RETRY, topic, ownerId),
+  );
+}
+
+/**
+ * Parse callback data from button press
+ */
+export function parseCallbackData(data: string): {
+  action: string;
+  topic: string;
+  ownerId?: number;
+} | null {
+  if (!data.startsWith(CALLBACK_PREFIX)) {
+    return null;
+  }
+
+  const withoutPrefix = data.slice(CALLBACK_PREFIX.length);
+  const colonIndex = withoutPrefix.indexOf(":");
+
+  if (colonIndex === -1) {
+    return null;
+  }
+
+  const action = withoutPrefix.slice(0, colonIndex);
+  const remainder = withoutPrefix.slice(colonIndex + 1);
+  let topicData = remainder;
+  let ownerId: number | undefined;
+  const secondColonIndex = remainder.indexOf(":");
+
+  if (secondColonIndex !== -1) {
+    const maybeOwner = remainder.slice(0, secondColonIndex);
+    if (/^\d+$/.test(maybeOwner)) {
+      ownerId = Number(maybeOwner);
+      topicData = remainder.slice(secondColonIndex + 1);
+    }
+  }
+
+  if (topicData.startsWith(BASE64_PREFIX)) {
+    const base64Data = topicData.slice(BASE64_PREFIX.length);
+    const decodedBase64 = Buffer.from(base64Data, "base64").toString("utf-8");
+    if (decodedBase64.trim()) {
+      return { action, topic: decodedBase64, ownerId };
+    }
+  }
+
+  return { action, topic: topicData, ownerId };
+}
