@@ -3354,9 +3354,9 @@ describe("gateway server", () => {
 
   test("bridge voice transcript triggers chat events for webchat clients", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawdis-gw-"));
-    testSessionStorePath = path.join(dir, "sessions.json");
+    testState.sessionStorePath = path.join(dir, "sessions.json");
     await fs.writeFile(
-      testSessionStorePath,
+      testState.sessionStorePath,
       JSON.stringify(
         {
           main: {
