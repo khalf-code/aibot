@@ -20,6 +20,8 @@ export async function transcribeInboundAudio(
 ): Promise<{ text: string } | undefined> {
   const transcriber = cfg.routing?.transcribeAudio;
   if (!transcriber?.command?.length) return undefined;
+  const existing = ctx.Transcript?.trim();
+  if (existing) return { text: existing };
 
   const timeoutMs = Math.max((transcriber.timeoutSeconds ?? 45) * 1000, 1_000);
   let tmpPath: string | undefined;

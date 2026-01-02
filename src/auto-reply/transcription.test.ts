@@ -60,6 +60,31 @@ describe("transcribeInboundAudio", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
+  it("returns existing transcript without executing command", async () => {
+    const cfg = {
+      routing: {
+        transcribeAudio: {
+          command: ["echo", "{{MediaPath}}"],
+          timeoutSeconds: 5,
+        },
+      },
+    };
+    const ctx = {
+      MediaPath: "/tmp/sample.ogg",
+      MediaType: "audio/ogg",
+      Transcript: "prebuilt transcript",
+    };
+
+    const result = await transcribeInboundAudio(
+      cfg as never,
+      ctx as never,
+      runtime as never,
+    );
+
+    expect(result?.text).toBe("prebuilt transcript");
+    expect(runExecMock).not.toHaveBeenCalled();
+  });
+
   it("uses MediaPath in template without downloading", async () => {
     const fetchMock = vi.fn();
     // @ts-expect-error override global fetch for test
