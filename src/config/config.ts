@@ -412,6 +412,7 @@ export type ClawdisConfig = {
   canvasHost?: CanvasHostConfig;
   talk?: TalkConfig;
   deepResearch?: DeepResearchConfig;
+  webSearch?: WebSearchConfig;
   gateway?: GatewayConfig;
   skills?: Record<string, SkillConfig>;
 };
@@ -671,6 +672,31 @@ const deepResearchSchema = z
 
 export type DeepResearchConfig = z.infer<typeof deepResearchSchema>;
 
+export function getDefaultWebSearchCliPath(): string {
+  const homeDir = resolveHomeDir();
+  return path.join(homeDir, "TOOLS", "web_search_by_gemini", "web-search-by-Gemini.sh");
+}
+
+// Web Search configuration schema
+const WEB_SEARCH_DEFAULTS = {
+  enabled: true,
+  cliPath: "",
+  timeoutMs: 30000,
+  requireConfirmation: false,
+} as const;
+
+const webSearchSchema = z
+  .object({
+    enabled: z.boolean().default(WEB_SEARCH_DEFAULTS.enabled),
+    cliPath: z.string().default(() => getDefaultWebSearchCliPath()),
+    timeoutMs: z.number().int().positive().default(WEB_SEARCH_DEFAULTS.timeoutMs),
+    requireConfirmation: z.boolean().default(WEB_SEARCH_DEFAULTS.requireConfirmation),
+    customPatterns: z.array(z.string()).optional(),
+  })
+  .optional();
+
+export type WebSearchConfig = z.infer<typeof webSearchSchema>;
+
 const ClawdisSchema = z.object({
   identity: z
     .object({
@@ -861,6 +887,7 @@ const ClawdisSchema = z.object({
     })
     .optional(),
   deepResearch: deepResearchSchema,
+  webSearch: webSearchSchema,
   gateway: z
     .object({
       mode: z.union([z.literal("local"), z.literal("remote")]).optional(),
@@ -971,12 +998,16 @@ export function loadConfig(): ClawdisConfig {
   const configPath = CONFIG_PATH_CLAWDIS;
   try {
     if (!fs.existsSync(configPath)) {
-      return applyDeepResearchEnvOverrides(applyIdentityDefaults({}));
+      return applyWebSearchEnvOverrides(
+        applyDeepResearchEnvOverrides(applyIdentityDefaults({})),
+      );
     }
     const raw = fs.readFileSync(configPath, "utf-8");
     const parsed = JSON5.parse(raw);
     if (typeof parsed !== "object" || parsed === null) {
-      return applyDeepResearchEnvOverrides(applyIdentityDefaults({}));
+      return applyWebSearchEnvOverrides(
+        applyDeepResearchEnvOverrides(applyIdentityDefaults({})),
+      );
     }
     const validated = ClawdisSchema.safeParse(parsed);
     if (!validated.success) {
@@ -984,14 +1015,20 @@ export function loadConfig(): ClawdisConfig {
       for (const iss of validated.error.issues) {
         console.error(`- ${iss.path.join(".")}: ${iss.message}`);
       }
-      return applyDeepResearchEnvOverrides(applyIdentityDefaults({}));
+      return applyWebSearchEnvOverrides(
+        applyDeepResearchEnvOverrides(applyIdentityDefaults({})),
+      );
     }
-    return applyDeepResearchEnvOverrides(
-      applyIdentityDefaults(validated.data as ClawdisConfig),
+    return applyWebSearchEnvOverrides(
+      applyDeepResearchEnvOverrides(
+        applyIdentityDefaults(validated.data as ClawdisConfig),
+      ),
     );
   } catch (err) {
     console.error(`Failed to read config at ${configPath}`, err);
-    return applyDeepResearchEnvOverrides(applyIdentityDefaults({}));
+    return applyWebSearchEnvOverrides(
+      applyDeepResearchEnvOverrides(applyIdentityDefaults({})),
+    );
   }
 }
 
