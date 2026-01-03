@@ -12,6 +12,11 @@ import type { AcpGwSession } from "./types.js";
 const sessions = new Map<string, AcpGwSession>();
 
 /**
+ * Reverse lookup: runId -> sessionId
+ */
+const runIdToSessionId = new Map<string, string>();
+
+/**
  * Create a new session with a unique ID.
  */
 export function createSession(cwd: string): AcpGwSession {
@@ -60,7 +65,16 @@ export function setActiveRun(
   if (session) {
     session.activeRunId = runId;
     session.abortController = abortController;
+    runIdToSessionId.set(runId, sessionId);
   }
+}
+
+/**
+ * Find session by runId.
+ */
+export function getSessionByRunId(runId: string): AcpGwSession | undefined {
+  const sessionId = runIdToSessionId.get(runId);
+  return sessionId ? sessions.get(sessionId) : undefined;
 }
 
 /**
@@ -69,6 +83,9 @@ export function setActiveRun(
 export function clearActiveRun(sessionId: string): void {
   const session = sessions.get(sessionId);
   if (session) {
+    if (session.activeRunId) {
+      runIdToSessionId.delete(session.activeRunId);
+    }
     session.activeRunId = null;
     session.abortController = null;
   }

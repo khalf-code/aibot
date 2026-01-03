@@ -36,6 +36,7 @@ import {
   clearActiveRun,
   createSession,
   getSession,
+  getSessionByRunId,
   setActiveRun,
 } from "./session.js";
 import { ACP_GW_AGENT_INFO, type AcpGwOptions } from "./types.js";
@@ -99,12 +100,52 @@ export class AcpGwAgent implements Agent {
     }
   }
 
-  private async handleAgentEvent(_evt: EventFrame): Promise<void> {
-    // Agent events don't include our sessionKey or idempotencyKey,
-    // so we can't reliably correlate them to our sessions.
-    // Chat events include sessionKey, so we use those instead.
-    // TODO: Subscribe to session-specific agent events via Gateway RPC.
-    return;
+  private async handleAgentEvent(evt: EventFrame): Promise<void> {
+    const payload = evt.payload as Record<string, unknown> | undefined;
+    if (!payload) return;
+
+    const runId = payload.runId as string | undefined;
+    const stream = payload.stream as string | undefined;
+    const data = payload.data as Record<string, unknown> | undefined;
+
+    if (!runId || !data) return;
+
+    // Find session by runId
+    const session = getSessionByRunId(runId);
+    if (!session) return;
+
+    // Handle tool events
+    if (stream === "tool") {
+      const phase = data.phase as string | undefined;
+      const name = data.name as string | undefined;
+      const toolCallId = data.toolCallId as string | undefined;
+
+      if (!toolCallId) return;
+
+      if (phase === "start") {
+        // Tool call started
+        await this.connection.sessionUpdate({
+          sessionId: session.sessionId,
+          update: {
+            sessionUpdate: "tool_call",
+            toolCallId,
+            title: name ?? "tool",
+            status: "running",
+          },
+        });
+      } else if (phase === "result") {
+        // Tool call completed
+        const isError = data.isError as boolean | undefined;
+        await this.connection.sessionUpdate({
+          sessionId: session.sessionId,
+          update: {
+            sessionUpdate: "tool_call_update",
+            toolCallId,
+            status: isError ? "error" : "completed",
+          },
+        });
+      }
+    }
   }
 
   private async handleChatEvent(evt: EventFrame): Promise<void> {
