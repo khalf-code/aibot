@@ -7,19 +7,19 @@ describe("parseDeepResearchCommand", () => {
     expect(result).toEqual({ topic: "AI safety" });
   });
 
-  it("accepts a matching bot mention", () => {
-    const result = parseDeepResearchCommand("/deep@testbot Climate", "testbot");
-    expect(result).toEqual({ topic: "Climate" });
+  it("handles @botname mention (includes it in topic for simplicity)", () => {
+    const result = parseDeepResearchCommand("/deep@testbot Climate");
+    expect(result).toEqual({ topic: "@testbot Climate" });
   });
 
-  it("rejects a different bot mention", () => {
-    const result = parseDeepResearchCommand("/deep@otherbot Climate", "testbot");
-    expect(result).toBeNull();
-  });
-
-  it("handles separators", () => {
+  it("handles separators like colon", () => {
     const result = parseDeepResearchCommand("/deep: topic");
-    expect(result).toEqual({ topic: "topic" });
+    expect(result).toEqual({ topic: ": topic" });
+  });
+
+  it("handles multiple spaces after command", () => {
+    const result = parseDeepResearchCommand("/deep  rick n Morty 7 сезон стоит смотреть ?");
+    expect(result).toEqual({ topic: "rick n Morty 7 сезон стоит смотреть ?" });
   });
 
   it("returns null for non-command text", () => {

@@ -81,9 +81,9 @@ describeE2E("Deep Research E2E (dry-run)", () => {
     }, 60000);
 
     it("Step 5: parses result.json", async () => {
-      const parsed = parseDeepResearchCommand(testMessage);
-      expect(parsed).not.toBeNull();
-      const topic = parsed!.topic;
+      const cmd = parseDeepResearchCommand(testMessage);
+      expect(cmd).not.toBeNull();
+      const topic = cmd!.topic;
       const execResult = await executeDeepResearch({
         topic,
         dryRun: true,
@@ -102,9 +102,9 @@ describeE2E("Deep Research E2E (dry-run)", () => {
     }, 60000);
 
     it("Step 6: generates result delivery message", async () => {
-      const parsed = parseDeepResearchCommand(testMessage);
-      expect(parsed).not.toBeNull();
-      const topic = parsed!.topic;
+      const cmd = parseDeepResearchCommand(testMessage);
+      expect(cmd).not.toBeNull();
+      const topic = cmd!.topic;
       const execResult = await executeDeepResearch({
         topic,
         dryRun: true,
