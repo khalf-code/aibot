@@ -76,6 +76,19 @@ function resolveStoredTopic(token: string): string | null {
   return entry.topic;
 }
 
+function truncateToByteLength(input: string, maxBytes: number): string {
+  if (maxBytes <= 0) return "";
+  const buffer = Buffer.from(input, "utf-8");
+  if (buffer.length <= maxBytes) return input;
+  for (let end = maxBytes; end > 0; end -= 1) {
+    const candidate = buffer.subarray(0, end).toString("utf-8");
+    if (Buffer.byteLength(candidate, "utf-8") <= maxBytes) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
 function encodeTopic(topic: string, maxBytes: number): string {
   const rawBytes = Buffer.byteLength(topic, "utf-8");
   if (
@@ -95,8 +108,7 @@ function encodeTopic(topic: string, maxBytes: number): string {
   const ref = storeTopic(topic, maxBytes);
   if (ref) return ref;
 
-  const truncated = topic.slice(0, Math.max(0, maxBytes));
-  return truncated;
+  return truncateToByteLength(topic, maxBytes);
 }
 
 function buildCallbackData(
@@ -198,6 +210,7 @@ export function parseCallbackData(data: string): {
     if (resolved) {
       return { action, topic: resolved, ownerId };
     }
+    return null;
   }
 
   return { action, topic: topicData, ownerId };
