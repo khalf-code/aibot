@@ -55,6 +55,8 @@ export class AcpGwAgent implements Agent {
       idempotencyKey: string;
       resolve: (response: PromptResponse) => void;
       reject: (err: Error) => void;
+      sentTextLength?: number; // Track cumulative text length for delta diffing
+      sentText?: string; // Track actual sent text for duplicate detection
     }
   >();
 
@@ -126,16 +128,33 @@ export class AcpGwAgent implements Agent {
     const { sessionId } = pending;
 
     // Handle streaming text (delta state)
+    // Gateway sends cumulative text, so we track what we've sent and only send the diff
     if (state === "delta" && messageData) {
       const content = messageData.content as Array<{type: string; text?: string}> | undefined;
-      const text = content?.find(c => c.type === "text")?.text;
-      if (text) {
-        this.log(`streaming delta: ${text.slice(0, 50)}`);
+      const fullText = content?.find(c => c.type === "text")?.text ?? "";
+      // Get the actual pending from the map to ensure we're modifying the right object
+      const actualPending = this.pendingPrompts.get(sessionId);
+      const sentSoFar = actualPending?.sentTextLength ?? 0;
+      const sentText = actualPending?.sentText ?? "";
+      
+      if (fullText.length > sentSoFar && actualPending) {
+        const newText = fullText.slice(sentSoFar);
+        
+        // Workaround: Gateway sometimes sends duplicated text (full response appears twice)
+        // Detect if the "new" text is actually a repeat of what we already sent
+        if (sentText.length > 0 && newText.startsWith(sentText.slice(0, Math.min(20, sentText.length)))) {
+          this.log(`skipping duplicate: newText starts with already-sent content`);
+          return;
+        }
+        
+        actualPending.sentTextLength = fullText.length;
+        actualPending.sentText = fullText;
+        this.log(`streaming delta: +${newText.length} chars`);
         await this.connection.sessionUpdate({
           sessionId,
           update: {
             sessionUpdate: "agent_message_chunk",
-            content: { type: "text", text },
+            content: { type: "text", text: newText },
           },
         });
       }
@@ -162,13 +181,13 @@ export class AcpGwAgent implements Agent {
 
   private findPendingBySessionKey(
     sessionKey: string,
-  ): { sessionId: string; resolve: (r: PromptResponse) => void } | undefined {
+  ): { sessionId: string; resolve: (r: PromptResponse) => void; sentTextLength?: number } | undefined {
     this.log(`findPending: looking for sessionKey=${sessionKey}, pendingCount=${this.pendingPrompts.size}`);
     for (const [sessionId, pending] of this.pendingPrompts) {
       const session = getSession(sessionId);
       this.log(`  checking sessionId=${sessionId} -> session.sessionKey=${session?.sessionKey}`);
       if (session?.sessionKey === sessionKey) {
-        return { sessionId, resolve: pending.resolve };
+        return pending;
       }
     }
     return undefined;
