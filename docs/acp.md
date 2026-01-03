@@ -1,6 +1,6 @@
 # acp-gw: Gateway-backed ACP Server
 
-`acp-gw` is a thin ACP (Agent Communication Protocol) server that delegates to a running Clawdis Gateway via WebSocket. Unlike `clawd-acp` which runs the agent in-process, `acp-gw` acts as a protocol translator — it receives ACP requests over stdio and forwards them to the Gateway.
+`acp-gw` is a thin ACP (Agent Communication Protocol) server that delegates to a running Clawdis Gateway via WebSocket. Unlike `clawdis-acp` which runs the agent in-process, `acp-gw` acts as a protocol translator — it receives ACP requests over stdio and forwards them to the Gateway.
 
 ## Usage
 
@@ -103,10 +103,10 @@ Sessions are now persisted to disk by default at `~/.clawdis/acp-gw-sessions.jso
 To customize or disable:
 ```bash
 # Custom path
-clawd-acp-gw --session-store /path/to/sessions.json
+clawdis-acp-gw --session-store /path/to/sessions.json
 
 # Disable persistence (in-memory only)
-clawd-acp-gw --no-session-store
+clawdis-acp-gw --no-session-store
 ```
 
 ## Debugging
@@ -159,7 +159,7 @@ src/acp-gw/
 ## CLI Options
 
 ```
-Usage: clawd-acp-gw [options]
+Usage: clawdis-acp-gw [options]
 
 Options:
   --gateway-url <url>      Gateway WebSocket URL (default: ws://127.0.0.1:18789)

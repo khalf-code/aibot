@@ -6,7 +6,7 @@
  * delegates all agent work to a running Clawdis Gateway via WebSocket.
  *
  * Usage:
- *   clawd-acp [--gateway-url <url>] [--gateway-token <token>] [--verbose]
+ *   clawdis-acp [--gateway-url <url>] [--gateway-token <token>] [--verbose]
  */
 
 import { Readable, Writable } from "node:stream";
@@ -158,7 +158,7 @@ function parseArgs(args: string[]): AcpGwOptions {
       // Ignored for compatibility (cwd comes from session/new)
       i++;
     } else if (arg === "--help" || arg === "-h") {
-      console.log(`Usage: clawd-acp [options]
+      console.log(`Usage: clawdis-acp [options]
 
 Gateway-backed ACP server for IDE integration.
 
@@ -172,10 +172,10 @@ Options:
   --help, -h               Show this help message
 
 Examples:
-  clawd-acp
-  clawd-acp --gateway-url wss://remote:18789 --gateway-token secret
-  clawd-acp --verbose
-  clawd-acp --no-session-store
+  clawdis-acp
+  clawdis-acp --gateway-url wss://remote:18789 --gateway-token secret
+  clawdis-acp --verbose
+  clawdis-acp --no-session-store
 `);
       process.exit(0);
     }
