@@ -6,7 +6,70 @@ import { runCommandWithTimeout } from "../process/exec.js";
 import { resolveUserPath } from "../utils.js";
 import { normalizeServePath } from "./gmail.js";
 
+function findExecutableOnPath(bin: string): string | undefined {
+  const pathEnv = process.env.PATH ?? "";
+  const parts = pathEnv.split(path.delimiter).filter(Boolean);
+  for (const part of parts) {
+    const candidate = path.join(part, bin);
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      // keep scanning
+    }
+  }
+  return undefined;
+}
+
+function ensurePathIncludes(dirPath: string, position: "append" | "prepend") {
+  const pathEnv = process.env.PATH ?? "";
+  const parts = pathEnv.split(path.delimiter).filter(Boolean);
+  if (parts.includes(dirPath)) return;
+  const next =
+    position === "prepend" ? [dirPath, ...parts] : [...parts, dirPath];
+  process.env.PATH = next.join(path.delimiter);
+}
+
+function ensureGcloudOnPath(): boolean {
+  if (hasBinary("gcloud")) return true;
+  const candidates = [
+    "/opt/homebrew/share/google-cloud-sdk/bin/gcloud",
+    "/usr/local/share/google-cloud-sdk/bin/gcloud",
+    "/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin/gcloud",
+    "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin/gcloud",
+  ];
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      ensurePathIncludes(path.dirname(candidate), "append");
+      return true;
+    } catch {
+      // keep scanning
+    }
+  }
+  return false;
+}
+
+function gcloudEnv(): NodeJS.ProcessEnv | undefined {
+  if (process.env.CLOUDSDK_PYTHON) return undefined;
+  const pythonPath =
+    findExecutableOnPath("python3") ?? findExecutableOnPath("python");
+  if (!pythonPath) return undefined;
+  return { CLOUDSDK_PYTHON: pythonPath };
+}
+
+async function runGcloudCommand(
+  args: string[],
+  timeoutMs: number,
+): Promise<Awaited<ReturnType<typeof runCommandWithTimeout>>> {
+  return await runCommandWithTimeout(["gcloud", ...args], {
+    timeoutMs,
+    env: gcloudEnv(),
+  });
+}
+
 export async function ensureDependency(bin: string, brewArgs: string[]) {
+  if (bin === "gcloud" && ensureGcloudOnPath()) return;
   if (hasBinary(bin)) return;
   if (process.platform !== "darwin") {
     throw new Error(`${bin} not installed; install it and retry`);
@@ -14,8 +77,10 @@ export async function ensureDependency(bin: string, brewArgs: string[]) {
   if (!hasBinary("brew")) {
     throw new Error("Homebrew not installed (install brew and retry)");
   }
+  const brewEnv = bin === "gcloud" ? gcloudEnv() : undefined;
   const result = await runCommandWithTimeout(["brew", "install", ...brewArgs], {
     timeoutMs: 600_000,
+    env: brewEnv,
   });
   if (result.code !== 0) {
     throw new Error(
@@ -28,31 +93,19 @@ export async function ensureDependency(bin: string, brewArgs: string[]) {
 }
 
 export async function ensureGcloudAuth() {
-  const res = await runCommandWithTimeout(
-    [
-      "gcloud",
-      "auth",
-      "list",
-      "--filter",
-      "status:ACTIVE",
-      "--format",
-      "value(account)",
-    ],
-    { timeoutMs: 30_000 },
+  const res = await runGcloudCommand(
+    ["auth", "list", "--filter", "status:ACTIVE", "--format", "value(account)"],
+    30_000,
   );
   if (res.code === 0 && res.stdout.trim()) return;
-  const login = await runCommandWithTimeout(["gcloud", "auth", "login"], {
-    timeoutMs: 600_000,
-  });
+  const login = await runGcloudCommand(["auth", "login"], 600_000);
   if (login.code !== 0) {
     throw new Error(login.stderr || "gcloud auth login failed");
   }
 }
 
 export async function runGcloud(args: string[]) {
-  const result = await runCommandWithTimeout(["gcloud", ...args], {
-    timeoutMs: 120_000,
-  });
+  const result = await runGcloudCommand(args, 120_000);
   if (result.code !== 0) {
     throw new Error(result.stderr || result.stdout || "gcloud command failed");
   }
@@ -60,17 +113,9 @@ export async function runGcloud(args: string[]) {
 }
 
 export async function ensureTopic(projectId: string, topicName: string) {
-  const describe = await runCommandWithTimeout(
-    [
-      "gcloud",
-      "pubsub",
-      "topics",
-      "describe",
-      topicName,
-      "--project",
-      projectId,
-    ],
-    { timeoutMs: 30_000 },
+  const describe = await runGcloudCommand(
+    ["pubsub", "topics", "describe", topicName, "--project", projectId],
+    30_000,
   );
   if (describe.code === 0) return;
   await runGcloud([
@@ -89,17 +134,9 @@ export async function ensureSubscription(
   topicName: string,
   pushEndpoint: string,
 ) {
-  const describe = await runCommandWithTimeout(
-    [
-      "gcloud",
-      "pubsub",
-      "subscriptions",
-      "describe",
-      subscription,
-      "--project",
-      projectId,
-    ],
-    { timeoutMs: 30_000 },
+  const describe = await runGcloudCommand(
+    ["pubsub", "subscriptions", "describe", subscription, "--project", projectId],
+    30_000,
   );
   if (describe.code === 0) {
     await runGcloud([
@@ -188,9 +225,8 @@ export async function resolveProjectIdFromGogCredentials(): Promise<
       const clientId = extractGogClientId(parsed);
       const projectNumber = extractProjectNumber(clientId);
       if (!projectNumber) continue;
-      const res = await runCommandWithTimeout(
+      const res = await runGcloudCommand(
         [
-          "gcloud",
           "projects",
           "list",
           "--filter",
@@ -198,7 +234,7 @@ export async function resolveProjectIdFromGogCredentials(): Promise<
           "--format",
           "value(projectId)",
         ],
-        { timeoutMs: 30_000 },
+        30_000,
       );
       if (res.code !== 0) continue;
       const projectId = res.stdout.trim().split(/\s+/)[0];
