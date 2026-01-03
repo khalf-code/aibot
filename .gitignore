@@ -92,11 +92,16 @@ ecosystem.config.cjs
 # Transcription cache
 .transcriptions/
 
+# Python virtual environments
+.venv/
+venv/
+
 # Temporary directories
 temp_/
 
 # Test fixtures (local test data)
 tests/fixtures/
+test/fixtures/
 
 # Project analysis working files (generated)
 docs/project_gathering/
