@@ -101,6 +101,12 @@ describe("deep-research button callbacks", () => {
     expect(parsed?.topic).toBe(`uabc:${topic}`);
   });
 
+  it("returns null when stored topic reference is missing", () => {
+    const data = `${CALLBACK_PREFIX}${CallbackActions.EXECUTE}:ref:missing-token`;
+
+    expect(parseCallbackData(data)).toBeNull();
+  });
+
   it("returns null for unrelated callback data", () => {
     expect(parseCallbackData("other:payload")).toBeNull();
   });
