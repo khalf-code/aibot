@@ -8,7 +8,7 @@ import {
   type GatewayWsLogStyle,
   setGatewayWsLogStyle,
 } from "../gateway/ws-logging.js";
-import { setVerbose } from "../globals.js";
+import { setTraceSessions, setVerbose } from "../globals.js";
 import { GatewayLockError } from "../infra/gateway-lock.js";
 import { createSubsystemLogger } from "../logging.js";
 import { defaultRuntime } from "../runtime.js";
@@ -306,6 +306,11 @@ export function registerGatewayCli(program: Command) {
     )
     .option("--verbose", "Verbose logging to stdout/stderr", false)
     .option(
+      "--trace-sessions",
+      "Trace session routing (lanes, ACP session IDs)",
+      false,
+    )
+    .option(
       "--ws-log <style>",
       'WebSocket log style ("auto"|"full"|"compact")',
       "auto",
@@ -313,6 +318,7 @@ export function registerGatewayCli(program: Command) {
     .option("--compact", 'Alias for "--ws-log compact"', false)
     .action(async (opts) => {
       setVerbose(Boolean(opts.verbose));
+      setTraceSessions(Boolean(opts.traceSessions));
       const wsLogRaw = (opts.compact ? "compact" : opts.wsLog) as
         | string
         | undefined;

@@ -7,7 +7,8 @@
   "bin": {
     "clawdis": "dist/index.js",
     "clawd-acp": "dist/acp/server.js",
-    "clawd-acp-client": "dist/acp-client/client.js"
+    "clawd-acp-client": "dist/acp-client/client.js",
+    "clawd-acp-gw": "dist/acp-gw/server.js"
   },
   "files": [
     "dist/agents/**",

@@ -103,10 +103,23 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
 
   client.on(Events.MessageCreate, async (message) => {
     try {
+      const isDirectMessage = !message.guild;
+      logger.info(
+        {
+          isDM: isDirectMessage,
+          authorId: message.author?.id,
+          authorTag: message.author?.tag,
+          authorBot: message.author?.bot,
+          channelId: message.channelId,
+          content: message.content?.slice(0, 50),
+          guildId: message.guild?.id,
+        },
+        "discord: MessageCreate received"
+      );
+
       if (message.author?.bot) return;
       if (!message.author) return;
 
-      const isDirectMessage = !message.guild;
       const botId = client.user?.id;
       const wasMentioned =
         !isDirectMessage && Boolean(botId && message.mentions.has(botId));
@@ -179,6 +192,15 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
           allowed.includes("*") ||
           normalized.has(candidate) ||
           allowed.includes(candidate);
+        logger.info(
+          {
+            candidate,
+            allowed,
+            normalizedIds: [...normalized],
+            permitted,
+          },
+          "discord: DM allowFrom check"
+        );
         if (!permitted) {
           logVerbose(
             `Blocked unauthorized discord sender ${candidate} (not in allowFrom)`,

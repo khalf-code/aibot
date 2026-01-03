@@ -74,7 +74,7 @@ import {
   sendMessageDiscord,
 } from "../discord/index.js";
 import { type DiscordProbe, probeDiscord } from "../discord/probe.js";
-import { isVerbose } from "../globals.js";
+import { isTraceSessions, isVerbose } from "../globals.js";
 import {
   monitorIMessageProvider,
   sendMessageIMessage,
@@ -1823,6 +1823,9 @@ export async function startGatewayServer(
     sessionId: string,
     entry: { sessionKey: string; clientRunId: string },
   ) => {
+    if (isTraceSessions()) {
+      console.log(`[gateway] addChatRun: sessionId=${sessionId} sessionKey=${entry.sessionKey} clientRunId=${entry.clientRunId}`);
+    }
     const queue = chatRunSessions.get(sessionId);
     if (queue) {
       queue.push(entry);
@@ -1830,8 +1833,13 @@ export async function startGatewayServer(
       chatRunSessions.set(sessionId, [entry]);
     }
   };
-  const peekChatRun = (sessionId: string) =>
-    chatRunSessions.get(sessionId)?.[0];
+  const peekChatRun = (sessionId: string) => {
+    const result = chatRunSessions.get(sessionId)?.[0];
+    if (!result && isTraceSessions()) {
+      console.log(`[gateway] peekChatRun: miss for sessionId=${sessionId}, keys=${[...chatRunSessions.keys()].join(",")}`);
+    }
+    return result;
+  };
   const shiftChatRun = (sessionId: string) => {
     const queue = chatRunSessions.get(sessionId);
     if (!queue || queue.length === 0) return undefined;

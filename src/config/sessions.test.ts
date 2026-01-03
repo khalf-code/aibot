@@ -61,6 +61,50 @@ describe("sessions", () => {
     ).toBe("group:12345-678@g.us");
   });
 
+  it("keeps acp sessions distinct", () => {
+    expect(
+      deriveSessionKey("per-sender", { From: "acp:12345-678-90ab-cdef" }),
+    ).toBe("acp:12345-678-90ab-cdef");
+  });
+
+  it("leaves acp sessions untouched even with main key", () => {
+    expect(
+      resolveSessionKey(
+        "per-sender",
+        { From: "acp:12345-678-90ab-cdef" },
+        "main",
+      ),
+    ).toBe("acp:12345-678-90ab-cdef");
+  });
+
+  it("keeps signal sessions distinct", () => {
+    expect(deriveSessionKey("per-sender", { From: "signal:+1555" })).toBe(
+      "signal:+1555",
+    );
+  });
+
+  it("leaves signal sessions untouched even with main key", () => {
+    expect(
+      resolveSessionKey("per-sender", { From: "signal:+1555" }, "main"),
+    ).toBe("signal:+1555");
+  });
+
+  it("keeps imessage sessions distinct", () => {
+    expect(
+      deriveSessionKey("per-sender", { From: "imessage:user@example.com" }),
+    ).toBe("imessage:user@example.com");
+  });
+
+  it("leaves imessage sessions untouched even with main key", () => {
+    expect(
+      resolveSessionKey(
+        "per-sender",
+        { From: "imessage:user@example.com" },
+        "main",
+      ),
+    ).toBe("imessage:user@example.com");
+  });
+
   it("updateLastRoute persists channel and target", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawdis-sessions-"));
     const storePath = path.join(dir, "sessions.json");

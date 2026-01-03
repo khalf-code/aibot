@@ -165,12 +165,23 @@ export function deriveSessionKey(scope: SessionScope, ctx: MsgContext) {
   if (typeof ctx.From === "string" && ctx.From.startsWith("group:")) {
     return ctx.From;
   }
+  // For per-sender scope with surface-specific identifiers (signal:, imessage:, acp:),
+  // keep the full identifier to ensure each surface gets its own session bucket.
+  // This prevents conversation history cross-contamination between different surfaces.
+  if (
+    typeof ctx.From === "string" &&
+    (ctx.From.startsWith("signal:") ||
+      ctx.From.startsWith("imessage:") ||
+      ctx.From.startsWith("acp:"))
+  ) {
+    return ctx.From;
+  }
   return from || "unknown";
 }
 
 /**
  * Resolve the session key with a canonical direct-chat bucket (default: "main").
- * All non-group direct chats collapse to this bucket; groups stay isolated.
+ * All non-group direct chats collapse to this bucket; groups and surface-specific sessions stay isolated.
  */
 export function resolveSessionKey(
   scope: SessionScope,
@@ -179,9 +190,13 @@ export function resolveSessionKey(
 ) {
   const raw = deriveSessionKey(scope, ctx);
   if (scope === "global") return raw;
-  // Default to a single shared direct-chat session called "main"; groups stay isolated.
+  // Default to a single shared direct-chat session called "main"; groups and surface-specific sessions stay isolated.
   const canonical = (mainKey ?? "main").trim() || "main";
   const isGroup = raw.startsWith("group:") || raw.includes("@g.us");
-  if (!isGroup) return canonical;
+  const isSurfaceSpecific =
+    raw.startsWith("acp:") ||
+    raw.startsWith("signal:") ||
+    raw.startsWith("imessage:");
+  if (!isGroup && !isSurfaceSpecific) return canonical;
   return raw;
 }

@@ -3,6 +3,7 @@ import { getLogger } from "./logging.js";
 
 let globalVerbose = false;
 let globalYes = false;
+let globalTraceSessions = false;
 
 export function setVerbose(v: boolean) {
   globalVerbose = v;
@@ -10,6 +11,14 @@ export function setVerbose(v: boolean) {
 
 export function isVerbose() {
   return globalVerbose;
+}
+
+export function setTraceSessions(v: boolean) {
+  globalTraceSessions = v;
+}
+
+export function isTraceSessions() {
+  return globalTraceSessions;
 }
 
 export function logVerbose(message: string) {

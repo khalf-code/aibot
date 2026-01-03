@@ -40,6 +40,7 @@ import {
   emitAgentEvent,
   registerAgentRunContext,
 } from "../infra/agent-events.js";
+import { isTraceSessions } from "../globals.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { resolveTelegramToken } from "../telegram/token.js";
 import { normalizeE164 } from "../utils.js";
@@ -143,6 +144,9 @@ export async function agentCommand(
   runtime: RuntimeEnv = defaultRuntime,
   deps: CliDeps = createDefaultDeps(),
 ) {
+  if (isTraceSessions()) {
+    console.log(`[agentCommand] called with sessionId=${opts.sessionId}`);
+  }
   const body = (opts.message ?? "").trim();
   if (!body) throw new Error("Message (--message) is required");
   if (!opts.to && !opts.sessionId) {
@@ -205,6 +209,9 @@ export async function agentCommand(
     persistedThinking,
     persistedVerbose,
   } = sessionResolution;
+  if (isTraceSessions()) {
+    console.log(`[agentCommand] resolved sessionId=${sessionId} (input was ${opts.sessionId})`);
+  }
   let sessionEntry = resolvedSessionEntry;
 
   if (sessionKey) {
@@ -329,6 +336,11 @@ export async function agentCommand(
 
   let result: Awaited<ReturnType<typeof runEmbeddedPiAgent>>;
   try {
+    // Use sessionKey as lane to allow ACP sessions to run in parallel with main
+    const lane = sessionKey?.startsWith("acp:") ? sessionKey : undefined;
+    if (isTraceSessions()) {
+      console.log(`[agentCommand] calling runEmbeddedPiAgent for sessionId=${sessionId} lane=${lane}`);
+    }
     result = await runEmbeddedPiAgent({
       sessionId,
       sessionKey,
@@ -343,6 +355,7 @@ export async function agentCommand(
       verboseLevel: resolvedVerboseLevel,
       timeoutMs,
       runId: sessionId,
+      lane,
       abortSignal: opts.abortSignal,
       onAgentEvent: (evt) => {
         emitAgentEvent({

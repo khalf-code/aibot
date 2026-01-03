@@ -42,6 +42,7 @@ import {
   sanitizeSessionMessagesImages,
 } from "./pi-embedded-helpers.js";
 import { subscribeEmbeddedPiSession } from "./pi-embedded-subscribe.js";
+import { isTraceSessions } from "../globals.js";
 import { extractAssistantText } from "./pi-embedded-utils.js";
 import { createClawdisCodingTools } from "./pi-tools.js";
 import {
@@ -347,8 +348,14 @@ export async function runEmbeddedPiAgent(params: {
   const enqueueGlobal =
     params.enqueue ??
     ((task, opts) => enqueueCommandInLane(globalLane, task, opts));
+  if (isTraceSessions()) {
+    console.log(`[pi-embedded] enqueueing sessionId=${params.sessionId} sessionLane=${sessionLane} globalLane=${globalLane}`);
+  }
   return enqueueCommandInLane(sessionLane, () =>
     enqueueGlobal(async () => {
+      if (isTraceSessions()) {
+        console.log(`[pi-embedded] starting agent for sessionId=${params.sessionId}`);
+      }
       const started = Date.now();
       const resolvedWorkspace = resolveUserPath(params.workspaceDir);
       const prevCwd = process.cwd();
