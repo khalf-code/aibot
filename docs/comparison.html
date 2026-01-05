@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Comparison: /deep vs web-search</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #7c3aed;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: var(--bg);
+            margin: 0;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: #0f172a;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: #64748b;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        .card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            border: 1px solid var(--border);
+        }
+        .card h2 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary);
+        }
+        .card.secondary h2 {
+            color: var(--secondary);
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-purple { background: #f3e8ff; color: #6b21a8; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            margin-top: 2rem;
+        }
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+        }
+        tr:last-child td { border-bottom: none; }
+        .feature-name { font-weight: 600; width: 25%; }
+        
+        .flow-box {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+        .icon { font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Technical Pipeline Comparison</h1>
+            <p class="subtitle">Deep Research Agentic API vs. Web-Search CLI Skill</p>
+        </header>
+
+        <div class="grid">
+            <!-- Slash Command Column -->
+            <div class="card">
+                <span class="badge badge-blue">Official Agentic Flow</span>
+                <h2><span class="icon">🤖</span> /deep Slash Command</h2>
+                <p>The premium, autonomous research pipeline powered by Google's specialized agentic models. Designed for complex, multi-step investigations with formal reporting.</p>
+                <div class="flow-box">
+                    Gateway → src/deep-research → gdr.sh → Python -m gdr → Gemini Interactions API (v1beta)
+                </div>
+                <ul>
+                    <li>Uses <strong>deep-research-pro-preview-12-2025</strong></li>
+                    <li>Asynchronous "Interactions" execution</li>
+                    <li>Supports polling and real-time status updates</li>
+                    <li>Native planning and self-correction</li>
+                </ul>
+            </div>
+
+            <!-- CLI Skill Column -->
+            <div class="card secondary">
+                <span class="badge badge-purple">Lightweight Skill</span>
+                <h2><span class="icon">🔍</span> web-search Skill</h2>
+                <p>A fast, high-performance research utility leveraging prompt engineering and standard tool-calling. Optimized for rapid multi-perspective summaries in Russian.</p>
+                <div class="flow-box">
+                    CLI/Skill → web_search_with_gemini.sh → prompts/web-search-tail.yaml → Gemini CLI → Standard Tool API
+                </div>
+                <ul>
+                    <li>Uses <strong>gemini-3-flash-preview</strong></li>
+                    <li>Synchronous request-response flow</li>
+                    <li><strong>Ultrathink</strong> prompt-injected reasoning</li>
+                    <li>Strict Russian language localization</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>Detailed Feature Breakdown</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>/deep (Agentic)</th>
+                    <th>web-search (Skill)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="feature-name">Core Engine</td>
+                    <td>Agentic Model (GDR Pro)</td>
+                    <td>Flash Model + Ultrathink Prompt</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">API Endpoint</td>
+                    <td><code>/v1beta/interactions</code></td>
+                    <td>Standard Completions + Search Tool</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Execution Time</td>
+                    <td>5 - 20 Minutes (Deep Dive)</td>
+                    <td>15 - 45 Seconds (Rapid)</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Complexity</td>
+                    <td>Multi-step autonomous planning</td>
+                    <td>Single-pass tool augmented synthesis</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Output Style</td>
+                    <td>Formal PDF-ready Reports</td>
+                    <td>Interactive Russian summaries with Emojis</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Cost Tier</td>
+                    <td>Paid / Invoice (Pro Agent)</td>
+                    <td>Standard / Usage-based</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Reasoning Mode</td>
+                    <td>Native Agentic Reasoning</td>
+                    <td>Collective Multi-Perspective Consulting</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <footer style="margin-top: 4rem; text-align: center; color: #64748b;">
+            <p>Generated for Clawdis Project Engineering Audit &bull; Jan 5, 2026</p>
+        </footer>
+    </div>
+</body>
+</html>
