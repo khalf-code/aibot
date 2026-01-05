@@ -4,6 +4,8 @@ export type GetReplyOptions = {
   onPartialReply?: (payload: ReplyPayload) => Promise<void> | void;
   onBlockReply?: (payload: ReplyPayload) => Promise<void> | void;
   onToolResult?: (payload: ReplyPayload) => Promise<void> | void;
+  /** If provided, only load these skills for this session (for per-channel skill filtering) */
+  skillFilter?: string[];
 };
 
 export type ReplyPayload = {

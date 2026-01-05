@@ -495,8 +495,8 @@ export async function getReplyFromConfig(
   const isFirstTurnInSession = isNewSession || !systemSent;
   const isGroupChat = sessionCtx.ChatType === "group";
   const wasMentioned = ctx.WasMentioned === true;
-  const isHeartbeat = opts?.isHeartbeat === true;
-  const shouldEagerType = (!isGroupChat || wasMentioned) && !isHeartbeat;
+  // Always type eagerly if we're processing the message (requireMention already filtered upstream)
+  const shouldEagerType = true;
   const shouldInjectGroupIntro = Boolean(
     isGroupChat &&
       (isFirstTurnInSession || sessionEntry?.groupActivationNeedsSystemIntro),
@@ -562,6 +562,7 @@ export async function getReplyFromConfig(
     isFirstTurnInSession,
     workspaceDir,
     cfg,
+    skillFilter: opts?.skillFilter,
   });
   sessionEntry = skillResult.sessionEntry ?? sessionEntry;
   systemSent = skillResult.systemSent;

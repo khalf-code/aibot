@@ -10,6 +10,7 @@ type TelegramSendOpts = {
   mediaUrl?: string;
   maxBytes?: number;
   api?: Bot["api"];
+  topicId?: number;
 };
 
 type TelegramSendResult = {
@@ -30,14 +31,40 @@ function resolveToken(explicit?: string): string {
   return token.trim();
 }
 
-function normalizeChatId(to: string): string {
+type TelegramTarget = {
+  chatId: string;
+  topicId?: number;
+};
+
+export function parseTelegramTarget(
+  to: string,
+  explicitTopicId?: number,
+): TelegramTarget {
   const trimmed = to.trim();
   if (!trimmed) throw new Error("Recipient is required for Telegram sends");
 
   // Common internal prefixes that sometimes leak into outbound sends.
   // - ctx.To uses `telegram:<id>`
   // - group sessions often use `telegram:group:<id>`
-  let normalized = trimmed.replace(/^(telegram|tg|group):/i, "").trim();
+  let normalized = trimmed;
+  let changed = true;
+  while (changed) {
+    const next = normalized.replace(/^(telegram|tg|group|channel):/i, "").trim();
+    if (next === normalized) {
+      changed = false;
+    } else {
+      normalized = next;
+    }
+  }
+
+  let topicId = explicitTopicId;
+  const topicMatch = normalized.match(/^(-?\d+):(\d+)$/);
+  if (topicMatch) {
+    normalized = topicMatch[1];
+    if (topicId === undefined) {
+      topicId = Number.parseInt(topicMatch[2], 10);
+    }
+  }
 
   // Accept t.me links for public chats/channels.
   // (Invite links like `t.me/+...` are not resolvable via Bot API.)
@@ -47,13 +74,15 @@ function normalizeChatId(to: string): string {
   if (m?.[1]) normalized = `@${m[1]}`;
 
   if (!normalized) throw new Error("Recipient is required for Telegram sends");
-  if (normalized.startsWith("@")) return normalized;
-  if (/^-?\d+$/.test(normalized)) return normalized;
+  if (normalized.startsWith("@")) return { chatId: normalized, topicId };
+  if (/^-?\d+$/.test(normalized)) return { chatId: normalized, topicId };
 
   // If the user passed a username without `@`, assume they meant a public chat/channel.
-  if (/^[A-Za-z0-9_]{5,}$/i.test(normalized)) return `@${normalized}`;
+  if (/^[A-Za-z0-9_]{5,}$/i.test(normalized)) {
+    return { chatId: `@${normalized}`, topicId };
+  }
 
-  return normalized;
+  return { chatId: normalized, topicId };
 }
 
 export async function sendMessageTelegram(
@@ -62,7 +91,7 @@ export async function sendMessageTelegram(
   opts: TelegramSendOpts = {},
 ): Promise<TelegramSendResult> {
   const token = resolveToken(opts.token);
-  const chatId = normalizeChatId(to);
+  const { chatId, topicId } = parseTelegramTarget(to, opts.topicId);
   const bot = opts.api ? null : new Bot(token);
   const api = opts.api ?? bot?.api;
   const mediaUrl = opts.mediaUrl?.trim();
@@ -107,6 +136,8 @@ export async function sendMessageTelegram(
     );
   };
 
+  const threadOpts = topicId ? { message_thread_id: topicId } : {};
+
   if (mediaUrl) {
     const media = await loadWebMedia(mediaUrl, opts.maxBytes);
     const kind = mediaKindFromMime(media.contentType ?? undefined);
@@ -122,28 +153,28 @@ export async function sendMessageTelegram(
       | Awaited<ReturnType<typeof api.sendDocument>>;
     if (kind === "image") {
       result = await sendWithRetry(
-        () => api.sendPhoto(chatId, file, { caption }),
+        () => api.sendPhoto(chatId, file, { caption, ...threadOpts }),
         "photo",
       ).catch((err) => {
         throw wrapChatNotFound(err);
       });
     } else if (kind === "video") {
       result = await sendWithRetry(
-        () => api.sendVideo(chatId, file, { caption }),
+        () => api.sendVideo(chatId, file, { caption, ...threadOpts }),
         "video",
       ).catch((err) => {
         throw wrapChatNotFound(err);
       });
     } else if (kind === "audio") {
       result = await sendWithRetry(
-        () => api.sendAudio(chatId, file, { caption }),
+        () => api.sendAudio(chatId, file, { caption, ...threadOpts }),
         "audio",
       ).catch((err) => {
         throw wrapChatNotFound(err);
       });
     } else {
       result = await sendWithRetry(
-        () => api.sendDocument(chatId, file, { caption }),
+        () => api.sendDocument(chatId, file, { caption, ...threadOpts }),
         "document",
       ).catch((err) => {
         throw wrapChatNotFound(err);
@@ -157,7 +188,7 @@ export async function sendMessageTelegram(
     throw new Error("Message must be non-empty for Telegram sends");
   }
   const res = await sendWithRetry(
-    () => api.sendMessage(chatId, text, { parse_mode: "Markdown" }),
+    () => api.sendMessage(chatId, text, { parse_mode: "Markdown", ...threadOpts }),
     "message",
   ).catch(async (err) => {
     // Telegram rejects malformed Markdown (e.g., unbalanced '_' or '*').
@@ -170,7 +201,7 @@ export async function sendMessageTelegram(
         );
       }
       return await sendWithRetry(
-        () => api.sendMessage(chatId, text),
+        () => api.sendMessage(chatId, text, threadOpts),
         "message-plain",
       ).catch((err2) => {
         throw wrapChatNotFound(err2);

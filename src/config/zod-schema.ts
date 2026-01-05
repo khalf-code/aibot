@@ -579,6 +579,17 @@ export const ClawdbotSchema = z.object({
           z
             .object({
               requireMention: z.boolean().optional(),
+              skills: z.array(z.string()).optional(),
+              topics: z
+                .record(
+                  z.string(),
+                  z
+                    .object({
+                      skills: z.array(z.string()).optional(),
+                    })
+                    .optional(),
+                )
+                .optional(),
             })
             .optional(),
         )
@@ -653,6 +664,7 @@ export const ClawdbotSchema = z.object({
                     .object({
                       allow: z.boolean().optional(),
                       requireMention: z.boolean().optional(),
+                      skills: z.array(z.string()).optional(),
                     })
                     .optional(),
                 )

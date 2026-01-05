@@ -52,6 +52,26 @@ describe("sendMessageTelegram", () => {
     });
   });
 
+  it("handles group prefixes and topic ids", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({
+      message_id: 2,
+      chat: { id: "-100123" },
+    });
+    const api = { sendMessage } as unknown as {
+      sendMessage: typeof sendMessage;
+    };
+
+    await sendMessageTelegram("telegram:group:-100123:456", "hi", {
+      token: "tok",
+      api,
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith("-100123", "hi", {
+      parse_mode: "Markdown",
+      message_thread_id: 456,
+    });
+  });
+
   it("wraps chat-not-found with actionable context", async () => {
     const chatId = "123";
     const err = new Error("400: Bad Request: chat not found");

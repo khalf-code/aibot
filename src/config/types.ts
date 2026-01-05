@@ -188,6 +188,19 @@ export type HooksConfig = {
   gmail?: HooksGmailConfig;
 };
 
+export type TelegramTopicConfig = {
+  /** If specified, only load these skills for this topic. Omit or empty = all skills. */
+  skills?: string[];
+};
+
+export type TelegramGroupConfig = {
+  requireMention?: boolean;
+  /** If specified, only load these skills for this group (when no topic). Omit = all skills. */
+  skills?: string[];
+  /** Per-topic configuration (key is message_thread_id as string) */
+  topics?: Record<string, TelegramTopicConfig>;
+};
+
 export type TelegramConfig = {
   /** If false, do not start the Telegram provider. Default: true. */
   enabled?: boolean;
@@ -196,12 +209,7 @@ export type TelegramConfig = {
   tokenFile?: string;
   /** Control reply threading when reply tags are present (off|first|all). */
   replyToMode?: ReplyToMode;
-  groups?: Record<
-    string,
-    {
-      requireMention?: boolean;
-    }
-  >;
+  groups?: Record<string, TelegramGroupConfig>;
   allowFrom?: Array<string | number>;
   /** Outbound text chunk size (chars). Default: 4000. */
   textChunkLimit?: number;
@@ -226,6 +234,8 @@ export type DiscordDmConfig = {
 export type DiscordGuildChannelConfig = {
   allow?: boolean;
   requireMention?: boolean;
+  /** If specified, only load these skills for this channel. Omit or empty = all skills. */
+  skills?: string[];
 };
 
 export type DiscordReactionNotificationMode =

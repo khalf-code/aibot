@@ -30,6 +30,7 @@ import {
   saveSessionStore,
 } from "../config/sessions.js";
 import { registerAgentRunContext } from "../infra/agent-events.js";
+import { parseTelegramTarget } from "../telegram/send.js";
 import { resolveTelegramToken } from "../telegram/token.js";
 import { normalizeE164 } from "../utils.js";
 import type { CronJob } from "./types.js";
@@ -392,7 +393,8 @@ export async function runCronIsolatedAgentTurn(params: {
           summary: "Delivery skipped (no Telegram chatId).",
         };
       }
-      const chatId = resolvedDelivery.to;
+      // Support topic IDs via "chatId:topicId" (and strip telegram/group prefixes).
+      const { chatId, topicId } = parseTelegramTarget(resolvedDelivery.to);
       const textLimit = resolveTextChunkLimit(params.cfg, "telegram");
       try {
         for (const payload of payloads) {
@@ -403,6 +405,7 @@ export async function runCronIsolatedAgentTurn(params: {
               await params.deps.sendMessageTelegram(chatId, chunk, {
                 verbose: false,
                 token: telegramToken || undefined,
+                topicId,
               });
             }
           } else {
@@ -414,6 +417,7 @@ export async function runCronIsolatedAgentTurn(params: {
                 verbose: false,
                 mediaUrl: url,
                 token: telegramToken || undefined,
+                topicId,
               });
             }
           }

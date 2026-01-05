@@ -382,8 +382,16 @@ function shouldIncludeSkill(params: {
 function filterSkillEntries(
   entries: SkillEntry[],
   config?: ClawdbotConfig,
+  skillFilter?: string[],
 ): SkillEntry[] {
-  return entries.filter((entry) => shouldIncludeSkill({ entry, config }));
+  let filtered = entries.filter((entry) => shouldIncludeSkill({ entry, config }));
+  // If skillFilter is provided and non-empty, only include skills in the filter list
+  if (skillFilter && skillFilter.length > 0) {
+    console.log(`[skills] Applying skill filter: ${skillFilter.join(", ")}`);
+    filtered = filtered.filter((entry) => skillFilter.includes(entry.skill.name));
+    console.log(`[skills] After filter: ${filtered.map(e => e.skill.name).join(", ")}`);
+  }
+  return filtered;
 }
 
 export function applySkillEnvOverrides(params: {
@@ -548,10 +556,12 @@ export function buildWorkspaceSkillSnapshot(
     managedSkillsDir?: string;
     bundledSkillsDir?: string;
     entries?: SkillEntry[];
+    /** If provided, only include skills with these names */
+    skillFilter?: string[];
   },
 ): SkillSnapshot {
   const skillEntries = opts?.entries ?? loadSkillEntries(workspaceDir, opts);
-  const eligible = filterSkillEntries(skillEntries, opts?.config);
+  const eligible = filterSkillEntries(skillEntries, opts?.config, opts?.skillFilter);
   const resolvedSkills = eligible.map((entry) => entry.skill);
   return {
     prompt: formatSkillsForPrompt(resolvedSkills),
@@ -570,10 +580,12 @@ export function buildWorkspaceSkillsPrompt(
     managedSkillsDir?: string;
     bundledSkillsDir?: string;
     entries?: SkillEntry[];
+    /** If provided, only include skills with these names */
+    skillFilter?: string[];
   },
 ): string {
   const skillEntries = opts?.entries ?? loadSkillEntries(workspaceDir, opts);
-  const eligible = filterSkillEntries(skillEntries, opts?.config);
+  const eligible = filterSkillEntries(skillEntries, opts?.config, opts?.skillFilter);
   return formatSkillsForPrompt(eligible.map((entry) => entry.skill));
 }
 

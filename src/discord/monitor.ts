@@ -74,12 +74,13 @@ export type DiscordGuildEntryResolved = {
   requireMention?: boolean;
   reactionNotifications?: "off" | "own" | "all" | "allowlist";
   users?: Array<string | number>;
-  channels?: Record<string, { allow?: boolean; requireMention?: boolean }>;
+  channels?: Record<string, { allow?: boolean; requireMention?: boolean; skills?: string[] }>;
 };
 
 export type DiscordChannelConfigResolved = {
   allowed: boolean;
   requireMention?: boolean;
+  skills?: string[];
 };
 
 export function resolveDiscordReplyTarget(opts: {
@@ -560,11 +561,13 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
           });
       };
 
+      const skillFilter = channelConfig?.skills;
       const replyResult = await getReplyFromConfig(
         ctxPayload,
         {
           onReplyStart: () => sendTyping(message),
           onBlockReply: sendBlockReply,
+          skillFilter,
         },
         cfg,
       );
@@ -1143,10 +1146,12 @@ export function resolveDiscordChannelConfig(params: {
       (channelName
         ? channelEntries[normalizeDiscordSlug(channelName)]
         : undefined);
-    if (!entry) return { allowed: false };
+    // If channel not in list, allow it with all skills (no filter)
+    if (!entry) return { allowed: true };
     return {
       allowed: entry.allow !== false,
       requireMention: entry.requireMention,
+      skills: entry.skills,
     };
   }
   return { allowed: true };
