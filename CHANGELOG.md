@@ -16,6 +16,9 @@
 - Discord/Slack: route reaction + system notifications to the correct session (no main-session bleed).
 - Heartbeat: make HEARTBEAT_OK ack padding configurable across heartbeat and cron delivery. (#238) — thanks @jalehman
 
+### Maintenance
+- Deps: update to latest across the repo.
+
 ## 2026.1.5
 
 ### Fixes
