@@ -67,6 +67,16 @@ export function createTelegramBot(opts: TelegramBotOptions) {
   const mediaMaxBytes =
     (opts.mediaMaxMb ?? cfg.telegram?.mediaMaxMb ?? 5) * 1024 * 1024;
   const logger = getChildLogger({ module: "telegram-auto-reply" });
+  const groupAllowlist = cfg.telegram?.groups;
+  const hasGroupAllowlist =
+    groupAllowlist && Object.keys(groupAllowlist).length > 0;
+  const allowAllGroups =
+    !!groupAllowlist &&
+    Object.prototype.hasOwnProperty.call(groupAllowlist, "*");
+  const isGroupAllowed = (chatId: string | number) => {
+    if (!hasGroupAllowlist || allowAllGroups) return true;
+    return Boolean(groupAllowlist?.[String(chatId)]);
+  };
   const resolveGroupRequireMention = (chatId: string | number) => {
     const groupId = String(chatId);
     const groupConfig = cfg.telegram?.groups?.[groupId];
@@ -86,6 +96,14 @@ export function createTelegramBot(opts: TelegramBotOptions) {
       const chatId = msg.chat.id;
       const isGroup =
         msg.chat.type === "group" || msg.chat.type === "supergroup";
+
+      if (isGroup && !isGroupAllowed(chatId)) {
+        logger.warn(
+          { chatId, title: msg.chat.title, reason: "not-allowed" },
+          "skipping group message",
+        );
+        return;
+      }
 
       const sendTyping = async () => {
         try {
