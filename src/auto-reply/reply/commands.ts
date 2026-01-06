@@ -27,6 +27,7 @@ import { normalizeE164 } from "../../utils.js";
 import { resolveHeartbeatSeconds } from "../../web/reconnect.js";
 import { getWebAuthAgeMs, webAuthExists } from "../../web/session.js";
 import { resolveCommandAuthorization } from "../command-auth.js";
+import { shouldHandleTextCommands } from "../commands-registry.js";
 import {
   normalizeGroupActivation,
   parseActivationCommand,
@@ -48,7 +49,8 @@ import { incrementCompactionCount } from "./session-updates.js";
 
 export type CommandContext = {
   surface: string;
-  isWhatsAppSurface: boolean;
+  provider: string;
+  isWhatsAppProvider: boolean;
   ownerList: string[];
   isAuthorizedSender: boolean;
   senderE164?: string;
@@ -123,7 +125,8 @@ export function buildCommandContext(params: {
     cfg,
     commandAuthorized: params.commandAuthorized,
   });
-  const surface = (ctx.Surface ?? "").trim().toLowerCase();
+  const surface = (ctx.Surface ?? ctx.Provider ?? "").trim().toLowerCase();
+  const provider = (ctx.Provider ?? surface).trim().toLowerCase();
   const abortKey =
     sessionKey ?? (auth.from || undefined) ?? (auth.to || undefined);
   const rawBodyNormalized = triggerBodyNormalized;
@@ -133,7 +136,8 @@ export function buildCommandContext(params: {
 
   return {
     surface,
-    isWhatsAppSurface: auth.isWhatsAppSurface,
+    provider,
+    isWhatsAppProvider: auth.isWhatsAppProvider,
     ownerList: auth.ownerList,
     isAuthorizedSender: auth.isAuthorizedSender,
     senderE164: auth.senderE164,
@@ -207,8 +211,13 @@ export async function handleCommands(params: {
   const sendPolicyCommand = parseSendPolicyCommand(
     command.commandBodyNormalized,
   );
+  const allowTextCommands = shouldHandleTextCommands({
+    cfg,
+    surface: command.surface,
+    commandSource: ctx.CommandSource,
+  });
 
-  if (activationCommand.hasCommand) {
+  if (allowTextCommands && activationCommand.hasCommand) {
     if (!isGroup) {
       return {
         shouldContinue: false,
@@ -220,14 +229,14 @@ export async function handleCommands(params: {
       ? normalizeE164(command.senderE164)
       : "";
     const isActivationOwner =
-      !command.isWhatsAppSurface || activationOwnerList.length === 0
+      !command.isWhatsAppProvider || activationOwnerList.length === 0
         ? command.isAuthorizedSender
         : Boolean(activationSenderE164) &&
           activationOwnerList.includes(activationSenderE164);
 
     if (
       !command.isAuthorizedSender ||
-      (command.isWhatsAppSurface && !isActivationOwner)
+      (command.isWhatsAppProvider && !isActivationOwner)
     ) {
       logVerbose(
         `Ignoring /activation from unauthorized sender in group: ${command.senderE164 || "<unknown>"}`,
@@ -255,7 +264,7 @@ export async function handleCommands(params: {
     };
   }
 
-  if (sendPolicyCommand.hasCommand) {
+  if (allowTextCommands && sendPolicyCommand.hasCommand) {
     if (!command.isAuthorizedSender) {
       logVerbose(
         `Ignoring /send from unauthorized sender: ${command.senderE164 || "<unknown>"}`,
@@ -292,10 +301,7 @@ export async function handleCommands(params: {
     };
   }
 
-  if (
-    command.commandBodyNormalized === "/restart" ||
-    command.commandBodyNormalized.startsWith("/restart ")
-  ) {
+  if (allowTextCommands && command.commandBodyNormalized === "/restart") {
     if (!command.isAuthorizedSender) {
       logVerbose(
         `Ignoring /restart from unauthorized sender: ${command.senderE164 || "<unknown>"}`,
@@ -311,10 +317,8 @@ export async function handleCommands(params: {
     };
   }
 
-  const helpRequested =
-    command.commandBodyNormalized === "/help" ||
-    /(?:^|\s)\/help(?=$|\s|:)\b/i.test(command.commandBodyNormalized);
-  if (helpRequested) {
+  const helpRequested = command.commandBodyNormalized === "/help";
+  if (allowTextCommands && helpRequested) {
     if (!command.isAuthorizedSender) {
       logVerbose(
         `Ignoring /help from unauthorized sender: ${command.senderE164 || "<unknown>"}`,
@@ -326,9 +330,8 @@ export async function handleCommands(params: {
 
   const statusRequested =
     directives.hasStatusDirective ||
-    command.commandBodyNormalized === "/status" ||
-    command.commandBodyNormalized.startsWith("/status ");
-  if (statusRequested) {
+    command.commandBodyNormalized === "/status";
+  if (allowTextCommands && statusRequested) {
     if (!command.isAuthorizedSender) {
       logVerbose(
         `Ignoring /status from unauthorized sender: ${command.senderE164 || "<unknown>"}`,
@@ -402,7 +405,7 @@ export async function handleCommands(params: {
     const result = await compactEmbeddedPiSession({
       sessionId,
       sessionKey,
-      surface: command.surface,
+      messageProvider: command.provider,
       sessionFile: resolveSessionTranscriptPath(sessionId),
       workspaceDir,
       config: cfg,
@@ -451,7 +454,7 @@ export async function handleCommands(params: {
   }
 
   const abortRequested = isAbortTrigger(command.rawBodyNormalized);
-  if (abortRequested) {
+  if (allowTextCommands && abortRequested) {
     if (sessionEntry && sessionStore && sessionKey) {
       sessionEntry.abortedLastRun = true;
       sessionEntry.updatedAt = Date.now();
@@ -469,7 +472,7 @@ export async function handleCommands(params: {
     cfg,
     entry: sessionEntry,
     sessionKey,
-    surface: sessionEntry?.surface ?? command.surface,
+    provider: sessionEntry?.provider ?? command.provider,
     chatType: sessionEntry?.chatType,
   });
   if (sendPolicy === "deny") {
