@@ -28,6 +28,8 @@ export type MsgContext = {
   SenderE164?: string;
   /** Provider label (whatsapp|telegram|discord|imessage|...). */
   Provider?: string;
+  /** Provider surface label (e.g. discord, slack). Prefer this over `Provider` when available. */
+  Surface?: string;
   WasMentioned?: boolean;
   CommandAuthorized?: boolean;
   CommandSource?: "text" | "native";

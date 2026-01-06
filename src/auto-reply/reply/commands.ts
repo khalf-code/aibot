@@ -48,6 +48,7 @@ import { stripMentions, stripStructuralPrefixes } from "./mentions.js";
 import { incrementCompactionCount } from "./session-updates.js";
 
 export type CommandContext = {
+  surface: string;
   provider: string;
   isWhatsAppProvider: boolean;
   ownerList: string[];
@@ -124,7 +125,8 @@ export function buildCommandContext(params: {
     cfg,
     commandAuthorized: params.commandAuthorized,
   });
-  const provider = (ctx.Provider ?? "").trim().toLowerCase();
+  const surface = (ctx.Surface ?? ctx.Provider ?? "").trim().toLowerCase();
+  const provider = (ctx.Provider ?? surface).trim().toLowerCase();
   const abortKey =
     sessionKey ?? (auth.from || undefined) ?? (auth.to || undefined);
   const rawBodyNormalized = triggerBodyNormalized;
@@ -133,6 +135,7 @@ export function buildCommandContext(params: {
     : rawBodyNormalized;
 
   return {
+    surface,
     provider,
     isWhatsAppProvider: auth.isWhatsAppProvider,
     ownerList: auth.ownerList,

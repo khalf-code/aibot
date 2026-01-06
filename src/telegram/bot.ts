@@ -619,9 +619,7 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     }
   } else if (nativeDisabledExplicit) {
     bot.api.setMyCommands([]).catch((err) => {
-      runtime.error?.(
-        danger(`telegram clear commands failed: ${String(err)}`),
-      );
+      runtime.error?.(danger(`telegram clear commands failed: ${String(err)}`));
     });
   }
 
