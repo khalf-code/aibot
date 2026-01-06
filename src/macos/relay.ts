@@ -32,6 +32,25 @@ async function main() {
     process.exit(0);
   }
 
+  // Smoke test: verify QR code modules are bundled correctly.
+  // Used by package-mac-app.sh to validate the compiled relay binary.
+  if (process.env.CLAWDBOT_SMOKE_QR === "1") {
+    try {
+      const { renderQrPngBase64 } = await import("../web/qr-image.js");
+      const base64 = await renderQrPngBase64("smoke-test", { scale: 2 });
+      if (!base64 || base64.length < 100) {
+        throw new Error("QR render returned invalid output");
+      }
+      process.exit(0);
+    } catch (err) {
+      console.error(
+        "[smoke-qr] QR module test failed:",
+        err instanceof Error ? err.message : err,
+      );
+      process.exit(1);
+    }
+  }
+
   await patchBunLongForProtobuf();
 
   const { loadDotEnv } = await import("../infra/dotenv.js");
