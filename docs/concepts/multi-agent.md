@@ -79,6 +79,8 @@ multiple phone numbers without mixing sessions.
       work: {
         workspace: "~/clawd-work",
         agentDir: "~/.clawdbot/agents/work/agent",
+        // Per-agent sandbox override (inherits from agent.sandbox if omitted)
+        sandbox: { mode: "non-main" },
       },
     },
 
