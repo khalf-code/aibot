@@ -964,6 +964,8 @@ export type ClawdbotConfig = {
     /** Max inbound media size in MB for agent-visible attachments (text note or future image attach). */
     mediaMaxMb?: number;
     typingIntervalSeconds?: number;
+    /** Show typing indicator immediately, even in group chats without @mention. */
+    eagerTyping?: boolean;
     /** Periodic background heartbeat runs. */
     heartbeat?: {
       /** Heartbeat interval (duration string, default unit: minutes; default: 30m). */

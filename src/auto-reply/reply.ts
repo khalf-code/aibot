@@ -594,7 +594,9 @@ export async function getReplyFromConfig(
   const isGroupChat = sessionCtx.ChatType === "group";
   const wasMentioned = ctx.WasMentioned === true;
   const isHeartbeat = opts?.isHeartbeat === true;
-  const shouldEagerType = (!isGroupChat || wasMentioned) && !isHeartbeat;
+  const eagerTypingConfig = agentCfg?.eagerTyping === true;
+  const shouldEagerType =
+    (eagerTypingConfig || !isGroupChat || wasMentioned) && !isHeartbeat;
   const shouldInjectGroupIntro = Boolean(
     isGroupChat &&
       (isFirstTurnInSession || sessionEntry?.groupActivationNeedsSystemIntro),

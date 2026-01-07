@@ -122,6 +122,12 @@ export function createTypingController(params: {
 
   const markRunComplete = () => {
     runComplete = true;
+    // Stop the typing interval immediately when the run completes.
+    // No need to keep showing "typing" after the response is ready.
+    if (typingTimer) {
+      clearInterval(typingTimer);
+      typingTimer = undefined;
+    }
     maybeStopOnIdle();
   };
 

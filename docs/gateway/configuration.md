@@ -993,6 +993,23 @@ Block streaming:
   ```
 See [/concepts/streaming](/concepts/streaming) for behavior + chunking details.
 
+### `agent.eagerTyping`
+
+When `true`, shows the typing indicator immediately when a message is received,
+even in group chats without an @mention. By default, typing only starts when
+text begins streaming.
+
+This is useful for group channels where `requireMention: false` — the bot
+responds to all messages, so users expect immediate feedback.
+
+```json
+{
+  "agent": {
+    "eagerTyping": true
+  }
+}
+```
+
 `agent.model.primary` should be set as `provider/model` (e.g. `anthropic/claude-opus-4-5`).
 Aliases come from `agent.models.*.alias` (e.g. `Opus`).
 If you omit the provider, CLAWDBOT currently assumes `anthropic` as a temporary
