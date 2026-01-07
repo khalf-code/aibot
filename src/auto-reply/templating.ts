@@ -1,8 +1,20 @@
+/** Valid provider channels for message routing. */
+export type OriginatingChannelType =
+  | "telegram"
+  | "slack"
+  | "discord"
+  | "signal"
+  | "imessage"
+  | "whatsapp"
+  | "webchat";
+
 export type MsgContext = {
   Body?: string;
   From?: string;
   To?: string;
   SessionKey?: string;
+  /** Provider account id (multi-account). */
+  AccountId?: string;
   MessageSid?: string;
   ReplyToId?: string;
   ReplyToBody?: string;
@@ -19,14 +31,35 @@ export type MsgContext = {
   GroupRoom?: string;
   GroupSpace?: string;
   GroupMembers?: string;
+  GroupSystemPrompt?: string;
   SenderName?: string;
   SenderId?: string;
   SenderUsername?: string;
   SenderTag?: string;
   SenderE164?: string;
+  /** Provider label (whatsapp|telegram|discord|imessage|...). */
+  Provider?: string;
+  /** Provider surface label (e.g. discord, slack). Prefer this over `Provider` when available. */
   Surface?: string;
   WasMentioned?: boolean;
   CommandAuthorized?: boolean;
+  CommandSource?: "text" | "native";
+  CommandTargetSessionKey?: string;
+  /** Telegram forum topic thread ID. */
+  MessageThreadId?: number;
+  /** Telegram forum supergroup marker. */
+  IsForum?: boolean;
+  /**
+   * Originating channel for reply routing.
+   * When set, replies should be routed back to this provider
+   * instead of using lastChannel from the session.
+   */
+  OriginatingChannel?: OriginatingChannelType;
+  /**
+   * Originating destination for reply routing.
+   * The chat/channel/user ID where the reply should be sent.
+   */
+  OriginatingTo?: string;
 };
 
 export type TemplateContext = MsgContext & {

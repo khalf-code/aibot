@@ -12,16 +12,24 @@ import { createSessionsListTool } from "./tools/sessions-list-tool.js";
 import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
 import { createSlackTool } from "./tools/slack-tool.js";
+<<<<<<< HEAD
+=======
+import { createTelegramTool } from "./tools/telegram-tool.js";
+>>>>>>> upstream/main
 import { createWhatsAppTool } from "./tools/whatsapp-tool.js";
 
 export function createClawdbotTools(options?: {
   browserControlUrl?: string;
   agentSessionKey?: string;
-  agentSurface?: string;
+  agentProvider?: string;
+  agentDir?: string;
   sandboxed?: boolean;
   config?: ClawdbotConfig;
 }): AnyAgentTool[] {
-  const imageTool = createImageTool({ config: options?.config });
+  const imageTool = createImageTool({
+    config: options?.config,
+    agentDir: options?.agentDir,
+  });
   return [
     createBrowserTool({ defaultControlUrl: options?.browserControlUrl }),
     createCanvasTool(),
@@ -29,6 +37,10 @@ export function createClawdbotTools(options?: {
     createCronTool(),
     createDiscordTool(),
     createSlackTool(),
+<<<<<<< HEAD
+=======
+    createTelegramTool(),
+>>>>>>> upstream/main
     createWhatsAppTool(),
     createGatewayTool(),
     createSessionsListTool({
@@ -41,12 +53,12 @@ export function createClawdbotTools(options?: {
     }),
     createSessionsSendTool({
       agentSessionKey: options?.agentSessionKey,
-      agentSurface: options?.agentSurface,
+      agentProvider: options?.agentProvider,
       sandboxed: options?.sandboxed,
     }),
     createSessionsSpawnTool({
       agentSessionKey: options?.agentSessionKey,
-      agentSurface: options?.agentSurface,
+      agentProvider: options?.agentProvider,
       sandboxed: options?.sandboxed,
     }),
     ...(imageTool ? [imageTool] : []),

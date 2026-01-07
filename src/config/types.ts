@@ -6,7 +6,7 @@ export type DmPolicy = "pairing" | "allowlist" | "open" | "disabled";
 
 export type SessionSendPolicyAction = "allow" | "deny";
 export type SessionSendPolicyMatch = {
-  surface?: string;
+  provider?: string;
   chatType?: "direct" | "group" | "room";
   keyPrefix?: string;
 };
@@ -77,6 +77,10 @@ export type AgentElevatedAllowFromConfig = {
   webchat?: Array<string | number>;
 };
 
+export type WhatsAppActionConfig = {
+  reactions?: boolean;
+};
+
 export type WhatsAppConfig = {
   /** Optional per-account WhatsApp configuration (multi-account). */
   accounts?: Record<string, WhatsAppAccountConfig>;
@@ -95,6 +99,8 @@ export type WhatsAppConfig = {
   groupPolicy?: GroupPolicy;
   /** Outbound text chunk size (chars). Default: 4000. */
   textChunkLimit?: number;
+  /** Per-action tool gating (default: true for all). */
+  actions?: WhatsAppActionConfig;
   groups?: Record<
     string,
     {
@@ -178,7 +184,7 @@ export type HookMappingConfig = {
   messageTemplate?: string;
   textTemplate?: string;
   deliver?: boolean;
-  channel?:
+  provider?:
     | "last"
     | "whatsapp"
     | "telegram"
@@ -226,6 +232,36 @@ export type HooksConfig = {
   gmail?: HooksGmailConfig;
 };
 
+export type TelegramActionConfig = {
+  reactions?: boolean;
+};
+
+export type TelegramTopicConfig = {
+  requireMention?: boolean;
+  /** If specified, only load these skills for this topic. Omit = all skills; empty = no skills. */
+  skills?: string[];
+  /** If false, disable the bot for this topic. */
+  enabled?: boolean;
+  /** Optional allowlist for topic senders (ids or usernames). */
+  allowFrom?: Array<string | number>;
+  /** Optional system prompt snippet for this topic. */
+  systemPrompt?: string;
+};
+
+export type TelegramGroupConfig = {
+  requireMention?: boolean;
+  /** If specified, only load these skills for this group (when no topic). Omit = all skills; empty = no skills. */
+  skills?: string[];
+  /** Per-topic configuration (key is message_thread_id as string) */
+  topics?: Record<string, TelegramTopicConfig>;
+  /** If false, disable the bot for this group (and its topics). */
+  enabled?: boolean;
+  /** Optional allowlist for group senders (ids or usernames). */
+  allowFrom?: Array<string | number>;
+  /** Optional system prompt snippet for this group. */
+  systemPrompt?: string;
+};
+
 export type TelegramConfig = {
   /**
    * Controls how Telegram direct chats (DMs) are handled:
@@ -242,12 +278,7 @@ export type TelegramConfig = {
   tokenFile?: string;
   /** Control reply threading when reply tags are present (off|first|all). */
   replyToMode?: ReplyToMode;
-  groups?: Record<
-    string,
-    {
-      requireMention?: boolean;
-    }
-  >;
+  groups?: Record<string, TelegramGroupConfig>;
   allowFrom?: Array<string | number>;
   /** Optional allowlist for Telegram group senders (user ids or usernames). */
   groupAllowFrom?: Array<string | number>;
@@ -260,11 +291,15 @@ export type TelegramConfig = {
   groupPolicy?: GroupPolicy;
   /** Outbound text chunk size (chars). Default: 4000. */
   textChunkLimit?: number;
+  /** Draft streaming mode for Telegram (off|partial|block). Default: partial. */
+  streamMode?: "off" | "partial" | "block";
   mediaMaxMb?: number;
   proxy?: string;
   webhookUrl?: string;
   webhookSecret?: string;
   webhookPath?: string;
+  /** Per-action tool gating (default: true for all). */
+  actions?: TelegramActionConfig;
 };
 
 export type DiscordDmConfig = {
@@ -283,6 +318,14 @@ export type DiscordDmConfig = {
 export type DiscordGuildChannelConfig = {
   allow?: boolean;
   requireMention?: boolean;
+  /** If specified, only load these skills for this channel. Omit = all skills; empty = no skills. */
+  skills?: string[];
+  /** If false, disable the bot for this channel. */
+  enabled?: boolean;
+  /** Optional allowlist for channel senders (ids or names). */
+  users?: Array<string | number>;
+  /** Optional system prompt snippet for this channel. */
+  systemPrompt?: string;
 };
 
 export type DiscordReactionNotificationMode =
@@ -298,17 +341,6 @@ export type DiscordGuildEntry = {
   reactionNotifications?: DiscordReactionNotificationMode;
   users?: Array<string | number>;
   channels?: Record<string, DiscordGuildChannelConfig>;
-};
-
-export type DiscordSlashCommandConfig = {
-  /** Enable handling for the configured slash command (default: false). */
-  enabled?: boolean;
-  /** Slash command name (default: "clawd"). */
-  name?: string;
-  /** Session key prefix for slash commands (default: "discord:slash"). */
-  sessionPrefix?: string;
-  /** Reply ephemerally (default: true). */
-  ephemeral?: boolean;
 };
 
 export type DiscordActionConfig = {
@@ -350,7 +382,6 @@ export type DiscordConfig = {
   actions?: DiscordActionConfig;
   /** Control reply threading when reply tags are present (off|first|all). */
   replyToMode?: ReplyToMode;
-  slashCommand?: DiscordSlashCommandConfig;
   dm?: DiscordDmConfig;
   /** New per-guild config keyed by guild id or slug. */
   guilds?: Record<string, DiscordGuildEntry>;
@@ -370,8 +401,18 @@ export type SlackDmConfig = {
 };
 
 export type SlackChannelConfig = {
+  /** If false, disable the bot in this channel. (Alias for allow: false.) */
+  enabled?: boolean;
+  /** Legacy channel allow toggle; prefer enabled. */
   allow?: boolean;
+  /** Require mentioning the bot to trigger replies. */
   requireMention?: boolean;
+  /** Allowlist of users that can invoke the bot in this channel. */
+  users?: Array<string | number>;
+  /** Optional skill filter for this channel. */
+  skills?: string[];
+  /** Optional system prompt for this channel. */
+  systemPrompt?: string;
 };
 
 export type SlackReactionNotificationMode = "off" | "own" | "all" | "allowlist";
@@ -506,7 +547,7 @@ export type QueueMode =
   | "interrupt";
 export type QueueDropPolicy = "old" | "new" | "summarize";
 
-export type QueueModeBySurface = {
+export type QueueModeByProvider = {
   whatsapp?: QueueMode;
   telegram?: QueueMode;
   discord?: QueueMode;
@@ -539,21 +580,36 @@ export type RoutingConfig = {
   agents?: Record<
     string,
     {
+      name?: string;
       workspace?: string;
       agentDir?: string;
       model?: string;
       sandbox?: {
         mode?: "off" | "non-main" | "all";
+        /** Agent workspace access inside the sandbox. */
+        workspaceAccess?: "none" | "ro" | "rw";
+        /** Container/workspace scope for sandbox isolation. */
+        scope?: "session" | "agent" | "shared";
+        /** Legacy alias for scope ("session" when true, "shared" when false). */
         perSession?: boolean;
         workspaceRoot?: string;
+        /** Tool allow/deny policy for sandboxed sessions (deny wins). */
+        tools?: {
+          allow?: string[];
+          deny?: string[];
+        };
+      };
+      tools?: {
+        allow?: string[];
+        deny?: string[];
       };
     }
   >;
   bindings?: Array<{
     agentId: string;
     match: {
-      surface: string;
-      surfaceAccountId?: string;
+      provider: string;
+      accountId?: string;
       peer?: { kind: "dm" | "group" | "channel"; id: string };
       guildId?: string;
       teamId?: string;
@@ -561,7 +617,7 @@ export type RoutingConfig = {
   }>;
   queue?: {
     mode?: QueueMode;
-    bySurface?: QueueModeBySurface;
+    byProvider?: QueueModeByProvider;
     debounceMs?: number;
     cap?: number;
     drop?: QueueDropPolicy;
@@ -575,6 +631,15 @@ export type MessagesConfig = {
   ackReaction?: string;
   /** When to send ack reactions. Default: "group-mentions". */
   ackReactionScope?: "group-mentions" | "group-all" | "direct" | "all";
+};
+
+export type CommandsConfig = {
+  /** Enable native command registration when supported (default: false). */
+  native?: boolean;
+  /** Enable text command parsing (default: true). */
+  text?: boolean;
+  /** Enforce access-group allowlists/policies for commands (default: true). */
+  useAccessGroups?: boolean;
 };
 
 export type BridgeBindMode = "auto" | "lan" | "tailnet" | "loopback";
@@ -785,6 +850,27 @@ export type AgentModelListConfig = {
   fallbacks?: string[];
 };
 
+export type AgentContextPruningConfig = {
+  mode?: "off" | "adaptive" | "aggressive";
+  keepLastAssistants?: number;
+  softTrimRatio?: number;
+  hardClearRatio?: number;
+  minPrunableToolChars?: number;
+  tools?: {
+    allow?: string[];
+    deny?: string[];
+  };
+  softTrim?: {
+    maxChars?: number;
+    headChars?: number;
+    tailChars?: number;
+  };
+  hardClear?: {
+    enabled?: boolean;
+    placeholder?: string;
+  };
+};
+
 export type ClawdbotConfig = {
   auth?: AuthConfig;
   env?: {
@@ -824,10 +910,14 @@ export type ClawdbotConfig = {
     models?: Record<string, AgentModelEntryConfig>;
     /** Agent working directory (preferred). Used as the default cwd for agent runs. */
     workspace?: string;
+    /** Skip bootstrap (BOOTSTRAP.md creation, etc.) for pre-configured deployments. */
+    skipBootstrap?: boolean;
     /** Optional IANA timezone for the user (used in system prompt; defaults to host timezone). */
     userTimezone?: string;
     /** Optional display-only context window override (used for % in status UIs). */
     contextTokens?: number;
+    /** Opt-in: prune old tool results from the LLM context to reduce token usage. */
+    contextPruning?: AgentContextPruningConfig;
     /** Default thinking level when no /think directive is present. */
     thinkingDefault?: "off" | "minimal" | "low" | "medium" | "high";
     /** Default verbose level when no /verbose directive is present. */
@@ -854,7 +944,7 @@ export type ClawdbotConfig = {
     typingIntervalSeconds?: number;
     /** Periodic background heartbeat runs. */
     heartbeat?: {
-      /** Heartbeat interval (duration string, default unit: minutes). */
+      /** Heartbeat interval (duration string, default unit: minutes; default: 30m). */
       every?: string;
       /** Heartbeat model override (provider/model). */
       model?: string;
@@ -870,7 +960,7 @@ export type ClawdbotConfig = {
         | "none";
       /** Optional delivery override (E.164 for WhatsApp, chat id for Telegram). */
       to?: string;
-      /** Override the heartbeat prompt body (default: "HEARTBEAT"). */
+      /** Override the heartbeat prompt body (default: "Read HEARTBEAT.md if exists. Consider outstanding tasks. Checkup sometimes on your human during (user local) day time."). */
       prompt?: string;
       /** Max chars allowed after HEARTBEAT_OK before delivery (default: 30). */
       ackMaxChars?: number;
@@ -881,6 +971,8 @@ export type ClawdbotConfig = {
     subagents?: {
       /** Max concurrent sub-agent runs (global lane: "subagent"). Default: 1. */
       maxConcurrent?: number;
+      /** Auto-archive sub-agent sessions after N minutes (default: 60). */
+      archiveAfterMinutes?: number;
       /** Tool allow/deny policy for sub-agent sessions (deny wins). */
       tools?: {
         allow?: string[];
@@ -900,7 +992,7 @@ export type ClawdbotConfig = {
     elevated?: {
       /** Enable or disable elevated mode (default: true). */
       enabled?: boolean;
-      /** Approved senders for /elevated (per-surface allowlists). */
+      /** Approved senders for /elevated (per-provider allowlists). */
       allowFrom?: AgentElevatedAllowFromConfig;
     };
     /** Optional sandbox settings for non-main sessions. */
@@ -908,12 +1000,21 @@ export type ClawdbotConfig = {
       /** Enable sandboxing for sessions. */
       mode?: "off" | "non-main" | "all";
       /**
+       * Agent workspace access inside the sandbox.
+       * - "none": do not mount the agent workspace into the container; use a sandbox workspace under workspaceRoot
+       * - "ro": mount the agent workspace read-only; disables write/edit tools
+       * - "rw": mount the agent workspace read/write; enables write/edit tools
+       */
+      workspaceAccess?: "none" | "ro" | "rw";
+      /**
        * Session tools visibility for sandboxed sessions.
        * - "spawned": only allow session tools to target sessions spawned from this session (default)
        * - "all": allow session tools to target any session
        */
       sessionToolsVisibility?: "spawned" | "all";
-      /** Use one container per session (recommended for hard isolation). */
+      /** Container/workspace scope for sandbox isolation. */
+      scope?: "session" | "agent" | "shared";
+      /** Legacy alias for scope ("session" when true, "shared" when false). */
       perSession?: boolean;
       /** Root directory for sandbox workspaces. */
       workspaceRoot?: string;
@@ -996,6 +1097,7 @@ export type ClawdbotConfig = {
   };
   routing?: RoutingConfig;
   messages?: MessagesConfig;
+  commands?: CommandsConfig;
   session?: SessionConfig;
   web?: WebConfig;
   whatsapp?: WhatsAppConfig;

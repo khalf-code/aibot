@@ -1,5 +1,6 @@
 import { Type } from "@sinclair/typebox";
 
+<<<<<<< HEAD
 export const WhatsAppToolSchema = Type.Union([
   Type.Object({
     action: Type.Literal("send"),
@@ -11,5 +12,21 @@ export const WhatsAppToolSchema = Type.Union([
   Type.Object({
     action: Type.Literal("status"),
     description: Type.Optional(Type.Literal("Check WhatsApp connection status")),
+=======
+import { createReactionSchema } from "./reaction-schema.js";
+
+export const WhatsAppToolSchema = Type.Union([
+  createReactionSchema({
+    ids: {
+      chatJid: Type.String(),
+      messageId: Type.String(),
+    },
+    includeRemove: true,
+    extras: {
+      participant: Type.Optional(Type.String()),
+      accountId: Type.Optional(Type.String()),
+      fromMe: Type.Optional(Type.Boolean()),
+    },
+>>>>>>> upstream/main
   }),
 ]);

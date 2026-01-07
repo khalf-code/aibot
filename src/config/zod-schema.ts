@@ -130,7 +130,7 @@ const SessionSchema = z
               action: z.union([z.literal("allow"), z.literal("deny")]),
               match: z
                 .object({
-                  surface: z.string().optional(),
+                  provider: z.string().optional(),
                   chatType: z
                     .union([
                       z.literal("direct"),
@@ -162,6 +162,14 @@ const MessagesSchema = z
     ackReactionScope: z
       .enum(["group-mentions", "group-all", "direct", "all"])
       .optional(),
+  })
+  .optional();
+
+const CommandsSchema = z
+  .object({
+    native: z.boolean().optional(),
+    text: z.boolean().optional(),
+    useAccessGroups: z.boolean().optional(),
   })
   .optional();
 
@@ -215,6 +223,7 @@ const RoutingSchema = z
         z.string(),
         z
           .object({
+            name: z.string().optional(),
             workspace: z.string().optional(),
             agentDir: z.string().optional(),
             model: z.string().optional(),
@@ -227,8 +236,30 @@ const RoutingSchema = z
                     z.literal("all"),
                   ])
                   .optional(),
+                workspaceAccess: z
+                  .union([z.literal("none"), z.literal("ro"), z.literal("rw")])
+                  .optional(),
+                scope: z
+                  .union([
+                    z.literal("session"),
+                    z.literal("agent"),
+                    z.literal("shared"),
+                  ])
+                  .optional(),
                 perSession: z.boolean().optional(),
                 workspaceRoot: z.string().optional(),
+                tools: z
+                  .object({
+                    allow: z.array(z.string()).optional(),
+                    deny: z.array(z.string()).optional(),
+                  })
+                  .optional(),
+              })
+              .optional(),
+            tools: z
+              .object({
+                allow: z.array(z.string()).optional(),
+                deny: z.array(z.string()).optional(),
               })
               .optional(),
           })
@@ -240,8 +271,8 @@ const RoutingSchema = z
         z.object({
           agentId: z.string(),
           match: z.object({
-            surface: z.string(),
-            surfaceAccountId: z.string().optional(),
+            provider: z.string(),
+            accountId: z.string().optional(),
             peer: z
               .object({
                 kind: z.union([
@@ -261,7 +292,7 @@ const RoutingSchema = z
     queue: z
       .object({
         mode: QueueModeSchema.optional(),
-        bySurface: QueueModeBySurfaceSchema,
+        byProvider: QueueModeBySurfaceSchema,
         debounceMs: z.number().int().nonnegative().optional(),
         cap: z.number().int().positive().optional(),
         drop: QueueDropSchema.optional(),
@@ -288,7 +319,7 @@ const HookMappingSchema = z
     messageTemplate: z.string().optional(),
     textTemplate: z.string().optional(),
     deliver: z.boolean().optional(),
-    channel: z
+    provider: z
       .union([
         z.literal("last"),
         z.literal("whatsapp"),
@@ -479,8 +510,43 @@ export const ClawdbotSchema = z.object({
         )
         .optional(),
       workspace: z.string().optional(),
+      skipBootstrap: z.boolean().optional(),
       userTimezone: z.string().optional(),
       contextTokens: z.number().int().positive().optional(),
+      contextPruning: z
+        .object({
+          mode: z
+            .union([
+              z.literal("off"),
+              z.literal("adaptive"),
+              z.literal("aggressive"),
+            ])
+            .optional(),
+          keepLastAssistants: z.number().int().nonnegative().optional(),
+          softTrimRatio: z.number().min(0).max(1).optional(),
+          hardClearRatio: z.number().min(0).max(1).optional(),
+          minPrunableToolChars: z.number().int().nonnegative().optional(),
+          tools: z
+            .object({
+              allow: z.array(z.string()).optional(),
+              deny: z.array(z.string()).optional(),
+            })
+            .optional(),
+          softTrim: z
+            .object({
+              maxChars: z.number().int().nonnegative().optional(),
+              headChars: z.number().int().nonnegative().optional(),
+              tailChars: z.number().int().nonnegative().optional(),
+            })
+            .optional(),
+          hardClear: z
+            .object({
+              enabled: z.boolean().optional(),
+              placeholder: z.string().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
       tools: z
         .object({
           allow: z.array(z.string()).optional(),
@@ -525,6 +591,7 @@ export const ClawdbotSchema = z.object({
       subagents: z
         .object({
           maxConcurrent: z.number().int().positive().optional(),
+          archiveAfterMinutes: z.number().int().positive().optional(),
           tools: z
             .object({
               allow: z.array(z.string()).optional(),
@@ -561,8 +628,18 @@ export const ClawdbotSchema = z.object({
           mode: z
             .union([z.literal("off"), z.literal("non-main"), z.literal("all")])
             .optional(),
+          workspaceAccess: z
+            .union([z.literal("none"), z.literal("ro"), z.literal("rw")])
+            .optional(),
           sessionToolsVisibility: z
             .union([z.literal("spawned"), z.literal("all")])
+            .optional(),
+          scope: z
+            .union([
+              z.literal("session"),
+              z.literal("agent"),
+              z.literal("shared"),
+            ])
             .optional(),
           perSession: z.boolean().optional(),
           workspaceRoot: z.string().optional(),
@@ -631,6 +708,7 @@ export const ClawdbotSchema = z.object({
     .optional(),
   routing: RoutingSchema,
   messages: MessagesSchema,
+  commands: CommandsSchema,
   session: SessionSchema,
   cron: z
     .object({
@@ -713,6 +791,11 @@ export const ClawdbotSchema = z.object({
       groupAllowFrom: z.array(z.string()).optional(),
       groupPolicy: GroupPolicySchema.optional().default("open"),
       textChunkLimit: z.number().int().positive().optional(),
+      actions: z
+        .object({
+          reactions: z.boolean().optional(),
+        })
+        .optional(),
       groups: z
         .record(
           z.string(),
@@ -751,6 +834,26 @@ export const ClawdbotSchema = z.object({
           z
             .object({
               requireMention: z.boolean().optional(),
+              skills: z.array(z.string()).optional(),
+              enabled: z.boolean().optional(),
+              allowFrom: z.array(z.union([z.string(), z.number()])).optional(),
+              systemPrompt: z.string().optional(),
+              topics: z
+                .record(
+                  z.string(),
+                  z
+                    .object({
+                      requireMention: z.boolean().optional(),
+                      skills: z.array(z.string()).optional(),
+                      enabled: z.boolean().optional(),
+                      allowFrom: z
+                        .array(z.union([z.string(), z.number()]))
+                        .optional(),
+                      systemPrompt: z.string().optional(),
+                    })
+                    .optional(),
+                )
+                .optional(),
             })
             .optional(),
         )
@@ -759,11 +862,20 @@ export const ClawdbotSchema = z.object({
       groupAllowFrom: z.array(z.union([z.string(), z.number()])).optional(),
       groupPolicy: GroupPolicySchema.optional().default("open"),
       textChunkLimit: z.number().int().positive().optional(),
+      streamMode: z
+        .enum(["off", "partial", "block"])
+        .optional()
+        .default("partial"),
       mediaMaxMb: z.number().positive().optional(),
       proxy: z.string().optional(),
       webhookUrl: z.string().optional(),
       webhookSecret: z.string().optional(),
       webhookPath: z.string().optional(),
+      actions: z
+        .object({
+          reactions: z.boolean().optional(),
+        })
+        .optional(),
     })
     .superRefine((value, ctx) => {
       if (value.dmPolicy !== "open") return;
@@ -785,14 +897,6 @@ export const ClawdbotSchema = z.object({
       token: z.string().optional(),
       groupPolicy: GroupPolicySchema.optional().default("open"),
       textChunkLimit: z.number().int().positive().optional(),
-      slashCommand: z
-        .object({
-          enabled: z.boolean().optional(),
-          name: z.string().optional(),
-          sessionPrefix: z.string().optional(),
-          ephemeral: z.boolean().optional(),
-        })
-        .optional(),
       mediaMaxMb: z.number().positive().optional(),
       historyLimit: z.number().int().min(0).optional(),
       actions: z
@@ -855,6 +959,12 @@ export const ClawdbotSchema = z.object({
                     .object({
                       allow: z.boolean().optional(),
                       requireMention: z.boolean().optional(),
+                      skills: z.array(z.string()).optional(),
+                      enabled: z.boolean().optional(),
+                      users: z
+                        .array(z.union([z.string(), z.number()]))
+                        .optional(),
+                      systemPrompt: z.string().optional(),
                     })
                     .optional(),
                 )
@@ -924,8 +1034,12 @@ export const ClawdbotSchema = z.object({
           z.string(),
           z
             .object({
+              enabled: z.boolean().optional(),
               allow: z.boolean().optional(),
               requireMention: z.boolean().optional(),
+              users: z.array(z.union([z.string(), z.number()])).optional(),
+              skills: z.array(z.string()).optional(),
+              systemPrompt: z.string().optional(),
             })
             .optional(),
         )

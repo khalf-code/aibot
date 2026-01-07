@@ -1,6 +1,11 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { agentCliCommand } from "../commands/agent-via-gateway.js";
+import {
+  agentsAddCommand,
+  agentsDeleteCommand,
+  agentsListCommand,
+} from "../commands/agents.js";
 import { configureCommand } from "../commands/configure.js";
 import { doctorCommand } from "../commands/doctor.js";
 import { healthCommand } from "../commands/health.js";
@@ -13,19 +18,23 @@ import { statusCommand } from "../commands/status.js";
 import { updateCommand } from "../commands/update.js";
 import {
   isNixMode,
+  loadConfig,
   migrateLegacyConfig,
   readConfigFileSnapshot,
   writeConfigFile,
 } from "../config/config.js";
 import { danger, setVerbose } from "../globals.js";
+import { autoMigrateLegacyState } from "../infra/state-migrations.js";
 import { loginWeb, logoutWeb } from "../provider-web.js";
 import { defaultRuntime } from "../runtime.js";
 import { VERSION } from "../version.js";
+import { resolveWhatsAppAccount } from "../web/accounts.js";
 import { registerBrowserCli } from "./browser-cli.js";
 import { registerCanvasCli } from "./canvas-cli.js";
 import { registerCronCli } from "./cron-cli.js";
 import { createDefaultDeps } from "./deps.js";
 import { registerDnsCli } from "./dns-cli.js";
+import { registerDocsCli } from "./docs-cli.js";
 import { registerGatewayCli } from "./gateway-cli.js";
 import { registerHooksCli } from "./hooks-cli.js";
 import { registerModelsCli } from "./models-cli.js";
@@ -125,6 +134,11 @@ export function buildProgram() {
     );
     process.exit(1);
   });
+  program.hook("preAction", async (_thisCommand, actionCommand) => {
+    if (actionCommand.name() === "doctor") return;
+    const cfg = loadConfig();
+    await autoMigrateLegacyState({ cfg });
+  });
   const examples = [
     [
       "clawdbot login --verbose",
@@ -208,7 +222,10 @@ export function buildProgram() {
     .option("--workspace <dir>", "Agent workspace directory (default: ~/clawd)")
     .option("--non-interactive", "Run without prompts", false)
     .option("--mode <mode>", "Wizard mode: local|remote")
-    .option("--auth-choice <choice>", "Auth: oauth|apiKey|minimax|skip")
+    .option(
+      "--auth-choice <choice>",
+      "Auth: oauth|openai-codex|antigravity|apiKey|minimax|skip",
+    )
     .option("--anthropic-api-key <key>", "Anthropic API key")
     .option("--gateway-port <port>", "Gateway port")
     .option("--gateway-bind <mode>", "Gateway bind: loopback|lan|tailnet|auto")
@@ -220,6 +237,7 @@ export function buildProgram() {
     .option("--tailscale <mode>", "Tailscale: off|serve|funnel")
     .option("--tailscale-reset-on-exit", "Reset tailscale serve/funnel on exit")
     .option("--install-daemon", "Install gateway daemon")
+    .option("--daemon-runtime <runtime>", "Daemon runtime: node|bun")
     .option("--skip-skills", "Skip skills setup")
     .option("--skip-health", "Skip health check")
     .option("--node-manager <name>", "Node manager for skills: npm|pnpm|bun")
@@ -233,6 +251,8 @@ export function buildProgram() {
             mode: opts.mode as "local" | "remote" | undefined,
             authChoice: opts.authChoice as
               | "oauth"
+              | "openai-codex"
+              | "antigravity"
               | "apiKey"
               | "minimax"
               | "skip"
@@ -260,6 +280,7 @@ export function buildProgram() {
             tailscale: opts.tailscale as "off" | "serve" | "funnel" | undefined,
             tailscaleResetOnExit: Boolean(opts.tailscaleResetOnExit),
             installDaemon: Boolean(opts.installDaemon),
+            daemonRuntime: opts.daemonRuntime as "node" | "bun" | undefined,
             skipSkills: Boolean(opts.skipSkills),
             skipHealth: Boolean(opts.skipHealth),
             nodeManager: opts.nodeManager as "npm" | "pnpm" | "bun" | undefined,
@@ -296,10 +317,18 @@ export function buildProgram() {
       "Disable workspace memory system suggestions",
       false,
     )
+    .option("--yes", "Accept defaults without prompting", false)
+    .option(
+      "--non-interactive",
+      "Run without prompts (safe migrations only)",
+      false,
+    )
     .action(async (opts) => {
       try {
         await doctorCommand(defaultRuntime, {
           workspaceSuggestions: opts.workspaceSuggestions,
+          yes: Boolean(opts.yes),
+          nonInteractive: Boolean(opts.nonInteractive),
         });
       } catch (err) {
         defaultRuntime.error(String(err));
@@ -324,11 +353,18 @@ export function buildProgram() {
     .description("Link your personal WhatsApp via QR (web provider)")
     .option("--verbose", "Verbose connection logs", false)
     .option("--provider <provider>", "Provider alias (default: whatsapp)")
+    .option("--account <id>", "WhatsApp account id (accountId)")
     .action(async (opts) => {
       setVerbose(Boolean(opts.verbose));
       try {
         const provider = opts.provider ?? "whatsapp";
-        await loginWeb(Boolean(opts.verbose), provider);
+        await loginWeb(
+          Boolean(opts.verbose),
+          provider,
+          undefined,
+          defaultRuntime,
+          opts.account as string | undefined,
+        );
       } catch (err) {
         defaultRuntime.error(danger(`Web login failed: ${String(err)}`));
         defaultRuntime.exit(1);
@@ -339,10 +375,20 @@ export function buildProgram() {
     .command("logout")
     .description("Clear cached WhatsApp Web credentials")
     .option("--provider <provider>", "Provider alias (default: whatsapp)")
+    .option("--account <id>", "WhatsApp account id (accountId)")
     .action(async (opts) => {
       try {
         void opts.provider; // placeholder for future multi-provider; currently web only.
-        await logoutWeb(defaultRuntime);
+        const cfg = loadConfig();
+        const account = resolveWhatsAppAccount({
+          cfg,
+          accountId: opts.account as string | undefined,
+        });
+        await logoutWeb({
+          runtime: defaultRuntime,
+          authDir: account.authDir,
+          isLegacyAuthDir: account.isLegacyAuthDir,
+        });
       } catch (err) {
         defaultRuntime.error(danger(`Logout failed: ${String(err)}`));
         defaultRuntime.exit(1);
@@ -372,6 +418,7 @@ export function buildProgram() {
       "--provider <provider>",
       "Delivery provider: whatsapp|telegram|discord|slack|signal|imessage (default: whatsapp)",
     )
+    .option("--account <id>", "WhatsApp account id (accountId)")
     .option("--dry-run", "Print payload and skip sending", false)
     .option("--json", "Output result as JSON", false)
     .option("--verbose", "Verbose logging", false)
@@ -388,7 +435,14 @@ Examples:
       setVerbose(Boolean(opts.verbose));
       const deps = createDefaultDeps();
       try {
-        await sendCommand(opts, deps, defaultRuntime);
+        await sendCommand(
+          {
+            ...opts,
+            account: opts.account as string | undefined,
+          },
+          deps,
+          defaultRuntime,
+        );
       } catch (err) {
         defaultRuntime.error(String(err));
         defaultRuntime.exit(1);
@@ -501,6 +555,74 @@ Examples:
       }
     });
 
+  const agents = program
+    .command("agents")
+    .description("Manage isolated agents (workspaces + auth + routing)");
+
+  agents
+    .command("list")
+    .description("List configured agents")
+    .option("--json", "Output JSON instead of text", false)
+    .action(async (opts) => {
+      try {
+        await agentsListCommand({ json: Boolean(opts.json) }, defaultRuntime);
+      } catch (err) {
+        defaultRuntime.error(String(err));
+        defaultRuntime.exit(1);
+      }
+    });
+
+  agents
+    .command("add [name]")
+    .description("Add a new isolated agent")
+    .option("--workspace <dir>", "Workspace directory for the new agent")
+    .option("--json", "Output JSON summary", false)
+    .action(async (name, opts) => {
+      try {
+        await agentsAddCommand(
+          {
+            name: typeof name === "string" ? name : undefined,
+            workspace: opts.workspace as string | undefined,
+            json: Boolean(opts.json),
+          },
+          defaultRuntime,
+        );
+      } catch (err) {
+        defaultRuntime.error(String(err));
+        defaultRuntime.exit(1);
+      }
+    });
+
+  agents
+    .command("delete <id>")
+    .description("Delete an agent and prune workspace/state")
+    .option("--force", "Skip confirmation", false)
+    .option("--json", "Output JSON summary", false)
+    .action(async (id, opts) => {
+      try {
+        await agentsDeleteCommand(
+          {
+            id: String(id),
+            force: Boolean(opts.force),
+            json: Boolean(opts.json),
+          },
+          defaultRuntime,
+        );
+      } catch (err) {
+        defaultRuntime.error(String(err));
+        defaultRuntime.exit(1);
+      }
+    });
+
+  agents.action(async () => {
+    try {
+      await agentsListCommand({}, defaultRuntime);
+    } catch (err) {
+      defaultRuntime.error(String(err));
+      defaultRuntime.exit(1);
+    }
+  });
+
   registerCanvasCli(program);
   registerGatewayCli(program);
   registerModelsCli(program);
@@ -508,6 +630,7 @@ Examples:
   registerTuiCli(program);
   registerCronCli(program);
   registerDnsCli(program);
+  registerDocsCli(program);
   registerHooksCli(program);
   registerPairingCli(program);
   registerTelegramCli(program);
@@ -516,6 +639,7 @@ Examples:
     .command("status")
     .description("Show web session health and recent session recipients")
     .option("--json", "Output JSON instead of text", false)
+    .option("--usage", "Show provider usage/quota snapshots", false)
     .option(
       "--deep",
       "Probe providers (WhatsApp Web + Telegram + Discord + Slack + Signal)",
@@ -529,6 +653,7 @@ Examples:
 Examples:
   clawdbot status                   # show linked account + session store summary
   clawdbot status --json            # machine-readable output
+  clawdbot status --usage           # show provider usage/quota snapshots
   clawdbot status --deep            # run provider probes (WA + Telegram + Discord + Slack + Signal)
   clawdbot status --deep --timeout 5000 # tighten probe timeout`,
     )
@@ -549,6 +674,7 @@ Examples:
           {
             json: Boolean(opts.json),
             deep: Boolean(opts.deep),
+            usage: Boolean(opts.usage),
             timeoutMs: timeout,
           },
           defaultRuntime,

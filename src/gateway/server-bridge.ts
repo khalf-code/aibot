@@ -20,6 +20,7 @@ import { resolveAgentTimeoutMs } from "../agents/timeout.js";
 import { normalizeGroupActivation } from "../auto-reply/group-activation.js";
 import {
   normalizeElevatedLevel,
+  normalizeReasoningLevel,
   normalizeThinkLevel,
   normalizeVerboseLevel,
 } from "../auto-reply/thinking.js";
@@ -48,6 +49,7 @@ import {
   setVoiceWakeTriggers,
 } from "../infra/voicewake.js";
 import { clearCommandLane } from "../process/command-queue.js";
+import { isSubagentSessionKey } from "../routing/session-key.js";
 import { defaultRuntime } from "../runtime.js";
 import { normalizeSendPolicy } from "../sessions/send-policy.js";
 import { buildMessageWithAttachments } from "./chat-attachments.js";
@@ -372,7 +374,7 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
                   },
                 };
               }
-              if (!key.startsWith("subagent:")) {
+              if (!isSubagentSessionKey(key)) {
                 return {
                   ok: false,
                   error: {
@@ -430,6 +432,26 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
                 };
               }
               next.verboseLevel = normalized;
+            }
+          }
+
+          if ("reasoningLevel" in p) {
+            const raw = p.reasoningLevel;
+            if (raw === null) {
+              delete next.reasoningLevel;
+            } else if (raw !== undefined) {
+              const normalized = normalizeReasoningLevel(String(raw));
+              if (!normalized) {
+                return {
+                  ok: false,
+                  error: {
+                    code: ErrorCodes.INVALID_REQUEST,
+                    message: `invalid reasoningLevel: ${String(raw)} (use on|off|stream)`,
+                  },
+                };
+              }
+              if (normalized === "off") delete next.reasoningLevel;
+              else next.reasoningLevel = normalized;
             }
           }
 
@@ -601,16 +623,17 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
             abortedLastRun: false,
             thinkingLevel: entry?.thinkingLevel,
             verboseLevel: entry?.verboseLevel,
+            reasoningLevel: entry?.reasoningLevel,
             model: entry?.model,
             contextTokens: entry?.contextTokens,
             sendPolicy: entry?.sendPolicy,
             displayName: entry?.displayName,
             chatType: entry?.chatType,
-            surface: entry?.surface,
+            provider: entry?.provider,
             subject: entry?.subject,
             room: entry?.room,
             space: entry?.space,
-            lastChannel: entry?.lastChannel,
+            lastProvider: entry?.lastProvider,
             lastTo: entry?.lastTo,
             skillsSnapshot: entry?.skillsSnapshot,
           };
@@ -985,8 +1008,9 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
             updatedAt: now,
             thinkingLevel: entry?.thinkingLevel,
             verboseLevel: entry?.verboseLevel,
+            reasoningLevel: entry?.reasoningLevel,
             systemSent: entry?.systemSent,
-            lastChannel: entry?.lastChannel,
+            lastProvider: entry?.lastProvider,
             lastTo: entry?.lastTo,
           };
           const clientRunId = p.idempotencyKey;
@@ -1029,11 +1053,12 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
               {
                 message: messageWithAttachments,
                 sessionId,
+                sessionKey: p.sessionKey,
                 runId: clientRunId,
                 thinking: p.thinking,
                 deliver: p.deliver,
                 timeout: Math.ceil(timeoutMs / 1000).toString(),
-                surface: `Node(${nodeId})`,
+                messageProvider: `node(${nodeId})`,
                 abortSignal: abortController.signal,
               },
               defaultRuntime,
@@ -1124,9 +1149,10 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
           updatedAt: now,
           thinkingLevel: entry?.thinkingLevel,
           verboseLevel: entry?.verboseLevel,
+          reasoningLevel: entry?.reasoningLevel,
           systemSent: entry?.systemSent,
           sendPolicy: entry?.sendPolicy,
-          lastChannel: entry?.lastChannel,
+          lastProvider: entry?.lastProvider,
           lastTo: entry?.lastTo,
         };
         if (storePath) {
@@ -1144,9 +1170,10 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
           {
             message: text,
             sessionId,
+            sessionKey,
             thinking: "low",
             deliver: false,
-            surface: "Node",
+            messageProvider: "node",
           },
           defaultRuntime,
           ctx.deps,
@@ -1206,9 +1233,10 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
           updatedAt: now,
           thinkingLevel: entry?.thinkingLevel,
           verboseLevel: entry?.verboseLevel,
+          reasoningLevel: entry?.reasoningLevel,
           systemSent: entry?.systemSent,
           sendPolicy: entry?.sendPolicy,
-          lastChannel: entry?.lastChannel,
+          lastProvider: entry?.lastProvider,
           lastTo: entry?.lastTo,
         };
         if (storePath) {
@@ -1219,6 +1247,7 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
           {
             message,
             sessionId,
+            sessionKey,
             thinking: link?.thinking ?? undefined,
             deliver,
             to,
@@ -1227,7 +1256,7 @@ export function createBridgeHandlers(ctx: BridgeHandlersContext) {
               typeof link?.timeoutSeconds === "number"
                 ? link.timeoutSeconds.toString()
                 : undefined,
-            surface: "Node",
+            messageProvider: "node",
           },
           defaultRuntime,
           ctx.deps,

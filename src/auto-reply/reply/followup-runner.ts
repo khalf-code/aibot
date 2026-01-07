@@ -3,6 +3,7 @@ import { lookupContextTokens } from "../../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS } from "../../agents/defaults.js";
 import { runWithModelFallback } from "../../agents/model-fallback.js";
 import { runEmbeddedPiAgent } from "../../agents/pi-embedded.js";
+import { hasNonzeroUsage } from "../../agents/usage.js";
 import { type SessionEntry, saveSessionStore } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
 import { registerAgentRunContext } from "../../infra/agent-events.js";
@@ -12,6 +13,7 @@ import { SILENT_REPLY_TOKEN } from "../tokens.js";
 import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import type { FollowupRun } from "./queue.js";
 import { extractReplyToTag } from "./reply-tags.js";
+import { isRoutableChannel, routeReply } from "./route-reply.js";
 import { incrementCompactionCount } from "./session-updates.js";
 import type { TypingController } from "./typing.js";
 
@@ -36,11 +38,28 @@ export function createFollowupRunner(params: {
     agentCfgContextTokens,
   } = params;
 
-  const sendFollowupPayloads = async (payloads: ReplyPayload[]) => {
-    if (!opts?.onBlockReply) {
+  /**
+   * Sends followup payloads, routing to the originating channel if set.
+   *
+   * When originatingChannel/originatingTo are set on the queued run,
+   * replies are routed directly to that provider instead of using the
+   * session's current dispatcher. This ensures replies go back to
+   * where the message originated.
+   */
+  const sendFollowupPayloads = async (
+    payloads: ReplyPayload[],
+    queued: FollowupRun,
+  ) => {
+    // Check if we should route to originating channel.
+    const { originatingChannel, originatingTo } = queued;
+    const shouldRouteToOriginating =
+      isRoutableChannel(originatingChannel) && originatingTo;
+
+    if (!shouldRouteToOriginating && !opts?.onBlockReply) {
       logVerbose("followup queue: no onBlockReply handler; dropping payloads");
       return;
     }
+
     for (const payload of payloads) {
       if (!payload?.text && !payload?.mediaUrl && !payload?.mediaUrls?.length) {
         continue;
@@ -53,7 +72,29 @@ export function createFollowupRunner(params: {
         continue;
       }
       await typing.startTypingOnText(payload.text);
-      await opts.onBlockReply(payload);
+
+      // Route to originating channel if set, otherwise fall back to dispatcher.
+      if (shouldRouteToOriginating) {
+        const result = await routeReply({
+          payload,
+          channel: originatingChannel,
+          to: originatingTo,
+          accountId: queued.originatingAccountId,
+          threadId: queued.originatingThreadId,
+          cfg: queued.run.config,
+        });
+        if (!result.ok) {
+          // Log error and fall back to dispatcher if available.
+          const errorMsg = result.error ?? "unknown error";
+          logVerbose(`followup queue: route-reply failed: ${errorMsg}`);
+          // Fallback: try the dispatcher if routing failed.
+          if (opts?.onBlockReply) {
+            await opts.onBlockReply(payload);
+          }
+        }
+      } else if (opts?.onBlockReply) {
+        await opts.onBlockReply(payload);
+      }
     }
   };
 
@@ -76,7 +117,7 @@ export function createFollowupRunner(params: {
             runEmbeddedPiAgent({
               sessionId: queued.run.sessionId,
               sessionKey: queued.run.sessionKey,
-              surface: queued.run.surface,
+              messageProvider: queued.run.messageProvider,
               sessionFile: queued.run.sessionFile,
               workspaceDir: queued.run.workspaceDir,
               config: queued.run.config,
@@ -90,6 +131,7 @@ export function createFollowupRunner(params: {
               authProfileId: queued.run.authProfileId,
               thinkLevel: queued.run.thinkLevel,
               verboseLevel: queued.run.verboseLevel,
+              reasoningLevel: queued.run.reasoningLevel,
               bashElevated: queued.run.bashElevated,
               timeoutMs: queued.run.timeoutMs,
               runId,
@@ -171,7 +213,7 @@ export function createFollowupRunner(params: {
           sessionEntry?.contextTokens ??
           DEFAULT_CONTEXT_TOKENS;
 
-        if (usage) {
+        if (hasNonzeroUsage(usage)) {
           const entry = sessionStore[sessionKey];
           if (entry) {
             const input = usage.input ?? 0;
@@ -209,7 +251,7 @@ export function createFollowupRunner(params: {
         }
       }
 
-      await sendFollowupPayloads(replyTaggedPayloads);
+      await sendFollowupPayloads(replyTaggedPayloads, queued);
     } finally {
       typing.markRunComplete();
     }

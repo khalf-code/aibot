@@ -14,8 +14,13 @@ import {
 import { callGateway } from "../gateway/call.js";
 import { info } from "../globals.js";
 import { buildProviderSummary } from "../infra/provider-summary.js";
+import {
+  formatUsageReportLines,
+  loadProviderUsageSummary,
+} from "../infra/provider-usage.js";
 import { peekSystemEvents } from "../infra/system-events.js";
 import type { RuntimeEnv } from "../runtime.js";
+import { resolveWhatsAppAccount } from "../web/accounts.js";
 import { resolveHeartbeatSeconds } from "../web/reconnect.js";
 import {
   getWebAuthAgeMs,
@@ -32,6 +37,7 @@ export type SessionStatus = {
   age: number | null;
   thinkingLevel?: string;
   verboseLevel?: string;
+  reasoningLevel?: string;
   elevatedLevel?: string;
   systemSent?: boolean;
   abortedLastRun?: boolean;
@@ -60,10 +66,14 @@ export type StatusSummary = {
 
 export async function getStatusSummary(): Promise<StatusSummary> {
   const cfg = loadConfig();
-  const linked = await webAuthExists();
-  const authAgeMs = getWebAuthAgeMs();
+  const account = resolveWhatsAppAccount({ cfg });
+  const linked = await webAuthExists(account.authDir);
+  const authAgeMs = getWebAuthAgeMs(account.authDir);
   const heartbeatSeconds = resolveHeartbeatSeconds(cfg, undefined);
-  const providerSummary = await buildProviderSummary(cfg);
+  const providerSummary = await buildProviderSummary(cfg, {
+    colorize: true,
+    includeAllowFrom: true,
+  });
   const queuedSystemEvents = peekSystemEvents();
 
   const resolved = resolveConfiguredModelRef({
@@ -109,6 +119,7 @@ export async function getStatusSummary(): Promise<StatusSummary> {
         age,
         thinkingLevel: entry?.thinkingLevel,
         verboseLevel: entry?.verboseLevel,
+        reasoningLevel: entry?.reasoningLevel,
         elevatedLevel: entry?.elevatedLevel,
         systemSent: entry?.systemSent,
         abortedLastRun: entry?.abortedLastRun,
@@ -196,6 +207,9 @@ const buildFlags = (entry: SessionEntry): string[] => {
   const verbose = entry?.verboseLevel;
   if (typeof verbose === "string" && verbose.length > 0)
     flags.push(`verbose:${verbose}`);
+  const reasoning = entry?.reasoningLevel;
+  if (typeof reasoning === "string" && reasoning.length > 0)
+    flags.push(`reasoning:${reasoning}`);
   const elevated = entry?.elevatedLevel;
   if (typeof elevated === "string" && elevated.length > 0)
     flags.push(`elevated:${elevated}`);
@@ -208,10 +222,13 @@ const buildFlags = (entry: SessionEntry): string[] => {
 };
 
 export async function statusCommand(
-  opts: { json?: boolean; deep?: boolean; timeoutMs?: number },
+  opts: { json?: boolean; deep?: boolean; usage?: boolean; timeoutMs?: number },
   runtime: RuntimeEnv,
 ) {
   const summary = await getStatusSummary();
+  const usage = opts.usage
+    ? await loadProviderUsageSummary({ timeoutMs: opts.timeoutMs })
+    : undefined;
   const health: HealthSummary | undefined = opts.deep
     ? await callGateway<HealthSummary>({
         method: "health",
@@ -221,7 +238,11 @@ export async function statusCommand(
 
   if (opts.json) {
     runtime.log(
-      JSON.stringify(health ? { ...summary, health } : summary, null, 2),
+      JSON.stringify(
+        health || usage ? { ...summary, health, usage } : summary,
+        null,
+        2,
+      ),
     );
     return;
   }
@@ -230,7 +251,9 @@ export async function statusCommand(
     `Web session: ${summary.web.linked ? "linked" : "not linked"}${summary.web.linked ? ` (last refreshed ${formatAge(summary.web.authAgeMs)})` : ""}`,
   );
   if (summary.web.linked) {
-    logWebSelfId(runtime, true);
+    const cfg = loadConfig();
+    const account = resolveWhatsAppAccount({ cfg });
+    logWebSelfId(account.authDir, runtime, true);
   }
   runtime.log(info("System:"));
   for (const line of summary.providerSummary) {
@@ -289,5 +312,11 @@ export async function statusCommand(
     }
   } else {
     runtime.log("No session activity yet.");
+  }
+
+  if (usage) {
+    for (const line of formatUsageReportLines(usage)) {
+      runtime.log(line);
+    }
   }
 }

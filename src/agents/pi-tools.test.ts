@@ -100,24 +100,42 @@ describe("createClawdbotCodingTools", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("scopes discord tool to discord surface", () => {
-    const other = createClawdbotCodingTools({ surface: "whatsapp" });
+  it("scopes discord tool to discord provider", () => {
+    const other = createClawdbotCodingTools({ messageProvider: "whatsapp" });
     expect(other.some((tool) => tool.name === "discord")).toBe(false);
 
-    const discord = createClawdbotCodingTools({ surface: "discord" });
+    const discord = createClawdbotCodingTools({ messageProvider: "discord" });
     expect(discord.some((tool) => tool.name === "discord")).toBe(true);
   });
 
-  it("scopes slack tool to slack surface", () => {
-    const other = createClawdbotCodingTools({ surface: "whatsapp" });
+  it("scopes slack tool to slack provider", () => {
+    const other = createClawdbotCodingTools({ messageProvider: "whatsapp" });
     expect(other.some((tool) => tool.name === "slack")).toBe(false);
 
-    const slack = createClawdbotCodingTools({ surface: "slack" });
+    const slack = createClawdbotCodingTools({ messageProvider: "slack" });
     expect(slack.some((tool) => tool.name === "slack")).toBe(true);
   });
 
+  it("scopes telegram tool to telegram provider", () => {
+    const other = createClawdbotCodingTools({ messageProvider: "whatsapp" });
+    expect(other.some((tool) => tool.name === "telegram")).toBe(false);
+
+    const telegram = createClawdbotCodingTools({ messageProvider: "telegram" });
+    expect(telegram.some((tool) => tool.name === "telegram")).toBe(true);
+  });
+
+  it("scopes whatsapp tool to whatsapp provider", () => {
+    const other = createClawdbotCodingTools({ messageProvider: "slack" });
+    expect(other.some((tool) => tool.name === "whatsapp")).toBe(false);
+
+    const whatsapp = createClawdbotCodingTools({ messageProvider: "whatsapp" });
+    expect(whatsapp.some((tool) => tool.name === "whatsapp")).toBe(true);
+  });
+
   it("filters session tools for sub-agent sessions by default", () => {
-    const tools = createClawdbotCodingTools({ sessionKey: "subagent:test" });
+    const tools = createClawdbotCodingTools({
+      sessionKey: "agent:main:subagent:test",
+    });
     const names = new Set(tools.map((tool) => tool.name));
     expect(names.has("sessions_list")).toBe(false);
     expect(names.has("sessions_history")).toBe(false);
@@ -131,7 +149,7 @@ describe("createClawdbotCodingTools", () => {
 
   it("supports allow-only sub-agent tool policy", () => {
     const tools = createClawdbotCodingTools({
-      sessionKey: "subagent:test",
+      sessionKey: "agent:main:subagent:test",
       // Intentionally partial config; only fields used by pi-tools are provided.
       config: {
         agent: {
@@ -222,6 +240,8 @@ describe("createClawdbotCodingTools", () => {
       enabled: true,
       sessionKey: "sandbox:test",
       workspaceDir: path.join(os.tmpdir(), "clawdbot-sandbox"),
+      agentWorkspaceDir: path.join(os.tmpdir(), "clawdbot-workspace"),
+      workspaceAccess: "none",
       containerName: "clawdbot-sbx-test",
       containerWorkdir: "/workspace",
       docker: {
@@ -244,6 +264,37 @@ describe("createClawdbotCodingTools", () => {
     expect(tools.some((tool) => tool.name === "bash")).toBe(true);
     expect(tools.some((tool) => tool.name === "read")).toBe(false);
     expect(tools.some((tool) => tool.name === "browser")).toBe(false);
+  });
+
+  it("hard-disables write/edit when sandbox workspaceAccess is ro", () => {
+    const sandbox = {
+      enabled: true,
+      sessionKey: "sandbox:test",
+      workspaceDir: path.join(os.tmpdir(), "clawdbot-sandbox"),
+      agentWorkspaceDir: path.join(os.tmpdir(), "clawdbot-workspace"),
+      workspaceAccess: "ro",
+      containerName: "clawdbot-sbx-test",
+      containerWorkdir: "/workspace",
+      docker: {
+        image: "clawdbot-sandbox:bookworm-slim",
+        containerPrefix: "clawdbot-sbx-",
+        workdir: "/workspace",
+        readOnlyRoot: true,
+        tmpfs: [],
+        network: "none",
+        user: "1000:1000",
+        capDrop: ["ALL"],
+        env: { LANG: "C.UTF-8" },
+      },
+      tools: {
+        allow: ["read", "write", "edit"],
+        deny: [],
+      },
+    };
+    const tools = createClawdbotCodingTools({ sandbox });
+    expect(tools.some((tool) => tool.name === "read")).toBe(true);
+    expect(tools.some((tool) => tool.name === "write")).toBe(false);
+    expect(tools.some((tool) => tool.name === "edit")).toBe(false);
   });
 
   it("filters tools by agent tool policy even without sandbox", () => {

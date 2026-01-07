@@ -200,9 +200,10 @@ export const chatHandlers: GatewayRequestHandlers = {
       updatedAt: now,
       thinkingLevel: entry?.thinkingLevel,
       verboseLevel: entry?.verboseLevel,
+      reasoningLevel: entry?.reasoningLevel,
       systemSent: entry?.systemSent,
       sendPolicy: entry?.sendPolicy,
-      lastChannel: entry?.lastChannel,
+      lastProvider: entry?.lastProvider,
       lastTo: entry?.lastTo,
     };
     const clientRunId = p.idempotencyKey;
@@ -212,7 +213,7 @@ export const chatHandlers: GatewayRequestHandlers = {
       cfg,
       entry,
       sessionKey: p.sessionKey,
-      surface: entry?.surface,
+      provider: entry?.provider,
       chatType: entry?.chatType,
     });
     if (sendPolicy === "deny") {
@@ -258,11 +259,12 @@ export const chatHandlers: GatewayRequestHandlers = {
         {
           message: messageWithAttachments,
           sessionId,
+          sessionKey: p.sessionKey,
           runId: clientRunId,
           thinking: p.thinking,
           deliver: p.deliver,
           timeout: Math.ceil(timeoutMs / 1000).toString(),
-          surface: "WebChat",
+          messageProvider: "webchat",
           abortSignal: abortController.signal,
         },
         defaultRuntime,

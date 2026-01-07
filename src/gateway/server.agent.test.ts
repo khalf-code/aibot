@@ -33,7 +33,7 @@ describe("gateway server agent", () => {
           main: {
             sessionId: "sess-main-stale",
             updatedAt: Date.now(),
-            lastChannel: "whatsapp",
+            lastProvider: "whatsapp",
             lastTo: "+1555",
           },
         },
@@ -49,7 +49,7 @@ describe("gateway server agent", () => {
     const res = await rpcReq(ws, "agent", {
       message: "hi",
       sessionKey: "main",
-      channel: "last",
+      provider: "last",
       deliver: true,
       idempotencyKey: "idem-agent-last-stale",
     });
@@ -66,6 +66,43 @@ describe("gateway server agent", () => {
     testState.allowFrom = undefined;
   });
 
+  test("agent forwards sessionKey to agentCommand", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawdbot-gw-"));
+    testState.sessionStorePath = path.join(dir, "sessions.json");
+    await fs.writeFile(
+      testState.sessionStorePath,
+      JSON.stringify(
+        {
+          "agent:main:subagent:abc": {
+            sessionId: "sess-sub",
+            updatedAt: Date.now(),
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const { server, ws } = await startServerWithClient();
+    await connectOk(ws);
+
+    const res = await rpcReq(ws, "agent", {
+      message: "hi",
+      sessionKey: "agent:main:subagent:abc",
+      idempotencyKey: "idem-agent-subkey",
+    });
+    expect(res.ok).toBe(true);
+
+    const spy = vi.mocked(agentCommand);
+    const call = spy.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(call.sessionKey).toBe("agent:main:subagent:abc");
+    expect(call.sessionId).toBe("sess-sub");
+
+    ws.close();
+    await server.close();
+  });
+
   test("agent routes main last-channel whatsapp", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "clawdbot-gw-"));
     testState.sessionStorePath = path.join(dir, "sessions.json");
@@ -76,7 +113,7 @@ describe("gateway server agent", () => {
           main: {
             sessionId: "sess-main-whatsapp",
             updatedAt: Date.now(),
-            lastChannel: "whatsapp",
+            lastProvider: "whatsapp",
             lastTo: "+1555",
           },
         },
@@ -92,7 +129,7 @@ describe("gateway server agent", () => {
     const res = await rpcReq(ws, "agent", {
       message: "hi",
       sessionKey: "main",
-      channel: "last",
+      provider: "last",
       deliver: true,
       idempotencyKey: "idem-agent-last-whatsapp",
     });
@@ -120,7 +157,7 @@ describe("gateway server agent", () => {
           main: {
             sessionId: "sess-main",
             updatedAt: Date.now(),
-            lastChannel: "telegram",
+            lastProvider: "telegram",
             lastTo: "123",
           },
         },
@@ -136,7 +173,7 @@ describe("gateway server agent", () => {
     const res = await rpcReq(ws, "agent", {
       message: "hi",
       sessionKey: "main",
-      channel: "last",
+      provider: "last",
       deliver: true,
       idempotencyKey: "idem-agent-last",
     });
@@ -164,7 +201,7 @@ describe("gateway server agent", () => {
           main: {
             sessionId: "sess-discord",
             updatedAt: Date.now(),
-            lastChannel: "discord",
+            lastProvider: "discord",
             lastTo: "channel:discord-123",
           },
         },
@@ -180,7 +217,7 @@ describe("gateway server agent", () => {
     const res = await rpcReq(ws, "agent", {
       message: "hi",
       sessionKey: "main",
-      channel: "last",
+      provider: "last",
       deliver: true,
       idempotencyKey: "idem-agent-last-discord",
     });
@@ -208,7 +245,7 @@ describe("gateway server agent", () => {
           main: {
             sessionId: "sess-signal",
             updatedAt: Date.now(),
-            lastChannel: "signal",
+            lastProvider: "signal",
             lastTo: "+15551234567",
           },
         },
@@ -224,7 +261,7 @@ describe("gateway server agent", () => {
     const res = await rpcReq(ws, "agent", {
       message: "hi",
       sessionKey: "main",
-      channel: "last",
+      provider: "last",
       deliver: true,
       idempotencyKey: "idem-agent-last-signal",
     });
@@ -253,7 +290,7 @@ describe("gateway server agent", () => {
           main: {
             sessionId: "sess-main-webchat",
             updatedAt: Date.now(),
-            lastChannel: "webchat",
+            lastProvider: "webchat",
             lastTo: "+1555",
           },
         },
@@ -269,7 +306,7 @@ describe("gateway server agent", () => {
     const res = await rpcReq(ws, "agent", {
       message: "hi",
       sessionKey: "main",
-      channel: "last",
+      provider: "last",
       deliver: true,
       idempotencyKey: "idem-agent-webchat",
     });

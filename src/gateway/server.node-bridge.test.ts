@@ -732,7 +732,7 @@ describe("gateway server node/bridge", () => {
           main: {
             sessionId: "sess-main",
             updatedAt: Date.now(),
-            lastChannel: "whatsapp",
+            lastProvider: "whatsapp",
             lastTo: "+1555",
           },
         },
@@ -758,8 +758,9 @@ describe("gateway server node/bridge", () => {
     expect(spy.mock.calls.length).toBe(beforeCalls + 1);
     const call = spy.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(call.sessionId).toBe("sess-main");
+    expect(call.sessionKey).toBe("main");
     expect(call.deliver).toBe(false);
-    expect(call.surface).toBe("Node");
+    expect(call.messageProvider).toBe("node");
 
     const stored = JSON.parse(
       await fs.readFile(testState.sessionStorePath, "utf-8"),

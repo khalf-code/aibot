@@ -63,6 +63,11 @@ vi.mock("@slack/bolt", () => {
         user: { profile: { display_name: "Ada" } },
       }),
     },
+    assistant: {
+      threads: {
+        setStatus: vi.fn().mockResolvedValue({ ok: true }),
+      },
+    },
     reactions: {
       add: (...args: unknown[]) => reactMock(...args),
     },
@@ -147,6 +152,57 @@ describe("monitorSlackProvider tool results", () => {
     expect(sendMock).toHaveBeenCalledTimes(2);
     expect(sendMock.mock.calls[0][1]).toBe("PFX tool update");
     expect(sendMock.mock.calls[1][1]).toBe("PFX final reply");
+  });
+
+  it("updates assistant thread status when replies start", async () => {
+    replyMock.mockImplementation(async (_ctx, opts) => {
+      await opts?.onReplyStart?.();
+      return { text: "final reply" };
+    });
+
+    const controller = new AbortController();
+    const run = monitorSlackProvider({
+      botToken: "bot-token",
+      appToken: "app-token",
+      abortSignal: controller.signal,
+    });
+
+    await waitForEvent("message");
+    const handler = getSlackHandlers()?.get("message");
+    if (!handler) throw new Error("Slack message handler not registered");
+
+    await handler({
+      event: {
+        type: "message",
+        user: "U1",
+        text: "hello",
+        ts: "123",
+        channel: "C1",
+        channel_type: "im",
+      },
+    });
+
+    await flush();
+    controller.abort();
+    await run;
+
+    const client = getSlackClient() as {
+      assistant?: { threads?: { setStatus?: ReturnType<typeof vi.fn> } };
+    };
+    const setStatus = client.assistant?.threads?.setStatus;
+    expect(setStatus).toHaveBeenCalledTimes(2);
+    expect(setStatus).toHaveBeenNthCalledWith(1, {
+      token: "bot-token",
+      channel_id: "C1",
+      thread_ts: "123",
+      status: "is typing...",
+    });
+    expect(setStatus).toHaveBeenNthCalledWith(2, {
+      token: "bot-token",
+      channel_id: "C1",
+      thread_ts: "123",
+      status: "",
+    });
   });
 
   it("accepts channel messages when mentionPatterns match", async () => {
@@ -342,5 +398,44 @@ describe("monitorSlackProvider tool results", () => {
     expect(String(sendMock.mock.calls[0]?.[1] ?? "")).toContain(
       "Pairing code: PAIRCODE",
     );
+  });
+
+  it("does not resend pairing code when a request is already pending", async () => {
+    config = {
+      ...config,
+      slack: { dm: { enabled: true, policy: "pairing", allowFrom: [] } },
+    };
+    upsertPairingRequestMock
+      .mockResolvedValueOnce({ code: "PAIRCODE", created: true })
+      .mockResolvedValueOnce({ code: "PAIRCODE", created: false });
+
+    const controller = new AbortController();
+    const run = monitorSlackProvider({
+      botToken: "bot-token",
+      appToken: "app-token",
+      abortSignal: controller.signal,
+    });
+
+    await waitForEvent("message");
+    const handler = getSlackHandlers()?.get("message");
+    if (!handler) throw new Error("Slack message handler not registered");
+
+    const baseEvent = {
+      type: "message",
+      user: "U1",
+      text: "hello",
+      ts: "123",
+      channel: "C1",
+      channel_type: "im",
+    };
+
+    await handler({ event: baseEvent });
+    await handler({ event: { ...baseEvent, ts: "124", text: "hello again" } });
+
+    await flush();
+    controller.abort();
+    await run;
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
   });
 });

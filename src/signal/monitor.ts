@@ -12,6 +12,7 @@ import {
   readProviderAllowFromStore,
   upsertProviderPairingRequest,
 } from "../pairing/pairing-store.js";
+import { resolveAgentRoute } from "../routing/resolve-route.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { normalizeE164 } from "../utils.js";
 import { signalCheck, signalRpcRequest, streamSignalEvents } from "./client.js";
@@ -335,33 +336,33 @@ export async function monitorSignalProvider(
         if (!dmAllowed) {
           if (dmPolicy === "pairing") {
             const senderId = normalizeE164(sender);
-            const { code } = await upsertProviderPairingRequest({
+            const { code, created } = await upsertProviderPairingRequest({
               provider: "signal",
               id: senderId,
               meta: {
                 name: envelope.sourceName ?? undefined,
               },
             });
-            logVerbose(
-              `signal pairing request sender=${senderId} code=${code}`,
-            );
-            try {
-              await sendMessageSignal(
-                senderId,
-                [
-                  "Clawdbot: access not configured.",
-                  "",
-                  `Pairing code: ${code}`,
-                  "",
-                  "Ask the bot owner to approve with:",
-                  "clawdbot pairing approve --provider signal <code>",
-                ].join("\n"),
-                { baseUrl, account, maxBytes: mediaMaxBytes },
-              );
-            } catch (err) {
-              logVerbose(
-                `signal pairing reply failed for ${senderId}: ${String(err)}`,
-              );
+            if (created) {
+              logVerbose(`signal pairing request sender=${senderId}`);
+              try {
+                await sendMessageSignal(
+                  senderId,
+                  [
+                    "Clawdbot: access not configured.",
+                    "",
+                    `Pairing code: ${code}`,
+                    "",
+                    "Ask the bot owner to approve with:",
+                    "clawdbot pairing approve --provider signal <code>",
+                  ].join("\n"),
+                  { baseUrl, account, maxBytes: mediaMaxBytes },
+                );
+              } catch (err) {
+                logVerbose(
+                  `signal pairing reply failed for ${senderId}: ${String(err)}`,
+                );
+              }
             }
           } else {
             logVerbose(
@@ -436,20 +437,32 @@ export async function monitorSignalProvider(
         ? `${groupName ?? "Signal Group"} id:${groupId}`
         : `${envelope.sourceName ?? sender} id:${sender}`;
       const body = formatAgentEnvelope({
-        surface: "Signal",
+        provider: "Signal",
         from: fromLabel,
         timestamp: envelope.timestamp ?? undefined,
         body: bodyText,
       });
 
+      const route = resolveAgentRoute({
+        cfg,
+        provider: "signal",
+        peer: {
+          kind: isGroup ? "group" : "dm",
+          id: isGroup ? (groupId ?? "unknown") : normalizeE164(sender),
+        },
+      });
+      const signalTo = isGroup ? `group:${groupId}` : `signal:${sender}`;
       const ctxPayload = {
         Body: body,
-        From: isGroup ? `group:${groupId}` : `signal:${sender}`,
-        To: isGroup ? `group:${groupId}` : `signal:${sender}`,
+        From: isGroup ? `group:${groupId ?? "unknown"}` : `signal:${sender}`,
+        To: signalTo,
+        SessionKey: route.sessionKey,
+        AccountId: route.accountId,
         ChatType: isGroup ? "group" : "direct",
         GroupSubject: isGroup ? (groupName ?? undefined) : undefined,
         SenderName: envelope.sourceName ?? sender,
         SenderId: sender,
+        Provider: "signal" as const,
         Surface: "signal" as const,
         MessageSid: envelope.timestamp ? String(envelope.timestamp) : undefined,
         Timestamp: envelope.timestamp ?? undefined,
@@ -457,17 +470,22 @@ export async function monitorSignalProvider(
         MediaType: mediaType,
         MediaUrl: mediaPath,
         CommandAuthorized: commandAuthorized,
+        // Originating channel for reply routing.
+        OriginatingChannel: "signal" as const,
+        OriginatingTo: signalTo,
       };
 
       if (!isGroup) {
         const sessionCfg = cfg.session;
-        const mainKey = (sessionCfg?.mainKey ?? "main").trim() || "main";
-        const storePath = resolveStorePath(sessionCfg?.store);
+        const storePath = resolveStorePath(sessionCfg?.store, {
+          agentId: route.agentId,
+        });
         await updateLastRoute({
           storePath,
-          sessionKey: mainKey,
-          channel: "signal",
+          sessionKey: route.mainSessionKey,
+          provider: "signal",
           to: normalizeE164(sender),
+          accountId: route.accountId,
         });
       }
 
