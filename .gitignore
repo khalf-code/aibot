@@ -55,3 +55,6 @@ apps/ios/*.mobileprovision
 # Local untracked files
 .local/
 .vscode/
+
+# Fork-local experimental docs (not for upstream)
+docs/local/
