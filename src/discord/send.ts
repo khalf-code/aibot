@@ -892,7 +892,12 @@ export async function createThreadDiscord(
     body.auto_archive_duration = payload.autoArchiveMinutes;
   }
   const route = Routes.threads(channelId, payload.messageId);
-  return await rest.post(route, { body });
+  const thread = (await rest.post(route, { body })) as { id?: string };
+  // Join the thread to receive MESSAGE_CREATE gateway events
+  if (thread?.id) {
+    await rest.put(Routes.threadMembers(thread.id, "@me"));
+  }
+  return thread;
 }
 
 export async function listThreadsDiscord(
