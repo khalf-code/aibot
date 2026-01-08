@@ -199,6 +199,9 @@ export class ClawdbotApp extends LitElement {
   @state() configValid: boolean | null = null;
   @state() configIssues: unknown[] = [];
   @state() configSaving = false;
+  @state() configApplying = false;
+  @state() updateRunning = false;
+  @state() applySessionKey = this.settings.lastActiveSessionKey;
   @state() configSnapshot: ConfigSnapshot | null = null;
   @state() configSchema: unknown | null = null;
   @state() configSchemaVersion: string | null = null;
@@ -616,6 +619,9 @@ export class ClawdbotApp extends LitElement {
 
     if (evt.event === "chat") {
       const payload = evt.payload as ChatEventPayload | undefined;
+      if (payload?.sessionKey) {
+        this.setLastActiveSessionKey(payload.sessionKey);
+      }
       const state = handleChatEvent(this, payload);
       if (state === "final" || state === "error" || state === "aborted") {
         this.resetToolStream();
@@ -652,23 +658,53 @@ export class ClawdbotApp extends LitElement {
   }
 
   applySettings(next: UiSettings) {
-    this.settings = next;
-    saveSettings(next);
+    const normalized = {
+      ...next,
+      lastActiveSessionKey:
+        next.lastActiveSessionKey?.trim() || next.sessionKey.trim() || "main",
+    };
+    this.settings = normalized;
+    saveSettings(normalized);
     if (next.theme !== this.theme) {
       this.theme = next.theme;
       this.applyResolvedTheme(resolveTheme(next.theme));
     }
+    this.applySessionKey = this.settings.lastActiveSessionKey;
+  }
+
+  private setLastActiveSessionKey(next: string) {
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    if (this.settings.lastActiveSessionKey === trimmed) return;
+    this.applySettings({ ...this.settings, lastActiveSessionKey: trimmed });
   }
 
   private applySettingsFromUrl() {
     if (!window.location.search) return;
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token")?.trim();
-    if (!token) return;
-    if (!this.settings.token) {
-      this.applySettings({ ...this.settings, token });
+    const tokenRaw = params.get("token");
+    const passwordRaw = params.get("password");
+    let changed = false;
+
+    if (tokenRaw != null) {
+      const token = tokenRaw.trim();
+      if (token && !this.settings.token) {
+        this.applySettings({ ...this.settings, token });
+        changed = true;
+      }
+      params.delete("token");
     }
-    params.delete("token");
+
+    if (passwordRaw != null) {
+      const password = passwordRaw.trim();
+      if (password) {
+        this.password = password;
+        changed = true;
+      }
+      params.delete("password");
+    }
+
+    if (!changed && tokenRaw == null && passwordRaw == null) return;
     const url = new URL(window.location.href);
     url.search = params.toString();
     window.history.replaceState({}, "", url.toString());
@@ -826,6 +862,9 @@ export class ClawdbotApp extends LitElement {
     if (!this.connected) return;
     this.resetToolStream();
     const ok = await sendChat(this);
+    if (ok) {
+      this.setLastActiveSessionKey(this.sessionKey);
+    }
     if (ok && this.chatRunId) {
       // chat.send returned (run finished), but we missed the chat final event.
       this.chatRunId = null;

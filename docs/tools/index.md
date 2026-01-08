@@ -42,6 +42,7 @@ Core parameters:
 Notes:
 - Returns `status: "running"` with a `sessionId` when backgrounded.
 - Use `process` to poll/log/write/kill/clear background sessions.
+- If `process` is disallowed, `bash` runs synchronously and ignores `yieldMs`/`background`.
 
 ### `process`
 Manage background bash sessions.
@@ -52,6 +53,7 @@ Core actions:
 Notes:
 - `poll` returns new output and exit status when complete.
 - `log` supports line-based `offset`/`limit` (omit `offset` to grab the last N lines).
+- `process` is scoped per agent; sessions from other agents are not visible.
 
 ### `browser`
 Control the dedicated clawd browser.
@@ -107,6 +109,7 @@ Core actions:
 - `status`, `describe`
 - `pending`, `approve`, `reject` (pairing)
 - `notify` (macOS `system.notify`)
+- `run` (macOS `system.run`)
 - `camera_snap`, `camera_clip`, `screen_record`
 - `location_get`
 
@@ -115,6 +118,20 @@ Notes:
 - Images return image blocks + `MEDIA:<path>`.
 - Videos return `FILE:<path>` (mp4).
 - Location returns a JSON payload (lat/lon/accuracy/timestamp).
+- `run` params: `command` argv array; optional `cwd`, `env` (`KEY=VAL`), `commandTimeoutMs`, `invokeTimeoutMs`, `needsScreenRecording`.
+
+Example (`run`):
+```json
+{
+  "action": "run",
+  "node": "office-mac",
+  "command": ["echo", "Hello"],
+  "env": ["FOO=bar"],
+  "commandTimeoutMs": 12000,
+  "invokeTimeoutMs": 45000,
+  "needsScreenRecording": false
+}
+```
 
 ### `image`
 Analyze an image with the configured image model.
@@ -142,10 +159,13 @@ Notes:
 - `update` uses `{ id, patch }`.
 
 ### `gateway`
-Restart the running Gateway process (in-place).
+Restart or apply updates to the running Gateway process (in-place).
 
 Core actions:
 - `restart` (sends `SIGUSR1` to the current process; `clawdbot gateway`/`gateway-daemon` restart in-place)
+- `config.get` / `config.schema`
+- `config.apply` (validate + write config + restart + wake)
+- `update.run` (run update + restart + wake)
 
 Notes:
 - Use `delayMs` (defaults to 2000) to avoid interrupting an in-flight reply.
@@ -157,13 +177,14 @@ Core parameters:
 - `sessions_list`: `kinds?`, `limit?`, `activeMinutes?`, `messageLimit?` (0 = none)
 - `sessions_history`: `sessionKey`, `limit?`, `includeTools?`
 - `sessions_send`: `sessionKey`, `message`, `timeoutSeconds?` (0 = fire-and-forget)
-- `sessions_spawn`: `task`, `label?`, `model?`, `timeoutSeconds?`, `cleanup?`
+- `sessions_spawn`: `task`, `label?`, `model?`, `runTimeoutSeconds?`, `cleanup?`
 
 Notes:
 - `main` is the canonical direct-chat key; global/unknown are hidden.
 - `messageLimit > 0` fetches last N messages per session (tool messages filtered).
 - `sessions_send` waits for final completion when `timeoutSeconds > 0`.
 - `sessions_spawn` starts a sub-agent run and posts an announce reply back to the requester chat.
+- `sessions_spawn` is non-blocking and returns `status: "accepted"` immediately.
 - `sessions_send` runs a reply‑back ping‑pong (reply `REPLY_SKIP` to stop; max turns via `session.agentToAgent.maxPingPongTurns`, 0–5).
 - After the ping‑pong, the target agent runs an **announce step**; reply `ANNOUNCE_SKIP` to suppress the announcement.
 
@@ -256,11 +277,11 @@ Canvas render:
 Node targeting:
 1) `nodes` → `status`
 2) `describe` on the chosen node
-3) `notify` / `camera_snap` / `screen_record`
+3) `notify` / `run` / `camera_snap` / `screen_record`
 
 ## Safety
 
-- Avoid `system.run` (not exposed as a tool).
+- Avoid direct `system.run`; use `nodes` → `run` only with explicit user consent.
 - Respect user consent for camera/screen capture.
 - Use `status/describe` to ensure permissions before invoking media commands.
 

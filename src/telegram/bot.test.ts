@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as replyModule from "../auto-reply/reply.js";
-import { createTelegramBot } from "./bot.js";
+import { createTelegramBot, getTelegramSequentialKey } from "./bot.js";
 
 const { loadWebMedia } = vi.hoisted(() => ({
   loadWebMedia: vi.fn(),
@@ -40,6 +40,7 @@ vi.mock("./pairing-store.js", () => ({
 }));
 
 const useSpy = vi.fn();
+const middlewareUseSpy = vi.fn();
 const onSpy = vi.fn();
 const stopSpy = vi.fn();
 const commandSpy = vi.fn();
@@ -71,6 +72,7 @@ const apiStub: ApiStub = {
 vi.mock("grammy", () => ({
   Bot: class {
     api = apiStub;
+    use = middlewareUseSpy;
     on = onSpy;
     stop = stopSpy;
     command = commandSpy;
@@ -78,6 +80,16 @@ vi.mock("grammy", () => ({
   },
   InputFile: class {},
   webhookCallback: vi.fn(),
+}));
+
+const sequentializeMiddleware = vi.fn();
+const sequentializeSpy = vi.fn(() => sequentializeMiddleware);
+let sequentializeKey: ((ctx: unknown) => string) | undefined;
+vi.mock("@grammyjs/runner", () => ({
+  sequentialize: (keyFn: (ctx: unknown) => string) => {
+    sequentializeKey = keyFn;
+    return sequentializeSpy();
+  },
 }));
 
 const throttlerSpy = vi.fn(() => "throttler");
@@ -104,12 +116,37 @@ describe("createTelegramBot", () => {
     sendPhotoSpy.mockReset();
     setMessageReactionSpy.mockReset();
     setMyCommandsSpy.mockReset();
+    middlewareUseSpy.mockReset();
+    sequentializeSpy.mockReset();
+    sequentializeKey = undefined;
   });
 
   it("installs grammY throttler", () => {
     createTelegramBot({ token: "tok" });
     expect(throttlerSpy).toHaveBeenCalledTimes(1);
     expect(useSpy).toHaveBeenCalledWith("throttler");
+  });
+
+  it("sequentializes updates by chat and thread", () => {
+    createTelegramBot({ token: "tok" });
+    expect(sequentializeSpy).toHaveBeenCalledTimes(1);
+    expect(middlewareUseSpy).toHaveBeenCalledWith(
+      sequentializeSpy.mock.results[0]?.value,
+    );
+    expect(sequentializeKey).toBe(getTelegramSequentialKey);
+    expect(getTelegramSequentialKey({ message: { chat: { id: 123 } } })).toBe(
+      "telegram:123",
+    );
+    expect(
+      getTelegramSequentialKey({
+        message: { chat: { id: 123 }, message_thread_id: 9 },
+      }),
+    ).toBe("telegram:123:topic:9");
+    expect(
+      getTelegramSequentialKey({
+        update: { message: { chat: { id: 555 } } },
+      }),
+    ).toBe("telegram:555");
   });
 
   it("wraps inbound message with Telegram envelope", async () => {

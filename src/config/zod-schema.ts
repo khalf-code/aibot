@@ -89,6 +89,15 @@ const GroupPolicySchema = z.enum(["open", "disabled", "allowlist"]);
 
 const DmPolicySchema = z.enum(["pairing", "allowlist", "open", "disabled"]);
 
+const RetryConfigSchema = z
+  .object({
+    attempts: z.number().int().min(1).optional(),
+    minDelayMs: z.number().int().min(0).optional(),
+    maxDelayMs: z.number().int().min(0).optional(),
+    jitter: z.number().min(0).max(1).optional(),
+  })
+  .optional();
+
 const QueueModeBySurfaceSchema = z
   .object({
     whatsapp: QueueModeSchema.optional(),
@@ -121,6 +130,14 @@ const SessionSchema = z
     heartbeatIdleMinutes: z.number().int().positive().optional(),
     store: z.string().optional(),
     typingIntervalSeconds: z.number().int().positive().optional(),
+    typingMode: z
+      .union([
+        z.literal("never"),
+        z.literal("instant"),
+        z.literal("thinking"),
+        z.literal("message"),
+      ])
+      .optional(),
     mainKey: z.string().optional(),
     sendPolicy: z
       .object({
@@ -208,6 +225,69 @@ const HeartbeatSchema = z
   })
   .optional();
 
+const SandboxDockerSchema = z
+  .object({
+    image: z.string().optional(),
+    containerPrefix: z.string().optional(),
+    workdir: z.string().optional(),
+    readOnlyRoot: z.boolean().optional(),
+    tmpfs: z.array(z.string()).optional(),
+    network: z.string().optional(),
+    user: z.string().optional(),
+    capDrop: z.array(z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    setupCommand: z.string().optional(),
+    pidsLimit: z.number().int().positive().optional(),
+    memory: z.union([z.string(), z.number()]).optional(),
+    memorySwap: z.union([z.string(), z.number()]).optional(),
+    cpus: z.number().positive().optional(),
+    ulimits: z
+      .record(
+        z.string(),
+        z.union([
+          z.string(),
+          z.number(),
+          z.object({
+            soft: z.number().int().nonnegative().optional(),
+            hard: z.number().int().nonnegative().optional(),
+          }),
+        ]),
+      )
+      .optional(),
+    seccompProfile: z.string().optional(),
+    apparmorProfile: z.string().optional(),
+    dns: z.array(z.string()).optional(),
+    extraHosts: z.array(z.string()).optional(),
+  })
+  .optional();
+
+const SandboxBrowserSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    image: z.string().optional(),
+    containerPrefix: z.string().optional(),
+    cdpPort: z.number().int().positive().optional(),
+    vncPort: z.number().int().positive().optional(),
+    noVncPort: z.number().int().positive().optional(),
+    headless: z.boolean().optional(),
+    enableNoVnc: z.boolean().optional(),
+  })
+  .optional();
+
+const SandboxPruneSchema = z
+  .object({
+    idleHours: z.number().int().nonnegative().optional(),
+    maxAgeDays: z.number().int().nonnegative().optional(),
+  })
+  .optional();
+
+const ToolPolicySchema = z
+  .object({
+    allow: z.array(z.string()).optional(),
+    deny: z.array(z.string()).optional(),
+  })
+  .optional();
+
 const RoutingSchema = z
   .object({
     groupChat: GroupChatSchema,
@@ -237,6 +317,9 @@ const RoutingSchema = z
                     z.literal("all"),
                   ])
                   .optional(),
+                workspaceAccess: z
+                  .union([z.literal("none"), z.literal("ro"), z.literal("rw")])
+                  .optional(),
                 scope: z
                   .union([
                     z.literal("session"),
@@ -246,8 +329,13 @@ const RoutingSchema = z
                   .optional(),
                 perSession: z.boolean().optional(),
                 workspaceRoot: z.string().optional(),
+                docker: SandboxDockerSchema,
+                browser: SandboxBrowserSchema,
+                tools: ToolPolicySchema,
+                prune: SandboxPruneSchema,
               })
               .optional(),
+            tools: ToolPolicySchema,
           })
           .optional(),
       )
@@ -500,6 +588,40 @@ export const ClawdbotSchema = z.object({
       skipBootstrap: z.boolean().optional(),
       userTimezone: z.string().optional(),
       contextTokens: z.number().int().positive().optional(),
+      contextPruning: z
+        .object({
+          mode: z
+            .union([
+              z.literal("off"),
+              z.literal("adaptive"),
+              z.literal("aggressive"),
+            ])
+            .optional(),
+          keepLastAssistants: z.number().int().nonnegative().optional(),
+          softTrimRatio: z.number().min(0).max(1).optional(),
+          hardClearRatio: z.number().min(0).max(1).optional(),
+          minPrunableToolChars: z.number().int().nonnegative().optional(),
+          tools: z
+            .object({
+              allow: z.array(z.string()).optional(),
+              deny: z.array(z.string()).optional(),
+            })
+            .optional(),
+          softTrim: z
+            .object({
+              maxChars: z.number().int().nonnegative().optional(),
+              headChars: z.number().int().nonnegative().optional(),
+              tailChars: z.number().int().nonnegative().optional(),
+            })
+            .optional(),
+          hardClear: z
+            .object({
+              enabled: z.boolean().optional(),
+              placeholder: z.string().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
       tools: z
         .object({
           allow: z.array(z.string()).optional(),
@@ -539,6 +661,14 @@ export const ClawdbotSchema = z.object({
       timeoutSeconds: z.number().int().positive().optional(),
       mediaMaxMb: z.number().positive().optional(),
       typingIntervalSeconds: z.number().int().positive().optional(),
+      typingMode: z
+        .union([
+          z.literal("never"),
+          z.literal("instant"),
+          z.literal("thinking"),
+          z.literal("message"),
+        ])
+        .optional(),
       heartbeat: HeartbeatSchema,
       maxConcurrent: z.number().int().positive().optional(),
       subagents: z
@@ -597,65 +727,10 @@ export const ClawdbotSchema = z.object({
             .optional(),
           perSession: z.boolean().optional(),
           workspaceRoot: z.string().optional(),
-          docker: z
-            .object({
-              image: z.string().optional(),
-              containerPrefix: z.string().optional(),
-              workdir: z.string().optional(),
-              readOnlyRoot: z.boolean().optional(),
-              tmpfs: z.array(z.string()).optional(),
-              network: z.string().optional(),
-              user: z.string().optional(),
-              capDrop: z.array(z.string()).optional(),
-              env: z.record(z.string(), z.string()).optional(),
-              setupCommand: z.string().optional(),
-              pidsLimit: z.number().int().positive().optional(),
-              memory: z.union([z.string(), z.number()]).optional(),
-              memorySwap: z.union([z.string(), z.number()]).optional(),
-              cpus: z.number().positive().optional(),
-              ulimits: z
-                .record(
-                  z.string(),
-                  z.union([
-                    z.string(),
-                    z.number(),
-                    z.object({
-                      soft: z.number().int().nonnegative().optional(),
-                      hard: z.number().int().nonnegative().optional(),
-                    }),
-                  ]),
-                )
-                .optional(),
-              seccompProfile: z.string().optional(),
-              apparmorProfile: z.string().optional(),
-              dns: z.array(z.string()).optional(),
-              extraHosts: z.array(z.string()).optional(),
-            })
-            .optional(),
-          browser: z
-            .object({
-              enabled: z.boolean().optional(),
-              image: z.string().optional(),
-              containerPrefix: z.string().optional(),
-              cdpPort: z.number().int().positive().optional(),
-              vncPort: z.number().int().positive().optional(),
-              noVncPort: z.number().int().positive().optional(),
-              headless: z.boolean().optional(),
-              enableNoVnc: z.boolean().optional(),
-            })
-            .optional(),
-          tools: z
-            .object({
-              allow: z.array(z.string()).optional(),
-              deny: z.array(z.string()).optional(),
-            })
-            .optional(),
-          prune: z
-            .object({
-              idleHours: z.number().int().nonnegative().optional(),
-              maxAgeDays: z.number().int().nonnegative().optional(),
-            })
-            .optional(),
+          docker: SandboxDockerSchema,
+          browser: SandboxBrowserSchema,
+          tools: ToolPolicySchema,
+          prune: SandboxPruneSchema,
         })
         .optional(),
     })
@@ -709,6 +784,7 @@ export const ClawdbotSchema = z.object({
               /** Override auth directory for this WhatsApp account (Baileys multi-file auth state). */
               authDir: z.string().optional(),
               dmPolicy: DmPolicySchema.optional().default("pairing"),
+              selfChatMode: z.boolean().optional(),
               allowFrom: z.array(z.string()).optional(),
               groupAllowFrom: z.array(z.string()).optional(),
               groupPolicy: GroupPolicySchema.optional().default("open"),
@@ -741,6 +817,7 @@ export const ClawdbotSchema = z.object({
         )
         .optional(),
       dmPolicy: DmPolicySchema.optional().default("pairing"),
+      selfChatMode: z.boolean().optional(),
       allowFrom: z.array(z.string()).optional(),
       groupAllowFrom: z.array(z.string()).optional(),
       groupPolicy: GroupPolicySchema.optional().default("open"),
@@ -821,6 +898,7 @@ export const ClawdbotSchema = z.object({
         .optional()
         .default("partial"),
       mediaMaxMb: z.number().positive().optional(),
+      retry: RetryConfigSchema,
       proxy: z.string().optional(),
       webhookUrl: z.string().optional(),
       webhookSecret: z.string().optional(),
@@ -853,6 +931,7 @@ export const ClawdbotSchema = z.object({
       textChunkLimit: z.number().int().positive().optional(),
       mediaMaxMb: z.number().positive().optional(),
       historyLimit: z.number().int().min(0).optional(),
+      retry: RetryConfigSchema,
       actions: z
         .object({
           reactions: z.boolean().optional(),

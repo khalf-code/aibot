@@ -87,6 +87,15 @@ pnpm clawdbot onboard
 
 This creates `~/.clawdbot/clawdbot.json` with your API keys, workspace path, and owner phone number.
 
+### My bot doesn’t respond after I DM it
+
+Clawdbot defaults to **pairing** for DMs. Your first DM sends a pairing code; messages are ignored until you approve it.
+
+```bash
+clawdbot pairing list --provider telegram
+clawdbot pairing approve --provider telegram <CODE>
+```
+
 ### How do I start fresh?
 
 ```bash
@@ -337,7 +346,7 @@ See [Groups](/concepts/groups) for details.
 
 ### How much context can Clawdbot handle?
 
-Context window depends on the model. Clawdbot uses **autocompaction** — older conversation gets summarized to stay under the limit.
+Context window depends on the model. Clawdbot uses **autocompaction** — older conversation gets summarized to stay under the limit. See [/concepts/compaction](/concepts/compaction).
 
 Practical tips:
 - Keep `AGENTS.md` focused, not bloated.

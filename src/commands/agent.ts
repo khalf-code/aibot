@@ -34,8 +34,9 @@ import { type ClawdbotConfig, loadConfig } from "../config/config.js";
 import {
   DEFAULT_IDLE_MINUTES,
   loadSessionStore,
+  resolveAgentIdFromSessionKey,
+  resolveSessionFilePath,
   resolveSessionKey,
-  resolveSessionTranscriptPath,
   resolveStorePath,
   type SessionEntry,
   saveSessionStore,
@@ -55,12 +56,17 @@ import {
 import { resolveOutboundTarget } from "../infra/outbound/targets.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { resolveSendPolicy } from "../sessions/send-policy.js";
+import {
+  normalizeMessageProvider,
+  resolveMessageProvider,
+} from "../utils/message-provider.js";
 import { normalizeE164 } from "../utils.js";
 
 type AgentCommandOpts = {
   message: string;
   to?: string;
   sessionId?: string;
+  sessionKey?: string;
   thinking?: string;
   thinkingOnce?: string;
   verbose?: string;
@@ -92,6 +98,7 @@ function resolveSession(opts: {
   cfg: ClawdbotConfig;
   to?: string;
   sessionId?: string;
+  sessionKey?: string;
 }): SessionResolution {
   const sessionCfg = opts.cfg.session;
   const scope = sessionCfg?.scope ?? "per-sender";
@@ -101,20 +108,25 @@ function resolveSession(opts: {
     1,
   );
   const idleMs = idleMinutes * 60_000;
-  const storePath = resolveStorePath(sessionCfg?.store);
+  const explicitSessionKey = opts.sessionKey?.trim();
+  const storeAgentId = resolveAgentIdFromSessionKey(explicitSessionKey);
+  const storePath = resolveStorePath(sessionCfg?.store, {
+    agentId: storeAgentId,
+  });
   const sessionStore = loadSessionStore(storePath);
   const now = Date.now();
 
   const ctx: MsgContext | undefined = opts.to?.trim()
     ? { From: opts.to }
     : undefined;
-  let sessionKey: string | undefined = ctx
-    ? resolveSessionKey(scope, ctx, mainKey)
-    : undefined;
+  let sessionKey: string | undefined =
+    explicitSessionKey ??
+    (ctx ? resolveSessionKey(scope, ctx, mainKey) : undefined);
   let sessionEntry = sessionKey ? sessionStore[sessionKey] : undefined;
 
   // If a session id was provided, prefer to re-use its entry (by id) even when no key was derived.
   if (
+    !explicitSessionKey &&
     opts.sessionId &&
     (!sessionEntry || sessionEntry.sessionId !== opts.sessionId)
   ) {
@@ -162,7 +174,7 @@ export async function agentCommand(
 ) {
   const body = (opts.message ?? "").trim();
   if (!body) throw new Error("Message (--message) is required");
-  if (!opts.to && !opts.sessionId) {
+  if (!opts.to && !opts.sessionId && !opts.sessionKey) {
     throw new Error("Pass --to <E.164> or --session-id to choose a session");
   }
 
@@ -216,6 +228,7 @@ export async function agentCommand(
     cfg,
     to: opts.to,
     sessionId: opts.sessionId,
+    sessionKey: opts.sessionKey,
   });
 
   const {
@@ -377,7 +390,7 @@ export async function agentCommand(
       catalog: catalogForThinking,
     });
   }
-  const sessionFile = resolveSessionTranscriptPath(sessionId);
+  const sessionFile = resolveSessionFilePath(sessionId, sessionEntry);
 
   const startedAt = Date.now();
   let lifecycleEnded = false;
@@ -386,13 +399,10 @@ export async function agentCommand(
   let fallbackProvider = provider;
   let fallbackModel = model;
   try {
-    const messageProvider =
-      opts.messageProvider?.trim().toLowerCase() ||
-      (() => {
-        const raw = opts.provider?.trim().toLowerCase();
-        if (!raw) return undefined;
-        return raw === "imsg" ? "imessage" : raw;
-      })();
+    const messageProvider = resolveMessageProvider(
+      opts.messageProvider,
+      opts.provider,
+    );
     const fallbackResult = await runWithModelFallback({
       cfg,
       provider,
@@ -505,9 +515,8 @@ export async function agentCommand(
   const payloads = result.payloads ?? [];
   const deliver = opts.deliver === true;
   const bestEffortDeliver = opts.bestEffortDeliver === true;
-  const deliveryProviderRaw = (opts.provider ?? "whatsapp").toLowerCase();
   const deliveryProvider =
-    deliveryProviderRaw === "imsg" ? "imessage" : deliveryProviderRaw;
+    normalizeMessageProvider(opts.provider) ?? "whatsapp";
 
   const logDeliveryError = (err: unknown) => {
     const message = `Delivery failed (${deliveryProvider}${deliveryTarget ? ` to ${deliveryTarget}` : ""}): ${String(err)}`;

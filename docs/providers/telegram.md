@@ -37,6 +37,7 @@ Status: production-ready for bot DMs + groups via grammY. Long-polling by defaul
 - Inbound messages are normalized into the shared provider envelope with reply context and media placeholders.
 - Group replies require a mention by default (native @mention or `routing.groupChat.mentionPatterns`).
 - Replies always route back to the same Telegram chat.
+- Long-polling uses grammY runner with per-chat sequencing; overall concurrency is capped by `agent.maxConcurrent`.
 
 ## Group activation modes
 
@@ -160,6 +161,10 @@ Reasoning stream (Telegram only):
 - `/reasoning stream` streams reasoning into the draft bubble while the reply is
   generating, then sends the final answer without reasoning.
 - If `telegram.streamMode` is `off`, reasoning stream is disabled.
+More context: [Streaming + chunking](/concepts/streaming).
+
+## Retry policy
+Outbound Telegram API calls retry on transient network/429 errors with exponential backoff and jitter. Configure via `telegram.retry`. See [Retry policy](/concepts/retry).
 
 ## Agent tool (reactions)
 - Tool: `telegram` with `react` action (`chatId`, `messageId`, `emoji`).
@@ -214,6 +219,7 @@ Provider options:
 - `telegram.textChunkLimit`: outbound chunk size (chars).
 - `telegram.streamMode`: `off | partial | block` (draft streaming).
 - `telegram.mediaMaxMb`: inbound/outbound media cap (MB).
+- `telegram.retry`: retry policy for outbound Telegram API calls (attempts, minDelayMs, maxDelayMs, jitter).
 - `telegram.proxy`: proxy URL for Bot API calls (SOCKS/HTTP).
 - `telegram.webhookUrl`: enable webhook mode.
 - `telegram.webhookSecret`: webhook secret (optional).

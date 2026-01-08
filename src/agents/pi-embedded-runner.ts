@@ -1,5 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type {
   AgentMessage,
@@ -8,7 +10,6 @@ import type {
 } from "@mariozechner/pi-agent-core";
 import type { Api, AssistantMessage, Model } from "@mariozechner/pi-ai";
 import {
-  buildSystemPrompt,
   createAgentSession,
   discoverAuthStorage,
   discoverModels,
@@ -16,7 +17,6 @@ import {
   SettingsManager,
   type Skill,
 } from "@mariozechner/pi-coding-agent";
-import type { TSchema } from "@sinclair/typebox";
 import { resolveHeartbeatPrompt } from "../auto-reply/heartbeat.js";
 import type {
   ReasoningLevel,
@@ -24,6 +24,7 @@ import type {
   VerboseLevel,
 } from "../auto-reply/thinking.js";
 import { formatToolAggregate } from "../auto-reply/tool-meta.js";
+import { isCacheEnabled, resolveCacheTtlMs } from "../config/cache-utils.js";
 import type { ClawdbotConfig } from "../config/config.js";
 import { getMachineDisplayName } from "../infra/machine-name.js";
 import { createSubsystemLogger } from "../logging.js";
@@ -40,7 +41,11 @@ import {
   markAuthProfileUsed,
 } from "./auth-profiles.js";
 import type { BashElevatedDefaults } from "./bash-tools.js";
-import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "./defaults.js";
+import {
+  DEFAULT_CONTEXT_TOKENS,
+  DEFAULT_MODEL,
+  DEFAULT_PROVIDER,
+} from "./defaults.js";
 import {
   ensureAuthProfileStore,
   getApiKeyForModel,
@@ -53,10 +58,14 @@ import {
   formatAssistantErrorText,
   isAuthAssistantError,
   isAuthErrorMessage,
+  isContextOverflowError,
+  isGoogleModelApi,
   isRateLimitAssistantError,
   isRateLimitErrorMessage,
   pickFallbackThinkingLevel,
+  sanitizeGoogleTurnOrdering,
   sanitizeSessionMessagesImages,
+  validateGeminiTurns,
 } from "./pi-embedded-helpers.js";
 import {
   type BlockReplyChunking,
@@ -67,6 +76,9 @@ import {
   extractAssistantThinking,
   formatReasoningMarkdown,
 } from "./pi-embedded-utils.js";
+import { setContextPruningRuntime } from "./pi-extensions/context-pruning/runtime.js";
+import { computeEffectiveSettings } from "./pi-extensions/context-pruning/settings.js";
+import { makeToolPrunablePredicate } from "./pi-extensions/context-pruning/tools.js";
 import { toToolDefinitions } from "./pi-tool-definition-adapter.js";
 import { createClawdbotCodingTools } from "./pi-tools.js";
 import { resolveSandboxContext } from "./sandbox.js";
@@ -81,6 +93,84 @@ import {
 import { buildAgentSystemPromptAppend } from "./system-prompt.js";
 import { normalizeUsage, type UsageLike } from "./usage.js";
 import { loadWorkspaceBootstrapFiles } from "./workspace.js";
+
+// Optional features can be implemented as Pi extensions that run in the same Node process.
+// We configure context pruning per-session via a WeakMap registry keyed by the SessionManager instance.
+
+function resolvePiExtensionPath(id: string): string {
+  const self = fileURLToPath(import.meta.url);
+  const dir = path.dirname(self);
+  // In dev this file is `.ts` (tsx), in production it's `.js`.
+  const ext = path.extname(self) === ".ts" ? "ts" : "js";
+  return path.join(dir, "pi-extensions", `${id}.${ext}`);
+}
+
+function resolveContextWindowTokens(params: {
+  cfg: ClawdbotConfig | undefined;
+  provider: string;
+  modelId: string;
+  model: Model<Api> | undefined;
+}): number {
+  const fromModel =
+    typeof params.model?.contextWindow === "number" &&
+    Number.isFinite(params.model.contextWindow) &&
+    params.model.contextWindow > 0
+      ? params.model.contextWindow
+      : undefined;
+  if (fromModel) return fromModel;
+
+  const fromModelsConfig = (() => {
+    const providers = params.cfg?.models?.providers as
+      | Record<
+          string,
+          { models?: Array<{ id?: string; contextWindow?: number }> }
+        >
+      | undefined;
+    const providerEntry = providers?.[params.provider];
+    const models = Array.isArray(providerEntry?.models)
+      ? providerEntry.models
+      : [];
+    const match = models.find((m) => m?.id === params.modelId);
+    return typeof match?.contextWindow === "number" && match.contextWindow > 0
+      ? match.contextWindow
+      : undefined;
+  })();
+  if (fromModelsConfig) return fromModelsConfig;
+
+  const fromAgentConfig =
+    typeof params.cfg?.agent?.contextTokens === "number" &&
+    Number.isFinite(params.cfg.agent.contextTokens) &&
+    params.cfg.agent.contextTokens > 0
+      ? Math.floor(params.cfg.agent.contextTokens)
+      : undefined;
+  if (fromAgentConfig) return fromAgentConfig;
+
+  return DEFAULT_CONTEXT_TOKENS;
+}
+
+function buildContextPruningExtension(params: {
+  cfg: ClawdbotConfig | undefined;
+  sessionManager: SessionManager;
+  provider: string;
+  modelId: string;
+  model: Model<Api> | undefined;
+}): { additionalExtensionPaths?: string[] } {
+  const raw = params.cfg?.agent?.contextPruning;
+  if (raw?.mode !== "adaptive" && raw?.mode !== "aggressive") return {};
+
+  const settings = computeEffectiveSettings(raw);
+  if (!settings) return {};
+
+  setContextPruningRuntime(params.sessionManager, {
+    settings,
+    contextWindowTokens: resolveContextWindowTokens(params),
+    isToolPrunable: makeToolPrunablePredicate(settings.tools),
+  });
+
+  return {
+    additionalExtensionPaths: [resolvePiExtensionPath("context-pruning")],
+  };
+}
 
 export type EmbeddedPiAgentMeta = {
   sessionId: string;
@@ -155,6 +245,80 @@ type EmbeddedPiQueueHandle = {
 };
 
 const log = createSubsystemLogger("agent/embedded");
+const GOOGLE_TURN_ORDERING_CUSTOM_TYPE = "google-turn-ordering-bootstrap";
+
+type CustomEntryLike = { type?: unknown; customType?: unknown };
+
+function hasGoogleTurnOrderingMarker(sessionManager: SessionManager): boolean {
+  try {
+    return sessionManager
+      .getEntries()
+      .some(
+        (entry) =>
+          (entry as CustomEntryLike)?.type === "custom" &&
+          (entry as CustomEntryLike)?.customType ===
+            GOOGLE_TURN_ORDERING_CUSTOM_TYPE,
+      );
+  } catch {
+    return false;
+  }
+}
+
+function markGoogleTurnOrderingMarker(sessionManager: SessionManager): void {
+  try {
+    sessionManager.appendCustomEntry(GOOGLE_TURN_ORDERING_CUSTOM_TYPE, {
+      timestamp: Date.now(),
+    });
+  } catch {
+    // ignore marker persistence failures
+  }
+}
+
+export function applyGoogleTurnOrderingFix(params: {
+  messages: AgentMessage[];
+  modelApi?: string | null;
+  sessionManager: SessionManager;
+  sessionId: string;
+  warn?: (message: string) => void;
+}): { messages: AgentMessage[]; didPrepend: boolean } {
+  if (!isGoogleModelApi(params.modelApi)) {
+    return { messages: params.messages, didPrepend: false };
+  }
+  const first = params.messages[0] as
+    | { role?: unknown; content?: unknown }
+    | undefined;
+  if (first?.role !== "assistant") {
+    return { messages: params.messages, didPrepend: false };
+  }
+  const sanitized = sanitizeGoogleTurnOrdering(params.messages);
+  const didPrepend = sanitized !== params.messages;
+  if (didPrepend && !hasGoogleTurnOrderingMarker(params.sessionManager)) {
+    const warn = params.warn ?? ((message: string) => log.warn(message));
+    warn(
+      `google turn ordering fixup: prepended user bootstrap (sessionId=${params.sessionId})`,
+    );
+    markGoogleTurnOrderingMarker(params.sessionManager);
+  }
+  return { messages: sanitized, didPrepend };
+}
+
+async function sanitizeSessionHistory(params: {
+  messages: AgentMessage[];
+  modelApi?: string | null;
+  sessionManager: SessionManager;
+  sessionId: string;
+}): Promise<AgentMessage[]> {
+  const sanitizedImages = await sanitizeSessionMessagesImages(
+    params.messages,
+    "session:history",
+  );
+  return applyGoogleTurnOrderingFix({
+    messages: sanitizedImages,
+    modelApi: params.modelApi,
+    sessionManager: params.sessionManager,
+    sessionId: params.sessionId,
+  }).messages;
+}
 
 const ACTIVE_EMBEDDED_RUNS = new Map<string, EmbeddedPiQueueHandle>();
 type EmbeddedRunWaiter = {
@@ -162,6 +326,66 @@ type EmbeddedRunWaiter = {
   timer: NodeJS.Timeout;
 };
 const EMBEDDED_RUN_WAITERS = new Map<string, Set<EmbeddedRunWaiter>>();
+
+// ============================================================================
+// SessionManager Pre-warming Cache
+// ============================================================================
+
+type SessionManagerCacheEntry = {
+  sessionFile: string;
+  loadedAt: number;
+};
+
+const SESSION_MANAGER_CACHE = new Map<string, SessionManagerCacheEntry>();
+const DEFAULT_SESSION_MANAGER_TTL_MS = 45_000; // 45 seconds
+
+function getSessionManagerTtl(): number {
+  return resolveCacheTtlMs({
+    envValue: process.env.CLAWDBOT_SESSION_MANAGER_CACHE_TTL_MS,
+    defaultTtlMs: DEFAULT_SESSION_MANAGER_TTL_MS,
+  });
+}
+
+function isSessionManagerCacheEnabled(): boolean {
+  return isCacheEnabled(getSessionManagerTtl());
+}
+
+function trackSessionManagerAccess(sessionFile: string): void {
+  if (!isSessionManagerCacheEnabled()) return;
+  const now = Date.now();
+  SESSION_MANAGER_CACHE.set(sessionFile, {
+    sessionFile,
+    loadedAt: now,
+  });
+}
+
+function isSessionManagerCached(sessionFile: string): boolean {
+  if (!isSessionManagerCacheEnabled()) return false;
+  const entry = SESSION_MANAGER_CACHE.get(sessionFile);
+  if (!entry) return false;
+  const now = Date.now();
+  const ttl = getSessionManagerTtl();
+  return now - entry.loadedAt <= ttl;
+}
+
+async function prewarmSessionFile(sessionFile: string): Promise<void> {
+  if (!isSessionManagerCacheEnabled()) return;
+  if (isSessionManagerCached(sessionFile)) return;
+
+  try {
+    // Read a small chunk to encourage OS page cache warmup.
+    const handle = await fs.open(sessionFile, "r");
+    try {
+      const buffer = Buffer.alloc(4096);
+      await handle.read(buffer, 0, buffer.length, 0);
+    } finally {
+      await handle.close();
+    }
+    trackSessionManagerAccess(sessionFile);
+  } catch {
+    // File doesn't exist yet, SessionManager will create it
+  }
+}
 
 const isAbortError = (err: unknown): boolean => {
   if (!err || typeof err !== "object") return false;
@@ -267,9 +491,55 @@ export function buildEmbeddedSandboxInfo(
   };
 }
 
+function buildEmbeddedAppendPrompt(params: {
+  workspaceDir: string;
+  defaultThinkLevel?: ThinkLevel;
+  extraSystemPrompt?: string;
+  ownerNumbers?: string[];
+  reasoningTagHint: boolean;
+  heartbeatPrompt?: string;
+  runtimeInfo: {
+    host: string;
+    os: string;
+    arch: string;
+    node: string;
+    model: string;
+  };
+  sandboxInfo?: EmbeddedSandboxInfo;
+  tools: AgentTool[];
+  modelAliasLines: string[];
+  userTimezone: string;
+  userTime?: string;
+}): string {
+  return buildAgentSystemPromptAppend({
+    workspaceDir: params.workspaceDir,
+    defaultThinkLevel: params.defaultThinkLevel,
+    extraSystemPrompt: params.extraSystemPrompt,
+    ownerNumbers: params.ownerNumbers,
+    reasoningTagHint: params.reasoningTagHint,
+    heartbeatPrompt: params.heartbeatPrompt,
+    runtimeInfo: params.runtimeInfo,
+    sandboxInfo: params.sandboxInfo,
+    toolNames: params.tools.map((tool) => tool.name),
+    modelAliasLines: params.modelAliasLines,
+    userTimezone: params.userTimezone,
+    userTime: params.userTime,
+  });
+}
+
+export function createSystemPromptAppender(
+  appendPrompt: string,
+): (defaultPrompt: string) => string {
+  const trimmed = appendPrompt.trim();
+  if (!trimmed) {
+    return (defaultPrompt) => defaultPrompt;
+  }
+  return (defaultPrompt) => `${defaultPrompt}\n\n${appendPrompt}`;
+}
+
 const BUILT_IN_TOOL_NAMES = new Set(["read", "bash", "edit", "write"]);
 
-type AnyAgentTool = AgentTool<TSchema, unknown>;
+type AnyAgentTool = AgentTool;
 
 export function splitSdkTools(options: {
   tools: AnyAgentTool[];
@@ -550,41 +820,48 @@ export async function compactEmbeddedPiSession(params: {
           params.config?.agent?.userTimezone,
         );
         const userTime = formatUserTime(new Date(), userTimezone);
-        const systemPrompt = buildSystemPrompt({
-          appendPrompt: buildAgentSystemPromptAppend({
-            workspaceDir: effectiveWorkspace,
-            defaultThinkLevel: params.thinkLevel,
-            extraSystemPrompt: params.extraSystemPrompt,
-            ownerNumbers: params.ownerNumbers,
-            reasoningTagHint,
-            heartbeatPrompt: resolveHeartbeatPrompt(
-              params.config?.agent?.heartbeat?.prompt,
-            ),
-            runtimeInfo,
-            sandboxInfo,
-            toolNames: tools.map((tool) => tool.name),
-            modelAliasLines: buildModelAliasLines(params.config),
-            userTimezone,
-            userTime,
-          }),
-          contextFiles,
-          skills: promptSkills,
-          cwd: effectiveWorkspace,
+        const appendPrompt = buildEmbeddedAppendPrompt({
+          workspaceDir: effectiveWorkspace,
+          defaultThinkLevel: params.thinkLevel,
+          extraSystemPrompt: params.extraSystemPrompt,
+          ownerNumbers: params.ownerNumbers,
+          reasoningTagHint,
+          heartbeatPrompt: resolveHeartbeatPrompt(
+            params.config?.agent?.heartbeat?.prompt,
+          ),
+          runtimeInfo,
+          sandboxInfo,
           tools,
+          modelAliasLines: buildModelAliasLines(params.config),
+          userTimezone,
+          userTime,
         });
+        const systemPrompt = createSystemPromptAppender(appendPrompt);
 
+        // Pre-warm session file to bring it into OS page cache
+        await prewarmSessionFile(params.sessionFile);
         const sessionManager = SessionManager.open(params.sessionFile);
+        trackSessionManagerAccess(params.sessionFile);
         const settingsManager = SettingsManager.create(
           effectiveWorkspace,
           agentDir,
         );
+        const pruning = buildContextPruningExtension({
+          cfg: params.config,
+          sessionManager,
+          provider,
+          modelId,
+          model,
+        });
+        const additionalExtensionPaths = pruning.additionalExtensionPaths;
 
         const { builtInTools, customTools } = splitSdkTools({
           tools,
           sandboxEnabled: !!sandbox?.enabled,
         });
 
-        const { session } = await createAgentSession({
+        let session: Awaited<ReturnType<typeof createAgentSession>>["session"];
+        ({ session } = await createAgentSession({
           cwd: resolvedWorkspace,
           agentDir,
           authStorage,
@@ -598,15 +875,19 @@ export async function compactEmbeddedPiSession(params: {
           settingsManager,
           skills: promptSkills,
           contextFiles,
-        });
+          additionalExtensionPaths,
+        }));
 
         try {
-          const prior = await sanitizeSessionMessagesImages(
-            session.messages,
-            "session:history",
-          );
-          if (prior.length > 0) {
-            session.agent.replaceMessages(prior);
+          const prior = await sanitizeSessionHistory({
+            messages: session.messages,
+            modelApi: model.api,
+            sessionManager,
+            sessionId: params.sessionId,
+          });
+          const validated = validateGeminiTurns(prior);
+          if (validated.length > 0) {
+            session.agent.replaceMessages(validated);
           }
           const result = await session.compact(params.customInstructions);
           return {
@@ -859,41 +1140,50 @@ export async function runEmbeddedPiAgent(params: {
             params.config?.agent?.userTimezone,
           );
           const userTime = formatUserTime(new Date(), userTimezone);
-          const systemPrompt = buildSystemPrompt({
-            appendPrompt: buildAgentSystemPromptAppend({
-              workspaceDir: effectiveWorkspace,
-              defaultThinkLevel: thinkLevel,
-              extraSystemPrompt: params.extraSystemPrompt,
-              ownerNumbers: params.ownerNumbers,
-              reasoningTagHint,
-              heartbeatPrompt: resolveHeartbeatPrompt(
-                params.config?.agent?.heartbeat?.prompt,
-              ),
-              runtimeInfo,
-              sandboxInfo,
-              toolNames: tools.map((tool) => tool.name),
-              modelAliasLines: buildModelAliasLines(params.config),
-              userTimezone,
-              userTime,
-            }),
-            contextFiles,
-            skills: promptSkills,
-            cwd: effectiveWorkspace,
+          const appendPrompt = buildEmbeddedAppendPrompt({
+            workspaceDir: effectiveWorkspace,
+            defaultThinkLevel: thinkLevel,
+            extraSystemPrompt: params.extraSystemPrompt,
+            ownerNumbers: params.ownerNumbers,
+            reasoningTagHint,
+            heartbeatPrompt: resolveHeartbeatPrompt(
+              params.config?.agent?.heartbeat?.prompt,
+            ),
+            runtimeInfo,
+            sandboxInfo,
             tools,
+            modelAliasLines: buildModelAliasLines(params.config),
+            userTimezone,
+            userTime,
           });
+          const systemPrompt = createSystemPromptAppender(appendPrompt);
 
+          // Pre-warm session file to bring it into OS page cache
+          await prewarmSessionFile(params.sessionFile);
           const sessionManager = SessionManager.open(params.sessionFile);
+          trackSessionManagerAccess(params.sessionFile);
           const settingsManager = SettingsManager.create(
             effectiveWorkspace,
             agentDir,
           );
+          const pruning = buildContextPruningExtension({
+            cfg: params.config,
+            sessionManager,
+            provider,
+            modelId,
+            model,
+          });
+          const additionalExtensionPaths = pruning.additionalExtensionPaths;
 
           const { builtInTools, customTools } = splitSdkTools({
             tools,
             sandboxEnabled: !!sandbox?.enabled,
           });
 
-          const { session } = await createAgentSession({
+          let session: Awaited<
+            ReturnType<typeof createAgentSession>
+          >["session"];
+          ({ session } = await createAgentSession({
             cwd: resolvedWorkspace,
             agentDir,
             authStorage,
@@ -909,14 +1199,23 @@ export async function runEmbeddedPiAgent(params: {
             settingsManager,
             skills: promptSkills,
             contextFiles,
-          });
+            additionalExtensionPaths,
+          }));
 
-          const prior = await sanitizeSessionMessagesImages(
-            session.messages,
-            "session:history",
-          );
-          if (prior.length > 0) {
-            session.agent.replaceMessages(prior);
+          try {
+            const prior = await sanitizeSessionHistory({
+              messages: session.messages,
+              modelApi: model.api,
+              sessionManager,
+              sessionId: params.sessionId,
+            });
+            const validated = validateGeminiTurns(prior);
+            if (validated.length > 0) {
+              session.agent.replaceMessages(validated);
+            }
+          } catch (err) {
+            session.dispose();
+            throw err;
           }
           let aborted = Boolean(params.abortSignal?.aborted);
           let timedOut = false;
@@ -925,21 +1224,27 @@ export async function runEmbeddedPiAgent(params: {
             if (isTimeout) timedOut = true;
             void session.abort();
           };
-          const subscription = subscribeEmbeddedPiSession({
-            session,
-            runId: params.runId,
-            verboseLevel: params.verboseLevel,
-            reasoningMode: params.reasoningLevel ?? "off",
-            shouldEmitToolResult: params.shouldEmitToolResult,
-            onToolResult: params.onToolResult,
-            onReasoningStream: params.onReasoningStream,
-            onBlockReply: params.onBlockReply,
-            blockReplyBreak: params.blockReplyBreak,
-            blockReplyChunking: params.blockReplyChunking,
-            onPartialReply: params.onPartialReply,
-            onAgentEvent: params.onAgentEvent,
-            enforceFinalTag: params.enforceFinalTag,
-          });
+          let subscription: ReturnType<typeof subscribeEmbeddedPiSession>;
+          try {
+            subscription = subscribeEmbeddedPiSession({
+              session,
+              runId: params.runId,
+              verboseLevel: params.verboseLevel,
+              reasoningMode: params.reasoningLevel ?? "off",
+              shouldEmitToolResult: params.shouldEmitToolResult,
+              onToolResult: params.onToolResult,
+              onReasoningStream: params.onReasoningStream,
+              onBlockReply: params.onBlockReply,
+              blockReplyBreak: params.blockReplyBreak,
+              blockReplyChunking: params.blockReplyChunking,
+              onPartialReply: params.onPartialReply,
+              onAgentEvent: params.onAgentEvent,
+              enforceFinalTag: params.enforceFinalTag,
+            });
+          } catch (err) {
+            session.dispose();
+            throw err;
+          }
           const {
             assistantTexts,
             toolMetas,
@@ -1033,6 +1338,26 @@ export async function runEmbeddedPiAgent(params: {
           }
           if (promptError && !aborted) {
             const errorText = describeUnknownError(promptError);
+            if (isContextOverflowError(errorText)) {
+              return {
+                payloads: [
+                  {
+                    text:
+                      "Context overflow: the conversation history is too large for the model. " +
+                      "Use /new or /reset to start a fresh session, or try a model with a larger context window.",
+                    isError: true,
+                  },
+                ],
+                meta: {
+                  durationMs: Date.now() - started,
+                  agentMeta: {
+                    sessionId: sessionIdUsed,
+                    provider,
+                    model: model.id,
+                  },
+                },
+              };
+            }
             if (
               (isAuthErrorMessage(errorText) ||
                 isRateLimitErrorMessage(errorText)) &&

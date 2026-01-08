@@ -86,6 +86,18 @@ container. The gateway stays on your host, but the tool execution is isolated:
 Warning: `scope: "shared"` disables cross-session isolation. All sessions share
 one container and one workspace.
 
+### Per-agent sandbox profiles (multi-agent)
+
+If you use multi-agent routing, each agent can override sandbox + tool settings:
+`routing.agents[id].sandbox` and `routing.agents[id].tools`. This lets you run
+mixed access levels in one gateway:
+- Full access (personal agent)
+- Read-only tools + read-only workspace (family/work agent)
+- No filesystem/shell tools (public agent)
+
+See [Multi-Agent Sandbox & Tools](/multi-agent-sandbox-tools) for examples,
+precedence, and troubleshooting.
+
 ### Default behavior
 
 - Image: `clawdbot-sandbox:bookworm-slim`
@@ -147,6 +159,9 @@ one container and one workspace.
 Hardening knobs live under `agent.sandbox.docker`:
 `network`, `user`, `pidsLimit`, `memory`, `memorySwap`, `cpus`, `ulimits`,
 `seccompProfile`, `apparmorProfile`, `dns`, `extraHosts`.
+
+Multi-agent: override `agent.sandbox.{docker,browser,prune}.*` per agent via `routing.agents.<agentId>.sandbox.{docker,browser,prune}.*`
+(ignored when `agent.sandbox.scope` / `routing.agents.<agentId>.sandbox.scope` is `"shared"`).
 
 ### Build the default sandbox image
 

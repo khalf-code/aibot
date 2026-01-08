@@ -1,8 +1,20 @@
 export type ReplyMode = "text" | "command";
+export type TypingMode = "never" | "instant" | "thinking" | "message";
 export type SessionScope = "per-sender" | "global";
 export type ReplyToMode = "off" | "first" | "all";
 export type GroupPolicy = "open" | "disabled" | "allowlist";
 export type DmPolicy = "pairing" | "allowlist" | "open" | "disabled";
+
+export type OutboundRetryConfig = {
+  /** Max retry attempts for outbound requests (default: 3). */
+  attempts?: number;
+  /** Minimum retry delay in ms (default: 300-500ms depending on provider). */
+  minDelayMs?: number;
+  /** Maximum retry delay cap in ms (default: 30000). */
+  maxDelayMs?: number;
+  /** Jitter factor (0-1) applied to delays (default: 0.1). */
+  jitter?: number;
+};
 
 export type SessionSendPolicyAction = "allow" | "deny";
 export type SessionSendPolicyMatch = {
@@ -26,6 +38,7 @@ export type SessionConfig = {
   heartbeatIdleMinutes?: number;
   store?: string;
   typingIntervalSeconds?: number;
+  typingMode?: TypingMode;
   mainKey?: string;
   sendPolicy?: SessionSendPolicyConfig;
   agentToAgent?: {
@@ -87,6 +100,11 @@ export type WhatsAppConfig = {
   accounts?: Record<string, WhatsAppAccountConfig>;
   /** Direct message access policy (default: pairing). */
   dmPolicy?: DmPolicy;
+  /**
+   * Same-phone setup (bot uses your personal WhatsApp number).
+   * When true, suppress pairing replies for outbound DMs.
+   */
+  selfChatMode?: boolean;
   /** Optional allowlist for WhatsApp direct chats (E.164). */
   allowFrom?: string[];
   /** Optional allowlist for WhatsApp group senders (E.164). */
@@ -117,6 +135,8 @@ export type WhatsAppAccountConfig = {
   authDir?: string;
   /** Direct message access policy (default: pairing). */
   dmPolicy?: DmPolicy;
+  /** Same-phone setup for this account (suppresses pairing replies for outbound DMs). */
+  selfChatMode?: boolean;
   allowFrom?: string[];
   groupAllowFrom?: string[];
   groupPolicy?: GroupPolicy;
@@ -296,6 +316,8 @@ export type TelegramConfig = {
   /** Draft streaming mode for Telegram (off|partial|block). Default: partial. */
   streamMode?: "off" | "partial" | "block";
   mediaMaxMb?: number;
+  /** Retry policy for outbound Telegram API calls. */
+  retry?: OutboundRetryConfig;
   proxy?: string;
   webhookUrl?: string;
   webhookSecret?: string;
@@ -380,6 +402,8 @@ export type DiscordConfig = {
   textChunkLimit?: number;
   mediaMaxMb?: number;
   historyLimit?: number;
+  /** Retry policy for outbound Discord API calls. */
+  retry?: OutboundRetryConfig;
   /** Per-action tool gating (default: true for all). */
   actions?: DiscordActionConfig;
   /** Control reply threading when reply tags are present (off|first|all). */
@@ -613,6 +637,68 @@ export type QueueModeByProvider = {
   webchat?: QueueMode;
 };
 
+export type SandboxDockerSettings = {
+  /** Docker image to use for sandbox containers. */
+  image?: string;
+  /** Prefix for sandbox container names. */
+  containerPrefix?: string;
+  /** Container workdir mount path (default: /workspace). */
+  workdir?: string;
+  /** Run container rootfs read-only. */
+  readOnlyRoot?: boolean;
+  /** Extra tmpfs mounts for read-only containers. */
+  tmpfs?: string[];
+  /** Container network mode (bridge|none|custom). */
+  network?: string;
+  /** Container user (uid:gid). */
+  user?: string;
+  /** Drop Linux capabilities. */
+  capDrop?: string[];
+  /** Extra environment variables for sandbox exec. */
+  env?: Record<string, string>;
+  /** Optional setup command run once after container creation. */
+  setupCommand?: string;
+  /** Limit container PIDs (0 = Docker default). */
+  pidsLimit?: number;
+  /** Limit container memory (e.g. 512m, 2g, or bytes as number). */
+  memory?: string | number;
+  /** Limit container memory swap (same format as memory). */
+  memorySwap?: string | number;
+  /** Limit container CPU shares (e.g. 0.5, 1, 2). */
+  cpus?: number;
+  /**
+   * Set ulimit values by name (e.g. nofile, nproc).
+   * Use "soft:hard" string, a number, or { soft, hard }.
+   */
+  ulimits?: Record<string, string | number | { soft?: number; hard?: number }>;
+  /** Seccomp profile (path or profile name). */
+  seccompProfile?: string;
+  /** AppArmor profile name. */
+  apparmorProfile?: string;
+  /** DNS servers (e.g. ["1.1.1.1", "8.8.8.8"]). */
+  dns?: string[];
+  /** Extra host mappings (e.g. ["api.local:10.0.0.2"]). */
+  extraHosts?: string[];
+};
+
+export type SandboxBrowserSettings = {
+  enabled?: boolean;
+  image?: string;
+  containerPrefix?: string;
+  cdpPort?: number;
+  vncPort?: number;
+  noVncPort?: number;
+  headless?: boolean;
+  enableNoVnc?: boolean;
+};
+
+export type SandboxPruneSettings = {
+  /** Prune if idle for more than N hours (0 disables). */
+  idleHours?: number;
+  /** Prune if older than N days (0 disables). */
+  maxAgeDays?: number;
+};
+
 export type GroupChatConfig = {
   mentionPatterns?: string[];
   historyLimit?: number;
@@ -642,11 +728,28 @@ export type RoutingConfig = {
       model?: string;
       sandbox?: {
         mode?: "off" | "non-main" | "all";
+        /** Agent workspace access inside the sandbox. */
+        workspaceAccess?: "none" | "ro" | "rw";
         /** Container/workspace scope for sandbox isolation. */
         scope?: "session" | "agent" | "shared";
         /** Legacy alias for scope ("session" when true, "shared" when false). */
         perSession?: boolean;
         workspaceRoot?: string;
+        /** Docker-specific sandbox overrides for this agent. */
+        docker?: SandboxDockerSettings;
+        /** Optional sandboxed browser overrides for this agent. */
+        browser?: SandboxBrowserSettings;
+        /** Tool allow/deny policy for sandboxed sessions (deny wins). */
+        tools?: {
+          allow?: string[];
+          deny?: string[];
+        };
+        /** Auto-prune overrides for this agent. */
+        prune?: SandboxPruneSettings;
+      };
+      tools?: {
+        allow?: string[];
+        deny?: string[];
       };
     }
   >;
@@ -895,6 +998,27 @@ export type AgentModelListConfig = {
   fallbacks?: string[];
 };
 
+export type AgentContextPruningConfig = {
+  mode?: "off" | "adaptive" | "aggressive";
+  keepLastAssistants?: number;
+  softTrimRatio?: number;
+  hardClearRatio?: number;
+  minPrunableToolChars?: number;
+  tools?: {
+    allow?: string[];
+    deny?: string[];
+  };
+  softTrim?: {
+    maxChars?: number;
+    headChars?: number;
+    tailChars?: number;
+  };
+  hardClear?: {
+    enabled?: boolean;
+    placeholder?: string;
+  };
+};
+
 export type ClawdbotConfig = {
   auth?: AuthConfig;
   env?: {
@@ -940,6 +1064,8 @@ export type ClawdbotConfig = {
     userTimezone?: string;
     /** Optional display-only context window override (used for % in status UIs). */
     contextTokens?: number;
+    /** Opt-in: prune old tool results from the LLM context to reduce token usage. */
+    contextPruning?: AgentContextPruningConfig;
     /** Default thinking level when no /think directive is present. */
     thinkingDefault?: "off" | "minimal" | "low" | "medium" | "high";
     /** Default verbose level when no /verbose directive is present. */
@@ -964,6 +1090,8 @@ export type ClawdbotConfig = {
     /** Max inbound media size in MB for agent-visible attachments (text note or future image attach). */
     mediaMaxMb?: number;
     typingIntervalSeconds?: number;
+    /** Typing indicator start mode (never|instant|thinking|message). */
+    typingMode?: TypingMode;
     /** Periodic background heartbeat runs. */
     heartbeat?: {
       /** Heartbeat interval (duration string, default unit: minutes; default: 30m). */
@@ -1042,75 +1170,16 @@ export type ClawdbotConfig = {
       /** Root directory for sandbox workspaces. */
       workspaceRoot?: string;
       /** Docker-specific sandbox settings. */
-      docker?: {
-        /** Docker image to use for sandbox containers. */
-        image?: string;
-        /** Prefix for sandbox container names. */
-        containerPrefix?: string;
-        /** Container workdir mount path (default: /workspace). */
-        workdir?: string;
-        /** Run container rootfs read-only. */
-        readOnlyRoot?: boolean;
-        /** Extra tmpfs mounts for read-only containers. */
-        tmpfs?: string[];
-        /** Container network mode (bridge|none|custom). */
-        network?: string;
-        /** Container user (uid:gid). */
-        user?: string;
-        /** Drop Linux capabilities. */
-        capDrop?: string[];
-        /** Extra environment variables for sandbox exec. */
-        env?: Record<string, string>;
-        /** Optional setup command run once after container creation. */
-        setupCommand?: string;
-        /** Limit container PIDs (0 = Docker default). */
-        pidsLimit?: number;
-        /** Limit container memory (e.g. 512m, 2g, or bytes as number). */
-        memory?: string | number;
-        /** Limit container memory swap (same format as memory). */
-        memorySwap?: string | number;
-        /** Limit container CPU shares (e.g. 0.5, 1, 2). */
-        cpus?: number;
-        /**
-         * Set ulimit values by name (e.g. nofile, nproc).
-         * Use "soft:hard" string, a number, or { soft, hard }.
-         */
-        ulimits?: Record<
-          string,
-          string | number | { soft?: number; hard?: number }
-        >;
-        /** Seccomp profile (path or profile name). */
-        seccompProfile?: string;
-        /** AppArmor profile name. */
-        apparmorProfile?: string;
-        /** DNS servers (e.g. ["1.1.1.1", "8.8.8.8"]). */
-        dns?: string[];
-        /** Extra host mappings (e.g. ["api.local:10.0.0.2"]). */
-        extraHosts?: string[];
-      };
+      docker?: SandboxDockerSettings;
       /** Optional sandboxed browser settings. */
-      browser?: {
-        enabled?: boolean;
-        image?: string;
-        containerPrefix?: string;
-        cdpPort?: number;
-        vncPort?: number;
-        noVncPort?: number;
-        headless?: boolean;
-        enableNoVnc?: boolean;
-      };
+      browser?: SandboxBrowserSettings;
       /** Tool allow/deny policy (deny wins). */
       tools?: {
         allow?: string[];
         deny?: string[];
       };
       /** Auto-prune sandbox containers. */
-      prune?: {
-        /** Prune if idle for more than N hours (0 disables). */
-        idleHours?: number;
-        /** Prune if older than N days (0 disables). */
-        maxAgeDays?: number;
-      };
+      prune?: SandboxPruneSettings;
     };
     /** Global tool allow/deny policy for all providers (deny wins). */
     tools?: {

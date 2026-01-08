@@ -1,8 +1,14 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { Type } from "@sinclair/typebox";
-import { describe, expect, it } from "vitest";
+import type { AgentMessage, AgentTool } from "@mariozechner/pi-agent-core";
 import {
+  buildSystemPrompt,
+  SessionManager,
+} from "@mariozechner/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
+import { describe, expect, it, vi } from "vitest";
+import {
+  applyGoogleTurnOrderingFix,
   buildEmbeddedSandboxInfo,
+  createSystemPromptAppender,
   splitSdkTools,
 } from "./pi-embedded-runner.js";
 import type { SandboxContext } from "./sandbox.js";
@@ -100,5 +106,90 @@ describe("splitSdkTools", () => {
       "write",
     ]);
     expect(customTools.map((tool) => tool.name)).toEqual(["browser"]);
+  });
+});
+
+describe("createSystemPromptAppender", () => {
+  it("appends without duplicating context files", () => {
+    const sentinel = "CONTEXT_SENTINEL_42";
+    const defaultPrompt = buildSystemPrompt({
+      cwd: "/tmp",
+      contextFiles: [{ path: "/tmp/AGENTS.md", content: sentinel }],
+    });
+    const appender = createSystemPromptAppender("APPEND_SECTION");
+    const finalPrompt = appender(defaultPrompt);
+    const occurrences = finalPrompt.split(sentinel).length - 1;
+    const contextHeaders = finalPrompt.split("# Project Context").length - 1;
+    expect(typeof appender).toBe("function");
+    expect(occurrences).toBe(1);
+    expect(contextHeaders).toBe(1);
+    expect(finalPrompt).toContain("APPEND_SECTION");
+  });
+
+  it("returns the default prompt when append text is empty", () => {
+    const defaultPrompt = buildSystemPrompt({ cwd: "/tmp" });
+    const appender = createSystemPromptAppender("  \n  ");
+    expect(appender(defaultPrompt)).toBe(defaultPrompt);
+  });
+});
+
+describe("applyGoogleTurnOrderingFix", () => {
+  const makeAssistantFirst = () =>
+    [
+      {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "call_1", name: "bash", arguments: {} },
+        ],
+      },
+    ] satisfies AgentMessage[];
+
+  it("prepends a bootstrap once and records a marker for Google models", () => {
+    const sessionManager = SessionManager.inMemory();
+    const warn = vi.fn();
+    const input = makeAssistantFirst();
+    const first = applyGoogleTurnOrderingFix({
+      messages: input,
+      modelApi: "google-generative-ai",
+      sessionManager,
+      sessionId: "session:1",
+      warn,
+    });
+    expect(first.messages[0]?.role).toBe("user");
+    expect(first.messages[1]?.role).toBe("assistant");
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(
+      sessionManager
+        .getEntries()
+        .some(
+          (entry) =>
+            entry.type === "custom" &&
+            entry.customType === "google-turn-ordering-bootstrap",
+        ),
+    ).toBe(true);
+
+    applyGoogleTurnOrderingFix({
+      messages: input,
+      modelApi: "google-generative-ai",
+      sessionManager,
+      sessionId: "session:1",
+      warn,
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips non-Google models", () => {
+    const sessionManager = SessionManager.inMemory();
+    const warn = vi.fn();
+    const input = makeAssistantFirst();
+    const result = applyGoogleTurnOrderingFix({
+      messages: input,
+      modelApi: "openai",
+      sessionManager,
+      sessionId: "session:2",
+      warn,
+    });
+    expect(result.messages).toBe(input);
+    expect(warn).not.toHaveBeenCalled();
   });
 });
