@@ -276,10 +276,23 @@ function mergeOAuthFileIntoStore(store: AuthProfileStore): boolean {
 }
 
 /**
- * Read Anthropic OAuth credentials from Claude CLI's credential file.
- * Claude CLI stores credentials at ~/.claude/.credentials.json
+ * Read Anthropic OAuth credentials from Claude CLI's keychain entry (macOS)
+ * or credential file (Linux/Windows).
+ *
+ * On macOS, Claude Code stores credentials in keychain "Claude Code-credentials".
+ * On Linux/Windows, it uses ~/.claude/.credentials.json
  */
 function readClaudeCliCredentials(): OAuthCredential | null {
+  // Try macOS keychain first
+  if (process.platform === "darwin") {
+    const keychainCreds = readClaudeCliKeychainCredentials();
+    if (keychainCreds) {
+      log.info("read anthropic credentials from claude cli keychain");
+      return keychainCreds;
+    }
+  }
+
+  // Fall back to file-based credentials (Linux/Windows, or macOS if keychain unavailable)
   const credPath = path.join(
     resolveUserPath("~"),
     CLAUDE_CLI_CREDENTIALS_RELATIVE_PATH,
@@ -306,6 +319,43 @@ function readClaudeCliCredentials(): OAuthCredential | null {
     refresh: refreshToken,
     expires: expiresAt,
   };
+}
+
+/**
+ * Read Claude Code credentials from macOS keychain.
+ * Uses the `security` CLI to access keychain without native dependencies.
+ */
+function readClaudeCliKeychainCredentials(): OAuthCredential | null {
+  try {
+    const { execSync } = require("child_process");
+    const result = execSync(
+      'security find-generic-password -s "Claude Code-credentials" -w',
+      { encoding: "utf8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }
+    );
+
+    const data = JSON.parse(result.trim());
+    const claudeOauth = data?.claudeAiOauth;
+    if (!claudeOauth || typeof claudeOauth !== "object") return null;
+
+    const accessToken = claudeOauth.accessToken;
+    const refreshToken = claudeOauth.refreshToken;
+    const expiresAt = claudeOauth.expiresAt;
+
+    if (typeof accessToken !== "string" || !accessToken) return null;
+    if (typeof refreshToken !== "string" || !refreshToken) return null;
+    if (typeof expiresAt !== "number" || expiresAt <= 0) return null;
+
+    return {
+      type: "oauth",
+      provider: "anthropic",
+      access: accessToken,
+      refresh: refreshToken,
+      expires: expiresAt,
+    };
+  } catch {
+    // Keychain access failed (not available, denied, or no entry)
+    return null;
+  }
 }
 
 /**
