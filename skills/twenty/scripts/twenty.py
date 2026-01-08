@@ -417,19 +417,71 @@ def cmd_search(args):
 # ============== CREATE ==============
 
 def cmd_add_note(args):
-    """Add a note."""
+    """Add a note, optionally linked to a company or engagement."""
     data = {
         "title": args.title or "",
-        "body": args.body
+        "bodyV2": {
+            "markdown": args.body,
+            "blocknote": ""
+        }
     }
     
     result = make_request("/rest/notes", method="POST", data=data)
     
+    # Handle nested response structure
+    if "data" in result and "createNote" in result["data"]:
+        note_data = result["data"]["createNote"]
+        note_id = note_data.get("id")
+    else:
+        note_data = result
+        note_id = result.get("id")
+    
+    linked_to = None
+    
+    # Link to engagement if specified
+    if args.engagement and note_id:
+        try:
+            target_data = {
+                "noteId": note_id,
+                "engagementId": args.engagement
+            }
+            make_request("/rest/noteTargets", method="POST", data=target_data)
+            linked_to = f"engagement:{args.engagement}"
+        except Exception as e:
+            console.print(f"[yellow]Note created but linking to engagement failed: {e}[/yellow]")
+    
+    # Link to company if specified (for standard CRM use)
+    elif args.company and note_id:
+        try:
+            target_data = {
+                "noteId": note_id,
+                "companyId": args.company
+            }
+            make_request("/rest/noteTargets", method="POST", data=target_data)
+            linked_to = f"company:{args.company}"
+        except Exception as e:
+            console.print(f"[yellow]Note created but linking to company failed: {e}[/yellow]")
+    
+    # Link to community if specified
+    elif args.community and note_id:
+        try:
+            target_data = {
+                "noteId": note_id,
+                "communityId": args.community
+            }
+            make_request("/rest/noteTargets", method="POST", data=target_data)
+            linked_to = f"community:{args.community}"
+        except Exception as e:
+            console.print(f"[yellow]Note created but linking to community failed: {e}[/yellow]")
+    
     if args.json:
-        print(json.dumps(result, indent=2))
+        output = {"note": note_data, "linked_to": linked_to}
+        print(json.dumps(output, indent=2))
         return
     
-    console.print(f"[green]✓ Note created[/green]")
+    console.print(f"[green]✓ Note created (ID: {note_id})[/green]")
+    if linked_to:
+        console.print(f"  Linked to: {linked_to}")
 
 
 def cmd_add_task(args):
@@ -525,7 +577,10 @@ def main():
     # add-note
     p = subparsers.add_parser("add-note", help="Create a note")
     p.add_argument("--title", help="Note title")
-    p.add_argument("--body", required=True, help="Note body")
+    p.add_argument("--body", required=True, help="Note body (markdown)")
+    p.add_argument("--engagement", help="Link to engagement ID")
+    p.add_argument("--community", help="Link to community ID")
+    p.add_argument("--company", help="Link to company ID")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_add_note)
     

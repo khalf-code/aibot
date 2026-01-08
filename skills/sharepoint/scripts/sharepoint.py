@@ -50,6 +50,18 @@ def graph_get(endpoint: str, token: str, params: dict = None) -> dict:
     else:
         raise ValueError(f"Graph API error {r.status_code}: {r.text[:500]}")
 
+def graph_put(endpoint: str, token: str, data: bytes, content_type: str = "application/octet-stream") -> dict:
+    """Make a PUT request to Graph API (for uploads)."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": content_type
+    }
+    r = httpx.put(f"{GRAPH_URL}{endpoint}", headers=headers, content=data, timeout=120)
+    if r.status_code in (200, 201):
+        return r.json()
+    else:
+        raise ValueError(f"Graph API error {r.status_code}: {r.text[:500]}")
+
 def cmd_auth(args):
     """Test authentication."""
     try:
@@ -204,6 +216,42 @@ def cmd_download(args):
     
     rprint(f"[green]✓ Saved to {filename}[/green]")
 
+def cmd_upload(args):
+    """Upload a file to SharePoint/OneDrive."""
+    import os
+    token = get_token()
+    
+    local_path = args.file
+    if not os.path.exists(local_path):
+        rprint(f"[red]File not found: {local_path}[/red]")
+        return
+    
+    filename = os.path.basename(local_path)
+    
+    # Build the path - either root or subfolder
+    if args.folder:
+        # URL-encode the path for nested folders
+        folder_path = args.folder.strip("/")
+        endpoint = f"/drives/{args.drive}/root:/{folder_path}/{filename}:/content"
+    else:
+        endpoint = f"/drives/{args.drive}/root:/{filename}:/content"
+    
+    # Read file content
+    with open(local_path, "rb") as f:
+        content = f.read()
+    
+    file_size = len(content)
+    rprint(f"Uploading {filename} ({file_size:,} bytes)...")
+    
+    # For files < 4MB, use simple upload
+    if file_size < 4 * 1024 * 1024:
+        result = graph_put(endpoint, token, content)
+        rprint(f"[green]✓ Uploaded to {result.get('webUrl', 'SharePoint')}[/green]")
+        if args.json:
+            print(json.dumps(result, indent=2))
+    else:
+        rprint("[yellow]Large file upload (>4MB) not yet implemented. Use SharePoint web UI.[/yellow]")
+
 def main():
     parser = argparse.ArgumentParser(description="SharePoint/OneDrive CLI")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -234,6 +282,13 @@ def main():
     dl_p.add_argument("item_id", help="Item ID")
     dl_p.add_argument("-o", "--output", help="Output filename")
     
+    # Upload
+    up_p = subparsers.add_parser("upload", help="Upload a file")
+    up_p.add_argument("drive", help="Drive ID")
+    up_p.add_argument("file", help="Local file path")
+    up_p.add_argument("--folder", help="Target folder path (e.g., 'Engagements/Baldwin')")
+    up_p.add_argument("--json", action="store_true", help="JSON output")
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -247,6 +302,7 @@ def main():
         "list": cmd_list,
         "search": cmd_search,
         "download": cmd_download,
+        "upload": cmd_upload,
     }
     
     try:
