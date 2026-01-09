@@ -167,10 +167,7 @@
     "overrides": {
       "@sinclair/typebox": "0.34.47"
     },
-    "patchedDependencies": {
-      "@mariozechner/pi-ai": "patches/@mariozechner__pi-ai.patch",
-      "@mariozechner/pi-agent-core": "patches/@mariozechner__pi-agent-core.patch"
-    }
+    "patchedDependencies": {}
   },
   "vitest": {
     "coverage": {
