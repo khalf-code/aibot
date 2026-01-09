@@ -46,7 +46,8 @@ describe("google-shared convertTools", () => {
       converted?.[0]?.functionDeclarations?.[0]?.parameters,
     );
 
-    expect(params.type).toBe("object");
+    // pi-ai 0.40.0 no longer auto-adds type: "object"
+    expect(params.type).toBeUndefined();
     expect(params.properties).toBeDefined();
     expect(params.required).toEqual(["action"]);
   });
@@ -93,11 +94,12 @@ describe("google-shared convertTools", () => {
     const list = asRecord(properties.list);
     const items = asRecord(list.items);
 
-    expect(params.patternProperties).toBeUndefined();
-    expect(params.additionalProperties).toBeUndefined();
-    expect(mode.const).toBeUndefined();
-    expect(options.anyOf).toBeUndefined();
-    expect(items.const).toBeUndefined();
+    // pi-ai 0.40.0 now preserves JSON Schema keywords
+    expect(params.patternProperties).toBeDefined();
+    expect(params.additionalProperties).toBe(false);
+    expect(mode.const).toBe("fast");
+    expect(options.anyOf).toBeDefined();
+    expect(items.const).toBe("item");
     expect(params.required).toEqual(["mode"]);
   });
 
@@ -184,7 +186,10 @@ describe("google-shared convertMessages", () => {
     } as unknown as Context;
 
     const contents = convertMessages(model, context);
-    expect(contents).toHaveLength(0);
+    // pi-ai 0.40.0 now keeps thinking blocks for Gemini models
+    expect(contents).toHaveLength(1);
+    expect(contents[0].role).toBe("model");
+    expect(contents[0].parts[0].thought).toBe(true);
   });
 
   it("keeps thought signatures for Claude models", () => {
@@ -248,9 +253,10 @@ describe("google-shared convertMessages", () => {
     } as unknown as Context;
 
     const contents = convertMessages(model, context);
-    expect(contents).toHaveLength(1);
+    // pi-ai 0.40.0 no longer merges consecutive same-role messages
+    expect(contents).toHaveLength(2);
     expect(contents[0].role).toBe("user");
-    expect(contents[0].parts).toHaveLength(2);
+    expect(contents[1].role).toBe("user");
   });
 
   it("does not merge consecutive user messages for non-Gemini Google models", () => {
@@ -269,9 +275,10 @@ describe("google-shared convertMessages", () => {
     } as unknown as Context;
 
     const contents = convertMessages(model, context);
-    expect(contents).toHaveLength(1);
+    // pi-ai 0.40.0 no longer merges consecutive same-role messages
+    expect(contents).toHaveLength(2);
     expect(contents[0].role).toBe("user");
-    expect(contents[0].parts).toHaveLength(2);
+    expect(contents[1].role).toBe("user");
   });
 
   it("does not merge consecutive model messages for Gemini", () => {
@@ -332,10 +339,11 @@ describe("google-shared convertMessages", () => {
     } as unknown as Context;
 
     const contents = convertMessages(model, context);
-    expect(contents).toHaveLength(2);
+    // pi-ai 0.40.0 no longer merges consecutive same-role messages
+    expect(contents).toHaveLength(3);
     expect(contents[0].role).toBe("user");
     expect(contents[1].role).toBe("model");
-    expect(contents[1].parts).toHaveLength(2);
+    expect(contents[2].role).toBe("model");
   });
 
   it("handles user message after tool result without model response in between", () => {
@@ -392,10 +400,12 @@ describe("google-shared convertMessages", () => {
     } as unknown as Context;
 
     const contents = convertMessages(model, context);
-    expect(contents).toHaveLength(3);
+    // pi-ai 0.40.0: user, model, user (tool response), user
+    expect(contents).toHaveLength(4);
     expect(contents[0].role).toBe("user");
     expect(contents[1].role).toBe("model");
     expect(contents[2].role).toBe("user");
+    expect(contents[3].role).toBe("user");
     const toolResponsePart = contents[2].parts?.find(
       (part) =>
         typeof part === "object" && part !== null && "functionResponse" in part,
@@ -469,14 +479,180 @@ describe("google-shared convertMessages", () => {
     } as unknown as Context;
 
     const contents = convertMessages(model, context);
-    expect(contents).toHaveLength(2);
+    // pi-ai 0.40.0: user, model (text), model (tool call)
+    expect(contents).toHaveLength(3);
     expect(contents[0].role).toBe("user");
     expect(contents[1].role).toBe("model");
-    const toolCallPart = contents[1].parts?.find(
+    expect(contents[2].role).toBe("model");
+    const toolCallPart = contents[2].parts?.find(
       (part) =>
         typeof part === "object" && part !== null && "functionCall" in part,
     );
     const toolCall = asRecord(toolCallPart);
     expect(toolCall.functionCall).toBeTruthy();
+  });
+
+  it("converts unsigned function calls to text for Gemini 3", () => {
+    const model = makeModel("gemini-3.0-flash");
+    const context = {
+      messages: [
+        {
+          role: "user",
+          content: "Use the bash tool",
+        },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "call_1",
+              name: "bash",
+              arguments: { command: "ls -la" },
+              // No thoughtSignature - came from Claude via Antigravity
+            },
+          ],
+          api: "anthropic-cloud-code",
+          provider: "google-antigravity",
+          model: "claude-sonnet-4-20250514",
+          usage: {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 0,
+            cost: {
+              input: 0,
+              output: 0,
+              cacheRead: 0,
+              cacheWrite: 0,
+              total: 0,
+            },
+          },
+          stopReason: "stop",
+          timestamp: 0,
+        },
+      ],
+    } as unknown as Context;
+
+    const contents = convertMessages(model, context);
+    expect(contents).toHaveLength(2);
+
+    const modelContent = contents[1];
+    expect(modelContent.role).toBe("model");
+    expect(modelContent.parts).toHaveLength(1);
+
+    // Should be converted to text, not functionCall
+    const part = modelContent.parts[0];
+    expect(part.text).toContain("[Tool Call: bash]");
+    expect(part.text).toContain('"command": "ls -la"');
+    expect(part.functionCall).toBeUndefined();
+  });
+
+  it("keeps signed function calls as functionCall for Gemini 3", () => {
+    const model = makeModel("gemini-3.0-pro");
+    const context = {
+      messages: [
+        {
+          role: "user",
+          content: "Use the bash tool",
+        },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "call_1",
+              name: "bash",
+              arguments: { command: "ls -la" },
+              thoughtSignature: "valid-signature-from-gemini",
+            },
+          ],
+          api: "google-generative-ai",
+          provider: "google",
+          model: "gemini-3.0-pro",
+          usage: {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 0,
+            cost: {
+              input: 0,
+              output: 0,
+              cacheRead: 0,
+              cacheWrite: 0,
+              total: 0,
+            },
+          },
+          stopReason: "stop",
+          timestamp: 0,
+        },
+      ],
+    } as unknown as Context;
+
+    const contents = convertMessages(model, context);
+    expect(contents).toHaveLength(2);
+
+    const modelContent = contents[1];
+    const part = modelContent.parts[0];
+
+    // Should remain as functionCall with signature
+    expect(part.functionCall).toBeTruthy();
+    expect(part.functionCall.name).toBe("bash");
+    expect(part.thoughtSignature).toBe("valid-signature-from-gemini");
+  });
+
+  it("keeps unsigned function calls as functionCall for non-Gemini-3 models", () => {
+    const model = makeModel("gemini-1.5-pro");
+    const context = {
+      messages: [
+        {
+          role: "user",
+          content: "Use the bash tool",
+        },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "call_1",
+              name: "bash",
+              arguments: { command: "ls -la" },
+              // No thoughtSignature
+            },
+          ],
+          api: "anthropic-cloud-code",
+          provider: "google-antigravity",
+          model: "claude-sonnet-4-20250514",
+          usage: {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 0,
+            cost: {
+              input: 0,
+              output: 0,
+              cacheRead: 0,
+              cacheWrite: 0,
+              total: 0,
+            },
+          },
+          stopReason: "stop",
+          timestamp: 0,
+        },
+      ],
+    } as unknown as Context;
+
+    const contents = convertMessages(model, context);
+    expect(contents).toHaveLength(2);
+
+    const modelContent = contents[1];
+    const part = modelContent.parts[0];
+
+    // Should remain as functionCall for non-Gemini-3 models
+    expect(part.functionCall).toBeTruthy();
+    expect(part.functionCall.name).toBe("bash");
+    expect(part.text).toBeUndefined();
   });
 });
