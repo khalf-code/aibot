@@ -74,11 +74,16 @@ function runSync(cmd, args, envOverride) {
   if ((result.status ?? 1) !== 0) process.exit(result.status ?? 1);
 }
 
-function depsInstalled() {
+function depsInstalled(kind) {
   try {
     const require = createRequire(path.join(uiDir, "package.json"));
     require.resolve("vite");
     require.resolve("dompurify");
+    if (kind === "test") {
+      require.resolve("vitest");
+      require.resolve("@vitest/browser-playwright");
+      require.resolve("playwright");
+    }
     return true;
   } catch {
     return false;
@@ -118,7 +123,7 @@ if (action !== "install" && !script) {
 if (runner.kind === "bun") {
   if (action === "install") run(runner.cmd, ["install", ...rest]);
   else {
-    if (!depsInstalled()) {
+    if (!depsInstalled(action === "test" ? "test" : "build")) {
       const installEnv =
         action === "build"
           ? { ...process.env, NODE_ENV: "production" }
@@ -132,7 +137,7 @@ if (runner.kind === "bun") {
 } else {
   if (action === "install") run(runner.cmd, ["install", ...rest]);
   else {
-    if (!depsInstalled()) {
+    if (!depsInstalled(action === "test" ? "test" : "build")) {
       const installEnv =
         action === "build"
           ? { ...process.env, NODE_ENV: "production" }
