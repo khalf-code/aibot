@@ -1292,6 +1292,11 @@ export type AgentContextPruningConfig = {
     enabled?: boolean;
     placeholder?: string;
   };
+  midTrim?: {
+    turnsThreshold?: number;
+    maxUserChars?: number;
+    maxAssistantChars?: number;
+  };
 };
 
 export type AgentDefaultsConfig = {

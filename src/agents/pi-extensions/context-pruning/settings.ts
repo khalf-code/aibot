@@ -21,6 +21,18 @@ export type ContextPruningConfig = {
     enabled?: boolean;
     placeholder?: string;
   };
+  /**
+   * Mid-tier message condensing for older user/assistant messages.
+   * Applied when context exceeds softTrimRatio but before hardClear.
+   */
+  midTrim?: {
+    /** Number of recent assistant turns to keep at full fidelity (default: 8) */
+    turnsThreshold?: number;
+    /** Max chars per condensed user message (default: 600) */
+    maxUserChars?: number;
+    /** Max chars per condensed assistant text block (default: 800) */
+    maxAssistantChars?: number;
+  };
 };
 
 export type EffectiveContextPruningSettings = {
@@ -38,6 +50,11 @@ export type EffectiveContextPruningSettings = {
   hardClear: {
     enabled: boolean;
     placeholder: string;
+  };
+  midTrim: {
+    turnsThreshold: number;
+    maxUserChars: number;
+    maxAssistantChars: number;
   };
 };
 
@@ -57,6 +74,11 @@ export const DEFAULT_CONTEXT_PRUNING_SETTINGS: EffectiveContextPruningSettings =
     hardClear: {
       enabled: true,
       placeholder: "[Old tool result content cleared]",
+    },
+    midTrim: {
+      turnsThreshold: 8,
+      maxUserChars: 600,
+      maxAssistantChars: 800,
     },
   };
 
@@ -128,6 +150,35 @@ export function computeEffectiveSettings(
       cfg.hardClear.placeholder.trim()
     ) {
       s.hardClear.placeholder = cfg.hardClear.placeholder.trim();
+    }
+  }
+  if (cfg.midTrim) {
+    if (
+      typeof cfg.midTrim.turnsThreshold === "number" &&
+      Number.isFinite(cfg.midTrim.turnsThreshold)
+    ) {
+      s.midTrim.turnsThreshold = Math.max(
+        0,
+        Math.floor(cfg.midTrim.turnsThreshold),
+      );
+    }
+    if (
+      typeof cfg.midTrim.maxUserChars === "number" &&
+      Number.isFinite(cfg.midTrim.maxUserChars)
+    ) {
+      s.midTrim.maxUserChars = Math.max(
+        50,
+        Math.floor(cfg.midTrim.maxUserChars),
+      );
+    }
+    if (
+      typeof cfg.midTrim.maxAssistantChars === "number" &&
+      Number.isFinite(cfg.midTrim.maxAssistantChars)
+    ) {
+      s.midTrim.maxAssistantChars = Math.max(
+        50,
+        Math.floor(cfg.midTrim.maxAssistantChars),
+      );
     }
   }
 

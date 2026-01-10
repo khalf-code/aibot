@@ -31,6 +31,7 @@ import {
   inferToolMetaFromArgs,
   promoteThinkingTagsToBlocks,
 } from "./pi-embedded-utils.js";
+import { compressToolResult } from "./tool-result-compressors/index.js";
 
 const THINKING_TAG_RE = /<\s*\/?\s*think(?:ing)?\s*>/gi;
 const THINKING_OPEN_RE = /<\s*think(?:ing)?\s*>/i;
@@ -71,7 +72,14 @@ function truncateToolText(text: string): string {
   return `${truncateUtf16Safe(text, TOOL_RESULT_MAX_CHARS)}\n…(truncated)…`;
 }
 
-function sanitizeToolResult(result: unknown): unknown {
+/**
+ * Sanitize tool result for storage/display.
+ * Applies semantic compression based on tool type, then truncates if needed.
+ *
+ * @param result - The tool result object
+ * @param toolName - Optional tool name for semantic compression
+ */
+function sanitizeToolResult(result: unknown, toolName?: string): unknown {
   if (!result || typeof result !== "object") return result;
   const record = result as Record<string, unknown>;
   const content = Array.isArray(record.content) ? record.content : null;
@@ -81,7 +89,21 @@ function sanitizeToolResult(result: unknown): unknown {
     const entry = item as Record<string, unknown>;
     const type = typeof entry.type === "string" ? entry.type : undefined;
     if (type === "text" && typeof entry.text === "string") {
-      return { ...entry, text: truncateToolText(entry.text) };
+      const rawText = entry.text;
+      const truncatedRaw = truncateToolText(rawText);
+
+      if (toolName && rawText.length > TOOL_RESULT_MAX_CHARS) {
+        const compressed = compressToolResult(toolName, rawText);
+        if (compressed !== rawText) {
+          return {
+            ...entry,
+            text: truncatedRaw,
+            compressedText: truncateToolText(compressed),
+          };
+        }
+      }
+
+      return { ...entry, text: truncatedRaw };
     }
     if (type === "image") {
       const data = typeof entry.data === "string" ? entry.data : undefined;
@@ -565,7 +587,7 @@ export function subscribeEmbeddedPiSession(params: {
         );
         const partial = (evt as AgentEvent & { partialResult?: unknown })
           .partialResult;
-        const sanitized = sanitizeToolResult(partial);
+        const sanitized = sanitizeToolResult(partial, toolName);
         emitAgentEvent({
           runId: params.runId,
           stream: "tool",
@@ -597,7 +619,7 @@ export function subscribeEmbeddedPiSession(params: {
           (evt as AgentEvent & { isError: boolean }).isError,
         );
         const result = (evt as AgentEvent & { result?: unknown }).result;
-        const sanitizedResult = sanitizeToolResult(result);
+        const sanitizedResult = sanitizeToolResult(result, toolName);
         const meta = toolMetaById.get(toolCallId);
         toolMetas.push({ toolName, meta });
         toolMetaById.delete(toolCallId);

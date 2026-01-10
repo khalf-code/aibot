@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import type { AssistantMessage, UserMessage } from "@mariozechner/pi-ai";
 import type {
   ImageContent,
   TextContent,
@@ -160,6 +161,162 @@ function findFirstUserIndex(messages: AgentMessage[]): number | null {
   return null;
 }
 
+/**
+ * Find the cutoff index for mid-tier trimming.
+ * Returns the index of the Nth assistant message from the end.
+ */
+function findMidTrimCutoffIndex(
+  messages: AgentMessage[],
+  turnsThreshold: number,
+): number | null {
+  if (turnsThreshold <= 0) return null;
+
+  let remaining = turnsThreshold;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role !== "assistant") continue;
+    remaining--;
+    if (remaining === 0) return i;
+  }
+
+  // Not enough assistant messages to establish a mid-trim boundary.
+  return null;
+}
+
+/**
+ * Truncate text to maxChars, preserving sentence boundaries when possible.
+ */
+function truncateToSentence(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+
+  // Try to find a sentence boundary within maxChars
+  const truncated = text.slice(0, maxChars);
+  const sentenceEnd = Math.max(
+    truncated.lastIndexOf(". "),
+    truncated.lastIndexOf("! "),
+    truncated.lastIndexOf("? "),
+    truncated.lastIndexOf(".\n"),
+    truncated.lastIndexOf("!\n"),
+    truncated.lastIndexOf("?\n"),
+  );
+
+  if (sentenceEnd > maxChars * 0.5) {
+    return truncated.slice(0, sentenceEnd + 1);
+  }
+
+  // No good sentence boundary, just truncate at word boundary
+  const spaceIdx = truncated.lastIndexOf(" ");
+  if (spaceIdx > maxChars * 0.7) {
+    return `${truncated.slice(0, spaceIdx)}...`;
+  }
+
+  return `${truncated}...`;
+}
+
+/**
+ * Condense a user message by truncating to key content.
+ */
+function condenseUserMessage(
+  msg: UserMessage,
+  maxChars: number,
+): UserMessage | null {
+  const content = msg.content;
+
+  // Handle string content
+  if (typeof content === "string") {
+    if (content.length <= maxChars) return null;
+    const condensed = truncateToSentence(content, maxChars);
+    if (condensed.length >= content.length) return null;
+    return {
+      ...msg,
+      content: `${condensed}\n[Message condensed]`,
+    };
+  }
+
+  // Handle array content - only condense text blocks, preserve images
+  let totalTextChars = 0;
+  for (const block of content) {
+    if (block.type === "text") totalTextChars += block.text.length;
+  }
+  if (totalTextChars <= maxChars) return null;
+
+  const newContent: Array<TextContent | ImageContent> = [];
+  let charBudget = maxChars;
+
+  for (const block of content) {
+    if (block.type === "image") {
+      // Preserve images but they don't count against text budget
+      newContent.push(block);
+    } else if (block.type === "text") {
+      if (charBudget > 0) {
+        const condensed = truncateToSentence(block.text, charBudget);
+        newContent.push({ type: "text", text: condensed });
+        charBudget -= condensed.length;
+      }
+    }
+  }
+
+  // Add condensed note
+  newContent.push({ type: "text", text: "\n[Message condensed]" });
+
+  return { ...msg, content: newContent };
+}
+
+/**
+ * Condense an assistant message by truncating text blocks.
+ * Preserves tool calls and thinking blocks but truncates verbose text.
+ */
+function condenseAssistantMessage(
+  msg: AssistantMessage,
+  maxChars: number,
+): AssistantMessage | null {
+  let totalTextChars = 0;
+  for (const block of msg.content) {
+    if (block.type === "text") totalTextChars += block.text.length;
+  }
+  if (totalTextChars <= maxChars) return null;
+
+  const newContent: AssistantMessage["content"] = [];
+  let charBudget = maxChars;
+  let wasCondensed = false;
+
+  for (const block of msg.content) {
+    if (block.type === "text") {
+      if (charBudget > 50) {
+        const condensed = truncateToSentence(block.text, charBudget);
+        newContent.push({ type: "text", text: condensed });
+        charBudget -= condensed.length;
+        if (condensed.length < block.text.length) wasCondensed = true;
+      } else {
+        wasCondensed = true;
+      }
+    } else if (block.type === "thinking") {
+      // Heavily condense thinking blocks
+      const maxThinking = Math.min(100, charBudget);
+      if (block.thinking.length > maxThinking && maxThinking > 20) {
+        newContent.push({
+          type: "thinking",
+          thinking: `${block.thinking.slice(0, maxThinking)}...[thinking condensed]`,
+        });
+        wasCondensed = true;
+      } else if (maxThinking > 20) {
+        newContent.push(block);
+      } else {
+        wasCondensed = true;
+      }
+    } else {
+      // Preserve tool calls and other blocks
+      newContent.push(block);
+    }
+  }
+
+  if (!wasCondensed) return null;
+
+  // Add condensed note
+  newContent.push({ type: "text", text: "\n[Response condensed]" });
+
+  return { ...msg, content: newContent };
+}
+
 function softTrimToolResultMessage(params: {
   msg: ToolResultMessage;
   settings: EffectiveContextPruningSettings;
@@ -188,6 +345,14 @@ ${tail}`;
 
   return { ...msg, content: [asText(trimmed + note)] };
 }
+
+// Export helpers for testing
+export {
+  truncateToSentence,
+  condenseUserMessage,
+  condenseAssistantMessage,
+  findMidTrimCutoffIndex,
+};
 
 export function pruneContextMessages(params: {
   messages: AgentMessage[];
@@ -282,6 +447,48 @@ export function pruneContextMessages(params: {
     totalChars += afterChars - beforeChars;
     if (!next) next = messages.slice();
     next[i] = updated as unknown as AgentMessage;
+  }
+
+  // Mid-tier condensing: condense older user/assistant messages
+  const midTrimCutoff = findMidTrimCutoffIndex(
+    messages,
+    settings.midTrim.turnsThreshold,
+  );
+  if (midTrimCutoff !== null && midTrimCutoff > pruneStartIndex) {
+    for (let i = pruneStartIndex; i < midTrimCutoff; i++) {
+      const msg = (next ?? messages)[i];
+      if (!msg) continue;
+
+      if (msg.role === "user") {
+        const condensed = condenseUserMessage(
+          msg as unknown as UserMessage,
+          settings.midTrim.maxUserChars,
+        );
+        if (condensed) {
+          const beforeChars = estimateMessageChars(msg);
+          const afterChars = estimateMessageChars(
+            condensed as unknown as AgentMessage,
+          );
+          totalChars += afterChars - beforeChars;
+          if (!next) next = messages.slice();
+          next[i] = condensed as unknown as AgentMessage;
+        }
+      } else if (msg.role === "assistant") {
+        const condensed = condenseAssistantMessage(
+          msg as unknown as AssistantMessage,
+          settings.midTrim.maxAssistantChars,
+        );
+        if (condensed) {
+          const beforeChars = estimateMessageChars(msg);
+          const afterChars = estimateMessageChars(
+            condensed as unknown as AgentMessage,
+          );
+          totalChars += afterChars - beforeChars;
+          if (!next) next = messages.slice();
+          next[i] = condensed as unknown as AgentMessage;
+        }
+      }
+    }
   }
 
   const outputAfterSoftTrim = next ?? messages;

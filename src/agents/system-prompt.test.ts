@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentSystemPrompt } from "./system-prompt.js";
+import {
+  buildAgentSystemPrompt,
+  getToolDescriptions,
+  isSpecialtyTool,
+  TOOL_TIERS,
+} from "./system-prompt.js";
 
 describe("buildAgentSystemPrompt", () => {
   it("includes owner numbers when provided", () => {
@@ -168,5 +173,141 @@ describe("buildAgentSystemPrompt", () => {
 
     expect(prompt).toContain("provider=telegram");
     expect(prompt).toContain("capabilities=inlineButtons");
+  });
+
+  describe("compactToolDescriptions", () => {
+    it("includes full descriptions for core tools when compact mode enabled", () => {
+      const prompt = buildAgentSystemPrompt({
+        workspaceDir: "/tmp/clawd",
+        toolNames: ["read", "write", "bash", "browser", "canvas"],
+        compactToolDescriptions: true,
+      });
+
+      // Core tools should have descriptions
+      expect(prompt).toContain("read: Read file contents");
+      expect(prompt).toContain("write: Create or overwrite files");
+      expect(prompt).toContain("bash: Run shell commands");
+    });
+
+    it("excludes descriptions for specialty tools when compact mode enabled", () => {
+      const prompt = buildAgentSystemPrompt({
+        workspaceDir: "/tmp/clawd",
+        toolNames: ["read", "browser", "canvas", "nodes"],
+        compactToolDescriptions: true,
+      });
+
+      // Specialty tools should only show name
+      expect(prompt).toContain("- browser");
+      expect(prompt).not.toContain("browser: Control web browser");
+      expect(prompt).toContain("- canvas");
+      expect(prompt).not.toContain("canvas: Present/eval/snapshot");
+      expect(prompt).toContain("- nodes");
+      expect(prompt).not.toContain("nodes: List/describe/notify");
+    });
+
+    it("includes hint about specialty tools in compact mode", () => {
+      const prompt = buildAgentSystemPrompt({
+        workspaceDir: "/tmp/clawd",
+        toolNames: ["read", "browser"],
+        compactToolDescriptions: true,
+      });
+
+      expect(prompt).toContain(
+        "(Specialty tools above have detailed docs available on request.)",
+      );
+    });
+
+    it("does not add hint when only core tools present", () => {
+      const prompt = buildAgentSystemPrompt({
+        workspaceDir: "/tmp/clawd",
+        toolNames: ["read", "write", "bash"],
+        compactToolDescriptions: true,
+      });
+
+      expect(prompt).not.toContain("Specialty tools above");
+    });
+
+    it("includes all descriptions when compact mode disabled", () => {
+      const prompt = buildAgentSystemPrompt({
+        workspaceDir: "/tmp/clawd",
+        toolNames: ["read", "browser", "canvas"],
+        compactToolDescriptions: false,
+      });
+
+      // All tools should have descriptions
+      expect(prompt).toContain("read: Read file contents");
+      expect(prompt).toContain("browser: Control web browser");
+      expect(prompt).toContain("canvas: Present/eval/snapshot");
+    });
+  });
+});
+
+describe("TOOL_TIERS", () => {
+  it("defines core tools correctly", () => {
+    expect(TOOL_TIERS.core.has("read")).toBe(true);
+    expect(TOOL_TIERS.core.has("write")).toBe(true);
+    expect(TOOL_TIERS.core.has("bash")).toBe(true);
+    expect(TOOL_TIERS.core.has("browser")).toBe(false);
+  });
+
+  it("defines specialty tools correctly", () => {
+    expect(TOOL_TIERS.specialty.has("browser")).toBe(true);
+    expect(TOOL_TIERS.specialty.has("canvas")).toBe(true);
+    expect(TOOL_TIERS.specialty.has("nodes")).toBe(true);
+    expect(TOOL_TIERS.specialty.has("read")).toBe(false);
+  });
+
+  it("defines minimal tools correctly", () => {
+    expect(TOOL_TIERS.minimal.has("whatsapp_login")).toBe(true);
+    expect(TOOL_TIERS.minimal.has("gateway")).toBe(true);
+    expect(TOOL_TIERS.minimal.has("read")).toBe(false);
+  });
+});
+
+describe("getToolDescriptions", () => {
+  it("returns descriptions for requested tools", () => {
+    const descriptions = getToolDescriptions(["browser", "canvas", "read"]);
+
+    expect(descriptions.browser).toContain("Control a web browser");
+    expect(descriptions.canvas).toContain("Present interactive content");
+    expect(descriptions.read).toContain("Read file contents");
+  });
+
+  it("returns empty object for unknown tools", () => {
+    const descriptions = getToolDescriptions(["unknown_tool", "another"]);
+
+    expect(Object.keys(descriptions)).toHaveLength(0);
+  });
+
+  it("is case insensitive", () => {
+    const descriptions = getToolDescriptions(["Browser", "CANVAS"]);
+
+    expect(descriptions.Browser).toContain("web browser");
+    expect(descriptions.CANVAS).toContain("Canvas");
+  });
+});
+
+describe("isSpecialtyTool", () => {
+  it("returns true for specialty tools", () => {
+    expect(isSpecialtyTool("browser")).toBe(true);
+    expect(isSpecialtyTool("canvas")).toBe(true);
+    expect(isSpecialtyTool("nodes")).toBe(true);
+  });
+
+  it("returns true for minimal tools", () => {
+    expect(isSpecialtyTool("whatsapp_login")).toBe(true);
+    expect(isSpecialtyTool("gateway")).toBe(true);
+    expect(isSpecialtyTool("image")).toBe(true);
+  });
+
+  it("returns false for core tools", () => {
+    expect(isSpecialtyTool("read")).toBe(false);
+    expect(isSpecialtyTool("write")).toBe(false);
+    expect(isSpecialtyTool("bash")).toBe(false);
+  });
+
+  it("is case insensitive", () => {
+    expect(isSpecialtyTool("Browser")).toBe(true);
+    expect(isSpecialtyTool("READ")).toBe(false);
   });
 });

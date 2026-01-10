@@ -2,6 +2,38 @@ import type { ThinkLevel } from "../auto-reply/thinking.js";
 import { SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
 import type { EmbeddedContextFile } from "./pi-embedded-helpers.js";
 
+/**
+ * Tool tiers for system prompt optimization.
+ * - core: Always include full description (essential for most tasks)
+ * - specialty: Include name only (description injected on-demand via context)
+ * - minimal: Include name only with brief hint
+ */
+export const TOOL_TIERS = {
+  core: new Set([
+    "read",
+    "write",
+    "edit",
+    "grep",
+    "find",
+    "ls",
+    "bash",
+    "process",
+  ]),
+  specialty: new Set([
+    "browser",
+    "canvas",
+    "nodes",
+    "cron",
+    "sessions_list",
+    "sessions_history",
+    "sessions_send",
+    "sessions_spawn",
+    "agents_list",
+    "session_status",
+  ]),
+  minimal: new Set(["whatsapp_login", "gateway", "message", "image"]),
+} as const;
+
 export function buildAgentSystemPrompt(params: {
   workspaceDir: string;
   defaultThinkLevel?: ThinkLevel;
@@ -15,6 +47,8 @@ export function buildAgentSystemPrompt(params: {
   contextFiles?: EmbeddedContextFile[];
   skillsPrompt?: string;
   heartbeatPrompt?: string;
+  /** When true, only core tools get full descriptions. Reduces prompt tokens ~30-50%. */
+  compactToolDescriptions?: boolean;
   runtimeInfo?: {
     host?: string;
     os?: string;
@@ -80,6 +114,7 @@ export function buildAgentSystemPrompt(params: {
     "sessions_list",
     "sessions_history",
     "sessions_send",
+    "sessions_spawn",
     "session_status",
     "image",
   ];
@@ -102,13 +137,37 @@ export function buildAgentSystemPrompt(params: {
     new Set(normalizedTools.filter((tool) => !toolOrder.includes(tool))),
   );
   const enabledTools = toolOrder.filter((tool) => availableTools.has(tool));
+  const compact = params.compactToolDescriptions ?? false;
+
+  // Build tool lines based on tier when compact mode enabled
   const toolLines = enabledTools.map((tool) => {
-    const summary = toolSummaries[tool];
     const name = resolveToolName(tool);
-    return summary ? `- ${name}: ${summary}` : `- ${name}`;
+    const summary = toolSummaries[tool];
+
+    if (!compact) {
+      // Full mode: all tools get descriptions
+      return summary ? `- ${name}: ${summary}` : `- ${name}`;
+    }
+
+    // Compact mode: only core tools get full descriptions
+    if (TOOL_TIERS.core.has(tool)) {
+      return summary ? `- ${name}: ${summary}` : `- ${name}`;
+    }
+
+    // Specialty and minimal tools: name only
+    return `- ${name}`;
   });
+
   for (const tool of extraTools.sort()) {
     toolLines.push(`- ${resolveToolName(tool)}`);
+  }
+
+  // In compact mode, add a note about specialty tools
+  if (compact && enabledTools.some((t) => !TOOL_TIERS.core.has(t))) {
+    toolLines.push(
+      "",
+      "(Specialty tools above have detailed docs available on request.)",
+    );
   }
 
   const hasGateway = availableTools.has("gateway");
@@ -346,4 +405,67 @@ export function buildAgentSystemPrompt(params: {
   );
 
   return lines.filter(Boolean).join("\n");
+}
+
+/**
+ * Get full tool descriptions for specialty tools.
+ * Use this to inject detailed docs when a user asks about a non-core tool.
+ */
+export function getToolDescriptions(
+  toolNames: string[],
+): Record<string, string> {
+  const descriptions: Record<string, string> = {
+    read: "Read file contents from the filesystem",
+    write: "Create or overwrite files with new content",
+    edit: "Make precise edits to specific parts of files",
+    grep: "Search file contents for patterns using regex",
+    find: "Find files by glob pattern",
+    ls: "List directory contents with details",
+    bash: "Run shell commands (supports background via yieldMs/background)",
+    process: "Manage background bash sessions (list, kill, output)",
+    whatsapp_login:
+      "Generate a WhatsApp QR code and wait for the user to scan and link their account",
+    browser:
+      "Control a web browser - navigate, click, type, screenshot, extract content",
+    canvas:
+      "Present interactive content, evaluate code, take snapshots of the Canvas surface",
+    nodes:
+      "Interact with paired devices - list/describe nodes, send notifications, capture camera/screen",
+    cron: "Manage scheduled jobs - create, list, delete cron entries and wake events",
+    message:
+      "Send messages and perform provider actions (polls, reactions) across WhatsApp/Telegram/Discord/Slack/Signal",
+    gateway:
+      "Control the Clawdbot gateway - restart, apply config changes, run updates",
+    agents_list: "List agent IDs that are allowed for sessions_spawn",
+    sessions_list:
+      "List other sessions including sub-agents with optional filters",
+    sessions_history:
+      "Fetch the message history for another session or sub-agent",
+    sessions_send: "Send a message to another session or sub-agent",
+    sessions_spawn:
+      "Spawn a new sub-agent session that runs independently and notifies when complete",
+    session_status:
+      "Show detailed status including token usage, cost, model info for any session",
+    image:
+      "Analyze an image using the configured vision model - describe, extract text, answer questions",
+  };
+
+  const result: Record<string, string> = {};
+  for (const name of toolNames) {
+    const normalized = name.toLowerCase();
+    if (descriptions[normalized]) {
+      result[name] = descriptions[normalized];
+    }
+  }
+  return result;
+}
+
+/**
+ * Check if a tool is a specialty tool (requires on-demand description loading).
+ */
+export function isSpecialtyTool(toolName: string): boolean {
+  const normalized = toolName.toLowerCase();
+  return (
+    TOOL_TIERS.specialty.has(normalized) || TOOL_TIERS.minimal.has(normalized)
+  );
 }

@@ -1032,6 +1032,13 @@ const AgentDefaultsSchema = z
             placeholder: z.string().optional(),
           })
           .optional(),
+        midTrim: z
+          .object({
+            turnsThreshold: z.number().int().nonnegative().optional(),
+            maxUserChars: z.number().int().nonnegative().optional(),
+            maxAssistantChars: z.number().int().nonnegative().optional(),
+          })
+          .optional(),
       })
       .optional(),
     thinkingDefault: z

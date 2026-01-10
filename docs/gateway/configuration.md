@@ -1090,13 +1090,12 @@ If you configure the same alias name (case-insensitive) yourself, your value win
 
 #### `agents.defaults.contextPruning` (tool-result pruning)
 
-`agents.defaults.contextPruning` prunes **old tool results** from the in-memory context right before a request is sent to the LLM.
+`agents.defaults.contextPruning` prunes **old tool results** (and, in `adaptive` mode, may condense older user/assistant messages via `midTrim`) from the in-memory context right before a request is sent to the LLM.
 It does **not** modify the session history on disk (`*.jsonl` remains complete).
 
 This is intended to reduce token usage for chatty agents that accumulate large tool outputs over time.
 
 High level:
-- Never touches user/assistant messages.
 - Protects the last `keepLastAssistants` assistant messages (no tool results after that point are pruned).
 - Protects the bootstrap prefix (nothing before the first user message is pruned).
 - Modes:
@@ -1113,11 +1112,16 @@ Soft vs hard pruning (what changes in the context sent to the LLM):
   - Before: `toolResult("…very long output…")`
   - After: `toolResult("[Old tool result content cleared]")`
 
+Mid-trim (adaptive only):
+- `midTrim` may condense older user/assistant messages before hard-clear kicks in.
+- Set `midTrim.turnsThreshold: 0` to disable mid-trim.
+
 Notes / current limitations:
 - Tool results containing **image blocks are skipped** (never trimmed/cleared) right now.
 - The estimated “context ratio” is based on **characters** (approximate), not exact tokens.
 - If the session doesn’t contain at least `keepLastAssistants` assistant messages yet, pruning is skipped.
 - In `aggressive` mode, `hardClear.enabled` is ignored (eligible tool results are always replaced with `hardClear.placeholder`).
+- `midTrim` (adaptive only) may condense older user/assistant messages; set `midTrim.turnsThreshold: 0` to disable.
 
 Default (adaptive):
 ```json5
@@ -1140,6 +1144,7 @@ Defaults (when `mode` is `"adaptive"` or `"aggressive"`):
 - `minPrunableToolChars`: `50000` (adaptive only)
 - `softTrim`: `{ maxChars: 4000, headChars: 1500, tailChars: 1500 }` (adaptive only)
 - `hardClear`: `{ enabled: true, placeholder: "[Old tool result content cleared]" }`
+- `midTrim`: `{ turnsThreshold: 8, maxUserChars: 600, maxAssistantChars: 800 }` (adaptive only; set `turnsThreshold: 0` to disable)
 
 Example (aggressive, minimal):
 ```json5
@@ -1161,6 +1166,9 @@ Example (adaptive tuned):
         minPrunableToolChars: 50000,
         softTrim: { maxChars: 4000, headChars: 1500, tailChars: 1500 },
         hardClear: { enabled: true, placeholder: "[Old tool result content cleared]" },
+        midTrim: { turnsThreshold: 8, maxUserChars: 600, maxAssistantChars: 800 },
+        // Optional: disable mid-trim message condensing entirely
+        // midTrim: { turnsThreshold: 0 },
         // Optional: restrict pruning to specific tools (deny wins; supports "*" wildcards)
         tools: { deny: ["browser", "canvas"] },
       }

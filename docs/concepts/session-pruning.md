@@ -6,15 +6,15 @@ read_when:
 ---
 # Session Pruning
 
-Session pruning trims **old tool results** from the in-memory context right before each LLM call. It does **not** rewrite the on-disk session history (`*.jsonl`).
+Session pruning trims **old tool results** (and, in `adaptive` mode, may condense older user/assistant messages via `midTrim`) from the in-memory context right before each LLM call. It does **not** rewrite the on-disk session history (`*.jsonl`).
 
 ## When it runs
 - Before each LLM request (context hook).
 - Only affects the messages sent to the model for that request.
 
-## What can be pruned
-- Only `toolResult` messages.
-- User + assistant messages are **never** modified.
+## What can be pruned / condensed
+- Tool results (`toolResult` messages) may be soft-trimmed or hard-cleared.
+- In `adaptive` mode, when the estimated context ratio crosses `softTrimRatio`, `midTrim` may condense older user/assistant messages in the *in-memory request context* (never the JSONL history). Set `midTrim.turnsThreshold: 0` to disable.
 - The last `keepLastAssistants` assistant messages are protected; tool results after that cutoff are not pruned.
 - If there aren’t enough assistant messages to establish the cutoff, pruning is skipped.
 - Tool results containing **image blocks** are skipped (never trimmed/cleared).
@@ -28,7 +28,7 @@ Pruning uses an estimated context window (chars ≈ tokens × 4). The window siz
 
 ## Modes
 ### adaptive
-- If estimated context ratio ≥ `softTrimRatio`: soft-trim oversized tool results.
+- If estimated context ratio ≥ `softTrimRatio`: soft-trim oversized tool results, and may mid-trim older user/assistant messages (`midTrim`) before hard-clear.
 - If still ≥ `hardClearRatio` **and** prunable tool text ≥ `minPrunableToolChars`: hard-clear oldest eligible tool results.
 
 ### aggressive
@@ -58,42 +58,39 @@ Pruning uses an estimated context window (chars ≈ tokens × 4). The window siz
 - `minPrunableToolChars`: `50000`
 - `softTrim`: `{ maxChars: 4000, headChars: 1500, tailChars: 1500 }`
 - `hardClear`: `{ enabled: true, placeholder: "[Old tool result content cleared]" }`
+- `midTrim`: `{ turnsThreshold: 8, maxUserChars: 600, maxAssistantChars: 800 }` (adaptive only; set `turnsThreshold: 0` to disable)
 
 ## Examples
 Default (adaptive):
 ```json5
 {
-  agent: {
-    contextPruning: { mode: "adaptive" }
-  }
+  agents: { defaults: { contextPruning: { mode: "adaptive" } } }
 }
 ```
 
 To disable:
 ```json5
 {
-  agent: {
-    contextPruning: { mode: "off" }
-  }
+  agents: { defaults: { contextPruning: { mode: "off" } } }
 }
 ```
 
 Aggressive:
 ```json5
 {
-  agent: {
-    contextPruning: { mode: "aggressive" }
-  }
+  agents: { defaults: { contextPruning: { mode: "aggressive" } } }
 }
 ```
 
 Restrict pruning to specific tools:
 ```json5
 {
-  agent: {
-    contextPruning: {
-      mode: "adaptive",
-      tools: { allow: ["bash", "read"], deny: ["*image*"] }
+  agents: {
+    defaults: {
+      contextPruning: {
+        mode: "adaptive",
+        tools: { allow: ["bash", "read"], deny: ["*image*"] }
+      }
     }
   }
 }
