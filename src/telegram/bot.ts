@@ -21,6 +21,12 @@ import {
 import { formatAgentEnvelope } from "../auto-reply/envelope.js";
 import { resolveTelegramDraftStreamingChunking } from "../auto-reply/reply/block-streaming.js";
 import {
+  buildHistoryContextFromMap,
+  clearHistoryEntries,
+  DEFAULT_GROUP_HISTORY_LIMIT,
+  type HistoryEntry,
+} from "../auto-reply/reply/history.js";
+import {
   buildMentionRegexes,
   matchesMentionPatterns,
 } from "../auto-reply/reply/mentions.js";
@@ -246,6 +252,13 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     accountId: opts.accountId,
   });
   const telegramCfg = account.config;
+  const historyLimit = Math.max(
+    0,
+    telegramCfg.historyLimit ??
+      cfg.messages?.groupChat?.historyLimit ??
+      DEFAULT_GROUP_HISTORY_LIMIT,
+  );
+  const groupHistories = new Map<string, HistoryEntry[]>();
   const textLimit = resolveTextChunkLimit(cfg, "telegram", account.accountId);
   const dmPolicy = telegramCfg.dmPolicy ?? "pairing";
   const allowFrom = opts.allowFrom ?? telegramCfg.allowFrom;
@@ -642,6 +655,9 @@ export function createTelegramBot(opts: TelegramBotOptions) {
           replyTarget.id ? ` id:${replyTarget.id}` : ""
         }]\n${replyTarget.body}\n[/Replying]`
       : "";
+    const groupLabel = isGroup
+      ? buildGroupLabel(msg, chatId, messageThreadId)
+      : undefined;
     const body = formatAgentEnvelope({
       provider: "Telegram",
       from: isGroup
@@ -650,6 +666,34 @@ export function createTelegramBot(opts: TelegramBotOptions) {
       timestamp: msg.date ? msg.date * 1000 : undefined,
       body: `${bodyText}${replySuffix}`,
     });
+    let combinedBody = body;
+    const historyKey = isGroup
+      ? buildTelegramGroupPeerId(chatId, messageThreadId)
+      : undefined;
+    if (isGroup && historyKey && historyLimit > 0) {
+      combinedBody = buildHistoryContextFromMap({
+        historyMap: groupHistories,
+        historyKey,
+        limit: historyLimit,
+        entry: {
+          sender: buildSenderLabel(msg, senderId || chatId),
+          body: rawBody,
+          timestamp: msg.date ? msg.date * 1000 : undefined,
+          messageId:
+            typeof msg.message_id === "number"
+              ? String(msg.message_id)
+              : undefined,
+        },
+        currentMessage: combinedBody,
+        formatEntry: (entry) =>
+          formatAgentEnvelope({
+            provider: "Telegram",
+            from: groupLabel ?? `group:${chatId}`,
+            timestamp: entry.timestamp,
+            body: `${entry.sender}: ${entry.body} [id:${entry.messageId ?? "unknown"} chat:${chatId}]`,
+          }),
+      });
+    }
 
     const skillFilter = firstDefined(topicConfig?.skills, groupConfig?.skills);
     const systemPromptParts = [
@@ -659,7 +703,9 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     const groupSystemPrompt =
       systemPromptParts.length > 0 ? systemPromptParts.join("\n\n") : undefined;
     const ctxPayload = {
-      Body: body,
+      Body: combinedBody,
+      RawBody: rawBody,
+      CommandBody: rawBody,
       From: isGroup
         ? buildTelegramGroupFrom(chatId, messageThreadId)
         : `telegram:${chatId}`,
@@ -810,6 +856,7 @@ export function createTelegramBot(opts: TelegramBotOptions) {
         ? !telegramCfg.blockStreaming
         : undefined);
 
+    let didSendReply = false;
     const { queuedFinal } = await dispatchReplyWithBufferedBlockDispatcher({
       ctx: ctxPayload,
       cfg,
@@ -831,6 +878,7 @@ export function createTelegramBot(opts: TelegramBotOptions) {
             textLimit,
             messageThreadId,
           });
+          didSendReply = true;
         },
         onError: (err, info) => {
           runtime.error?.(
@@ -853,7 +901,12 @@ export function createTelegramBot(opts: TelegramBotOptions) {
       },
     });
     draftStream?.stop();
-    if (!queuedFinal) return;
+    if (!queuedFinal) {
+      if (isGroup && historyKey && historyLimit > 0 && didSendReply) {
+        clearHistoryEntries({ historyMap: groupHistories, historyKey });
+      }
+      return;
+    }
     if (
       removeAckAfterReply &&
       ackReactionPromise &&
@@ -868,6 +921,9 @@ export function createTelegramBot(opts: TelegramBotOptions) {
           );
         });
       });
+    }
+    if (isGroup && historyKey && historyLimit > 0 && didSendReply) {
+      clearHistoryEntries({ historyMap: groupHistories, historyKey });
     }
   };
 

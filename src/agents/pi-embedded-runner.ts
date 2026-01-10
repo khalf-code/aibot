@@ -8,7 +8,12 @@ import type {
   AgentTool,
   ThinkingLevel,
 } from "@mariozechner/pi-agent-core";
-import type { Api, AssistantMessage, Model } from "@mariozechner/pi-ai";
+import type {
+  Api,
+  AssistantMessage,
+  ImageContent,
+  Model,
+} from "@mariozechner/pi-ai";
 import {
   createAgentSession,
   discoverAuthStorage,
@@ -83,6 +88,7 @@ import {
   pickFallbackThinkingLevel,
   sanitizeGoogleTurnOrdering,
   sanitizeSessionMessagesImages,
+  sanitizeToolUseResultPairing,
   validateGeminiTurns,
 } from "./pi-embedded-helpers.js";
 import {
@@ -374,9 +380,14 @@ async function sanitizeSessionHistory(params: {
   const sanitizedImages = await sanitizeSessionMessagesImages(
     params.messages,
     "session:history",
+    {
+      sanitizeToolCallIds: isGoogleModelApi(params.modelApi),
+      enforceToolCallLast: params.modelApi === "anthropic-messages",
+    },
   );
+  const repairedTools = sanitizeToolUseResultPairing(sanitizedImages);
   return applyGoogleTurnOrderingFix({
-    messages: sanitizedImages,
+    messages: repairedTools,
     modelApi: params.modelApi,
     sessionManager: params.sessionManager,
     sessionId: params.sessionId,
@@ -762,8 +773,8 @@ export async function compactEmbeddedPiSession(params: {
       const provider =
         (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
       const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
-      await ensureClawdbotModelsJson(params.config);
       const agentDir = params.agentDir ?? resolveClawdbotAgentDir();
+      await ensureClawdbotModelsJson(params.config, agentDir);
       const { model, error, authStorage, modelRegistry } = resolveModel(
         provider,
         modelId,
@@ -1008,6 +1019,8 @@ export async function runEmbeddedPiAgent(params: {
   config?: ClawdbotConfig;
   skillsSnapshot?: SkillSnapshot;
   prompt: string;
+  /** Optional image attachments for multimodal messages. */
+  images?: ImageContent[];
   provider?: string;
   model?: string;
   authProfileId?: string;
@@ -1065,8 +1078,8 @@ export async function runEmbeddedPiAgent(params: {
       const provider =
         (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
       const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
-      await ensureClawdbotModelsJson(params.config);
       const agentDir = params.agentDir ?? resolveClawdbotAgentDir();
+      await ensureClawdbotModelsJson(params.config, agentDir);
       const { model, error, authStorage, modelRegistry } = resolveModel(
         provider,
         modelId,
@@ -1433,7 +1446,9 @@ export async function runEmbeddedPiAgent(params: {
               `embedded run prompt start: runId=${params.runId} sessionId=${params.sessionId}`,
             );
             try {
-              await session.prompt(params.prompt);
+              await session.prompt(params.prompt, {
+                images: params.images,
+              });
             } catch (err) {
               promptError = err;
             } finally {
@@ -1592,7 +1607,10 @@ export async function runEmbeddedPiAgent(params: {
               const message =
                 lastAssistant?.errorMessage?.trim() ||
                 (lastAssistant
-                  ? formatAssistantErrorText(lastAssistant)
+                  ? formatAssistantErrorText(lastAssistant, {
+                      cfg: params.config,
+                      sessionKey: params.sessionKey ?? params.sessionId,
+                    })
                   : "") ||
                 (timedOut
                   ? "LLM request timed out."
@@ -1633,7 +1651,10 @@ export async function runEmbeddedPiAgent(params: {
           }> = [];
 
           const errorText = lastAssistant
-            ? formatAssistantErrorText(lastAssistant)
+            ? formatAssistantErrorText(lastAssistant, {
+                cfg: params.config,
+                sessionKey: params.sessionKey ?? params.sessionId,
+              })
             : undefined;
 
           if (errorText) replyItems.push({ text: errorText, isError: true });
