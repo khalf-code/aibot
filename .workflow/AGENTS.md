@@ -109,22 +109,11 @@ Results: `~/.clawdbot/daily-builds/summary-$(date +%Y-%m-%d).log`
 
 ---
 
-## Multi-Agent Safety
+## Standards
 
-From root `AGENTS.md` (source of truth):
-- Don't stash, switch branches, or modify worktrees
-- Scope commits to your files via `scripts/committer`
-- Use `.worktrees/<agent>/` for isolation
+See root `AGENTS.md` for multi-agent safety and quality standards.
 
----
-
-## Quality Standards
-
-From root `AGENTS.md`:
-- Run `/dev:gate` before commits
-- 70% coverage threshold
-- Files under ~700 LOC
-- CHANGELOG: `- Feature: description. (#PR) - thanks @contributor`
+Key points: `/dev:gate` before commits, `scripts/committer` for scoped commits, 70% coverage.
 
 ---
 

@@ -54,5 +54,3 @@ Instructions here. Args: $ARGUMENTS
 ```
 
 **Hook events**: `PreToolUse`, `PostToolUse`, `SessionStart`, `SessionEnd`, `Stop`
-
-See `project/drafts/agent-automation-templates.md` for template examples.

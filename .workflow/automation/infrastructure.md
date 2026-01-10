@@ -74,12 +74,3 @@ ls -la ${TMPDIR}/clawdbot-tmux-sockets/   # tmux sockets
 tmux -S $SOCKET kill-server               # Reset tmux
 ```
 
----
-
-## Templates
-
-See `project/drafts/infrastructure-templates.md` for:
-- k3s cluster setup
-- Kubernetes manifests
-- Tailscale ACL configuration
-- Additional automation scripts
