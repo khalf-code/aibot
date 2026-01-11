@@ -164,6 +164,24 @@ export type MemorySearchConfig = {
   };
 };
 
+export type TranscriptionProvider = "command" | "deepgram" | "openai";
+
+export type DeepgramTranscriptionConfig = {
+  apiKey?: string;
+  model?: string;
+  language?: string;
+  detectLanguage?: boolean;
+  punctuate?: boolean;
+  smartFormat?: boolean;
+};
+
+export type TranscriptionConfig = {
+  provider?: TranscriptionProvider;
+  args?: string[];
+  deepgram?: DeepgramTranscriptionConfig;
+  timeoutSeconds?: number;
+};
+
 export type ToolsConfig = {
   /** Base tool profile applied before allow/deny lists. */
   profile?: ToolProfileId;
@@ -214,6 +232,9 @@ export type ToolsConfig = {
         timeoutSeconds?: number;
       };
     };
+  };
+  audio?: {
+    transcription?: TranscriptionConfig;
   };
   media?: MediaToolsConfig;
   /** Message tool configuration. */
