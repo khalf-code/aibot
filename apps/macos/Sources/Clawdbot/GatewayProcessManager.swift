@@ -44,6 +44,12 @@ final class GatewayProcessManager {
     private var logRefreshTask: Task<Void, Never>?
     private let logger = Logger(subsystem: "com.clawdbot", category: "gateway.process")
 
+    // Fix #4: Crash counter with backoff
+    private var recentFailures: [Date] = []
+    private let maxFailures = 5
+    private let crashWindow: TimeInterval = 60
+    private var sweepTask: Task<Void, Never>?  // Fix #5: Periodic sweeps
+
     private let logLimit = 20000 // characters to keep in-memory
     private let environmentRefreshMinInterval: TimeInterval = 30
 
@@ -86,10 +92,14 @@ final class GatewayProcessManager {
         // Do not spawn in remote mode (the gateway should run on the remote host).
         guard !CommandResolver.connectionModeIsRemote() else {
             self.status = .stopped
+            self.stopPeriodicPortSweep()
             return
         }
         self.status = .starting
         self.logger.debug("gateway start requested")
+
+        // Fix #5: Start periodic port cleanup sweeps
+        self.startPeriodicPortSweep()
 
         // First try to latch onto an already-running gateway to avoid spawning a duplicate.
         Task { [weak self] in
@@ -98,11 +108,14 @@ final class GatewayProcessManager {
                 return
             }
             // Respect debug toggle: only attach, never spawn, when enabled.
+            // Fix #1: Auto-disable attach-only mode when no gateway is reachable.
             if AppStateStore.attachExistingGatewayOnly {
                 await MainActor.run {
                     self.status = .failed("Attach-only enabled; no gateway to attach")
                     self.appendLog("[gateway] attach-only enabled; not spawning local gateway\n")
-                    self.logger.warning("gateway attach-only enabled; not spawning")
+                    self.appendLog("[gateway] auto-disabling attach-only mode for recovery\n")
+                    self.logger.warning("gateway attach-only auto-disable triggered")
+                    AppStateStore.shared.attachExistingGatewayOnly = false
                 }
                 return
             }
@@ -116,6 +129,7 @@ final class GatewayProcessManager {
         self.lastFailureReason = nil
         self.status = .stopped
         self.logger.info("gateway stop requested")
+        self.stopPeriodicPortSweep()
         let bundlePath = Bundle.main.bundleURL.path
         Task {
             _ = await GatewayLaunchAgentManager.set(
@@ -245,27 +259,84 @@ final class GatewayProcessManager {
         return "pid \(instance.pid) \(instance.command) @ \(path)"
     }
 
+    // Fix #6: Improved attach-failure error messages with actionable context
     private func describeAttachFailure(_ error: Error, port: Int, instance: PortGuardian.Descriptor?) -> String {
         let ns = error as NSError
         let message = ns.localizedDescription.isEmpty ? "unknown error" : ns.localizedDescription
         let lower = message.lowercased()
+
         if self.isGatewayAuthFailure(error) {
+            // Get the current token for comparison hint
+            let currentTokenHint: String
+            let root = ClawdbotConfigFile.loadDict()
+            if let gateway = root["gateway"] as? [String: Any],
+               let auth = gateway["auth"] as? [String: Any],
+               let token = auth["token"] as? String, !token.isEmpty
+            {
+                let prefix = String(token.prefix(4))
+                currentTokenHint = "Your token starts with '\(prefix)'. "
+            } else if let envToken = ProcessInfo.processInfo.environment["CLAWDBOT_GATEWAY_TOKEN"], !envToken.isEmpty {
+                let prefix = String(envToken.prefix(4))
+                currentTokenHint = "Your env token starts with '\(prefix)'. "
+            } else {
+                currentTokenHint = "You have no token set. "
+            }
+
             return """
-            Gateway on port \(port) rejected auth. Set gateway.auth.token (or CLAWDBOT_GATEWAY_TOKEN) \
-            to match the running gateway (or clear it on the gateway) and retry.
+            Gateway on port \(port) rejected auth.
+
+            \(currentTokenHint)The running gateway requires a matching token.
+            Either:
+            • Set gateway.auth.token (or CLAWDBOT_GATEWAY_TOKEN) to match the running gateway
+            • Or clear the token on the running gateway
+
+            You can also run 'clawdbot doctor' to check configuration.
             """
         }
+
         if lower.contains("protocol mismatch") {
-            return "Gateway on port \(port) is incompatible (protocol mismatch). Update the app/gateway."
+            let runningInfo = instance.map { " (pid \($0.pid))" } ?? ""
+            return """
+            Gateway on port \(port) is incompatible \(runningInfo).
+            This usually means the app and gateway have different versions.
+            Restart the app or run 'clawdbot doctor' to diagnose.
+            """
         }
+
         if lower.contains("unexpected response") || lower.contains("invalid response") {
-            return "Port \(port) returned non-gateway data; another process is using it."
+            guard let instance else {
+                return "Port \(port) returned non-gateway data; another process is using it."
+            }
+            let instanceText = self.describe(instance: instance)
+            return """
+            Port \(port) returned non-gateway data (\(instanceText)).
+            Another process is using this port.
+            Run 'clawdbot doctor' or kill the conflicting process.
+            """
         }
+
         if let instance {
             let instanceText = self.describe(instance: instance)
-            return "Gateway listener found on port \(port) (\(instanceText)) but health check failed: \(message)"
+            let isNodeProcess = instance.command.lowercased().contains("node")
+                || instance.command.lowercased().contains("clawdbot")
+                || instance.executablePath?.contains("entry.js") ?? false
+
+            if isNodeProcess {
+                return """
+                Gateway listener on port \(port) (\(instanceText)) isn't responding to health checks.
+                The gateway may be starting up or crashed.
+                Try waiting a moment, or run: kill \(instance.pid) to force a restart.
+                """
+            } else {
+                return """
+                Port \(port) has a non-gateway process: \(instanceText).
+                This process should NOT be using the gateway port.
+                Run: kill \(instance.pid) to remove it, then retry.
+                """
+            }
         }
-        return "Gateway listener found on port \(port) but health check failed: \(message)"
+
+        return "Gateway on port \(port) failed health check: \(message)"
     }
 
     private func isGatewayAuthFailure(_ error: Error) -> Bool {
@@ -280,6 +351,19 @@ final class GatewayProcessManager {
 
     private func enableLaunchdGateway() async {
         self.existingGatewayDetails = nil
+
+        // Fix #4: Check crash counter and stop if we've hit the limit
+        self.recordFailure()
+        if self.recentFailures.count >= self.maxFailures {
+            await MainActor.run {
+                self.status = .failed(
+                    "Gateway crashed \(self.maxFailures) times in \(Int(self.crashWindow))s. " +
+                    "Run 'clawdbot doctor' to diagnose and try quitting/restarting the app.")
+            }
+            self.logger.error("gateway crash limit reached; not restarting")
+            return
+        }
+
         let resolution = await Task.detached(priority: .utility) {
             GatewayEnvironment.resolveGatewayCommand()
         }.value
@@ -294,6 +378,32 @@ final class GatewayProcessManager {
 
         let bundlePath = Bundle.main.bundleURL.path
         let port = GatewayEnvironment.gatewayPort()
+
+        // Fix #2: Detect and kill conflicting gateway processes before starting
+        if let existing = await PortGuardian.shared.describe(port: port) {
+            let expectedCommands = ["node", "clawdbot", "tsx", "pnpm", "bun"]
+            let cmdLower = existing.command.lowercased()
+            let isExpected = expectedCommands.contains { cmdLower.contains($0) }
+            // Check if this is an unexpected process OR a node process not using entry.js
+            let isOurEntryJS = existing.executablePath?.contains("entry.js") == true
+            if !isExpected || !isOurEntryJS {
+                await MainActor.run {
+                    self.appendLog("[gateway] found conflicting process on port \(port): \(existing.command)\n")
+                    self.appendLog("[gateway]   pid \(existing.pid) @ \(existing.executablePath ?? "unknown path")\n")
+                    self.appendLog("[gateway] killing conflicting process\n")
+                }
+                self.logger.warning("killing conflicting gateway pid \(existing.pid)")
+                let killed = await PortGuardian.shared.kill(existing.pid)
+                if !killed {
+                    await MainActor.run {
+                        self.appendLog("[gateway] failed to kill conflicting process pid \(existing.pid)\n")
+                    }
+                }
+                // Give time for port to be released
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+        }
+
         self.appendLog("[gateway] enabling launchd job (\(gatewayLaunchdLabel)) on port \(port)\n")
         self.logger.info("gateway enabling launchd port=\(port)")
         let err = await GatewayLaunchAgentManager.set(enabled: true, bundlePath: bundlePath, port: port)
@@ -314,6 +424,15 @@ final class GatewayProcessManager {
                 let details = instance.map { "pid \($0.pid)" }
                 self.status = .running(details: details)
                 self.logger.info("gateway started details=\(details ?? "ok")")
+
+                // Fix #3: Remove disable-launchagent marker on successful startup
+                await GatewayLaunchAgentManager.removeDisableMarker()
+
+                // Fix #4: Clear failures on successful start
+                await MainActor.run {
+                    self.recentFailures.removeAll()
+                }
+
                 self.refreshControlChannelIfNeeded(reason: "gateway started")
                 self.refreshLog()
                 return
@@ -325,6 +444,29 @@ final class GatewayProcessManager {
         self.status = .failed("Gateway did not start in time")
         self.lastFailureReason = "launchd start timeout"
         self.logger.warning("gateway start timed out")
+    }
+
+    // Fix #4: Record failure with crash window
+    private func recordFailure() {
+        self.recentFailures.append(Date())
+        self.recentFailures.removeAll { Date().timeIntervalSince($0) > self.crashWindow }
+    }
+
+    // Fix #5: Periodic port cleanup sweeps
+    private func startPeriodicPortSweep() {
+        self.sweepTask?.cancel()
+        self.sweepTask = Task.detached(priority: .utility) { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
+                guard !Task.isCancelled else { break }
+                await PortGuardian.shared.sweep(mode: .local)
+            }
+        }
+    }
+
+    private func stopPeriodicPortSweep() {
+        self.sweepTask?.cancel()
+        self.sweepTask = nil
     }
 
     private func appendLog(_ chunk: String) {

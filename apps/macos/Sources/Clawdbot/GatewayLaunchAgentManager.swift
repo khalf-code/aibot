@@ -81,7 +81,24 @@ enum GatewayLaunchAgentManager {
 
     static func set(enabled: Bool, bundlePath: String, port: Int) async -> String? {
         _ = bundlePath
-        if enabled, self.isLaunchAgentWriteDisabled() {
+        // Fix #7: Always check for stale configs even when attach-only or disabled marker is set
+        let writeDisabled = self.isLaunchAgentWriteDisabled()
+        if enabled, writeDisabled {
+            // Still check for stale configs that need cleanup
+            let desiredBind = self.preferredGatewayBind() ?? "loopback"
+            let desiredToken = self.preferredGatewayToken()
+            let desiredPassword = self.preferredGatewayPassword()
+            let desiredConfig = DesiredConfig(
+                port: port, bind: desiredBind, token: desiredToken, password: desiredPassword)
+
+            let loaded = await self.isLoaded()
+            if loaded, let existing = self.readPlistConfig() {
+                if !existing.matches(desiredConfig) {
+                    self.logger.info("stale launch agent detected in attach-only mode; cleaning up")
+                    _ = await Launchctl.run(["bootout", "gui/\(getuid())/\(gatewayLaunchdLabel)"])
+                    try? FileManager.default.removeItem(at: self.plistURL)
+                }
+            }
             self.logger.info("launchd enable skipped (attach-only or disable marker set)")
             return nil
         }
@@ -148,6 +165,19 @@ enum GatewayLaunchAgentManager {
 
     static func kickstart() async {
         _ = await Launchctl.run(["kickstart", "-k", "gui/\(getuid())/\(gatewayLaunchdLabel)"])
+    }
+
+    // Fix #3: Public method to remove the disable-launchagent marker
+    static func removeDisableMarker() async {
+        let marker = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(self.disableLaunchAgentMarker)
+        guard FileManager.default.fileExists(atPath: marker.path) else { return }
+        do {
+            try FileManager.default.removeItem(at: marker)
+            self.logger.info("disable-launchagent marker removed")
+        } catch {
+            self.logger.error("failed to remove disable-launchagent marker: \(error.localizedDescription)")
+        }
     }
 
     private static func writePlist(programArguments: [String]) {

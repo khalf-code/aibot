@@ -335,7 +335,8 @@ actor PortGuardian {
         #endif
     }
 
-    private func kill(_ pid: Int32) async -> Bool {
+    // Public method for killing processes (used by GatewayProcessManager for conflict resolution)
+    func kill(_ pid: Int32) async -> Bool {
         let term = await ShellExecutor.run(command: ["kill", "-TERM", "\(pid)"], cwd: nil, env: nil, timeout: 2)
         if term.ok { return true }
         let sigkill = await ShellExecutor.run(command: ["kill", "-KILL", "\(pid)"], cwd: nil, env: nil, timeout: 2)
