@@ -251,12 +251,7 @@ async function resolveMatrixClient(opts: {
     deviceId: auth.deviceId,
     localTimeoutMs: opts.timeoutMs,
   });
-  await ensureMatrixCrypto(
-    client,
-    auth.encryption,
-    auth.userId,
-    auth.recoveryKey,
-  );
+  await ensureMatrixCrypto(client, auth.encryption, auth.userId);
   await client.startClient({
     initialSyncLimit: 0,
     lazyLoadMembers: true,

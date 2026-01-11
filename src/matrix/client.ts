@@ -8,10 +8,8 @@ export type MatrixResolvedConfig = {
   userId: string;
   accessToken?: string;
   password?: string;
-  deviceId?: string;
   deviceName?: string;
   encryption: boolean;
-  recoveryKey?: string;
   initialSyncLimit?: number;
 };
 
@@ -22,7 +20,6 @@ export type MatrixAuth = {
   deviceId?: string;
   deviceName?: string;
   encryption: boolean;
-  recoveryKey?: string;
   initialSyncLimit?: number;
 };
 
@@ -62,11 +59,8 @@ export function resolveMatrixConfig(
     clean(env.MATRIX_ACCESS_TOKEN) || clean(matrix.accessToken) || undefined;
   const password =
     clean(env.MATRIX_PASSWORD) || clean(matrix.password) || undefined;
-  const deviceId = clean(env.MATRIX_DEVICE_ID) || clean(matrix.deviceId);
   const deviceName =
     clean(env.MATRIX_DEVICE_NAME) || clean(matrix.deviceName) || undefined;
-  const recoveryKey =
-    clean(env.MATRIX_RECOVERY_KEY) || clean(matrix.recoveryKey) || undefined;
   const encryption = matrix.encryption === true;
   const initialSyncLimit =
     typeof matrix.initialSyncLimit === "number"
@@ -77,10 +71,8 @@ export function resolveMatrixConfig(
     userId,
     accessToken,
     password,
-    deviceId: deviceId || undefined,
     deviceName,
     encryption,
-    recoveryKey,
     initialSyncLimit,
   };
 }
@@ -105,10 +97,8 @@ export async function resolveMatrixAuth(params?: {
       homeserver: resolved.homeserver,
       userId: resolved.userId,
       accessToken: resolved.accessToken,
-      deviceId: resolved.deviceId,
       deviceName: resolved.deviceName,
       encryption: resolved.encryption,
-      recoveryKey: resolved.recoveryKey,
       initialSyncLimit: resolved.initialSyncLimit,
     };
   }
@@ -138,7 +128,6 @@ export async function resolveMatrixAuth(params?: {
       deviceId: cached.deviceId,
       deviceName: resolved.deviceName,
       encryption: resolved.encryption,
-      recoveryKey: resolved.recoveryKey,
       initialSyncLimit: resolved.initialSyncLimit,
     };
   }
@@ -158,7 +147,7 @@ export async function resolveMatrixAuth(params?: {
     type: "m.login.password",
     identifier: { type: "m.id.user", user: resolved.userId },
     password: resolved.password,
-    device_id: resolved.deviceId ?? cached?.deviceId,
+    device_id: cached?.deviceId,
     initial_device_display_name: resolved.deviceName ?? "Clawdbot Gateway",
   });
   const accessToken = login.access_token?.trim();
@@ -170,10 +159,9 @@ export async function resolveMatrixAuth(params?: {
     homeserver: resolved.homeserver,
     userId: login.user_id ?? resolved.userId,
     accessToken,
-    deviceId: login.device_id ?? resolved.deviceId,
+    deviceId: login.device_id,
     deviceName: resolved.deviceName,
     encryption: resolved.encryption,
-    recoveryKey: resolved.recoveryKey,
     initialSyncLimit: resolved.initialSyncLimit,
   };
 
@@ -230,12 +218,7 @@ async function createSharedMatrixClient(params: {
     deviceId: params.auth.deviceId,
     localTimeoutMs: params.timeoutMs,
   });
-  await ensureMatrixCrypto(
-    client,
-    params.auth.encryption,
-    params.auth.userId,
-    params.auth.recoveryKey,
-  );
+  await ensureMatrixCrypto(client, params.auth.encryption, params.auth.userId);
   return { client, key: buildSharedClientKey(params.auth), started: false };
 }
 
@@ -331,20 +314,15 @@ export async function ensureMatrixCrypto(
   client: MatrixClient,
   enabled: boolean,
   userId?: string,
-  recoveryKey?: string,
 ): Promise<void> {
   if (!enabled) return;
   if (client.getCrypto()) return;
 
-  // Set up fake-indexeddb for Node.js to enable persistent crypto storage
-  const {
-    setupNodeIndexedDB,
-    sanitizeUserIdForPrefix,
-    bootstrapMatrixCrossSigning,
-  } = await import("./crypto-store.js");
+  const { setupNodeIndexedDB, sanitizeUserIdForPrefix } = await import(
+    "./crypto-store.js"
+  );
   await setupNodeIndexedDB();
 
-  // Use a user-specific database prefix to avoid conflicts between accounts
   const prefix = userId
     ? `matrix_crypto_${sanitizeUserIdForPrefix(userId)}`
     : "matrix_crypto";
@@ -353,20 +331,6 @@ export async function ensureMatrixCrypto(
     useIndexedDB: true,
     cryptoDatabasePrefix: prefix,
   });
-
-  // If a recovery key is provided, bootstrap cross-signing for verified E2EE
-  if (recoveryKey?.trim()) {
-    try {
-      await bootstrapMatrixCrossSigning(client, recoveryKey.trim());
-    } catch (err) {
-      // Log but don't fail - encryption still works, just not verified
-      console.error(
-        `Matrix cross-signing bootstrap failed (E2EE still works, but unverified): ${String(
-          err,
-        )}`,
-      );
-    }
-  }
 }
 
 export async function waitForMatrixSync(params: {

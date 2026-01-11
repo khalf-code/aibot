@@ -701,18 +701,14 @@ export type MatrixConfig = {
   accessToken?: string;
   /** Password login (optional; generates access token at runtime). */
   password?: string;
-  /** Optional device id override. */
-  deviceId?: string;
   /** Optional device name override. */
   deviceName?: string;
   /** Optional store path for sync state. */
   storePath?: string;
   /** Optional store path for crypto state. */
   cryptoStorePath?: string;
-  /** Enable end-to-end encryption (default: false until recovery key configured). */
+  /** Enable end-to-end encryption (default: false). */
   encryption?: boolean;
-  /** Recovery key for cross-signing verification (4x4 key from Element security settings). */
-  recoveryKey?: string;
   /** Auto-join room invites (always|allowlist|off). Default: always. */
   autoJoin?: "always" | "allowlist" | "off";
   /** Room allowlist for auto-join when autoJoin=allowlist. */
