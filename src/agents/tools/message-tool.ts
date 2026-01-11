@@ -76,7 +76,9 @@ const MessageToolCommonSchema = {
           callback_data: Type.String(),
         }),
       ),
-      { description: "Telegram inline keyboard buttons (array of button rows)" },
+      {
+        description: "Telegram inline keyboard buttons (array of button rows)",
+      },
     ),
   ),
   messageId: Type.Optional(Type.String()),
@@ -153,7 +155,9 @@ function buildMessageToolSchemaFromActions(
   if (nonSendActions.length > 0) {
     schemas.push(
       Type.Object({
-        action: Type.Union(nonSendActions.map((action) => Type.Literal(action))),
+        action: Type.Union(
+          nonSendActions.map((action) => Type.Literal(action)),
+        ),
         ...props,
       }),
     );
@@ -251,7 +255,8 @@ export function createMessageTool(options?: MessageToolOptions): AnyAgentTool {
         const parsed = parseReplyDirectives(message);
         message = parsed.text;
         params.message = message;
-        if (!params.replyTo && parsed.replyToId) params.replyTo = parsed.replyToId;
+        if (!params.replyTo && parsed.replyToId)
+          params.replyTo = parsed.replyToId;
         if (!params.media) {
           params.media = parsed.mediaUrls?.[0] || parsed.mediaUrl || undefined;
         }
@@ -260,7 +265,9 @@ export function createMessageTool(options?: MessageToolOptions): AnyAgentTool {
         const gifPlayback =
           typeof params.gifPlayback === "boolean" ? params.gifPlayback : false;
         const bestEffort =
-          typeof params.bestEffort === "boolean" ? params.bestEffort : undefined;
+          typeof params.bestEffort === "boolean"
+            ? params.bestEffort
+            : undefined;
 
         if (dryRun) {
           const result: MessageSendResult = await sendMessage({
@@ -316,7 +323,9 @@ export function createMessageTool(options?: MessageToolOptions): AnyAgentTool {
           integer: true,
         });
 
-        const maxSelections = allowMultiselect ? Math.max(2, options.length) : 1;
+        const maxSelections = allowMultiselect
+          ? Math.max(2, options.length)
+          : 1;
 
         if (dryRun) {
           const result: MessagePollResult = await sendPoll({
@@ -375,4 +384,3 @@ export function createMessageTool(options?: MessageToolOptions): AnyAgentTool {
     },
   };
 }
-

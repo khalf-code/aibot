@@ -22,4 +22,3 @@ final class SettingsWindowOpener {
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 }
-

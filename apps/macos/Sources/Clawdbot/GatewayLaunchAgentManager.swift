@@ -29,8 +29,8 @@ enum GatewayLaunchAgentManager {
 
     private static func gatewayProgramArguments(
         port: Int,
-        bind: String
-    ) -> Result<[String], GatewayProgramArgumentsError> {
+        bind: String) -> Result<[String], GatewayProgramArgumentsError>
+    {
         #if DEBUG
         let projectRoot = CommandResolver.projectRoot()
         if let localBin = CommandResolver.projectClawdbotExecutable(projectRoot: projectRoot) {

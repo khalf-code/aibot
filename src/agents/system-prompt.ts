@@ -316,7 +316,7 @@ export function buildAgentSystemPrompt(params: {
     "- Reply in current session → automatically routes to the source provider (Signal, Telegram, etc.)",
     "- Cross-session messaging → use sessions_send(sessionKey, message)",
     "- Never use bash/curl for provider messaging; Clawdbot handles all routing internally.",
-      availableTools.has("message")
+    availableTools.has("message")
       ? [
           "",
           "### message tool",
