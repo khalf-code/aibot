@@ -119,14 +119,7 @@ Key points: `/dev:gate` before commits, `scripts/committer` for scoped commits, 
 
 ## Troubleshooting
 
-```bash
-pgrep -f clawdbot && pkill -f clawdbot   # Stuck processes
-lsof -i :8080                             # Port conflicts
-git worktree list                         # Worktree issues
-pnpm format                               # Lint auto-fix
-```
-
-See `automation/infrastructure.md` for logs and environment variables.
+See `automation/infrastructure.md` for logs, environment variables, and troubleshooting commands.
 
 ---
 

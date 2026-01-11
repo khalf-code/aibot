@@ -67,9 +67,11 @@ Results: `~/.clawdbot/daily-builds/summary-$(date +%Y-%m-%d).log`
 ## Troubleshooting
 
 ```bash
-pgrep -f "clawdbot gateway"               # Check if running
-lsof -i :8080                             # Check port
-tailscale status                          # Check network
+pgrep -f clawdbot && pkill -f clawdbot    # Stuck processes
+lsof -i :8080                             # Port conflicts
+git worktree list                         # Worktree issues
+pnpm format                               # Lint auto-fix
+tailscale status                          # Network check
 ls -la ${TMPDIR}/clawdbot-tmux-sockets/   # tmux sockets
 tmux -S $SOCKET kill-server               # Reset tmux
 ```

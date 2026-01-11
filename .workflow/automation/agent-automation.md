@@ -14,13 +14,7 @@ Hook in `.claude/hooks/pre-bash.sh`:
 
 ### Slash Commands
 
-See `/dev:help` for full list. Key commands:
-
-| Command | Purpose |
-|---------|---------|
-| `/dev:gate` | Quality gate (lint, build, test) |
-| `/dev:tdd <phase>` | TDD workflow (red/green/refactor) |
-| `/dev:commit` | Safe commit via `scripts/committer` |
+See `/dev:help` or `.workflow/AGENTS.md` for command reference.
 
 ### Skills
 
@@ -34,10 +28,7 @@ See `/dev:help` for full list. Key commands:
 
 ## Multi-Agent Safety
 
-From root `AGENTS.md` (source of truth):
-- Don't stash, don't switch branches, don't modify worktrees
-- Each agent: own session, scoped commits
-- Use worktrees for isolation: `.worktrees/<agent>/`
+See root `AGENTS.md` (source of truth).
 
 ---
 
