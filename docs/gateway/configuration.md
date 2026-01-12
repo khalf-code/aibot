@@ -1368,6 +1368,40 @@ Example (adaptive tuned):
 
 See [/concepts/session-pruning](/concepts/session-pruning) for behavior details.
 
+#### `agents.defaults.compaction` (reserve headroom + memory flush)
+
+`agents.defaults.compaction.reserveTokensFloor` enforces a minimum `reserveTokens`
+value for Pi compaction (default: `20000`). Set it to `0` to disable the floor.
+
+`agents.defaults.compaction.memoryFlush` runs a **silent** agentic turn before
+auto-compaction, instructing the model to store durable memories on disk (e.g.
+`memory/YYYY-MM-DD.md`). It triggers when the session token estimate crosses a
+soft threshold below the compaction limit.
+
+Defaults:
+- `memoryFlush.enabled`: `true`
+- `memoryFlush.softThresholdTokens`: `4000`
+- `memoryFlush.prompt` / `memoryFlush.systemPrompt`: built-in defaults with `NO_REPLY`
+
+Example (tuned):
+```json5
+{
+  agents: {
+    defaults: {
+      compaction: {
+        reserveTokensFloor: 24000,
+        memoryFlush: {
+          enabled: true,
+          softThresholdTokens: 6000,
+          systemPrompt: "Session nearing compaction. Store durable memories now.",
+          prompt: "Write any lasting notes to memory/YYYY-MM-DD.md; reply with NO_REPLY if nothing to store."
+        }
+      }
+    }
+  }
+}
+```
+
 Block streaming:
 - `agents.defaults.blockStreamingDefault`: `"on"`/`"off"` (default off).
 - Provider overrides: `*.blockStreaming` (and per-account variants) to force block streaming on/off.
@@ -1773,9 +1807,9 @@ Notes:
 - Responses API enables clean reasoning/output separation; WhatsApp sees only final text.
 - Adjust `contextWindow`/`maxTokens` if your LM Studio context length differs.
 
-### MiniMax API (platform.minimax.io)
+### MiniMax M2.1
 
-Use MiniMax's Anthropic-compatible API directly without LM Studio:
+Use MiniMax M2.1 directly without LM Studio:
 
 ```json5
 {
@@ -1799,25 +1833,7 @@ Use MiniMax's Anthropic-compatible API directly without LM Studio:
             name: "MiniMax M2.1",
             reasoning: false,
             input: ["text"],
-            // Pricing: MiniMax doesn't publish public rates. Override in models.json for accurate costs.
-            cost: { input: 15, output: 60, cacheRead: 2, cacheWrite: 10 },
-            contextWindow: 200000,
-            maxTokens: 8192
-          },
-          {
-            id: "MiniMax-M2.1-lightning",
-            name: "MiniMax M2.1 Lightning",
-            reasoning: false,
-            input: ["text"],
-            cost: { input: 15, output: 60, cacheRead: 2, cacheWrite: 10 },
-            contextWindow: 200000,
-            maxTokens: 8192
-          },
-          {
-            id: "MiniMax-M2",
-            name: "MiniMax M2",
-            reasoning: true,
-            input: ["text"],
+            // Pricing: update in models.json if you need exact cost tracking.
             cost: { input: 15, output: 60, cacheRead: 2, cacheWrite: 10 },
             contextWindow: 200000,
             maxTokens: 8192
@@ -1830,9 +1846,49 @@ Use MiniMax's Anthropic-compatible API directly without LM Studio:
 ```
 
 Notes:
-- Set `MINIMAX_API_KEY` environment variable or use `clawdbot onboard --auth-choice minimax-api`
-- Available models: `MiniMax-M2.1` (default), `MiniMax-M2.1-lightning` (~100 tps), `MiniMax-M2` (reasoning)
-- Pricing is a placeholder; MiniMax doesn't publish public rates. Override in `models.json` for accurate cost tracking.
+- Set `MINIMAX_API_KEY` environment variable or use `clawdbot onboard --auth-choice minimax-api`.
+- Available model: `MiniMax-M2.1` (default).
+- Update pricing in `models.json` if you need exact cost tracking.
+
+### Cerebras (GLM 4.6 / 4.7)
+
+Use Cerebras via their OpenAI-compatible endpoint:
+
+```json5
+{
+  env: { CEREBRAS_API_KEY: "sk-..." },
+  agents: {
+    defaults: {
+      model: {
+        primary: "cerebras/zai-glm-4.7",
+        fallbacks: ["cerebras/zai-glm-4.6"]
+      },
+      models: {
+        "cerebras/zai-glm-4.7": { alias: "GLM 4.7 (Cerebras)" },
+        "cerebras/zai-glm-4.6": { alias: "GLM 4.6 (Cerebras)" }
+      }
+    }
+  },
+  models: {
+    mode: "merge",
+    providers: {
+      cerebras: {
+        baseUrl: "https://api.cerebras.ai/v1",
+        apiKey: "${CEREBRAS_API_KEY}",
+        api: "openai-completions",
+        models: [
+          { id: "zai-glm-4.7", name: "GLM 4.7 (Cerebras)" },
+          { id: "zai-glm-4.6", name: "GLM 4.6 (Cerebras)" }
+        ]
+      }
+    }
+  }
+}
+```
+
+Notes:
+- Use `cerebras/zai-glm-4.7` for Cerebras; use `zai/glm-4.7` for Z.AI direct.
+- Set `CEREBRAS_API_KEY` in the environment or config.
 
 Notes:
 - Supported APIs: `openai-completions`, `openai-responses`, `anthropic-messages`,

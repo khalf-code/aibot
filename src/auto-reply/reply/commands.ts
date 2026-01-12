@@ -691,6 +691,12 @@ export async function handleCommands(params: {
     directives.hasStatusDirective ||
     command.commandBodyNormalized === "/status";
   if (allowTextCommands && statusRequested) {
+    if (!command.isAuthorizedSender) {
+      logVerbose(
+        `Ignoring /status from unauthorized sender: ${command.senderId || "<unknown>"}`,
+      );
+      return { shouldContinue: false };
+    }
     const reply = await buildStatusReply({
       cfg,
       command,
@@ -713,6 +719,12 @@ export async function handleCommands(params: {
 
   const whoamiRequested = command.commandBodyNormalized === "/whoami";
   if (allowTextCommands && whoamiRequested) {
+    if (!command.isAuthorizedSender) {
+      logVerbose(
+        `Ignoring /whoami from unauthorized sender: ${command.senderId || "<unknown>"}`,
+      );
+      return { shouldContinue: false };
+    }
     const senderId = ctx.SenderId ?? "";
     const senderUsername = ctx.SenderUsername ?? "";
     const lines = ["🧭 Identity", `Provider: ${command.provider}`];

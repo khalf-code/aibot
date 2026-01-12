@@ -3,7 +3,6 @@ import path from "node:path";
 import {
   confirm as clackConfirm,
   intro as clackIntro,
-  multiselect as clackMultiselect,
   outro as clackOutro,
   select as clackSelect,
   text as clackText,
@@ -41,7 +40,7 @@ import {
   applyAuthChoice,
   resolvePreferredProviderForAuthChoice,
 } from "./auth-choice.js";
-import { buildAuthChoiceOptions } from "./auth-choice-options.js";
+import { promptAuthChoiceGrouped } from "./auth-choice-prompt.js";
 import {
   DEFAULT_GATEWAY_DAEMON_RUNTIME,
   GATEWAY_DAEMON_RUNTIME_OPTIONS,
@@ -64,7 +63,6 @@ import {
 import { setupProviders } from "./onboard-providers.js";
 import { promptRemoteGatewayConfig } from "./onboard-remote.js";
 import { setupSkills } from "./onboard-skills.js";
-import type { AuthChoice } from "./onboard-types.js";
 import { ensureSystemdUserLingerInteractive } from "./systemd-linger.js";
 
 export const CONFIGURE_WIZARD_SECTIONS = [
@@ -110,16 +108,84 @@ const select = <T>(params: Parameters<typeof clackSelect<T>>[0]) =>
         : { ...opt, hint: stylePromptHint(opt.hint) },
     ),
   });
-const multiselect = <T>(params: Parameters<typeof clackMultiselect<T>>[0]) =>
-  clackMultiselect({
-    ...params,
-    message: stylePromptMessage(params.message),
-    options: params.options.map((opt) =>
-      opt.hint === undefined
-        ? opt
-        : { ...opt, hint: stylePromptHint(opt.hint) },
-    ),
-  });
+
+const CONFIGURE_SECTION_OPTIONS: {
+  value: WizardSection;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "workspace",
+    label: "Workspace",
+    hint: "Set default workspace + ensure sessions",
+  },
+  {
+    value: "model",
+    label: "Model/auth",
+    hint: "Pick model + auth profile sources",
+  },
+  {
+    value: "gateway",
+    label: "Gateway config",
+    hint: "Port/bind/auth/control UI settings",
+  },
+  {
+    value: "daemon",
+    label: "Gateway daemon",
+    hint: "Install/manage the background service",
+  },
+  {
+    value: "providers",
+    label: "Providers",
+    hint: "Link WhatsApp/Telegram/etc and defaults",
+  },
+  {
+    value: "skills",
+    label: "Skills",
+    hint: "Install/enable workspace skills",
+  },
+  {
+    value: "health",
+    label: "Health check",
+    hint: "Run gateway + provider checks",
+  },
+];
+
+async function promptConfigureSections(
+  runtime: RuntimeEnv,
+): Promise<WizardSection[]> {
+  const selected: WizardSection[] = [];
+  const continueValue = "__continue";
+
+  while (true) {
+    const choice = guardCancel(
+      await select<string>({
+        message: "Select sections to configure",
+        options: [
+          ...CONFIGURE_SECTION_OPTIONS,
+          {
+            value: continueValue,
+            label: "Continue",
+            hint: selected.length === 0 ? "Skip for now" : "Run selected",
+          },
+        ],
+        initialValue: CONFIGURE_SECTION_OPTIONS[0]?.value,
+      }),
+      runtime,
+    );
+
+    if (choice === continueValue) {
+      break;
+    }
+
+    const section = choice as WizardSection;
+    if (!selected.includes(section)) {
+      selected.push(section);
+    }
+  }
+
+  return selected;
+}
 
 async function promptGatewayConfig(
   cfg: ClawdbotConfig,
@@ -294,15 +360,13 @@ async function promptAuthConfig(
   runtime: RuntimeEnv,
   prompter: WizardPrompter,
 ): Promise<ClawdbotConfig> {
-  const authChoice: AuthChoice = await prompter.select({
-    message: "Model/auth choice",
-    options: buildAuthChoiceOptions({
-      store: ensureAuthProfileStore(undefined, {
-        allowKeychainPrompt: false,
-      }),
-      includeSkip: true,
-      includeClaudeCliIfMissing: true,
+  const authChoice = await promptAuthChoiceGrouped({
+    prompter,
+    store: ensureAuthProfileStore(undefined, {
+      allowKeychainPrompt: false,
     }),
+    includeSkip: true,
+    includeClaudeCliIfMissing: true,
   });
 
   let next = cfg;
@@ -596,49 +660,7 @@ export async function runConfigureWizard(
 
     const selected = opts.sections
       ? opts.sections
-      : (guardCancel(
-          await multiselect({
-            message: "Select sections to configure",
-            options: [
-              {
-                value: "workspace",
-                label: "Workspace",
-                hint: "Set default workspace + ensure sessions",
-              },
-              {
-                value: "model",
-                label: "Model/auth",
-                hint: "Pick model + auth profile sources",
-              },
-              {
-                value: "gateway",
-                label: "Gateway config",
-                hint: "Port/bind/auth/control UI settings",
-              },
-              {
-                value: "daemon",
-                label: "Gateway daemon",
-                hint: "Install/manage the background service",
-              },
-              {
-                value: "providers",
-                label: "Providers",
-                hint: "Link WhatsApp/Telegram/etc and defaults",
-              },
-              {
-                value: "skills",
-                label: "Skills",
-                hint: "Install/enable workspace skills",
-              },
-              {
-                value: "health",
-                label: "Health check",
-                hint: "Run gateway + provider checks",
-              },
-            ],
-          }),
-          runtime,
-        ) as WizardSection[]);
+      : await promptConfigureSections(runtime);
 
     if (!selected || selected.length === 0) {
       outro("No changes selected.");

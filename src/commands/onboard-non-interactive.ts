@@ -34,7 +34,6 @@ import {
   applyAuthProfileConfig,
   applyMinimaxApiConfig,
   applyMinimaxConfig,
-  applyMinimaxHostedConfig,
   applyOpencodeZenConfig,
   applyOpenrouterConfig,
   applyZaiConfig,
@@ -285,7 +284,7 @@ export async function runNonInteractiveOnboarding(
       mode: "api_key",
     });
     nextConfig = applyOpenrouterConfig(nextConfig);
-  } else if (authChoice === "minimax-cloud") {
+  } else if (authChoice === "minimax-cloud" || authChoice === "minimax-api") {
     const resolved = await resolveNonInteractiveApiKey({
       provider: "minimax",
       cfg: baseConfig,
@@ -303,26 +302,8 @@ export async function runNonInteractiveOnboarding(
       provider: "minimax",
       mode: "api_key",
     });
-    nextConfig = applyMinimaxHostedConfig(nextConfig);
-  } else if (authChoice === "minimax-api") {
-    const resolved = await resolveNonInteractiveApiKey({
-      provider: "minimax",
-      cfg: baseConfig,
-      flagValue: opts.minimaxApiKey,
-      flagName: "--minimax-api-key",
-      envVar: "MINIMAX_API_KEY",
-      runtime,
-    });
-    if (!resolved) return;
-    if (resolved.source !== "profile") {
-      await setMinimaxApiKey(resolved.key);
-    }
-    nextConfig = applyAuthProfileConfig(nextConfig, {
-      profileId: "minimax:default",
-      provider: "minimax",
-      mode: "api_key",
-    });
-    nextConfig = applyMinimaxApiConfig(nextConfig);
+    const modelId = "MiniMax-M2.1";
+    nextConfig = applyMinimaxApiConfig(nextConfig, modelId);
   } else if (authChoice === "claude-cli") {
     const store = ensureAuthProfileStore(undefined, {
       allowKeychainPrompt: false,
