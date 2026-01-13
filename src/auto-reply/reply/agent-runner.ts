@@ -549,8 +549,8 @@ export async function runReplyAgent(params: {
         );
         const normalizeStreamingText = (
           payload: ReplyPayload,
-        ): string | undefined => {
-          if (!allowPartialStream) return undefined;
+        ): { text?: string; skip: boolean } => {
+          if (!allowPartialStream) return { skip: true };
           let text = payload.text;
           if (!isHeartbeat && text?.includes("HEARTBEAT_OK")) {
             const stripped = stripHeartbeatToken(text, {
@@ -561,18 +561,20 @@ export async function runReplyAgent(params: {
               logVerbose("Stripped stray HEARTBEAT_OK token from reply");
             }
             if (stripped.shouldSkip && (payload.mediaUrls?.length ?? 0) === 0) {
-              return undefined;
+              return { skip: true };
             }
             text = stripped.text;
           }
-          if (isSilentReplyText(text, SILENT_REPLY_TOKEN)) return undefined;
-          return text;
+          if (isSilentReplyText(text, SILENT_REPLY_TOKEN)) {
+            return { skip: true };
+          }
+          return { text, skip: false };
         };
         const handlePartialForTyping = async (
           payload: ReplyPayload,
         ): Promise<string | undefined> => {
-          const text = normalizeStreamingText(payload);
-          if (!text) return undefined;
+          const { text, skip } = normalizeStreamingText(payload);
+          if (skip || !text) return undefined;
           await typingSignals.signalTextDelta(text);
           return text;
         };
@@ -669,20 +671,17 @@ export async function runReplyAgent(params: {
               runId,
               blockReplyBreak: resolvedBlockStreamingBreak,
               blockReplyChunking,
-              onPartialReply:
-                allowPartialStream
-                  ? async (payload) => {
-                      const textForTyping = await handlePartialForTyping(
-                        payload,
-                      );
-                      if (!opts?.onPartialReply || textForTyping === undefined)
-                        return;
-                      await opts.onPartialReply({
-                        text: textForTyping,
-                        mediaUrls: payload.mediaUrls,
-                      });
-                    }
-                  : undefined,
+              onPartialReply: allowPartialStream
+                ? async (payload) => {
+                    const textForTyping = await handlePartialForTyping(payload);
+                    if (!opts?.onPartialReply || textForTyping === undefined)
+                      return;
+                    await opts.onPartialReply({
+                      text: textForTyping,
+                      mediaUrls: payload.mediaUrls,
+                    });
+                  }
+                : undefined,
               onReasoningStream:
                 typingSignals.shouldStartOnReasoning || opts?.onReasoningStream
                   ? async (payload) => {
@@ -715,21 +714,10 @@ export async function runReplyAgent(params: {
               onBlockReply:
                 blockStreamingEnabled && opts?.onBlockReply
                   ? async (payload) => {
-                      let text = payload.text;
-                      if (!isHeartbeat && text?.includes("HEARTBEAT_OK")) {
-                        const stripped = stripHeartbeatToken(text, {
-                          mode: "message",
-                        });
-                        if (stripped.didStrip && !didLogHeartbeatStrip) {
-                          didLogHeartbeatStrip = true;
-                          logVerbose(
-                            "Stripped stray HEARTBEAT_OK token from reply",
-                          );
-                        }
-                        const hasMedia = (payload.mediaUrls?.length ?? 0) > 0;
-                        if (stripped.shouldSkip && !hasMedia) return;
-                        text = stripped.text;
-                      }
+                      const { text, skip } = normalizeStreamingText(payload);
+                      const hasPayloadMedia =
+                        (payload.mediaUrls?.length ?? 0) > 0;
+                      if (skip && !hasPayloadMedia) return;
                       const taggedPayload = applyReplyTagsToPayload(
                         {
                           text,
@@ -752,18 +740,18 @@ export async function runReplyAgent(params: {
                         },
                       );
                       const cleaned = parsed.text || undefined;
-                      const hasMedia =
+                      const hasRenderableMedia =
                         Boolean(taggedPayload.mediaUrl) ||
                         (taggedPayload.mediaUrls?.length ?? 0) > 0;
                       // Skip empty payloads unless they have audioAsVoice flag (need to track it)
                       if (
                         !cleaned &&
-                        !hasMedia &&
+                        !hasRenderableMedia &&
                         !payload.audioAsVoice &&
                         !parsed.audioAsVoice
                       )
                         return;
-                      if (parsed.isSilent && !hasMedia) return;
+                      if (parsed.isSilent && !hasRenderableMedia) return;
 
                       const blockPayload: ReplyPayload = applyReplyToMode({
                         ...taggedPayload,
@@ -802,25 +790,8 @@ export async function runReplyAgent(params: {
                     // If a tool callback starts typing after the run finalized, we can end up with
                     // a typing loop that never sees a matching markRunComplete(). Track and drain.
                     const task = (async () => {
-                      let text = payload.text;
-                      if (!isHeartbeat && text?.includes("HEARTBEAT_OK")) {
-                        const stripped = stripHeartbeatToken(text, {
-                          mode: "message",
-                        });
-                        if (stripped.didStrip && !didLogHeartbeatStrip) {
-                          didLogHeartbeatStrip = true;
-                          logVerbose(
-                            "Stripped stray HEARTBEAT_OK token from reply",
-                          );
-                        }
-                        if (
-                          stripped.shouldSkip &&
-                          (payload.mediaUrls?.length ?? 0) === 0
-                        ) {
-                          return;
-                        }
-                        text = stripped.text;
-                      }
+                      const { text, skip } = normalizeStreamingText(payload);
+                      if (skip) return;
                       await typingSignals.signalTextDelta(text);
                       await opts.onToolResult?.({
                         text,

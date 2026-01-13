@@ -109,38 +109,24 @@ describe("voice-call plugin", () => {
 
   it("tool get_status returns json payload", async () => {
     const { tools } = setup({ provider: "mock" });
-    type VoiceTool = {
-      execute: (
-        id: string,
-        params: unknown,
-      ) =>
-        | Promise<{ details: Record<string, unknown> }>
-        | {
-            details: Record<string, unknown>;
-          };
+    const tool = tools[0] as {
+      execute: (id: string, params: unknown) => Promise<unknown>;
     };
-    const tool = tools[0] as VoiceTool;
-    const result = await tool.execute("id", {
+    const result = (await tool.execute("id", {
       action: "get_status",
       callId: "call-1",
-    });
+    })) as { details: { found?: boolean } };
     expect(result.details.found).toBe(true);
   });
 
   it("legacy tool status without sid returns error payload", async () => {
     const { tools } = setup({ provider: "mock" });
-    type VoiceTool = {
-      execute: (
-        id: string,
-        params: unknown,
-      ) =>
-        | Promise<{ details: Record<string, unknown> }>
-        | {
-            details: Record<string, unknown>;
-          };
+    const tool = tools[0] as {
+      execute: (id: string, params: unknown) => Promise<unknown>;
     };
-    const tool = tools[0] as VoiceTool;
-    const result = await tool.execute("id", { mode: "status" });
+    const result = (await tool.execute("id", { mode: "status" })) as {
+      details: { error?: unknown };
+    };
     expect(String(result.details.error)).toContain("sid required");
   });
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026.1.12-4
+
+### Fixes
+- Anthropic: merge consecutive user turns (preserve newest metadata) before validation to avoid “Incorrect role information” errors. (#804 — thanks @ThomsenDrake)
+
+## 2026.1.12-3
+
+### Changes
+- Sandbox: drop legacy `memory` tool-policy shorthand; require explicit `group:memory`.
+
+### Fixes
+- Telegram: tolerate mocked bots missing native-command APIs (`setMyCommands`, `command`) during tests.
+- Auto-reply: fix streaming block reply media handling (no redeclared/use-before-declare vars).
+
 ## 2026.1.12-2
 
 ### Changes
@@ -10,6 +24,7 @@
 ### Fixes
 - Tools/Models: MiniMax vision now uses the Coding Plan VLM endpoint (`/v1/coding_plan/vlm`) so the `image` tool works with MiniMax keys (also accepts `@/path/to/file.png`-style inputs).
 - Gateway/macOS: reduce noisy loopback WS “closed before connect” logs during tests.
+- Auto-reply: resolve ambiguous `/model` fuzzy matches by picking the best candidate instead of erroring.
 
 ## 2026.1.12-1
 
@@ -23,6 +38,8 @@
 - Memory: add vector search for agent memories (Markdown-only scope) with SQLite index, chunking, lazy sync + file watch, and per-agent enablement/fallback.
 
 ### Changes
+- Agents: strengthen memory recall guidance (memory_search mandatory for past work/preferences; system prompt injects conditional recall section; memory_get now described as safe snippet fetch).
+- Browser: add `scrollintoview` action to scroll refs into view before click/type.
 - Memory: embedding providers support OpenAI or local `node-llama-cpp`; config adds defaults + per-agent overrides, provider/fallback metadata surfaced in tools/CLI.
 - CLI/Tools: new `clawdbot memory` commands plus `memory_search`/`memory_get` tools returning snippets + line ranges and provider info.
 - Runtime: memory index stored under `~/.clawdbot/memory/{agentId}.sqlite` with watch-on-by-default; inline status replies now stay auth-gated while inline prompts continue to the agent.
@@ -45,6 +62,7 @@
 - Auto-reply: elevated/reasoning toggles now enqueue system events so the model sees the mode change immediately.
 - Tools: keep `image` available in sandbox and fail over when image models return empty output (fixes “(no text returned)”).
 - Discord: add per-channel `autoThread` to auto-create threads for top-level messages. (#800) — thanks @davidguttman.
+- Discord: fix autoThread routing so replies stay in the created thread and avoid reply references. (#807) — thanks @davidguttman.
 - Onboarding: TUI defaults to `deliver: false` to avoid cross-provider auto-delivery leaks; onboarding spawns the TUI with explicit `deliver: false`. (#791 — thanks @roshanasingh4)
 
 ## 2026.1.11
