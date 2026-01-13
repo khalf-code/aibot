@@ -48,6 +48,10 @@
     "paprika": {
       "version": "0.1.0",
       "installedAt": 1768168572757
+    },
+    "clawdbot-skill-update": {
+      "version": "1.0.2",
+      "installedAt": 1768322849616
     }
   }
 }

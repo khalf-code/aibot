@@ -12,6 +12,10 @@
 - **Network**: 192.168.4.x subnet
   - Hue Bridge: 192.168.4.95
 
+## David's Preferences
+
+- **Reminder timing**: ~1 hour heads up for events (not several hours in advance)
+
 ## Family
 
 - **Home**: 79 Grant Street, Lexington, MA
