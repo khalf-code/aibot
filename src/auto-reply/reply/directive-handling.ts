@@ -345,9 +345,9 @@ type ModelPickerCatalogEntry = {
 };
 
 type ModelPickerItem = {
+  provider: string;
   model: string;
-  providers: string[];
-  providerModels: Record<string, string>;
+  label: string;
 };
 
 const MODEL_PICK_PROVIDER_PREFERENCE = [
@@ -361,19 +361,14 @@ const MODEL_PICK_PROVIDER_PREFERENCE = [
   "openrouter",
   "opencode",
   "github-copilot",
+  "google-antigravity",
+  "google-gemini-cli",
   "groq",
   "cerebras",
   "mistral",
   "xai",
   "lmstudio",
 ] as const;
-
-function normalizeModelFamilyId(id: string): string {
-  const trimmed = id.trim();
-  if (!trimmed) return trimmed;
-  const parts = trimmed.split("/").filter(Boolean);
-  return parts.length > 0 ? (parts[parts.length - 1] ?? trimmed) : trimmed;
-}
 
 function sortProvidersForPicker(providers: string[]): string[] {
   const pref = new Map<string, number>(
@@ -392,26 +387,29 @@ function sortProvidersForPicker(providers: string[]): string[] {
 function buildModelPickerItems(
   catalog: ModelPickerCatalogEntry[],
 ): ModelPickerItem[] {
-  const byModel = new Map<string, { providerModels: Record<string, string> }>();
+  const out: ModelPickerItem[] = [];
+  const byProvider = new Map<string, ModelPickerCatalogEntry[]>();
   for (const entry of catalog) {
     const provider = normalizeProviderId(entry.provider);
-    const model = normalizeModelFamilyId(entry.id);
-    if (!provider || !model) continue;
-    const existing = byModel.get(model);
-    if (existing) {
-      existing.providerModels[provider] = entry.id;
-      continue;
+    if (!provider) continue;
+    const existing = byProvider.get(provider) || [];
+    existing.push(entry);
+    byProvider.set(provider, existing);
+  }
+
+  const providers = sortProvidersForPicker(Array.from(byProvider.keys()));
+
+  for (const provider of providers) {
+    const models = byProvider.get(provider)!;
+    models.sort((a, b) => a.id.toLowerCase().localeCompare(b.id.toLowerCase()));
+    for (const entry of models) {
+      out.push({
+        provider,
+        model: entry.id,
+        label: `${provider}/${entry.id}`,
+      });
     }
-    byModel.set(model, { providerModels: { [provider]: entry.id } });
   }
-  const out: ModelPickerItem[] = [];
-  for (const [model, data] of byModel.entries()) {
-    const providers = sortProvidersForPicker(Object.keys(data.providerModels));
-    out.push({ model, providers, providerModels: data.providerModels });
-  }
-  out.sort((a, b) =>
-    a.model.toLowerCase().localeCompare(b.model.toLowerCase()),
-  );
   return out;
 }
 
@@ -419,20 +417,9 @@ function pickProviderForModel(params: {
   item: ModelPickerItem;
   preferredProvider?: string;
 }): { provider: string; model: string } | null {
-  const preferred = params.preferredProvider
-    ? normalizeProviderId(params.preferredProvider)
-    : undefined;
-  if (preferred && params.item.providerModels[preferred]) {
-    return {
-      provider: preferred,
-      model: params.item.providerModels[preferred],
-    };
-  }
-  const first = params.item.providers[0];
-  if (!first) return null;
   return {
-    provider: first,
-    model: params.item.providerModels[first] ?? params.item.model,
+    provider: params.item.provider,
+    model: params.item.model,
   };
 }
 
@@ -873,8 +860,25 @@ export async function handleDirectiveOnly(params: {
         `Current: ${current}`,
         "Pick: /model <#> or /model <provider/model>",
       ];
+
+      const formatProvider = (p: string) => {
+        if (p === "github-copilot") return "GitHub Copilot";
+        if (p === "google-antigravity") return "Google Antigravity";
+        if (p === "google-gemini-cli") return "Google Gemini CLI";
+        return p
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+      };
+
+      let lastProvider = "";
       for (const [idx, item] of items.entries()) {
-        lines.push(`${idx + 1}) ${item.model} — ${item.providers.join(", ")}`);
+        if (item.provider !== lastProvider) {
+          lines.push("");
+          lines.push(`**${formatProvider(item.provider)}**`);
+          lastProvider = item.provider;
+        }
+        lines.push(`${idx + 1}. ${item.label}`);
       }
       lines.push("", "More: /model status");
       return { text: lines.join("\n") };
