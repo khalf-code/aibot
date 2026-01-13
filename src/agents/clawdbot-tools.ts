@@ -9,6 +9,7 @@ import type { AnyAgentTool } from "./tools/common.js";
 import { createCronTool } from "./tools/cron-tool.js";
 import { createGatewayTool } from "./tools/gateway-tool.js";
 import { createImageTool } from "./tools/image-tool.js";
+import { createMapsTool } from "./tools/maps-tool.js";
 import {
   createMemoryGetTool,
   createMemorySearchTool,
@@ -51,6 +52,9 @@ export function createClawdbotTools(options?: {
         sandboxRoot: options?.sandboxRoot,
       })
     : null;
+  const mapsTool = createMapsTool({
+    config: options?.config,
+  });
   const memorySearchTool = createMemorySearchTool({
     config: options?.config,
     agentSessionKey: options?.agentSessionKey,
@@ -109,6 +113,7 @@ export function createClawdbotTools(options?: {
       ? [memorySearchTool, memoryGetTool]
       : []),
     ...(imageTool ? [imageTool] : []),
+    ...(mapsTool ? [mapsTool] : []),
   ];
 
   const pluginTools = resolvePluginTools({
