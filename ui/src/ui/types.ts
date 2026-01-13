@@ -305,6 +305,7 @@ export type CronJob = {
   name: string;
   description?: string;
   enabled: boolean;
+  deleteAfterRun?: boolean;
   createdAtMs: number;
   updatedAtMs: number;
   schedule: CronSchedule;
