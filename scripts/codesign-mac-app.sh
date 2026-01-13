@@ -7,7 +7,7 @@ TIMESTAMP_MODE="${CODESIGN_TIMESTAMP:-auto}"
 ENT_TMP_BASE=$(mktemp -t clawdbot-entitlements-base.XXXXXX)
 ENT_TMP_APP=$(mktemp -t clawdbot-entitlements-app.XXXXXX)
 ENT_TMP_APP_BASE=$(mktemp -t clawdbot-entitlements-app-base.XXXXXX)
-ENT_TMP_RUNTIME=$(mktemp -t clawdbot-entitlements-runtime.XXXXXX)
+ENT_TMP_BUN=$(mktemp -t clawdbot-entitlements-bun.XXXXXX)
 
 if [ ! -d "$APP_BUNDLE" ]; then
   echo "App bundle not found: $APP_BUNDLE" >&2
@@ -17,7 +17,16 @@ fi
 select_identity() {
   local preferred available first
 
-  # Prefer a Developer ID Application cert.
+  # Prefer ClawdisDev (custom identity).
+  preferred="$(security find-identity -p codesigning -v 2>/dev/null \
+    | awk -F'\"' '/ClawdisDev/ { print $2; exit }')"
+
+  if [ -n "$preferred" ]; then
+    echo "$preferred"
+    return
+  fi
+
+  # Then, try a Developer ID Application cert.
   preferred="$(security find-identity -p codesigning -v 2>/dev/null \
     | awk -F'\"' '/Developer ID Application/ { print $2; exit }')"
 
@@ -146,13 +155,11 @@ cat > "$ENT_TMP_APP_BASE" <<'PLIST'
     <true/>
     <key>com.apple.security.device.camera</key>
     <true/>
-    <key>com.apple.security.personal-information.location</key>
-    <true/>
 </dict>
 </plist>
 PLIST
 
-cat > "$ENT_TMP_RUNTIME" <<'PLIST'
+cat > "$ENT_TMP_BUN" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -178,8 +185,6 @@ cat > "$ENT_TMP_APP" <<'PLIST'
     <true/>
     <key>com.apple.security.device.camera</key>
     <true/>
-    <key>com.apple.security.personal-information.location</key>
-    <true/>
 </dict>
 </plist>
 PLIST
@@ -204,43 +209,53 @@ sign_item() {
   codesign --force ${options_args+"${options_args[@]}"} "${timestamp_args[@]}" --entitlements "$entitlements" --sign "$IDENTITY" "$target"
 }
 
+sign_item_no_runtime() {
+  local target="$1"
+  local entitlements="$2"
+  # Sign without hardened runtime (needed for bun-compiled binaries with native modules)
+  codesign --force "${timestamp_args[@]}" --entitlements "$entitlements" --sign "$IDENTITY" "$target"
+}
+
 sign_plain_item() {
   local target="$1"
   codesign --force ${options_args+"${options_args[@]}"} "${timestamp_args[@]}" --sign "$IDENTITY" "$target"
 }
 
-# Sign main binary
+sign_plain_item_no_runtime() {
+  local target="$1"
+  # Sign without hardened runtime (needed for bun-compiled binaries with native modules)
+  codesign --force "${timestamp_args[@]}" --sign "$IDENTITY" "$target"
+}
+
+# Sign main binary (without hardened runtime to load native modules and frameworks correctly)
 if [ -f "$APP_BUNDLE/Contents/MacOS/Clawdbot" ]; then
-  echo "Signing main binary"; sign_item "$APP_BUNDLE/Contents/MacOS/Clawdbot" "$APP_ENTITLEMENTS"
+  echo "Signing main binary"; sign_item_no_runtime "$APP_BUNDLE/Contents/MacOS/Clawdbot" "$APP_ENTITLEMENTS"
 fi
 
 # Sign bundled gateway payload (native addons, libvips dylibs)
 if [ -d "$APP_BUNDLE/Contents/Resources/Relay" ]; then
   find "$APP_BUNDLE/Contents/Resources/Relay" -type f \( -name "*.node" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' f; do
-    echo "Signing gateway payload: $f"; sign_item "$f" "$ENT_TMP_BASE"
+    echo "Signing gateway payload: $f"; sign_item_no_runtime "$f" "$ENT_TMP_BASE"
   done
-  if [ -f "$APP_BUNDLE/Contents/Resources/Relay/node" ]; then
-    echo "Signing embedded node"; sign_item "$APP_BUNDLE/Contents/Resources/Relay/node" "$ENT_TMP_RUNTIME"
-  fi
   if [ -f "$APP_BUNDLE/Contents/Resources/Relay/clawdbot" ]; then
-    echo "Signing embedded relay wrapper"; sign_plain_item "$APP_BUNDLE/Contents/Resources/Relay/clawdbot"
+    echo "Signing embedded relay"; sign_item_no_runtime "$APP_BUNDLE/Contents/Resources/Relay/clawdbot" "$ENT_TMP_BUN"
   fi
 fi
 
-# Sign Sparkle deeply if present
+# Sign Sparkle deeply if present (without hardened runtime to match main binary)
 SPARKLE="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
 if [ -d "$SPARKLE" ]; then
   echo "Signing Sparkle framework and helpers"
-  sign_plain_item "$SPARKLE/Versions/B/Sparkle"
-  sign_plain_item "$SPARKLE/Versions/B/Autoupdate"
-  sign_plain_item "$SPARKLE/Versions/B/Updater.app/Contents/MacOS/Updater"
-  sign_plain_item "$SPARKLE/Versions/B/Updater.app"
-  sign_plain_item "$SPARKLE/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
-  sign_plain_item "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
-  sign_plain_item "$SPARKLE/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
-  sign_plain_item "$SPARKLE/Versions/B/XPCServices/Installer.xpc"
-  sign_plain_item "$SPARKLE/Versions/B"
-  sign_plain_item "$SPARKLE"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/Sparkle"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/Autoupdate"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/Updater.app/Contents/MacOS/Updater"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/Updater.app"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B/XPCServices/Installer.xpc"
+  sign_plain_item_no_runtime "$SPARKLE/Versions/B"
+  sign_plain_item_no_runtime "$SPARKLE"
 fi
 
 # Sign any other embedded frameworks/dylibs
@@ -250,8 +265,8 @@ if [ -d "$APP_BUNDLE/Contents/Frameworks" ]; then
   done
 fi
 
-# Finally sign the bundle
-sign_item "$APP_BUNDLE" "$APP_ENTITLEMENTS"
+# Finally sign the bundle (without hardened runtime to match internal components)
+sign_item_no_runtime "$APP_BUNDLE" "$APP_ENTITLEMENTS"
 
-rm -f "$ENT_TMP_BASE" "$ENT_TMP_APP_BASE" "$ENT_TMP_APP" "$ENT_TMP_RUNTIME"
+rm -f "$ENT_TMP_BASE" "$ENT_TMP_APP_BASE" "$ENT_TMP_APP" "$ENT_TMP_BUN"
 echo "Codesign complete for $APP_BUNDLE"
