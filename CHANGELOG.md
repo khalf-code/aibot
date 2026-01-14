@@ -4,6 +4,8 @@
 
 ### Changes
 - Usage: add MiniMax coding plan usage tracking.
+- Auth: label Claude Code CLI auth options. (#915) — thanks @SeanZoR.
+- Docs: standardize Claude Code CLI naming across docs and prompts. (follow-up to #915)
 
 ### Fixes
 - Gateway/Dev: ensure `pnpm gateway:dev` always uses the dev profile config + state (`~/.clawdbot-dev`).
@@ -12,6 +14,7 @@
 - Telegram: split long captions into media + follow-up text messages. (#907) - thanks @jalehman.
 - Slack: drop Socket Mode events with mismatched `api_app_id`/`team_id`. (#889) — thanks @roshanasingh4.
 - Discord: isolate autoThread thread context. (#856) — thanks @davidguttman.
+- WhatsApp: fix context isolation using wrong ID (was bot's number, now conversation ID). (#911) — thanks @tristanmanchester.
 
 ## 2026.1.13
 
@@ -322,7 +325,7 @@
 - Dependencies: Pi 0.40.0 bump (#543) — thanks @mcinteerj.
 - Build: Docker build cache layer (#605) — thanks @zknicker.
 
-- Auth: enable OAuth token refresh for Claude CLI credentials (`anthropic:claude-cli`) with bidirectional sync back to Claude Code storage (file on Linux/Windows, Keychain on macOS). This allows long-running agents to operate autonomously without manual re-authentication (#654 — thanks @radek-paclt).
+- Auth: enable OAuth token refresh for Claude Code CLI credentials (`anthropic:claude-cli`) with bidirectional sync back to Claude Code storage (file on Linux/Windows, Keychain on macOS). This allows long-running agents to operate autonomously without manual re-authentication (#654 — thanks @radek-paclt).
 
 ## 2026.1.8
 
