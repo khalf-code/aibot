@@ -364,21 +364,17 @@ describe("handleSlackAction", () => {
       channels: { slack: { botToken: "xoxb-1", userToken: "xoxp-1" } },
     } as ClawdbotConfig;
     readSlackMessages.mockClear();
-    await handleSlackAction(
-      { action: "readMessages", channelId: "C1" },
-      cfg,
-    );
+    await handleSlackAction({ action: "readMessages", channelId: "C1" }, cfg);
     const [, opts] = readSlackMessages.mock.calls[0] ?? [];
     expect(opts?.token).toBe("xoxp-1");
   });
 
   it("falls back to bot token for reads when user token missing", async () => {
-    const cfg = { channels: { slack: { botToken: "xoxb-1" } } } as ClawdbotConfig;
+    const cfg = {
+      channels: { slack: { botToken: "xoxb-1" } },
+    } as ClawdbotConfig;
     readSlackMessages.mockClear();
-    await handleSlackAction(
-      { action: "readMessages", channelId: "C1" },
-      cfg,
-    );
+    await handleSlackAction({ action: "readMessages", channelId: "C1" }, cfg);
     const [, opts] = readSlackMessages.mock.calls[0] ?? [];
     expect(opts?.token).toBeUndefined();
   });

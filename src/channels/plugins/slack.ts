@@ -60,7 +60,10 @@ export const slackPlugin: ChannelPlugin<ResolvedSlackAccount> = {
     normalizeAllowEntry: (entry) => entry.replace(/^(slack|user):/i, ""),
     notifyApproval: async ({ id }) => {
       const cfg = loadConfig();
-      const account = resolveSlackAccount({ cfg, accountId: DEFAULT_ACCOUNT_ID });
+      const account = resolveSlackAccount({
+        cfg,
+        accountId: DEFAULT_ACCOUNT_ID,
+      });
       const token = getTokenForOperation(account, "write");
       const botToken = account.botToken?.trim();
       const tokenOverride = token && token !== botToken ? token : undefined;
