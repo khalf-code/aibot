@@ -30,7 +30,9 @@ function resolveLaunchAgentLabel(params?: {
 }): string {
   const envLabel = params?.env?.CLAWDBOT_LAUNCHD_LABEL?.trim();
   if (envLabel) return envLabel;
-  return resolveGatewayLaunchAgentLabel(params?.profile);
+  // Use explicit profile param, or fall back to env.CLAWDBOT_PROFILE
+  const effectiveProfile = params?.profile ?? params?.env?.CLAWDBOT_PROFILE;
+  return resolveGatewayLaunchAgentLabel(effectiveProfile);
 }
 function resolveHomeDir(env: Record<string, string | undefined>): string {
   const home = env.HOME?.trim() || env.USERPROFILE?.trim();
