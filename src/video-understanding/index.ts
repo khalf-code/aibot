@@ -1,5 +1,6 @@
 import type { ClawdbotConfig } from "../config/config.js";
 import { logVerbose, shouldLogVerbose } from "../globals.js";
+import { getChildLogger } from "../logging/logger.js";
 import { atomicWriteFile } from "../utils/atomic-write.js";
 
 import {
@@ -71,7 +72,7 @@ function resolveApiKey(cfg: ClawdbotConfig, provider: string): string | null {
 async function persistDescription(
   videoPath: string,
   description: string,
-): Promise<void> {
+): Promise<boolean> {
   const sidecarPath = `${videoPath}.description.txt`;
 
   try {
@@ -80,8 +81,29 @@ async function persistDescription(
     if (shouldLogVerbose()) {
       logVerbose(`Saved video description sidecar: ${sidecarPath}`);
     }
+    return true;
   } catch (err) {
-    logVerbose(`Failed to save video description sidecar: ${String(err)}`);
+    // Categorize errors as critical vs. non-critical
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const isCritical =
+      errMsg.includes("ENOSPC") || // Disk full
+      errMsg.includes("EACCES") || // Permission denied
+      errMsg.includes("EROFS") || // Read-only filesystem
+      errMsg.includes("EDQUOT"); // Quota exceeded
+
+    if (isCritical) {
+      // Log critical errors at ERROR level
+      const logger = getChildLogger({ module: "video-understanding" });
+      logger.error(
+        { error: errMsg, path: sidecarPath },
+        "Failed to persist video description sidecar (CRITICAL)",
+      );
+    } else {
+      // Log non-critical errors at verbose level
+      logVerbose(`Failed to save video description sidecar: ${errMsg}`);
+    }
+
+    return false;
   }
 }
 

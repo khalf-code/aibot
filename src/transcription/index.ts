@@ -1,5 +1,6 @@
 import type { ClawdbotConfig } from "../config/config.js";
 import { logVerbose, shouldLogVerbose } from "../globals.js";
+import { getChildLogger } from "../logging/logger.js";
 import { atomicWriteFile } from "../utils/atomic-write.js";
 
 import { type TranscriptionResult, transcribeViaGroq } from "./groq.js";
@@ -70,7 +71,7 @@ function resolveApiKey(cfg: ClawdbotConfig, provider: string): string | null {
 async function persistTranscript(
   audioPath: string,
   transcript: string,
-): Promise<void> {
+): Promise<boolean> {
   const sidecarPath = `${audioPath}.transcript.txt`;
 
   try {
@@ -79,8 +80,29 @@ async function persistTranscript(
     if (shouldLogVerbose()) {
       logVerbose(`Saved transcript sidecar: ${sidecarPath}`);
     }
+    return true;
   } catch (err) {
-    logVerbose(`Failed to save transcript sidecar: ${String(err)}`);
+    // Categorize errors as critical vs. non-critical
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const isCritical =
+      errMsg.includes("ENOSPC") || // Disk full
+      errMsg.includes("EACCES") || // Permission denied
+      errMsg.includes("EROFS") || // Read-only filesystem
+      errMsg.includes("EDQUOT"); // Quota exceeded
+
+    if (isCritical) {
+      // Log critical errors at ERROR level
+      const logger = getChildLogger({ module: "transcription" });
+      logger.error(
+        { error: errMsg, path: sidecarPath },
+        "Failed to persist transcript sidecar (CRITICAL)",
+      );
+    } else {
+      // Log non-critical errors at verbose level
+      logVerbose(`Failed to save transcript sidecar: ${errMsg}`);
+    }
+
+    return false;
   }
 }
 
