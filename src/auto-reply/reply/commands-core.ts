@@ -12,6 +12,8 @@ import {
 } from "./commands-info.js";
 import {
   handleBranchCommand,
+  handleGitCommitCommand,
+  handleMergeCommand,
   handleScriptCommand,
 } from "./commands-scripts.js";
 import {
@@ -34,6 +36,8 @@ const HANDLERS: CommandHandler[] = [
   handleRestartCommand,
   handleScriptCommand,
   handleBranchCommand,
+  handleGitCommitCommand,
+  handleMergeCommand,
   handleHelpCommand,
   handleCommandsListCommand,
   handleStatusCommand,

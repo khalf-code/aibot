@@ -318,6 +318,62 @@ export const CHAT_COMMANDS: ChatCommandDefinition[] = (() => {
       textAlias: "/main",
       scope: "text",
     }),
+    // Git command system
+    defineChatCommand({
+      key: "git-menu",
+      description: "Show git commands menu.",
+      textAlias: "/git",
+      scope: "text",
+    }),
+    defineChatCommand({
+      key: "git-status-short",
+      description: "Full git status report.",
+      textAlias: "/gs",
+      scope: "text",
+    }),
+    defineChatCommand({
+      key: "git-log",
+      description: "Show recent commits.",
+      textAlias: "/gl",
+      scope: "text",
+    }),
+    defineChatCommand({
+      key: "git-diff",
+      description: "Show uncommitted changes.",
+      textAlias: "/gd",
+      scope: "text",
+    }),
+    defineChatCommand({
+      key: "git-stash",
+      description: "Stash uncommitted changes.",
+      textAlias: "/stash",
+      scope: "text",
+    }),
+    defineChatCommand({
+      key: "git-unstash",
+      description: "Restore stashed changes.",
+      textAlias: "/unstash",
+      scope: "text",
+    }),
+    defineChatCommand({
+      key: "git-commit",
+      description: "Commit changes with message.",
+      textAlias: "/gc",
+      scope: "text",
+      acceptsArgs: true,
+    }),
+    defineChatCommand({
+      key: "git-sync",
+      description: "Update and push in one step.",
+      textAlias: "/sync",
+      scope: "text",
+    }),
+    defineChatCommand({
+      key: "handle-merge",
+      description: "AI-assisted merge conflict resolution.",
+      textAlias: "/handle-merge",
+      scope: "text",
+    }),
   );
 
   assertCommandRegistry(commands);
