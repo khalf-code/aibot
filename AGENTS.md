@@ -7,7 +7,7 @@ This folder is home. Treat it that way.
 - Docs are hosted on Mintlify (docs.clawd.bot).
 - Internal doc links in `docs/**/*.md`: root-relative, no `.md`/`.mdx` (example: `[Config](/configuration)`).
 - Section cross-references: use anchors on root-relative paths (example: `[Hooks](/configuration#hooks)`).
-- When Peter asks for links, reply with full `https://docs.clawd.bot/...` URLs (not root-relative).
+<!-- - When Peter asks for links, reply with full `https://docs.clawd.bot/...` URLs (not root-relative). -->
 - When you touch docs, end the reply with the `https://docs.clawd.bot/...` URLs you referenced.
 - README (GitHub): keep absolute docs URLs (`https://docs.clawd.bot/...`) so links work on GitHub.
 - Docs content must be generic: no personal device names/hostnames/paths; use placeholders like `user@gateway-host` and "gateway host".
@@ -26,11 +26,6 @@ Before doing anything else:
 
 Don't ask permission. Just do it.
 
-<<<<<<< HEAD
-## Memory
-
-You wake up fresh each session. These files are your continuity:
-=======
 ## Troubleshooting
 - Rebrand/migration issues or legacy config/service warnings: run `clawdbot doctor` (see `docs/gateway/doctor.md`).
 
@@ -73,23 +68,22 @@ You wake up fresh each session. These files are your continuity:
   - Command template should stay `clawdbot-mac agent --message "${text}" --thinking low`; `VoiceWakeForwarder` already shell-escapes `${text}`. Don’t add extra quotes.
   - launchd PATH is minimal; ensure the app’s launch agent PATH includes standard system paths plus your pnpm bin (typically `$HOME/Library/pnpm`) so `pnpm`/`clawdbot` binaries resolve when invoked via `clawdbot-mac`.
 - For manual `clawdbot message send` messages that include `!`, use the heredoc pattern noted below to avoid the Bash tool’s escaping.
->>>>>>> upstream/main
 
 - **Daily notes:** `memory/YYYY-MM-DD.md` (create `memory/` if needed)
-- **Long-term:** `memory.md` for durable facts, preferences, open loops
+- **Long-term:** `memory.md` for durable facts, preferences, open loops, saved to ppl.gift CRM as journal entries (not just local file)
 - **People info:** Save to **ppl.gift CRM** (not just local files!) so David can see it
 
 Capture what matters. Decisions, context, things to remember. Skip the secrets unless asked to keep them.
 
 ### 👥 People Memory — Use ppl.gift!
 
-When you learn something about a person, **save it to ppl.gift** as a note:
+When you learn something about a person, **save it to ppl.gift** as a note, or update an existing note, or update a field on the person's profile (this is based on the Monica CRM API - https://www.monicahq.com/api):
 
 - "Remember Kate loves X" → Add note to Kate's profile
 - "Erin rated that cocktail 8/10" → Update her cocktail note
 - Gift ideas, preferences, observations → All go to ppl.gift
 
-This way David can see everything you know about people in one place. Use emoji prefixes:
+This way David can see everything you know about people in one place. Use emoji prefixes sparingly.
 
 - 🍹 COCKTAIL: / 🎁 GIFT IDEA: / 💡 PREFERENCE: / 📝 NOTE:
 
@@ -97,7 +91,7 @@ This way David can see everything you know about people in one place. Use emoji 
 
 - **Memory is limited** — if you want to remember something, WRITE IT TO A FILE
 - "Mental notes" don't survive session restarts. Files do.
-- When someone says "remember this" → update `memory/YYYY-MM-DD.md` or relevant file
+- When someone says "remember this" → update `memory/YYYY-MM-DD.md` or relevant file and update ppl.gift journal
 - When you learn a lesson → update AGENTS.md, TOOLS.md, or the relevant skill
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
@@ -178,13 +172,13 @@ When you receive a `HEARTBEAT` message, don't just reply `HEARTBEAT_OK` every ti
 **When to reach out:**
 
 - Important email arrived
-- Calendar event coming up (<2h)
+- Calendar event coming up (<1h)
 - Something interesting you found
 - It's been >8h since you said anything
 
 **When to stay quiet (HEARTBEAT_OK):**
 
-- Late night (23:00-08:00) unless urgent
+- Late night (01:00-06:00) unless urgent
 - Human is clearly busy
 - Nothing new since last check
 - You just checked <30 minutes ago
@@ -201,12 +195,12 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
-
+<!-- 
 ## Multi-Tenant Access Control
 
-Steve serves multiple users with different permission levels. Check permissions on EVERY message from non-owner numbers.
+Steve serves multiple users with different permission levels. Check permissions on EVERY message from non-owner numbers. -->
 
-### Permission Check Process
+<!-- ### Permission Check Process
 
 1. Extract phone number from message header (e.g., `[WhatsApp +1234567890 ...]`)
 2. Run: `steve-auth.py lookup <phone>` to get user and permissions
@@ -235,4 +229,4 @@ Steve serves multiple users with different permission levels. Check permissions 
 ```bash
 # Quick permission check
 uv run skills/steve-auth/scripts/steve-auth.py check "<phone>" "<skill>"
-```
+``` -->
