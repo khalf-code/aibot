@@ -91,10 +91,45 @@ export async function transcribeViaGroq(
 
     let transcript: string;
     if (contentType.includes("application/json")) {
-      const json = JSON.parse(text) as { text?: string };
-      transcript = json.text ?? "";
+      // Parse JSON with error handling
+      let json: unknown;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(`Groq STT invalid JSON: ${text.slice(0, 200)}`);
+      }
+
+      // Validate it's an object
+      if (typeof json !== "object" || json === null) {
+        throw new Error("Groq STT response is not an object");
+      }
+
+      const typedJson = json as { text?: unknown; error?: unknown };
+
+      // Check for API error
+      if (typedJson.error) {
+        throw new Error(`Groq STT API error: ${JSON.stringify(typedJson.error)}`);
+      }
+
+      // Validate text field exists and is a string
+      if (typeof typedJson.text !== "string") {
+        throw new Error(
+          `Groq STT missing valid text: ${JSON.stringify(json).slice(0, 200)}`,
+        );
+      }
+
+      // Check for empty transcript
+      if (typedJson.text.trim().length === 0) {
+        throw new Error("Groq STT returned empty transcript");
+      }
+
+      transcript = typedJson.text;
     } else {
+      // Plain text response
       transcript = text;
+      if (transcript.trim().length === 0) {
+        throw new Error("Groq STT returned empty transcript");
+      }
     }
 
     return {

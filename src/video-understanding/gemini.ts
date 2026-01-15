@@ -93,16 +93,92 @@ export async function describeVideoViaGemini(
       throw new Error(`Gemini API error (HTTP ${res.status}): ${errorPreview}`);
     }
 
-    const json = JSON.parse(responseText) as {
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-      }>;
+    // Parse JSON with error handling
+    let json: unknown;
+    try {
+      json = JSON.parse(responseText);
+    } catch {
+      throw new Error(`Gemini API invalid JSON: ${responseText.slice(0, 200)}`);
+    }
+
+    // Validate it's an object
+    if (typeof json !== "object" || json === null) {
+      throw new Error("Gemini API response is not an object");
+    }
+
+    const typedJson = json as {
+      candidates?: unknown;
+      error?: unknown;
     };
 
-    const description = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    // Check for API error
+    if (typedJson.error) {
+      throw new Error(`Gemini API error: ${JSON.stringify(typedJson.error)}`);
+    }
+
+    // Validate candidates array exists
+    if (!Array.isArray(typedJson.candidates)) {
+      throw new Error(
+        `Gemini API missing candidates array: ${JSON.stringify(json).slice(0, 200)}`,
+      );
+    }
+
+    if (typedJson.candidates.length === 0) {
+      throw new Error("Gemini API returned empty candidates array");
+    }
+
+    // Validate first candidate structure
+    const candidate = typedJson.candidates[0];
+    if (typeof candidate !== "object" || candidate === null) {
+      throw new Error("Gemini API candidate is not an object");
+    }
+
+    const typedCandidate = candidate as {
+      content?: unknown;
+    };
+
+    if (
+      typeof typedCandidate.content !== "object" ||
+      typedCandidate.content === null
+    ) {
+      throw new Error(
+        `Gemini API candidate missing content: ${JSON.stringify(candidate).slice(0, 200)}`,
+      );
+    }
+
+    const typedContent = typedCandidate.content as {
+      parts?: unknown;
+    };
+
+    if (!Array.isArray(typedContent.parts)) {
+      throw new Error("Gemini API content missing parts array");
+    }
+
+    if (typedContent.parts.length === 0) {
+      throw new Error("Gemini API returned empty parts array");
+    }
+
+    // Validate first part has text
+    const part = typedContent.parts[0];
+    if (typeof part !== "object" || part === null) {
+      throw new Error("Gemini API part is not an object");
+    }
+
+    const typedPart = part as { text?: unknown };
+
+    if (typeof typedPart.text !== "string") {
+      throw new Error(
+        `Gemini API part missing valid text: ${JSON.stringify(part).slice(0, 200)}`,
+      );
+    }
+
+    // Check for empty description
+    if (typedPart.text.trim().length === 0) {
+      throw new Error("Gemini API returned empty description");
+    }
 
     return {
-      text: description.trim(),
+      text: typedPart.text.trim(),
       provider: "gemini",
       model,
     };
