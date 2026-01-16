@@ -27,10 +27,7 @@ function buildSkillsSection(params: {
   ];
 }
 
-function buildMemorySection(params: {
-  isMinimal: boolean;
-  availableTools: Set<string>;
-}) {
+function buildMemorySection(params: { isMinimal: boolean; availableTools: Set<string> }) {
   if (params.isMinimal) return [];
   if (!params.availableTools.has("memory_search") && !params.availableTools.has("memory_get")) {
     return [];
@@ -176,7 +173,7 @@ export function buildAgentSystemPrompt(params: {
     browser: "Control web browser",
     canvas: "Present/eval/snapshot the Canvas",
     nodes: "List/describe/notify/camera/screen on paired nodes",
-    cron: "Manage cron jobs and wake events (use for reminders)",
+    cron: "Manage cron jobs and wake events (use for reminders; include recent context in reminder text if appropriate)",
     message: "Send messages and channel actions",
     gateway: "Restart, apply config, or run updates on the running Clawdbot process",
     agents_list: "List agent ids allowed for sessions_spawn",
@@ -322,7 +319,7 @@ export function buildAgentSystemPrompt(params: {
           "- browser: control clawd's dedicated browser",
           "- canvas: present/eval/snapshot the Canvas",
           "- nodes: list/describe/notify/camera/screen on paired nodes",
-          "- cron: manage cron jobs and wake events (use for reminders)",
+          "- cron: manage cron jobs and wake events (use for reminders; include recent context in reminder text if appropriate)",
           "- sessions_list: list sessions",
           "- sessions_history: fetch session history",
           "- sessions_send: send to another session",
@@ -442,7 +439,8 @@ export function buildAgentSystemPrompt(params: {
 
   if (extraSystemPrompt) {
     // Use "Subagent Context" header for minimal mode (subagents), otherwise "Group Chat Context"
-    const contextHeader = promptMode === "minimal" ? "## Subagent Context" : "## Group Chat Context";
+    const contextHeader =
+      promptMode === "minimal" ? "## Subagent Context" : "## Group Chat Context";
     lines.push(contextHeader, extraSystemPrompt, "");
   }
   if (params.reactionGuidance) {

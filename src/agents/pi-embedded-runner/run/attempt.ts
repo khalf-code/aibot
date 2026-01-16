@@ -45,7 +45,11 @@ import { filterBootstrapFilesForSession, loadWorkspaceBootstrapFiles } from "../
 import { isAbortError } from "../abort.js";
 import { buildEmbeddedExtensionPaths } from "../extensions.js";
 import { applyExtraParamsToAgent } from "../extra-params.js";
-import { logToolSchemasForGoogle, sanitizeSessionHistory } from "../google.js";
+import {
+  logToolSchemasForGoogle,
+  sanitizeSessionHistory,
+  sanitizeToolsForGoogle,
+} from "../google.js";
 import { getDmHistoryLimitFromSessionKey, limitHistoryTurns } from "../history.js";
 import { log } from "../logger.js";
 import { buildModelAliasLines } from "../model.js";
@@ -127,7 +131,7 @@ export async function runEmbeddedAttempt(
 
     const agentDir = params.agentDir ?? resolveClawdbotAgentDir();
 
-    const tools = createClawdbotCodingTools({
+    const toolsRaw = createClawdbotCodingTools({
       exec: {
         ...resolveExecToolDefaults(params.config),
         elevated: params.bashElevated,
@@ -148,6 +152,7 @@ export async function runEmbeddedAttempt(
       replyToMode: params.replyToMode,
       hasRepliedRef: params.hasRepliedRef,
     });
+    const tools = sanitizeToolsForGoogle({ tools: toolsRaw, provider: params.provider });
     logToolSchemasForGoogle({ tools, provider: params.provider });
 
     const machineName = await getMachineDisplayName();
@@ -318,6 +323,7 @@ export async function runEmbeddedAttempt(
           messages: activeSession.messages,
           modelApi: params.model.api,
           modelId: params.modelId,
+          provider: params.provider,
           sessionManager,
           sessionId: params.sessionId,
         });
@@ -419,14 +425,36 @@ export async function runEmbeddedAttempt(
       try {
         const promptStartedAt = Date.now();
         log.debug(`embedded run prompt start: runId=${params.runId} sessionId=${params.sessionId}`);
-        try {
-          await activeSession.prompt(params.prompt, { images: params.images });
-        } catch (err) {
-          promptError = err;
-        } finally {
-          log.debug(
-            `embedded run prompt end: runId=${params.runId} sessionId=${params.sessionId} durationMs=${Date.now() - promptStartedAt}`,
+
+        // Check if last message is a user message to prevent consecutive user turns
+        const lastMsg = activeSession.messages[activeSession.messages.length - 1];
+        const lastMsgRole =
+          lastMsg && typeof lastMsg === "object" ? (lastMsg as { role?: unknown }).role : undefined;
+
+        if (lastMsgRole === "user") {
+          // Last message was a user message. Adding another user message would create
+          // consecutive user turns, violating Anthropic's role ordering requirement.
+          // This can happen when:
+          // 1. A previous heartbeat didn't get a response
+          // 2. A user message errored before getting an assistant response
+          // Skip this prompt to prevent "400 Incorrect role information" error.
+          log.warn(
+            `Skipping prompt because last message is a user message (would create consecutive user turns). ` +
+              `runId=${params.runId} sessionId=${params.sessionId}`,
           );
+          promptError = new Error(
+            "Incorrect role information: consecutive user messages would violate role ordering",
+          );
+        } else {
+          try {
+            await activeSession.prompt(params.prompt, { images: params.images });
+          } catch (err) {
+            promptError = err;
+          } finally {
+            log.debug(
+              `embedded run prompt end: runId=${params.runId} sessionId=${params.sessionId} durationMs=${Date.now() - promptStartedAt}`,
+            );
+          }
         }
 
         try {

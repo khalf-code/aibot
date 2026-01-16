@@ -167,6 +167,7 @@ async function noteChannelPrimer(
       "DM security: default is pairing; unknown DMs get a pairing code.",
       "Approve with: clawdbot pairing approve <channel> <code>",
       'Public DMs require dmPolicy="open" + allowFrom=["*"].',
+      'Multi-user DMs: set session.dmScope="per-channel-peer" to isolate sessions.',
       `Docs: ${formatDocsLink("/start/pairing", "start/pairing")}`,
       "",
       ...channelLines,
@@ -212,6 +213,7 @@ async function maybeConfigureDmPolicies(params: {
         "Default: pairing (unknown DMs get a pairing code).",
         `Approve: clawdbot pairing approve ${policy.channel} <code>`,
         `Public DMs: ${policy.policyKey}="open" + ${policy.allowFromKey} includes "*".`,
+        'Multi-user DMs: set session.dmScope="per-channel-peer" to isolate sessions.',
         `Docs: ${formatDocsLink("/start/pairing", "start/pairing")}`,
       ].join("\n"),
       `${policy.label} DM access`,
@@ -317,7 +319,10 @@ export async function setupChannels(
   };
 
   const buildSelectionOptions = (
-    entries: Array<{ id: ChannelChoice; meta: { id: string; label: string; selectionLabel?: string } }>,
+    entries: Array<{
+      id: ChannelChoice;
+      meta: { id: string; label: string; selectionLabel?: string };
+    }>,
   ) =>
     entries.map((entry) => {
       const status = statusByChannel.get(entry.id);
