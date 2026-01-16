@@ -1707,6 +1707,56 @@ Legacy: `tools.bash` is still accepted as an alias.
 - `tools.web.fetch.cacheTtlMinutes` (default 15)
 - `tools.web.fetch.userAgent` (optional override)
 
+`tools.audio.transcription` configures inbound audio transcription:
+- `provider`: API provider id (`openai`, `groq`, etc).
+- `model`: model id override (default `whisper-1` for OpenAI; `whisper-large-v3-turbo` for Groq).
+- `language`, `prompt`: optional hints.
+- `timeoutSeconds`: request timeout (default 60s for provider path).
+- `maxBytes`: max audio size to send (default 20MB).
+- `enabled`: opt-out switch.
+- `profile` / `preferredProfile`: auth profile selection.
+- `scope`: optional gating (first match wins) with `match.channel`, `match.chatType`, or `match.keyPrefix`.
+- `args`: optional CLI transcription args (templated with `{{MediaPath}}`); used only when provider transcription is unavailable or fails.
+
+`tools.video.understanding` configures inbound video understanding:
+- `provider`: API provider id (`google`; `gemini` alias supported).
+- `model`: model id override (default `gemini-3-flash-preview`).
+- `prompt`: optional prompt override (default `Describe the video.`).
+- `timeoutSeconds`: request timeout (default 120s).
+- `maxBytes`: max video size to send (default 50MB).
+- `enabled`: opt-out switch.
+- `profile` / `preferredProfile`: auth profile selection.
+- `scope`: optional gating (first match wins).
+
+Provider auth follows the standard model auth order (auth profiles, env vars like `OPENAI_API_KEY`/`GROQ_API_KEY`/`GEMINI_API_KEY`, or `models.providers.*.apiKey`).
+
+Example:
+```json5
+{
+  tools: {
+    audio: {
+      transcription: {
+        enabled: true,
+        provider: "openai",
+        model: "whisper-1",
+        maxBytes: 20971520,
+        scope: {
+          default: "deny",
+          rules: [{ action: "allow", match: { chatType: "direct" } }]
+        }
+      }
+    },
+    video: {
+      understanding: {
+        enabled: true,
+        provider: "google",
+        maxBytes: 52428800
+      }
+    }
+  }
+}
+```
+
 `agents.defaults.subagents` configures sub-agent defaults:
 - `model`: default model for spawned sub-agents (string or `{ primary, fallbacks }`). If omitted, sub-agents inherit the caller’s model unless overridden per agent or per call.
 - `maxConcurrent`: max concurrent sub-agent runs (default 1)

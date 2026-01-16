@@ -126,8 +126,20 @@ Save to `~/.clawdbot/clawdbot.json` and you can DM the bot from that number.
   tools: {
     audio: {
       transcription: {
-        args: ["--model", "base", "{{MediaPath}}"],
+        enabled: true,
+        provider: "openai",
+        model: "whisper-1",
+        maxBytes: 20971520,
+        // Optional CLI fallback (Whisper binary):
+        // args: ["--model", "base", "{{MediaPath}}"],
         timeoutSeconds: 120
+      }
+    },
+    video: {
+      understanding: {
+        enabled: true,
+        provider: "google",
+        maxBytes: 52428800
       }
     }
   },
