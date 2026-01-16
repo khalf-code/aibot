@@ -1,7 +1,8 @@
 #!/bin/bash
 # Daily weather greeting with Steve image
 
-export GEMINI_API_KEY="AIzaSyAHB0Uo-OkqcxV_c_Cp4iJaZ3e02-sc_7c"
+# GEMINI_API_KEY from clawdbot.json skills.entries.nano-banana-pro.apiKey
+# The agent passes this when running the script
 
 STEVE_REF="/Users/steve/clawd/assets/steve-full.jpg"
 DATE=$(date +%Y%m%d)

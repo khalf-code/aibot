@@ -46,5 +46,6 @@ done
 if [ $archived_count -gt 0 ]; then
     echo "📸 Archived $archived_count media files to Steve_Journal"
 else
-    echo "HEARTBEAT_OK"
+    # No output = silent ack
+    exit 0
 fi

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Sync clawd workspace: pull upstream + push changes + sync personal scripts
+# Sync clawd workspace: pull upstream + merge + push changes
+# No longer syncs to ~/.clawd - everything lives in ~/clawd
 
 cd /Users/steve/clawd
 
@@ -16,7 +17,7 @@ if [ "$UPSTREAM_COUNT" -gt 0 ]; then
     UPSTREAM_CHANGES=1
     git merge upstream/main -m "Auto-merge upstream clawdbot" --no-edit || {
         # Keep LOCAL versions for personalized workspace files
-        git checkout --ours .gitignore AGENTS.md SOUL.md USER.md IDENTITY.md TOOLS.md memory.md memory/ 2>/dev/null
+        git checkout --ours .gitignore AGENTS.md SOUL.md USER.md IDENTITY.md TOOLS.md memory.md memory/ personal-scripts/ 2>/dev/null
         # Take UPSTREAM versions for skills (we want upstream improvements)
         git checkout --theirs skills/ 2>/dev/null
         # Take UPSTREAM for project docs
@@ -40,26 +41,11 @@ if [ "$UPSTREAM_CHANGES" -eq 1 ] || [ "$LOCAL_CHANGES" -eq 1 ]; then
     git push origin main
 fi
 
-# 4. Sync personal-scripts from repo to ~/.clawd/scripts/
-echo "Syncing personal scripts..."
-mkdir -p ~/.clawd/scripts
-for script in /Users/steve/clawd/personal-scripts/*.{sh,py}; do
-    [ -f "$script" ] || continue
-    filename=$(basename "$script")
-    # Only copy if repo version is newer or local doesn't exist
-    if [ ! -f ~/.clawd/scripts/"$filename" ] || [ "$script" -nt ~/.clawd/scripts/"$filename" ]; then
-        cp "$script" ~/.clawd/scripts/
-        chmod +x ~/.clawd/scripts/"$filename"
-        echo "  Updated: $filename"
-    fi
-done
-
-# 5. Output summary for notification
+# 4. Output for notification (only if changes)
 if [ "$UPSTREAM_CHANGES" -eq 1 ]; then
-    echo "NOTIFY:UPSTREAM:$UPSTREAM_COUNT"
-fi
-if [ "$LOCAL_CHANGES" -eq 1 ]; then
-    echo "NOTIFY:LOCAL"
+    echo "🔄 Synced $UPSTREAM_COUNT commits from upstream"
+elif [ "$LOCAL_CHANGES" -eq 1 ]; then
+    echo "✅ Pushed local changes"
 fi
 
-echo "Sync complete!"
+# If nothing happened, output nothing (silent ack)
