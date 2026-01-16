@@ -95,12 +95,17 @@ function exists(filePath: string) {
   }
 }
 
-function execText(command: string, args: string[], timeoutMs = 1200): string | null {
+function execText(
+  command: string,
+  args: string[],
+  timeoutMs = 1200,
+  maxBuffer = 1024 * 1024,
+): string | null {
   try {
     const output = execFileSync(command, args, {
       timeout: timeoutMs,
       encoding: "utf8",
-      maxBuffer: 1024 * 1024,
+      maxBuffer,
     });
     return String(output ?? "").trim() || null;
   } catch {
@@ -114,7 +119,12 @@ function inferKindFromIdentifier(identifier: string): BrowserExecutable["kind"] 
   if (id.includes("edge")) return "edge";
   if (id.includes("chromium")) return "chromium";
   if (id.includes("canary")) return "canary";
-  if (id.includes("opera") || id.includes("vivaldi") || id.includes("yandex") || id.includes("thebrowser")) {
+  if (
+    id.includes("opera") ||
+    id.includes("vivaldi") ||
+    id.includes("yandex") ||
+    id.includes("thebrowser")
+  ) {
     return "chromium";
   }
   return "chrome";
@@ -126,13 +136,12 @@ function inferKindFromExecutableName(name: string): BrowserExecutable["kind"] {
   if (lower.includes("edge") || lower.includes("msedge")) return "edge";
   if (lower.includes("chromium")) return "chromium";
   if (lower.includes("canary") || lower.includes("sxs")) return "canary";
-  if (lower.includes("opera") || lower.includes("vivaldi") || lower.includes("yandex")) return "chromium";
+  if (lower.includes("opera") || lower.includes("vivaldi") || lower.includes("yandex"))
+    return "chromium";
   return "chrome";
 }
 
-function detectDefaultChromiumExecutable(
-  platform: NodeJS.Platform,
-): BrowserExecutable | null {
+function detectDefaultChromiumExecutable(platform: NodeJS.Platform): BrowserExecutable | null {
   if (platform === "darwin") return detectDefaultChromiumExecutableMac();
   if (platform === "linux") return detectDefaultChromiumExecutableLinux();
   if (platform === "win32") return detectDefaultChromiumExecutableWindows();
@@ -140,14 +149,12 @@ function detectDefaultChromiumExecutable(
 }
 
 function detectDefaultChromiumExecutableMac(): BrowserExecutable | null {
-  const bundleId = execText("/usr/bin/osascript", [
-    "-e",
-    'id of application (path to default application for URL "http://example.com")',
-  ]);
-  if (!bundleId || !CHROMIUM_BUNDLE_IDS.has(bundleId.trim())) return null;
+  const bundleId = detectDefaultBrowserBundleIdMac();
+  if (!bundleId || !CHROMIUM_BUNDLE_IDS.has(bundleId)) return null;
+
   const appPathRaw = execText("/usr/bin/osascript", [
     "-e",
-    'POSIX path of (path to default application for URL "http://example.com")',
+    `POSIX path of (path to application id "${bundleId}")`,
   ]);
   if (!appPathRaw) return null;
   const appPath = appPathRaw.trim().replace(/\/$/, "");
@@ -160,6 +167,45 @@ function detectDefaultChromiumExecutableMac(): BrowserExecutable | null {
   const exePath = path.join(appPath, "Contents", "MacOS", exeName.trim());
   if (!exists(exePath)) return null;
   return { kind: inferKindFromIdentifier(bundleId), path: exePath };
+}
+
+function detectDefaultBrowserBundleIdMac(): string | null {
+  const plistPath = path.join(
+    os.homedir(),
+    "Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist",
+  );
+  if (!exists(plistPath)) return null;
+  const handlersRaw = execText(
+    "/usr/bin/plutil",
+    ["-extract", "LSHandlers", "json", "-o", "-", "--", plistPath],
+    2000,
+    5 * 1024 * 1024,
+  );
+  if (!handlersRaw) return null;
+  let handlers: unknown;
+  try {
+    handlers = JSON.parse(handlersRaw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(handlers)) return null;
+
+  const resolveScheme = (scheme: string) => {
+    let candidate: string | null = null;
+    for (const entry of handlers) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      if (record.LSHandlerURLScheme !== scheme) continue;
+      const role =
+        (typeof record.LSHandlerRoleAll === "string" && record.LSHandlerRoleAll) ||
+        (typeof record.LSHandlerRoleViewer === "string" && record.LSHandlerRoleViewer) ||
+        null;
+      if (role) candidate = role;
+    }
+    return candidate;
+  };
+
+  return resolveScheme("http") ?? resolveScheme("https");
 }
 
 function detectDefaultChromiumExecutableLinux(): BrowserExecutable | null {
@@ -185,8 +231,7 @@ function detectDefaultChromiumExecutableLinux(): BrowserExecutable | null {
 function detectDefaultChromiumExecutableWindows(): BrowserExecutable | null {
   const progId = readWindowsProgId();
   const command =
-    (progId ? readWindowsCommandForProgId(progId) : null) ||
-    readWindowsCommandForProgId("http");
+    (progId ? readWindowsCommandForProgId(progId) : null) || readWindowsCommandForProgId("http");
   if (!command) return null;
   const expanded = expandWindowsEnvVars(command);
   const exePath = extractWindowsExecutablePath(expanded);
@@ -243,7 +288,7 @@ function splitExecLine(line: string): string[] {
   let quoteChar = "";
   for (let i = 0; i < line.length; i += 1) {
     const ch = line[i];
-    if ((ch === "\"" || ch === "'") && (!inQuotes || ch === quoteChar)) {
+    if ((ch === '"' || ch === "'") && (!inQuotes || ch === quoteChar)) {
       if (inQuotes) {
         inQuotes = false;
         quoteChar = "";
@@ -300,7 +345,7 @@ function readWindowsCommandForProgId(progId: string): string | null {
 function expandWindowsEnvVars(value: string): string {
   return value.replace(/%([^%]+)%/g, (_match, name) => {
     const key = String(name ?? "").trim();
-    return key ? process.env[key] ?? `%${key}%` : _match;
+    return key ? (process.env[key] ?? `%${key}%`) : _match;
   });
 }
 

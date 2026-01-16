@@ -266,6 +266,7 @@ export async function getReplyFromConfig(
     contextTokens,
     directiveAck,
     abortedLastRun,
+    skillFilter: opts?.skillFilter,
   });
   if (inlineActionResult.kind === "reply") {
     return inlineActionResult.reply;
