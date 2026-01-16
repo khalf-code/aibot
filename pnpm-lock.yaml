@@ -127,7 +127,7 @@ importers:
         version: 0.34.5
       tar:
         specifier: ^7.5.2
-        version: 7.5.2
+        version: 7.5.3
       tslog:
         specifier: ^4.10.2
         version: 4.10.2
@@ -1880,12 +1880,12 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@thi.ng/bitstream@2.4.37':
-    resolution: {integrity: sha512-ghVt+/73cChlhHDNQH9+DnxvoeVYYBu7AYsS0Gvwq25fpCa4LaqnEk5LAJfsY043HInwcV7/0KGO7P+XZCzumQ==}
+  '@thi.ng/bitstream@2.4.38':
+    resolution: {integrity: sha512-Y5vpB2w9zS8a6FE1G3H8QhQYYvT3qmOpXOYmKMCZKwyQXY3XCuZDFeIIm1b23CyjtED5vmdr6+E6HZaAW1GNsA==}
     engines: {node: '>=18'}
 
-  '@thi.ng/errors@2.6.0':
-    resolution: {integrity: sha512-wBfSWz81sqM1FWX2ucW9KGLSFzGvsBxwX5y5t6Oty0QWO9mY8JIZC+ZBPzX5E6ExZiuGIgM8NtkTboTnXXlfUQ==}
+  '@thi.ng/errors@2.6.1':
+    resolution: {integrity: sha512-5kkJ1+JK6OInYMnRXtiJ6qZMt2zNqEuw0ZNwU8bFPfxF3yiWD5tcDNVLwE4EsMm8cGwH1K0h0TI5HIPfHSUWow==}
     engines: {node: '>=18'}
 
   '@tinyhttp/content-disposition@2.2.2':
@@ -3922,8 +3922,8 @@ packages:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
 
-  tar@7.5.2:
-    resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
+  tar@7.5.3:
+    resolution: {integrity: sha512-ENg5JUHUm2rDD7IvKNFGzyElLXNjachNLp6RaGf4+JOgxXHkqA+gq81ZAMCUmtMtqBsoU62lcp6S27g1LCYGGQ==}
     engines: {node: '>=18'}
 
   thenify-all@1.6.0:
@@ -6145,12 +6145,12 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@thi.ng/bitstream@2.4.37':
+  '@thi.ng/bitstream@2.4.38':
     dependencies:
-      '@thi.ng/errors': 2.6.0
+      '@thi.ng/errors': 2.6.1
     optional: true
 
-  '@thi.ng/errors@2.6.0':
+  '@thi.ng/errors@2.6.1':
     optional: true
 
   '@tinyhttp/content-disposition@2.2.2':
@@ -8101,7 +8101,7 @@ snapshots:
 
   qoa-format@1.0.1:
     dependencies:
-      '@thi.ng/bitstream': 2.4.37
+      '@thi.ng/bitstream': 2.4.38
     optional: true
 
   qrcode-terminal@0.12.0: {}
@@ -8522,7 +8522,7 @@ snapshots:
       yallist: 4.0.0
     optional: true
 
-  tar@7.5.2:
+  tar@7.5.3:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
