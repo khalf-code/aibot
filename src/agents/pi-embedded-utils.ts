@@ -28,7 +28,7 @@ function stripMinimaxToolCallXml(text: string): string {
  * downgraded to text blocks like `[Tool Call: name (ID: ...)]`. These should
  * not be shown to users.
  */
-function stripDowngradedToolCallText(text: string): string {
+export function stripDowngradedToolCallText(text: string): string {
   if (!text) return text;
   if (!/\[Tool (?:Call|Result)/i.test(text)) return text;
 
