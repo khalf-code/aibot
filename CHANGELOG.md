@@ -20,6 +20,7 @@
 - Daemon: add KillMode=process to systemd units to avoid podman restart hangs. (#541) — thanks @ogulcancelik
 - Doctor: run legacy state migrations in non-interactive mode without prompts.
 - Cron: parse Telegram topic targets for isolated delivery. (#478) — thanks @nachoiacovino
+- Cron: add weekly synthesis setup script + docs. (larusi-4k4.9)
 - Outbound: default Telegram account selection for config-only tokens; remove heartbeat-specific accountId handling. (follow-up #516) — thanks @YuriNachos
 - Cron: allow Telegram delivery targets with topic/thread IDs (e.g. `-100…:topic:123`). (#474) — thanks @mitschabaude-bot
 - Heartbeat: resolve Telegram account IDs from config-only tokens; cron tool accepts canonical `jobId` and legacy `id` for job actions. (#516) — thanks @YuriNachos

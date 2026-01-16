@@ -102,6 +102,10 @@
       "destination": "/automation/auth-monitoring"
     },
     {
+      "source": "/weekly-synthesis",
+      "destination": "/automation/weekly-synthesis"
+    },
+    {
       "source": "/scripts",
       "destination": "/scripts"
     },
@@ -634,6 +638,7 @@
         "group": "Automation & Hooks",
         "pages": [
           "automation/auth-monitoring",
+          "automation/weekly-synthesis",
           "automation/webhook",
           "automation/gmail-pubsub",
           "automation/cron-jobs",

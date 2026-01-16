@@ -142,6 +142,12 @@ clawdbot cron add \
   --to "-1001234567890:topic:123"
 ```
 
+Weekly synthesis (Sunday 9pm):
+```bash
+scripts/weekly-synthesis.sh
+```
+See [Weekly synthesis](/automation/weekly-synthesis) for configuration options.
+
 Manual run (debug):
 ```bash
 clawdbot cron run <jobId> --force
