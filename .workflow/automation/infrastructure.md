@@ -44,16 +44,19 @@ Results: `~/.clawdbot/daily-builds/summary-$(date +%Y-%m-%d).log`
 
 ---
 
+## Fork Safety
+
+| Script | Purpose |
+|--------|---------|
+| `./.workflow/scripts/audit-fork-config.sh` | Validate fork configuration |
+
+Run before upstream syncs to ensure `.gitattributes` merge=ours only protects fork-only files.
+
+---
+
 ## Troubleshooting
 
 ```bash
-<<<<<<< Updated upstream
-pgrep -f clawdbot && pkill -f clawdbot
-lsof -i :8080
-git worktree list && git worktree prune
-tailscale status
-tmux -S $SOCKET kill-server
-=======
 pgrep -f clawdbot && pkill -f clawdbot    # Stuck processes
 lsof -i :8080                             # Port conflicts
 git worktree list                         # Worktree issues
@@ -61,6 +64,6 @@ pnpm format                               # Lint auto-fix
 tailscale status                          # Network check
 ls -la ${TMPDIR}/clawdbot-tmux-sockets/   # tmux sockets
 tmux -S $SOCKET kill-server               # Reset tmux
->>>>>>> Stashed changes
+./.workflow/scripts/audit-fork-config.sh  # Validate fork config
 ```
 
