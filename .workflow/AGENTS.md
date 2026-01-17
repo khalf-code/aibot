@@ -10,49 +10,41 @@ If you do not know, you should be honest about it. If you need more clarity you 
 
 ## Quick Start
 
-1. Root `AGENTS.md` → source of truth for coding standards
-2. `/dev:help` → available commands
+1. Root `AGENTS.md` → source of truth for coding standards (**never edit, upstream-only**)
+2. `/help` → available commands
 3. `/dev:gate` → run before every commit
 
 ---
 
 **Dev-only** (never push): `.workflow/`, `.claude/`
 
+**Never edit upstream files**: Root `AGENTS.md`, `CHANGELOG.md`, `package.json`, `src/**` (unless contributing via PR)
+
 ---
 
 ## Commands
 
-Run `/dev:help` for full list.
-
-| Command | Purpose |
-|---------|---------|
-| `/dev:gate` | Quality gate (lint, build, test) |
-| `/dev:review <pr\|current>` | Multi-agent review (4 specialists) |
-| `/dev:fix-issue <num>` | Fix upstream issue with TDD |
-| `/dev:pr-review <num>` | Review PR (read-only) |
-| `/dev:pr-test <num>` | Test PR locally |
-| `/dev:tdd <phase>` | TDD workflow |
-| `/build:release [ver]` | Build with hotfixes |
+Run `/help` for full list.
 
 ---
 
 ## Upstream Contributions
 
-| Task | Command |
-|------|---------|
+| Task      | Command              |
+| --------- | -------------------- |
 | Fix issue | `/dev:fix-issue 123` |
 | Review PR | `/dev:pr-review 123` |
-| Test PR | `/dev:pr-test 123` |
+| Test PR   | `/dev:pr-test 123`   |
 
 ---
 
 ## Builds
 
-| Task | Command |
-|------|---------|
-| Release | `/build:release [ver]` |
-| Hotfix status | `./scripts/release-fixes-status.sh` |
-| Daily (ARM+x86) | `./.workflow/scripts/daily-all.sh` |
+| Task            | Command                             |
+| --------------- | ----------------------------------- |
+| Release         | `/build:release [ver]`              |
+| Hotfix status   | `./scripts/release-fixes-status.sh` |
+| Daily (ARM+x86) | `./.workflow/scripts/daily-all.sh`  |
 
 Hotfix branches: `hotfix/*` → auto-applied. See `automation/infrastructure.md` for details.
 
@@ -60,19 +52,19 @@ Hotfix branches: `hotfix/*` → auto-applied. See `automation/infrastructure.md`
 
 ## Standards
 
-<<<<<<< Updated upstream
-See root `AGENTS.md`. Key: `/dev:gate` before commits, `scripts/committer` for scoped commits, 70% coverage.
-=======
-See root `AGENTS.md` for multi-agent safety and quality standards.
+See root `AGENTS.md`. Key: `/dev:gate` before commits, `scripts/committer` for scoped commits.
 
-Key points: `/dev:gate` before commits, `scripts/committer` for scoped commits, 70% coverage.
+---
+
+## Workflow
+
+**After upstream sync**: Run `/dev:docs-review` to check for doc drift (e.g., renamed files, broken references).
 
 ---
 
 ## Troubleshooting
 
 See `automation/infrastructure.md` for logs, environment variables, and troubleshooting commands.
->>>>>>> Stashed changes
 
 ---
 

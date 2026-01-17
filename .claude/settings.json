@@ -13,6 +13,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git mv:*)",
+      "Bash(git stash list:*)",
+      "Bash(git stash show:*)",
+      "Bash(git stash drop:*)",
       "Bash(scripts/committer:*)",
       "Bash(ls:*)",
       "Bash(mkdir:*)",
@@ -27,7 +30,12 @@
     "deny": [
       "Bash(rm -rf /)",
       "Bash(git push --force)",
-      "Bash(git stash:*)",
+      "Bash(git stash pop:*)",
+      "Bash(git stash apply:*)",
+      "Bash(git stash clear:*)",
+      "Bash(git stash branch:*)",
+      "Bash(git stash save:*)",
+      "Bash(git stash push:*)",
       "Bash(git checkout:*)",
       "Bash(git switch:*)"
     ]
@@ -44,5 +52,9 @@
         ]
       }
     ]
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
   }
 }
