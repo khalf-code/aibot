@@ -190,7 +190,7 @@ export function describeForwardOrigin(msg: TelegramMessage): {
   };
 
   const formatChatSource = (
-    chat?: { title?: string; id?: number; username?: string },
+    chat: { title?: string; id?: number; username?: string } | undefined,
     fallback: "chat" | "channel",
   ) => {
     if (!chat) return undefined;
@@ -237,6 +237,42 @@ export function describeForwardOrigin(msg: TelegramMessage): {
   }
 
   return null;
+}
+
+/**
+ * Telegram entity with text_link fields.
+ */
+type TextLinkEntity = {
+  type: string;
+  offset: number;
+  length: number;
+  url?: string;
+};
+
+/**
+ * Expand text_link entities into markdown format.
+ * Converts "[text](url)" style links stored in entities back into visible markdown.
+ */
+export function expandTextLinks(
+  text: string,
+  entities?: TextLinkEntity[] | null,
+): string {
+  if (!text || !entities?.length) return text;
+
+  // Filter text_link entities with valid URLs
+  const textLinks = entities
+    .filter((e): e is TextLinkEntity & { url: string } => e.type === "text_link" && Boolean(e.url))
+    .sort((a, b) => b.offset - a.offset); // Sort descending to preserve offsets
+
+  if (textLinks.length === 0) return text;
+
+  let result = text;
+  for (const entity of textLinks) {
+    const linkText = text.slice(entity.offset, entity.offset + entity.length);
+    const markdown = `[${linkText}](${entity.url})`;
+    result = result.slice(0, entity.offset) + markdown + result.slice(entity.offset + entity.length);
+  }
+  return result;
 }
 
 export function extractTelegramLocation(msg: TelegramMessage): NormalizedLocation | null {
