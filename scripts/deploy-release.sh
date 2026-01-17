@@ -1,11 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy script for admin account (requires sudo)
-# Usage: deploy-release.sh [worktree-path]
+# Deploy macOS companion app (Clawdbot.app) to /Applications
 #
-# Default: Uses .worktrees/latest symlink (created by build-release.sh)
-# Override: Pass a worktree path as argument
+# This script:
+#   1. Stops all running Clawdbot instances (killall -9)
+#   2. Removes existing /Applications/Clawdbot.app
+#   3. Copies the built app from worktree to /Applications
+#   4. Sets ownership to root:wheel and clears quarantine flags
+#
+# Requirements:
+#   - Run from admin account (not petter user)
+#   - Requires sudo access
+#   - Built app must exist (run build-release.sh first)
+#
+# Usage: ./scripts/deploy-release.sh [worktree-path]
+#
+# Examples:
+#   ./scripts/deploy-release.sh                    # Uses .worktrees/latest
+#   ./scripts/deploy-release.sh .worktrees/v2026.1.15  # Specific worktree
+#
+# Note: This is destructive - kills running instances and requires sudo
 
 # Default to the 'latest' symlink (created by build-release.sh)
 DEFAULT_WORKTREE="/Users/petter/Projects/clawdbot/clawdbot/.worktrees/latest"

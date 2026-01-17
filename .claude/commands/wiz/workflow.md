@@ -46,10 +46,10 @@ Use the Read tool to read the release build scripts and understand the hotfix wo
 
 | File | Purpose |
 |------|---------|
-| `scripts/build-release.sh` | Main build script - creates worktrees, applies hotfixes (dev-only) |
+| `scripts/build-release.sh` | Build macOS app from release with hotfixes (dev-only) |
 | `scripts/apply-release-fixes.sh` | Auto-applies `hotfix/*` branches (dev-only) |
 | `scripts/release-fixes-status.sh` | Shows hotfix status vs any target (dev-only) |
-| `scripts/deploy-release.sh` | Deploys build to /Applications (admin, dev-only) |
+| `scripts/deploy-release.sh` | Deploy macOS app to /Applications (requires sudo, admin-only) |
 
 **Key Concepts:**
 - **Hotfix Convention:** Branches named `hotfix/*` auto-apply during builds

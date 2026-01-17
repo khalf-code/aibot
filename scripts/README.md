@@ -9,10 +9,11 @@ These scripts exist **only in this fork** and will never conflict with upstream:
 | Script | Purpose |
 |--------|---------|
 | `apply-release-fixes.sh` | Apply hotfix/* branches to release builds |
-| `build-release.sh` | Build releases with hotfixes in .worktrees/ |
+| `build-release.sh` | Build macOS companion app from releases with hotfixes |
 | `clawdbot-status.sh` | Monitor multiple Clawdbot instances |
-| `deploy-release.sh` | Deploy built releases to /Applications |
+| `deploy-release.sh` | Deploy built macOS app to /Applications (requires sudo) |
 | `e2e-with-gateway.sh` | Run E2E tests with test gateway |
+| `rebase-hotfixes.sh` | Rebase hotfix/* branches onto target releases |
 | `release-fixes-status.sh` | Show hotfix branch status |
 | `sync-upstream.sh` | Automated upstream sync (runs via cron) |
 

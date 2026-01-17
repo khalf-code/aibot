@@ -104,6 +104,7 @@ FORK_SCRIPTS=(
     "clawdbot-status.sh"
     "deploy-release.sh"
     "e2e-with-gateway.sh"
+    "rebase-hotfixes.sh"
     "release-fixes-status.sh"
     "sync-upstream.sh"
 )

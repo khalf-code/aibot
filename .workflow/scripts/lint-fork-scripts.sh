@@ -13,6 +13,7 @@ FORK_SCRIPTS=(
   "scripts/clawdbot-status.sh"
   "scripts/deploy-release.sh"
   "scripts/e2e-with-gateway.sh"
+  "scripts/rebase-hotfixes.sh"
   "scripts/release-fixes-status.sh"
   "scripts/sync-upstream.sh"
 )

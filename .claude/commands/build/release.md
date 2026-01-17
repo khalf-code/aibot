@@ -1,5 +1,5 @@
 ---
-description: Build latest upstream release with hotfixes applied
+description: Build macOS companion app from upstream release with hotfixes applied
 argument-hint: [version] [-y|--yes]
 allowed-tools: Bash(git:*), Bash(./scripts/*:*), Read, AskUserQuestion
 hooks:
@@ -14,7 +14,9 @@ hooks:
 
 # Build Release
 
-Build the latest upstream release with hotfixes applied.
+Build the macOS companion app (Clawdbot.app) from an upstream release with hotfixes applied.
+
+**Note:** This builds the macOS app only - it does NOT build the CLI or other platforms.
 
 ## Arguments
 

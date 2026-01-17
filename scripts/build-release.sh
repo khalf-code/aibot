@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build script for petter account
-# Usage: ./scripts/build-release.sh v2026.1.6
+# Build macOS companion app for a specific release version with hotfixes applied
+#
+# This script:
+#   1. Creates a fresh worktree at .worktrees/latest from the specified release tag
+#   2. Applies all hotfix/* branches that aren't already in the release
+#   3. Builds the macOS companion app (Clawdbot.app) only - does NOT build CLI
+#   4. Outputs to .worktrees/latest/dist/Clawdbot.app
+#
+# Note: This is destructive - removes existing .worktrees/latest on each run
+#
+# Usage: ./scripts/build-release.sh <version>
+# Example: ./scripts/build-release.sh v2026.1.15
 
 VERSION="${1:-}"
 if [[ -z "$VERSION" ]]; then
