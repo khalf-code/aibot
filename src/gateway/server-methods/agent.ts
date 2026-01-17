@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import {
+  isEmbeddedPiRunActive,
+  waitForEmbeddedPiRunEnd,
+} from "../../agents/pi-embedded.js";
 import { DEFAULT_CHAT_CHANNEL } from "../../channels/registry.js";
 import { agentCommand } from "../../commands/agent.js";
 import { loadConfig } from "../../config/config.js";
@@ -60,6 +64,7 @@ export const agentHandlers: GatewayRequestHandlers = {
         content?: unknown;
       }>;
       channel?: string;
+      accountId?: string;
       lane?: string;
       extraSystemPrompt?: string;
       idempotencyKey: string;
@@ -230,12 +235,18 @@ export const agentHandlers: GatewayRequestHandlers = {
     let resolvedTo =
       explicitTo ||
       (isDeliverableMessageChannel(resolvedChannel) ? lastTo || undefined : undefined);
+    // Resolve accountId: prefer explicit request.accountId, fallback to session's lastAccountId
+    const resolvedAccountId =
+      (typeof request.accountId === "string" && request.accountId.trim()
+        ? request.accountId.trim()
+        : undefined) ?? sessionEntry?.lastAccountId;
+
     if (!resolvedTo && isDeliverableMessageChannel(resolvedChannel)) {
       const cfg = cfgForAgent ?? loadConfig();
       const fallback = resolveOutboundTarget({
         channel: resolvedChannel,
         cfg,
-        accountId: sessionEntry?.lastAccountId ?? undefined,
+        accountId: resolvedAccountId,
         mode: "implicit",
       });
       if (fallback.ok) {
@@ -258,27 +269,45 @@ export const agentHandlers: GatewayRequestHandlers = {
     });
     respond(true, accepted, undefined, { runId });
 
-    void agentCommand(
-      {
-        message,
-        images,
-        to: resolvedTo,
-        sessionId: resolvedSessionId,
-        sessionKey: requestedSessionKey,
-        thinking: request.thinking,
-        deliver,
-        deliveryTargetMode,
-        channel: resolvedChannel,
-        timeout: request.timeout?.toString(),
-        bestEffortDeliver,
-        messageChannel: resolvedChannel,
-        runId,
-        lane: request.lane,
-        extraSystemPrompt: request.extraSystemPrompt,
-      },
-      defaultRuntime,
-      context.deps,
-    )
+    // When delivery is requested and the session is currently active (another run in progress),
+    // wait for it to become idle first. This ensures the message is processed synchronously
+    // and delivery actually happens, rather than being queued (which loses delivery context).
+    // See: https://github.com/clawdbot/clawdbot/issues/1058
+    void (async () => {
+      if (deliver && resolvedSessionId && isEmbeddedPiRunActive(resolvedSessionId)) {
+        const didEnd = await waitForEmbeddedPiRunEnd(resolvedSessionId, 60_000);
+        if (!didEnd) {
+          // Session is still active after 60s - proceed anyway but log the issue.
+          // The message may get queued and delivery may fail, but we don't want to
+          // block indefinitely or drop the message entirely.
+          defaultRuntime.error?.(
+            `[agent] session ${resolvedSessionId} still active after 60s wait; proceeding anyway`,
+          );
+        }
+      }
+      return agentCommand(
+        {
+          message,
+          images,
+          to: resolvedTo,
+          sessionId: resolvedSessionId,
+          sessionKey: requestedSessionKey,
+          thinking: request.thinking,
+          deliver,
+          deliveryTargetMode,
+          channel: resolvedChannel,
+          accountId: resolvedAccountId,
+          timeout: request.timeout?.toString(),
+          bestEffortDeliver,
+          messageChannel: resolvedChannel,
+          runId,
+          lane: request.lane,
+          extraSystemPrompt: request.extraSystemPrompt,
+        },
+        defaultRuntime,
+        context.deps,
+      );
+    })()
       .then((result) => {
         const payload = {
           runId,

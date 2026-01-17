@@ -6,6 +6,9 @@ import { createOutboundSendDeps } from "../../cli/deps.js";
 import type { ClawdbotConfig } from "../../config/config.js";
 import type { SessionEntry } from "../../config/sessions.js";
 import { deliverOutboundPayloads } from "../../infra/outbound/deliver.js";
+import { createSubsystemLogger } from "../../logging.js";
+
+const log = createSubsystemLogger("agent/delivery");
 import { buildOutboundResultEnvelope } from "../../infra/outbound/envelope.js";
 import {
   formatOutboundPayloadLog,
@@ -38,6 +41,17 @@ export async function deliverAgentCommandResult(params: {
   const deliver = opts.deliver === true;
   const bestEffortDeliver = opts.bestEffortDeliver === true;
   const deliveryChannel = resolveGatewayMessageChannel(opts.channel) ?? DEFAULT_CHAT_CHANNEL;
+
+  log.debug(`deliverAgentCommandResult called`, {
+    deliver,
+    optsChannel: opts.channel,
+    deliveryChannel,
+    optsTo: opts.to,
+    sessionLastTo: sessionEntry?.lastTo,
+    sessionLastChannel: sessionEntry?.lastChannel,
+    sessionLastAccountId: sessionEntry?.lastAccountId,
+    payloadCount: payloads?.length ?? 0,
+  });
   // Channel docking: delivery channels are resolved via plugin registry.
   const deliveryPlugin = !isInternalMessageChannel(deliveryChannel)
     ? getChannelPlugin(normalizeChannelId(deliveryChannel) ?? deliveryChannel)
@@ -48,17 +62,27 @@ export async function deliverAgentCommandResult(params: {
 
   const targetMode: ChannelOutboundTargetMode =
     opts.deliveryTargetMode ?? (opts.to ? "explicit" : "implicit");
+  // Resolve accountId: prefer explicit opts.accountId, fallback to session's lastAccountId (for implicit mode)
+  const resolvedAccountId =
+    opts.accountId ?? (targetMode === "implicit" ? sessionEntry?.lastAccountId : undefined);
   const resolvedTarget =
     deliver && isDeliveryChannelKnown && deliveryChannel
       ? resolveOutboundTarget({
           channel: deliveryChannel,
           to: opts.to,
           cfg,
-          accountId: targetMode === "implicit" ? sessionEntry?.lastAccountId : undefined,
+          accountId: resolvedAccountId,
           mode: targetMode,
         })
       : null;
   const deliveryTarget = resolvedTarget?.ok ? resolvedTarget.to : undefined;
+
+  log.debug(`target resolution result`, {
+    isDeliveryChannelKnown,
+    resolvedTargetOk: resolvedTarget?.ok,
+    deliveryTarget,
+    resolvedTargetError: resolvedTarget && !resolvedTarget.ok ? String((resolvedTarget as { error: Error }).error) : undefined,
+  });
 
   const logDeliveryError = (err: unknown) => {
     const message = `Delivery failed (${deliveryChannel}${deliveryTarget ? ` to ${deliveryTarget}` : ""}): ${String(err)}`;
@@ -107,17 +131,35 @@ export async function deliverAgentCommandResult(params: {
     for (const payload of deliveryPayloads) logPayload(payload);
   }
   if (deliver && deliveryChannel && !isInternalMessageChannel(deliveryChannel)) {
+    log.debug(`attempting delivery`, { deliveryChannel, deliveryTarget, isInternal: isInternalMessageChannel(deliveryChannel) });
     if (deliveryTarget) {
+      log.info(`delivering to ${deliveryChannel}:${deliveryTarget}`, { payloadCount: deliveryPayloads.length, accountId: resolvedAccountId });
       await deliverOutboundPayloads({
         cfg,
         channel: deliveryChannel,
         to: deliveryTarget,
+        accountId: resolvedAccountId,
         payloads: deliveryPayloads,
         bestEffort: bestEffortDeliver,
         onError: (err) => logDeliveryError(err),
         onPayload: logPayload,
         deps: createOutboundSendDeps(deps),
       });
+      log.info(`delivery completed to ${deliveryChannel}:${deliveryTarget}`);
+    } else {
+      // Delivery was requested but no target could be resolved
+      log.warn(`delivery requested but no target resolved`, {
+        deliveryChannel,
+        optsTo: opts.to,
+        sessionLastTo: sessionEntry?.lastTo,
+        resolvedTargetOk: resolvedTarget?.ok,
+        resolvedTargetError: resolvedTarget && !resolvedTarget.ok ? String((resolvedTarget as { error: Error }).error) : undefined,
+      });
+      runtime.log(
+        `[WARN] delivery requested to ${deliveryChannel} but no target resolved ` +
+          `(to=${opts.to ?? "none"}, lastTo=${sessionEntry?.lastTo ?? "none"}, ` +
+          `resolvedTarget=${resolvedTarget ? (resolvedTarget.ok ? "ok" : `error: ${(resolvedTarget as { error: Error }).error?.message}`) : "null"})`
+      );
     }
   }
 

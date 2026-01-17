@@ -187,6 +187,7 @@ export async function runSubagentAnnounceFlow(params: {
   childRunId: string;
   requesterSessionKey: string;
   requesterChannel?: string;
+  requesterAccountId?: string;
   requesterDisplayKey: string;
   task: string;
   timeoutMs: number;
@@ -285,6 +286,8 @@ export async function runSubagentAnnounceFlow(params: {
         sessionKey: params.requesterSessionKey,
         message: triggerMessage,
         deliver: true,
+        channel: params.requesterChannel,
+        accountId: params.requesterAccountId,
         idempotencyKey: crypto.randomUUID(),
       },
       timeoutMs: 60_000,

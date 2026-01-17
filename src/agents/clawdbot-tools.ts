@@ -107,6 +107,7 @@ export function createClawdbotTools(options?: {
     createSessionsSpawnTool({
       agentSessionKey: options?.agentSessionKey,
       agentChannel: options?.agentChannel,
+      agentAccountId: options?.agentAccountId,
       sandboxed: options?.sandboxed,
     }),
     createSessionStatusTool({
