@@ -63,6 +63,51 @@ describe("detect-secrets vectors (adapted)", () => {
     expect(detect(pem).blocked).toBe(true);
   });
 
+  it("detects remaining format patterns", () => {
+    const bearer = ["Authorization: Bearer ", "abcdef1234567890ghij"].join("");
+    const inlineBearer = ["Bearer ", "abcdef1234567890ghij"].join("");
+    const openai = ["s", "k-", "12345678", "90abcdef"].join("");
+    const githubPat = ["github", "_pat_", "abcdef0123456789abcdef"].join("");
+    const slackApp = ["xapp", "-", "1234567890", "-abcdef"].join("");
+    const googleAi = ["gsk", "_", "abcdef0123456789"].join("");
+    const googleApi = ["AI", "za", "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"].join("");
+    const perplexity = ["pplx", "-", "abcdef0123456789"].join("");
+    const npmToken = ["npm", "_", "abcdef0123456789"].join("");
+    const awsAccess = ["AKIA", "ABCDEFGHIJKLMNOP"].join("");
+    const jwt = [
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+      ".",
+      "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ",
+      ".",
+      "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+    ].join("");
+    const results = [
+      bearer,
+      inlineBearer,
+      openai,
+      githubPat,
+      slackApp,
+      googleAi,
+      googleApi,
+      perplexity,
+      npmToken,
+      awsAccess,
+      jwt,
+    ];
+    for (const sample of results) {
+      expect(detect(sample).blocked).toBe(true);
+    }
+  });
+
+  it("detects env/json/cli heuristics", () => {
+    const env = ["OPENAI_API_KEY=", "s", "k-", "1234567890abcdef"].join("");
+    const json = ['{"token":"', "abcdef1234567890ghij", '"}'].join("");
+    const cli = ["curl --token ", "abcdef1234567890ghij", " https://api.test"].join("");
+    expect(detect(env).blocked).toBe(true);
+    expect(detect(json).blocked).toBe(true);
+    expect(detect(cli).blocked).toBe(true);
+  });
+
   it("detects keyword-style assignments and comparisons", () => {
     const withSpaces = 'password = "value with quotes and spaces"';
     const goAssign = 'password := "mysecretvalue"';
