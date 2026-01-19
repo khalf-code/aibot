@@ -147,12 +147,8 @@ function resolveMaxChars(value: unknown, fallback: number): number {
 function looksLikeHtml(value: string): boolean {
   const trimmed = value.trimStart();
   if (!trimmed) return false;
-  return (
-    trimmed.startsWith("<!doctype html") ||
-    trimmed.startsWith("<html") ||
-    trimmed.startsWith("<!DOCTYPE html") ||
-    trimmed.startsWith("<HTML")
-  );
+  const head = trimmed.slice(0, 256).toLowerCase();
+  return head.startsWith("<!doctype html") || head.startsWith("<html");
 }
 
 function formatWebFetchErrorDetail(params: {
@@ -163,7 +159,8 @@ function formatWebFetchErrorDetail(params: {
   const { detail, contentType, maxChars } = params;
   if (!detail) return "";
   let text = detail;
-  if (contentType?.includes("text/html") || looksLikeHtml(detail)) {
+  const contentTypeLower = contentType?.toLowerCase();
+  if (contentTypeLower?.includes("text/html") || looksLikeHtml(detail)) {
     const rendered = htmlToMarkdown(detail);
     const withTitle = rendered.title ? `${rendered.title}\n${rendered.text}` : rendered.text;
     text = markdownToText(withTitle);
@@ -171,7 +168,6 @@ function formatWebFetchErrorDetail(params: {
   const truncated = truncateText(text.trim(), maxChars);
   return truncated.text;
 }
-
 export async function fetchFirecrawlContent(params: {
   url: string;
   extractMode: ExtractMode;
