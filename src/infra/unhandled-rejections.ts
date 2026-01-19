@@ -26,7 +26,6 @@ export function isUnhandledRejectionHandled(reason: unknown): boolean {
 }
 
 export function installUnhandledRejectionHandler(): void {
-  // @ts-expect-error - process.on type mismatch with @types/node
   process.on("unhandledRejection", (reason: unknown, _promise: unknown) => {
     if (isUnhandledRejectionHandled(reason)) return;
     console.error(

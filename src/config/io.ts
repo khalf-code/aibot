@@ -376,7 +376,6 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
 
       const resolvedConfigRaw = substituted;
       const legacyIssues = findLegacyConfigIssues(resolvedConfigRaw);
->>>>>>> upstream/main
 
       const validated = validateConfigObject(resolvedConfigRaw);
       if (!validated.ok) {
