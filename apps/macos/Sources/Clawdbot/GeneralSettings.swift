@@ -352,7 +352,7 @@ struct GeneralSettings: View {
                 Button {
                     Task { await self.installCLI() }
                 } label: {
-                    let title = self.cliInstalled ? "Reinstall CLI helper" : "Install CLI helper"
+                    let title = self.cliInstalled ? "Reinstall CLI" : "Install CLI"
                     ZStack {
                         Text(title)
                             .opacity(self.isInstallingCLI ? 0 : 1)
@@ -391,7 +391,7 @@ struct GeneralSettings: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             } else {
-                Text("Symlink \"clawdbot\" into /usr/local/bin and /opt/homebrew/bin for scripts.")
+                Text("Installs a user-space Node 22+ runtime and the CLI (no Homebrew).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -459,10 +459,8 @@ struct GeneralSettings: View {
         self.isInstallingCLI = true
         defer { isInstallingCLI = false }
         await CLIInstaller.install { status in
-            await MainActor.run {
-                self.cliStatus = status
-                self.refreshCLIStatus()
-            }
+            self.cliStatus = status
+            self.refreshCLIStatus()
         }
     }
 
@@ -501,9 +499,6 @@ struct GeneralSettings: View {
             }
 
             if let snap = snapshot {
-<<<<<<< HEAD
-                Text("Linked auth age: \(healthAgeString(snap.web.authAgeMs))")
-=======
                 let linkId = snap.channelOrder?.first(where: {
                     if let summary = snap.channels[$0] { return summary.linked != nil }
                     return false
@@ -517,7 +512,6 @@ struct GeneralSettings: View {
                     "Link channel"
                 let linkAge = linkId.flatMap { snap.channels[$0]?.authAgeMs }
                 Text("\(linkLabel) auth age: \(healthAgeString(linkAge))")
->>>>>>> upstream/main
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("Session store: \(snap.sessions.path) (\(snap.sessions.count) entries)")

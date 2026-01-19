@@ -108,16 +108,10 @@ extension CronJobEditor {
                 code: 0,
                 userInfo: [NSLocalizedDescriptionKey: "Name is required."])
         }
-<<<<<<< HEAD
-        let description = self.description.trimmingCharacters(in: .whitespacesAndNewlines)
-        let agentId = self.agentId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let schedule: [String: Any]
-=======
         return name
     }
 
     func buildSchedule() throws -> [String: Any] {
->>>>>>> upstream/main
         switch self.scheduleKind {
         case .at:
             return ["kind": "at", "atMs": Int(self.atDate.timeIntervalSince1970 * 1000)]
@@ -194,22 +188,6 @@ extension CronJobEditor {
         }
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-        var root: [String: Any] = [
-            "name": name,
-            "enabled": self.enabled,
-            "schedule": schedule,
-            "sessionTarget": self.sessionTarget.rawValue,
-            "wakeMode": self.wakeMode.rawValue,
-            "payload": payload,
-        ]
-=======
-    func applyDeleteAfterRun(to root: inout [String: Any]) {
->>>>>>> upstream/main
-        if self.scheduleKind == .at {
-            root["deleteAfterRun"] = self.deleteAfterRun
-=======
     func applyDeleteAfterRun(
         to root: inout [String: Any],
         scheduleKind: ScheduleKind? = nil,
@@ -219,25 +197,8 @@ extension CronJobEditor {
         let resolvedDelete = deleteAfterRun ?? self.deleteAfterRun
         if resolvedSchedule == .at {
             root["deleteAfterRun"] = resolvedDelete
->>>>>>> upstream/main
         } else if self.job?.deleteAfterRun != nil {
             root["deleteAfterRun"] = false
-<<<<<<< HEAD
-        }
-        if !description.isEmpty { root["description"] = description }
-        if !agentId.isEmpty {
-            root["agentId"] = agentId
-        } else if self.job?.agentId != nil {
-            root["agentId"] = NSNull()
-        }
-
-        if self.sessionTarget == .isolated {
-            let trimmed = self.postPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
-            root["isolation"] = [
-                "postToMainPrefix": trimmed.isEmpty ? "Cron" : trimmed,
-            ]
-=======
->>>>>>> upstream/main
         }
     }
 

@@ -26,15 +26,6 @@ struct SettingsTab: View {
     @AppStorage("location.enabledMode") private var locationEnabledModeRaw: String = ClawdbotLocationMode.off.rawValue
     @AppStorage("location.preciseEnabled") private var locationPreciseEnabled: Bool = true
     @AppStorage("screen.preventSleep") private var preventSleep: Bool = true
-<<<<<<< HEAD
-    @AppStorage("bridge.preferredStableID") private var preferredBridgeStableID: String = ""
-    @AppStorage("bridge.lastDiscoveredStableID") private var lastDiscoveredBridgeStableID: String = ""
-    @AppStorage("bridge.manual.enabled") private var manualBridgeEnabled: Bool = false
-    @AppStorage("bridge.manual.host") private var manualBridgeHost: String = ""
-    @AppStorage("bridge.manual.port") private var manualBridgePort: Int = 18790
-    @AppStorage("bridge.manual.token") private var manualBridgeToken: String = ""
-    @AppStorage("bridge.discovery.debugLogs") private var discoveryDebugLogsEnabled: Bool = false
-=======
     @AppStorage("gateway.preferredStableID") private var preferredGatewayStableID: String = ""
     @AppStorage("gateway.lastDiscoveredStableID") private var lastDiscoveredGatewayStableID: String = ""
     @AppStorage("gateway.manual.enabled") private var manualGatewayEnabled: Bool = false
@@ -42,7 +33,6 @@ struct SettingsTab: View {
     @AppStorage("gateway.manual.port") private var manualGatewayPort: Int = 18789
     @AppStorage("gateway.manual.tls") private var manualGatewayTLS: Bool = true
     @AppStorage("gateway.discovery.debugLogs") private var discoveryDebugLogsEnabled: Bool = false
->>>>>>> upstream/main
     @AppStorage("canvas.debugStatusEnabled") private var canvasDebugStatusEnabled: Bool = false
     @State private var connectStatus = ConnectStatusStore()
     @State private var connectingGatewayID: String?
@@ -133,13 +123,7 @@ struct SettingsTab: View {
                         TextField("Port", value: self.$manualGatewayPort, format: .number)
                             .keyboardType(.numberPad)
 
-<<<<<<< HEAD
-                        SecureField("Token", text: self.$manualBridgeToken)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-=======
                         Toggle("Use TLS", isOn: self.$manualGatewayTLS)
->>>>>>> upstream/main
 
                         Button {
                             Task { await self.connectManual() }
@@ -408,119 +392,10 @@ struct SettingsTab: View {
         self.manualGatewayEnabled = true
         defer { self.connectingGatewayID = nil }
 
-<<<<<<< HEAD
-        let endpoint: NWEndpoint = .hostPort(host: NWEndpoint.Host(host), port: port)
-        let stableID = BridgeEndpointID.stableID(endpoint)
-        let tlsParams = self.resolveManualTLSParams(stableID: stableID)
-
-        do {
-            let statusStore = self.connectStatus
-            // Use manual token if provided, otherwise try keychain
-            let manualToken = self.manualBridgeToken.trimmingCharacters(in: .whitespacesAndNewlines)
-            let existingToken: String?
-            if !manualToken.isEmpty {
-                existingToken = manualToken
-            } else {
-                let existing = KeychainStore.loadString(
-                    service: "com.clawdbot.bridge",
-                    account: self.keychainAccount())
-                existingToken = (existing?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ?
-                    existing :
-                    nil
-            }
-
-            let hello = BridgeHello(
-                nodeId: self.instanceId,
-                displayName: self.displayName,
-                token: existingToken,
-                platform: self.platformString(),
-                version: self.appVersion(),
-                deviceFamily: self.deviceFamily(),
-                modelIdentifier: self.modelIdentifier(),
-                caps: self.currentCaps(),
-                commands: self.currentCommands())
-            let token = try await BridgeClient().pairAndHello(
-                endpoint: endpoint,
-                hello: hello,
-                tls: tlsParams,
-                onStatus: { status in
-                    Task { @MainActor in
-                        statusStore.text = status
-                    }
-                })
-
-            if !token.isEmpty, token != existingToken {
-                _ = KeychainStore.saveString(
-                    token,
-                    service: "com.clawdbot.bridge",
-                    account: self.keychainAccount())
-            }
-
-            self.appModel.connectToBridge(
-                endpoint: endpoint,
-                bridgeStableID: stableID,
-                tls: tlsParams,
-                hello: BridgeHello(
-                    nodeId: self.instanceId,
-                    displayName: self.displayName,
-                    token: token,
-                    platform: self.platformString(),
-                    version: self.appVersion(),
-                    deviceFamily: self.deviceFamily(),
-                    modelIdentifier: self.modelIdentifier(),
-                    caps: self.currentCaps(),
-                    commands: self.currentCommands()))
-
-        } catch {
-            self.connectStatus.text = "Failed: \(error.localizedDescription)"
-        }
-    }
-
-    private func resolveDiscoveredTLSParams(
-        bridge: BridgeDiscoveryModel.DiscoveredBridge) -> BridgeTLSParams?
-    {
-        let stableID = bridge.stableID
-        let stored = BridgeTLSStore.loadFingerprint(stableID: stableID)
-
-        if bridge.tlsEnabled || bridge.tlsFingerprintSha256 != nil {
-            return BridgeTLSParams(
-                required: true,
-                expectedFingerprint: bridge.tlsFingerprintSha256 ?? stored,
-                allowTOFU: stored == nil,
-                storeKey: stableID)
-        }
-
-        if let stored {
-            return BridgeTLSParams(
-                required: true,
-                expectedFingerprint: stored,
-                allowTOFU: false,
-                storeKey: stableID)
-        }
-
-        return nil
-    }
-
-    private func resolveManualTLSParams(stableID: String) -> BridgeTLSParams? {
-        if let stored = BridgeTLSStore.loadFingerprint(stableID: stableID) {
-            return BridgeTLSParams(
-                required: true,
-                expectedFingerprint: stored,
-                allowTOFU: false,
-                storeKey: stableID)
-        }
-
-        return BridgeTLSParams(
-            required: false,
-            expectedFingerprint: nil,
-            allowTOFU: true,
-            storeKey: stableID)
-=======
         await self.gatewayController.connectManual(
             host: host,
             port: self.manualGatewayPort,
             useTLS: self.manualGatewayTLS)
->>>>>>> upstream/main
     }
 
     private static func primaryIPv4Address() -> String? {

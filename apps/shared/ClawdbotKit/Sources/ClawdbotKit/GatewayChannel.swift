@@ -244,9 +244,6 @@ public actor GatewayChannelActor {
     private func sendConnect() async throws {
         let platform = InstanceIdentity.platformString
         let primaryLocale = Locale.preferredLanguages.first ?? Locale.current.identifier
-<<<<<<< HEAD:apps/macos/Sources/Clawdbot/GatewayChannel.swift
-        let clientName = InstanceIdentity.displayName
-=======
         let options = self.connectOptions ?? GatewayConnectOptions(
             role: "operator",
             scopes: ["operator.admin", "operator.approvals", "operator.pairing"],
@@ -259,19 +256,15 @@ public actor GatewayChannelActor {
         let clientDisplayName = options.clientDisplayName ?? InstanceIdentity.displayName
         let clientId = options.clientId
         let clientMode = options.clientMode
->>>>>>> upstream/main:apps/shared/ClawdbotKit/Sources/ClawdbotKit/GatewayChannel.swift
 
         let reqId = UUID().uuidString
         var client: [String: ProtoAnyCodable] = [
-            "name": ProtoAnyCodable(clientName),
+            "id": ProtoAnyCodable(clientId),
+            "displayName": ProtoAnyCodable(clientDisplayName),
             "version": ProtoAnyCodable(
                 Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"),
             "platform": ProtoAnyCodable(platform),
-<<<<<<< HEAD:apps/macos/Sources/Clawdbot/GatewayChannel.swift
-            "mode": ProtoAnyCodable("app"),
-=======
             "mode": ProtoAnyCodable(clientMode),
->>>>>>> upstream/main:apps/shared/ClawdbotKit/Sources/ClawdbotKit/GatewayChannel.swift
             "instanceId": ProtoAnyCodable(InstanceIdentity.instanceId),
         ]
         client["deviceFamily"] = ProtoAnyCodable(InstanceIdentity.deviceFamily)
