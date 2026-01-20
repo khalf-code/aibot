@@ -48,6 +48,7 @@ class PPLGiftAPI:
     
     def __init__(self, api_url: str, api_token: str):
         self.api_url = api_url.rstrip('/')
+        self.api_token = api_token
         self.headers = {
             'Authorization': f'Bearer {api_token}',
             'Content-Type': 'application/json'
@@ -64,6 +65,28 @@ class PPLGiftAPI:
             return resp.json() if resp.text else {}
         except requests.RequestException as e:
             raise Exception(f"Request failed: {str(e)}")
+    
+    def _upload_file(self, endpoint: str, file_path: str, extra_data: dict = None) -> dict:
+        """Upload a file via multipart/form-data"""
+        url = f'{self.api_url}/{endpoint}'
+        headers = {'Authorization': f'Bearer {self.api_token}'}  # No Content-Type for multipart
+        
+        try:
+            import mimetypes
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if mime_type is None:
+                mime_type = 'application/octet-stream'
+            
+            with open(file_path, 'rb') as f:
+                files = {'document': (os.path.basename(file_path), f, mime_type)}
+                resp = requests.post(url, headers=headers, files=files, data=extra_data or {}, timeout=120)
+            
+            if resp.status_code >= 400:
+                error_msg = f"Upload error {resp.status_code}: {resp.text}"
+                raise Exception(error_msg)
+            return resp.json() if resp.text else {}
+        except requests.RequestException as e:
+            raise Exception(f"Upload failed: {str(e)}")
     
     # Contact Management
     def search_contacts(self, query: str = None, email: str = None) -> List[Dict]:
@@ -389,19 +412,28 @@ class PPLGiftAPI:
         return resp.get('data', [])
     
     # Documents
-    def upload_document(self, contact_id: str, file_url: str, 
-                      filename: str, description: str = "", 
-                      document_type: str = "contract") -> Dict:
-        """Upload document for contact"""
-        data = {
-            'contact_id': contact_id,
-            'original_filename': filename,
-            'url': file_url,
-            'description': description,
-            'type': document_type
-        }
-        resp = self._request('POST', 'documents', data)
-        return resp.get('data', {})
+    def upload_document(self, contact_id: str, file_path: str = None, 
+                      file_url: str = None, filename: str = None,
+                      description: str = "", document_type: str = "document") -> Dict:
+        """Upload document for contact - supports local file or URL"""
+        if file_path and os.path.exists(file_path):
+            # Direct file upload via multipart/form-data
+            extra_data = {'contact_id': contact_id}
+            resp = self._upload_file('documents', file_path, extra_data)
+            return resp.get('data', {})
+        elif file_url:
+            # URL-based upload (legacy)
+            data = {
+                'contact_id': contact_id,
+                'original_filename': filename or os.path.basename(file_url),
+                'url': file_url,
+                'description': description,
+                'type': document_type
+            }
+            resp = self._request('POST', 'documents', data)
+            return resp.get('data', {})
+        else:
+            raise ValueError("Either file_path (local file) or file_url must be provided")
     
     # Locations
     def add_location(self, contact_id: str, address: str, 
@@ -666,18 +698,32 @@ class PPLGiftCLI:
     def upload_document(self, args):
         """Upload document for contact"""
         contact_id = args.contact_id
-        file_url = args.file_url
-        filename = args.filename
+        file_path = getattr(args, 'file', None)
+        file_url = getattr(args, 'file_url', None)
+        filename = getattr(args, 'filename', None)
         description = args.description or ""
         document_type = args.type
         
         print(f"Uploading document for contact {contact_id}")
-        print(f"File: {filename}")
+        if file_path:
+            print(f"File: {file_path}")
+        elif file_url:
+            print(f"URL: {file_url}")
         print(f"Type: {document_type}")
         
-        document = self.api.upload_document(contact_id, file_url, filename, description, document_type)
+        document = self.api.upload_document(
+            contact_id, 
+            file_path=file_path, 
+            file_url=file_url, 
+            filename=filename,
+            description=description, 
+            document_type=document_type
+        )
         document_id = document.get('id')
+        doc_link = document.get('link', '')
         print(f"✅ Uploaded document with ID: {document_id}")
+        if doc_link:
+            print(f"📎 Link: {doc_link}")
     
     def add_location(self, args):
         """Add location for contact"""
@@ -949,10 +995,11 @@ Examples:
     # Upload document command
     document_parser = subparsers.add_parser('upload-document', help='Upload document for contact')
     document_parser.add_argument('contact_id', help='Contact ID')
-    document_parser.add_argument('--file-url', required=True, help='Document file URL')
-    document_parser.add_argument('--filename', required=True, help='Document filename')
+    document_parser.add_argument('--file', help='Local file path to upload')
+    document_parser.add_argument('--file-url', help='Document file URL (alternative to --file)')
+    document_parser.add_argument('--filename', help='Document filename (optional, derived from file)')
     document_parser.add_argument('--description', help='Document description')
-    document_parser.add_argument('--type', default='contract', help='Document type (contract, invoice, etc.)')
+    document_parser.add_argument('--type', default='document', help='Document type (document, contract, invoice, etc.)')
     
     # Add location command
     location_parser = subparsers.add_parser('add-location', help='Add location for contact')

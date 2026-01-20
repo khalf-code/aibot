@@ -138,7 +138,12 @@ uv run {baseDir}/scripts/ppl.py upload-photo "john-marquis-123" \
 ### Documents & Files
 
 ```bash
-# Upload document
+# Upload local file (preferred)
+uv run {baseDir}/scripts/ppl.py upload-document "john-marquis-123" \
+  --file "/path/to/certification.pdf" \
+  --description "ISA Certification document"
+
+# Upload from URL (alternative)
 uv run {baseDir}/scripts/ppl.py upload-document "john-marquis-123" \
   --file-url "https://example.com/certification.pdf" \
   --filename "ISA_Certification_7104A.pdf" \
@@ -388,7 +393,7 @@ uv run {baseDir}/scripts/ppl.py add-reminder "john-marquis-123" \
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `upload-document` | Upload document | `upload-document "john-doe-123" --file-url "https://..." --filename "contract.pdf"` |
+| `upload-document` | Upload document | `upload-document "123" --file "/path/to/doc.pdf"` or `--file-url "https://..."` |
 
 ### Tags & Classification
 
