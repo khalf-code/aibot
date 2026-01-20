@@ -12,9 +12,22 @@ CLAWDBOT="/Users/steve/Library/pnpm/clawdbot"
 # Run the actual script
 OUTPUT=$("$SCRIPT" 2>&1) || true
 
+# Parse output for MEDIA line
+MEDIA_PATH=""
+TEXT_OUTPUT=""
+while IFS= read -r line; do
+    if [[ "$line" == MEDIA:* ]]; then
+        MEDIA_PATH="${line#MEDIA:}"
+    else
+        TEXT_OUTPUT+="$line"$'\n'
+    fi
+done <<< "$OUTPUT"
+
 # Send directly via message send
-if [ -n "$OUTPUT" ]; then
-    "$CLAWDBOT" message send --channel telegram --account steve --target 1191367022 --message "$OUTPUT" 2>&1
-else
-    "$CLAWDBOT" message send --channel telegram --account steve --target 1191367022 --message "⚠️ daily-recap produced no output" 2>&1
+if [ -n "$TEXT_OUTPUT" ]; then
+    if [ -n "$MEDIA_PATH" ] && [ -f "$MEDIA_PATH" ]; then
+        "$CLAWDBOT" message send --channel telegram --account steve --target 1191367022 --message "$TEXT_OUTPUT" --media "$MEDIA_PATH" 2>&1
+    else
+        "$CLAWDBOT" message send --channel telegram --account steve --target 1191367022 --message "$TEXT_OUTPUT" 2>&1
+    fi
 fi
