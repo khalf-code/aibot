@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { enqueueSystemEvent, formatAgentEnvelope, type ClawdbotConfig } from "clawdbot/plugin-sdk";
+import type { ClawdbotConfig } from "clawdbot/plugin-sdk";
 import { markBlueBubblesChatRead, sendBlueBubblesTyping } from "./chat.js";
 import { resolveChatGuidForTarget, sendMessageBlueBubbles } from "./send.js";
 import { downloadBlueBubblesAttachment } from "./attachments.js";
@@ -836,10 +836,20 @@ async function processMessage(
   const fromLabel = message.isGroup
     ? `group:${peerId}`
     : message.senderName || `user:${message.senderId}`;
-  const body = formatAgentEnvelope({
+  const storePath = core.channel.session.resolveStorePath(config.session?.store, {
+    agentId: route.agentId,
+  });
+  const envelopeOptions = core.channel.reply.resolveEnvelopeFormatOptions(config);
+  const previousTimestamp = core.channel.session.readSessionUpdatedAt({
+    storePath,
+    sessionKey: route.sessionKey,
+  });
+  const body = core.channel.reply.formatAgentEnvelope({
     channel: "BlueBubbles",
     from: fromLabel,
     timestamp: message.timestamp,
+    previousTimestamp,
+    envelope: envelopeOptions,
     body: rawBody,
   });
   let chatGuidForActions = chatGuid;
@@ -1058,7 +1068,7 @@ async function processReaction(
   const senderLabel = reaction.senderName || reaction.senderId;
   const chatLabel = reaction.isGroup ? ` in group:${peerId}` : "";
   const text = `BlueBubbles reaction ${reaction.action}: ${reaction.emoji} by ${senderLabel}${chatLabel} on msg ${reaction.messageId}`;
-  enqueueSystemEvent(text, {
+  core.system.enqueueSystemEvent(text, {
     sessionKey: route.sessionKey,
     contextKey: `bluebubbles:reaction:${reaction.action}:${peerId}:${reaction.messageId}:${reaction.senderId}:${reaction.emoji}`,
   });

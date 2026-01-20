@@ -17,6 +17,19 @@ If the file is missing, Clawdbot uses safe-ish defaults (embedded Pi agent + per
 
 > **New to configuration?** Check out the [Configuration Examples](/gateway/configuration-examples) guide for complete examples with detailed explanations!
 
+## Strict config validation
+
+Clawdbot only accepts configurations that fully match the schema.
+Unknown keys, malformed types, or invalid values cause the Gateway to **refuse to start** for safety.
+
+When validation fails:
+- The Gateway does not boot.
+- Only diagnostic commands are allowed (for example: `clawdbot doctor`, `clawdbot logs`, `clawdbot health`, `clawdbot status`, `clawdbot service`, `clawdbot help`).
+- Run `clawdbot doctor` to see the exact issues.
+- Run `clawdbot doctor --fix` (or `--yes`) to apply migrations/repairs.
+
+Doctor never writes changes unless you explicitly opt into `--fix`/`--yes`.
+
 ## Schema + UI hints
 
 The Gateway exposes a JSON Schema representation of the config via `config.schema` for UI editors.
@@ -1990,6 +2003,9 @@ cross-session isolation. Use `scope: "session"` for per-session isolation.
 Legacy: `perSession` is still supported (`true` → `scope: "session"`,
 `false` → `scope: "shared"`).
 
+`setupCommand` runs **once** after the container is created (inside the container via `sh -lc`).
+For package installs, ensure network egress, a writable root FS, and a root user.
+
 ```json5
 {
   agents: {
@@ -2653,6 +2669,7 @@ Notes:
 - `clawdbot gateway` refuses to start unless `gateway.mode` is set to `local` (or you pass the override flag).
 - `gateway.port` controls the single multiplexed port used for WebSocket + HTTP (control UI, hooks, A2UI).
 - OpenAI Chat Completions endpoint: **disabled by default**; enable with `gateway.http.endpoints.chatCompletions.enabled: true`.
+- OpenResponses endpoint: **disabled by default**; enable with `gateway.http.endpoints.responses.enabled: true`.
 - Precedence: `--port` > `CLAWDBOT_GATEWAY_PORT` > `gateway.port` > default `18789`.
 - Non-loopback binds (`lan`/`tailnet`/`auto`) require auth. Use `gateway.auth.token` (or `CLAWDBOT_GATEWAY_TOKEN`).
 - The onboarding wizard generates a gateway token by default (even on loopback).

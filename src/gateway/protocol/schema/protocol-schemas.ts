@@ -48,6 +48,22 @@ import {
   CronUpdateParamsSchema,
 } from "./cron.js";
 import {
+  ExecApprovalsGetParamsSchema,
+  ExecApprovalsNodeGetParamsSchema,
+  ExecApprovalsNodeSetParamsSchema,
+  ExecApprovalsSetParamsSchema,
+  ExecApprovalsSnapshotSchema,
+  ExecApprovalRequestParamsSchema,
+  ExecApprovalResolveParamsSchema,
+} from "./exec-approvals.js";
+import {
+  DevicePairApproveParamsSchema,
+  DevicePairListParamsSchema,
+  DevicePairRejectParamsSchema,
+  DevicePairRequestedEventSchema,
+  DevicePairResolvedEventSchema,
+} from "./devices.js";
+import {
   ConnectParamsSchema,
   ErrorShapeSchema,
   EventFrameSchema,
@@ -69,7 +85,10 @@ import {
 } from "./logs-chat.js";
 import {
   NodeDescribeParamsSchema,
+  NodeEventParamsSchema,
   NodeInvokeParamsSchema,
+  NodeInvokeResultParamsSchema,
+  NodeInvokeRequestEventSchema,
   NodeListParamsSchema,
   NodePairApproveParamsSchema,
   NodePairListParamsSchema,
@@ -124,6 +143,9 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   NodeListParams: NodeListParamsSchema,
   NodeDescribeParams: NodeDescribeParamsSchema,
   NodeInvokeParams: NodeInvokeParamsSchema,
+  NodeInvokeResultParams: NodeInvokeResultParamsSchema,
+  NodeEventParams: NodeEventParamsSchema,
+  NodeInvokeRequestEvent: NodeInvokeRequestEventSchema,
   SessionsListParams: SessionsListParamsSchema,
   SessionsResolveParams: SessionsResolveParamsSchema,
   SessionsPatchParams: SessionsPatchParamsSchema,
@@ -170,6 +192,18 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   CronRunLogEntry: CronRunLogEntrySchema,
   LogsTailParams: LogsTailParamsSchema,
   LogsTailResult: LogsTailResultSchema,
+  ExecApprovalsGetParams: ExecApprovalsGetParamsSchema,
+  ExecApprovalsSetParams: ExecApprovalsSetParamsSchema,
+  ExecApprovalsNodeGetParams: ExecApprovalsNodeGetParamsSchema,
+  ExecApprovalsNodeSetParams: ExecApprovalsNodeSetParamsSchema,
+  ExecApprovalsSnapshot: ExecApprovalsSnapshotSchema,
+  ExecApprovalRequestParams: ExecApprovalRequestParamsSchema,
+  ExecApprovalResolveParams: ExecApprovalResolveParamsSchema,
+  DevicePairListParams: DevicePairListParamsSchema,
+  DevicePairApproveParams: DevicePairApproveParamsSchema,
+  DevicePairRejectParams: DevicePairRejectParamsSchema,
+  DevicePairRequestedEvent: DevicePairRequestedEventSchema,
+  DevicePairResolvedEvent: DevicePairResolvedEventSchema,
   ChatHistoryParams: ChatHistoryParamsSchema,
   ChatSendParams: ChatSendParamsSchema,
   ChatAbortParams: ChatAbortParamsSchema,

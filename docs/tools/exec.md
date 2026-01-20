@@ -30,7 +30,7 @@ Notes:
 - `host` defaults to `sandbox`.
 - `elevated` is ignored when sandboxing is off (exec already runs on the host).
 - `gateway`/`node` approvals are controlled by `~/.clawdbot/exec-approvals.json`.
-- `node` requires a paired node (macOS companion app).
+- `node` requires a paired node (companion app or headless node host).
 - If multiple nodes are available, set `exec.node` or `tools.exec.node` to select one.
 
 ## Config
@@ -40,6 +40,37 @@ Notes:
 - `tools.exec.security` (default: `deny`)
 - `tools.exec.ask` (default: `on-miss`)
 - `tools.exec.node` (default: unset)
+- `tools.exec.pathPrepend`: list of directories to prepend to `PATH` for exec runs.
+
+Example:
+```json5
+{
+  tools: {
+    exec: {
+      pathPrepend: ["~/bin", "/opt/oss/bin"]
+    }
+  }
+}
+```
+
+### PATH handling
+
+- `host=gateway`: uses the Gateway process `PATH`. Daemons install a minimal `PATH`:
+  - macOS: `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin`, `/bin`
+  - Linux: `/usr/local/bin`, `/usr/bin`, `/bin`
+- `host=sandbox`: runs `sh -lc` (login shell) inside the container, so `/etc/profile` may reset `PATH`.
+  Clawdbot prepends `env.PATH` after profile sourcing; `tools.exec.pathPrepend` applies here too.
+- `host=node`: only env overrides you pass are sent to the node. `tools.exec.pathPrepend` only applies
+  if the exec call already sets `env.PATH`.
+
+Per-agent node binding (use the agent list index in config):
+
+```bash
+clawdbot config get agents.list
+clawdbot config set agents.list[0].tools.exec.node "node-id-or-name"
+```
+
+Control UI: the Nodes tab includes a small “Exec node binding” panel for the same settings.
 
 ## Session overrides (`/exec`)
 
@@ -51,7 +82,7 @@ Example:
 /exec host=gateway security=allowlist ask=on-miss node=mac-1
 ```
 
-## Exec approvals (macOS app)
+## Exec approvals (companion app / node host)
 
 Sandboxed agents can require per-request approval before `exec` runs on the gateway or node host.
 See [Exec approvals](/tools/exec-approvals) for the policy, allowlist, and UI flow.

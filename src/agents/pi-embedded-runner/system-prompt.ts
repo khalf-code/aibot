@@ -15,6 +15,7 @@ export function buildEmbeddedSystemPrompt(params: {
   reasoningTagHint: boolean;
   heartbeatPrompt?: string;
   skillsPrompt?: string;
+  docsPath?: string;
   reactionGuidance?: {
     level: "minimal" | "extensive";
     channel: string;
@@ -22,6 +23,7 @@ export function buildEmbeddedSystemPrompt(params: {
   /** Controls which hardcoded sections to include. Defaults to "full". */
   promptMode?: PromptMode;
   runtimeInfo: {
+    agentId?: string;
     host: string;
     os: string;
     arch: string;
@@ -48,6 +50,7 @@ export function buildEmbeddedSystemPrompt(params: {
     reasoningTagHint: params.reasoningTagHint,
     heartbeatPrompt: params.heartbeatPrompt,
     skillsPrompt: params.skillsPrompt,
+    docsPath: params.docsPath,
     reactionGuidance: params.reactionGuidance,
     promptMode: params.promptMode,
     runtimeInfo: params.runtimeInfo,

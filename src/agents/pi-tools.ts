@@ -81,6 +81,7 @@ function resolveExecConfig(cfg: ClawdbotConfig | undefined) {
     security: globalExec?.security,
     ask: globalExec?.ask,
     node: globalExec?.node,
+    pathPrepend: globalExec?.pathPrepend,
     backgroundMs: globalExec?.backgroundMs,
     timeoutSec: globalExec?.timeoutSec,
     cleanupMs: globalExec?.cleanupMs,
@@ -127,6 +128,8 @@ export function createClawdbotCodingTools(options?: {
   replyToMode?: "off" | "first" | "all";
   /** Mutable ref to track if a reply was sent (for "first" mode). */
   hasRepliedRef?: { value: boolean };
+  /** If true, the model has native vision capability */
+  modelHasVision?: boolean;
 }): AnyAgentTool[] {
   const execToolName = "exec";
   const sandbox = options?.sandbox?.enabled ? options.sandbox : undefined;
@@ -205,6 +208,7 @@ export function createClawdbotCodingTools(options?: {
     security: options?.exec?.security ?? execConfig.security,
     ask: options?.exec?.ask ?? execConfig.ask,
     node: options?.exec?.node ?? execConfig.node,
+    pathPrepend: options?.exec?.pathPrepend ?? execConfig.pathPrepend,
     agentId,
     cwd: options?.workspaceDir,
     allowBackground,
@@ -280,6 +284,7 @@ export function createClawdbotCodingTools(options?: {
       currentThreadTs: options?.currentThreadTs,
       replyToMode: options?.replyToMode,
       hasRepliedRef: options?.hasRepliedRef,
+      modelHasVision: options?.modelHasVision,
     }),
   ];
   const pluginGroups = buildPluginToolGroups({

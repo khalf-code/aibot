@@ -21,6 +21,7 @@ import {
   ensureAuthProfileStore,
   getApiKeyForModel,
   resolveAuthProfileOrder,
+  type ResolvedProviderAuth,
 } from "../model-auth.js";
 import { ensureClawdbotModelsJson } from "../models-config.js";
 import {
@@ -31,6 +32,7 @@ import {
   isContextOverflowError,
   isFailoverAssistantError,
   isFailoverErrorMessage,
+  parseImageDimensionError,
   isRateLimitAssistantError,
   isTimeoutErrorMessage,
   pickFallbackThinkingLevel,
@@ -46,11 +48,7 @@ import { buildEmbeddedRunPayloads } from "./run/payloads.js";
 import type { EmbeddedPiAgentMeta, EmbeddedPiRunResult } from "./types.js";
 import { describeUnknownError } from "./utils.js";
 
-type ApiKeyInfo = {
-  apiKey: string;
-  profileId?: string;
-  source: string;
-};
+type ApiKeyInfo = ResolvedProviderAuth;
 
 export async function runEmbeddedPiAgent(
   params: RunEmbeddedPiAgentParams,
@@ -117,15 +115,17 @@ export async function runEmbeddedPiAgent(
       }
 
       const authStore = ensureAuthProfileStore(agentDir, { allowKeychainPrompt: false });
-      const explicitProfileId = params.authProfileId?.trim();
+      const preferredProfileId = params.authProfileId?.trim();
+      const lockedProfileId =
+        params.authProfileIdSource === "user" ? preferredProfileId : undefined;
       const profileOrder = resolveAuthProfileOrder({
         cfg: params.config,
         store: authStore,
         provider,
-        preferredProfile: explicitProfileId,
+        preferredProfile: preferredProfileId,
       });
-      if (explicitProfileId && !profileOrder.includes(explicitProfileId)) {
-        throw new Error(`Auth profile "${explicitProfileId}" is not configured for ${provider}.`);
+      if (lockedProfileId && !profileOrder.includes(lockedProfileId)) {
+        throw new Error(`Auth profile "${lockedProfileId}" is not configured for ${provider}.`);
       }
       const profileCandidates = profileOrder.length > 0 ? profileOrder : [undefined];
       let profileIndex = 0;
@@ -148,6 +148,15 @@ export async function runEmbeddedPiAgent(
 
       const applyApiKeyInfo = async (candidate?: string): Promise<void> => {
         apiKeyInfo = await resolveApiKeyForCandidate(candidate);
+        if (!apiKeyInfo.apiKey) {
+          if (apiKeyInfo.mode !== "aws-sdk") {
+            throw new Error(
+              `No API key resolved for provider "${model.provider}" (auth mode: ${apiKeyInfo.mode}).`,
+            );
+          }
+          lastProfileId = apiKeyInfo.profileId;
+          return;
+        }
         if (model.provider === "github-copilot") {
           const { resolveCopilotApiToken } =
             await import("../../providers/github-copilot-token.js");
@@ -162,6 +171,7 @@ export async function runEmbeddedPiAgent(
       };
 
       const advanceAuthProfile = async (): Promise<boolean> => {
+        if (lockedProfileId) return false;
         let nextIndex = profileIndex + 1;
         while (nextIndex < profileCandidates.length) {
           const candidate = profileCandidates[nextIndex];
@@ -172,7 +182,7 @@ export async function runEmbeddedPiAgent(
             attemptedThinking.clear();
             return true;
           } catch (err) {
-            if (candidate && candidate === explicitProfileId) throw err;
+            if (candidate && candidate === lockedProfileId) throw err;
             nextIndex += 1;
           }
         }
@@ -182,7 +192,7 @@ export async function runEmbeddedPiAgent(
       try {
         await applyApiKeyInfo(profileCandidates[profileIndex]);
       } catch (err) {
-        if (profileCandidates[profileIndex] === explicitProfileId) throw err;
+        if (profileCandidates[profileIndex] === lockedProfileId) throw err;
         const advanced = await advanceAuthProfile();
         if (!advanced) throw err;
       }
@@ -235,6 +245,7 @@ export async function runEmbeddedPiAgent(
             onToolResult: params.onToolResult,
             onAgentEvent: params.onAgentEvent,
             extraSystemPrompt: params.extraSystemPrompt,
+            streamParams: params.streamParams,
             ownerNumbers: params.ownerNumbers,
             enforceFinalTag: params.enforceFinalTag,
           });
@@ -354,6 +365,26 @@ export async function runEmbeddedPiAgent(
           const failoverFailure = isFailoverAssistantError(lastAssistant);
           const assistantFailoverReason = classifyFailoverReason(lastAssistant?.errorMessage ?? "");
           const cloudCodeAssistFormatError = attempt.cloudCodeAssistFormatError;
+          const imageDimensionError = parseImageDimensionError(lastAssistant?.errorMessage ?? "");
+
+          if (imageDimensionError && lastProfileId) {
+            const details = [
+              imageDimensionError.messageIndex !== undefined
+                ? `message=${imageDimensionError.messageIndex}`
+                : null,
+              imageDimensionError.contentIndex !== undefined
+                ? `content=${imageDimensionError.contentIndex}`
+                : null,
+              imageDimensionError.maxDimensionPx !== undefined
+                ? `limit=${imageDimensionError.maxDimensionPx}px`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" ");
+            log.warn(
+              `Profile ${lastProfileId} rejected image payload${details ? ` (${details})` : ""}.`,
+            );
+          }
 
           // Treat timeout as potential rate limit (Antigravity hangs on rate limit)
           const shouldRotate = (!aborted && failoverFailure) || timedOut;
@@ -428,6 +459,7 @@ export async function runEmbeddedPiAgent(
             assistantTexts: attempt.assistantTexts,
             toolMetas: attempt.toolMetas,
             lastAssistant: attempt.lastAssistant,
+            lastToolError: attempt.lastToolError,
             config: params.config,
             sessionKey: params.sessionKey ?? params.sessionId,
             verboseLevel: params.verboseLevel,
@@ -457,6 +489,17 @@ export async function runEmbeddedPiAgent(
               agentMeta,
               aborted,
               systemPromptReport: attempt.systemPromptReport,
+              // Handle client tool calls (OpenResponses hosted tools)
+              stopReason: attempt.clientToolCall ? "tool_calls" : undefined,
+              pendingToolCalls: attempt.clientToolCall
+                ? [
+                    {
+                      id: `call_${Date.now()}`,
+                      name: attempt.clientToolCall.name,
+                      arguments: JSON.stringify(attempt.clientToolCall.params),
+                    },
+                  ]
+                : undefined,
             },
             didSendViaMessagingTool: attempt.didSendViaMessagingTool,
             messagingToolSentTexts: attempt.messagingToolSentTexts,

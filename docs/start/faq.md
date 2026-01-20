@@ -184,21 +184,24 @@ Clawdbot is a personal AI assistant you run on your own devices. It replies on t
 The repo recommends running from source and using the onboarding wizard:
 
 ```bash
-git clone https://github.com/clawdbot/clawdbot.git
-cd clawdbot
-
-pnpm install
-
-# Optional if you want built output / global linking:
-pnpm build
-
-# If the Control UI assets are missing or you want the dashboard:
-pnpm ui:build # auto-installs UI deps on first run
-
-pnpm clawdbot onboard
+curl -fsSL https://clawd.bot/install.sh | bash
+clawdbot onboard --install-daemon
 ```
 
 The wizard can also build UI assets automatically. After onboarding, you typically run the Gateway on port **18789**.
+
+From source (contributors/dev):
+
+```bash
+git clone https://github.com/clawdbot/clawdbot.git
+cd clawdbot
+pnpm install
+pnpm build
+pnpm ui:build # auto-installs UI deps on first run
+clawdbot onboard
+```
+
+If you don’t have a global install yet, run it via `pnpm clawdbot onboard`.
 
 ### How do I open the dashboard after onboarding?
 
@@ -330,7 +333,7 @@ git clone https://github.com/clawdbot/clawdbot.git
 cd clawdbot
 pnpm install
 pnpm build
-pnpm clawdbot doctor
+clawdbot doctor
 clawdbot daemon restart
 ```
 
@@ -501,14 +504,23 @@ is writable (read-only sandboxes skip it). See [Memory](/concepts/memory).
 
 ### Does semantic memory search require an OpenAI API key?
 
-Only if you use **remote embeddings** (OpenAI). Codex OAuth covers
-chat/completions and does **not** grant embeddings access, so **signing in with
-Codex (OAuth or the Codex CLI login)** does not help for semantic memory search.
-Remote memory search still needs a real OpenAI API key (`OPENAI_API_KEY` or
-`models.providers.openai.apiKey`). If you’d rather stay local, set
-`memorySearch.provider = "local"` (and optionally `memorySearch.fallback =
-"none"`). We support **remote or local embedding models** — see [Memory](/concepts/memory)
-for the setup details.
+Only if you use **OpenAI embeddings**. Codex OAuth covers chat/completions and
+does **not** grant embeddings access, so **signing in with Codex (OAuth or the
+Codex CLI login)** does not help for semantic memory search. OpenAI embeddings
+still need a real API key (`OPENAI_API_KEY` or `models.providers.openai.apiKey`).
+
+If you don’t set a provider explicitly, Clawdbot auto-selects a provider when it
+can resolve an API key (auth profiles, `models.providers.*.apiKey`, or env vars).
+It prefers OpenAI if an OpenAI key resolves, otherwise Gemini if a Gemini key
+resolves. If neither key is available, memory search stays disabled until you
+configure it. If you have a local model path configured and present, Clawdbot
+prefers `local`.
+
+If you’d rather stay local, set `memorySearch.provider = "local"` (and optionally
+`memorySearch.fallback = "none"`). If you want Gemini embeddings, set
+`memorySearch.provider = "gemini"` and provide `GEMINI_API_KEY` (or
+`memorySearch.remote.apiKey`). We support **OpenAI, Gemini, or local** embedding
+models — see [Memory](/concepts/memory) for the setup details.
 
 ## Where things live on disk
 
@@ -880,19 +892,14 @@ Send `/new` or `/reset` as a standalone message. See [Session management](/conce
 
 ### Do sessions reset automatically if I never send `/new`?
 
-Yes. By default sessions reset daily at **4:00 AM local time** on the gateway host.
-You can also add an idle window; when both daily and idle resets are configured,
-whichever expires first starts a new session id on the next message. This does
-not delete transcripts — it just starts a new session.
+Yes. Sessions expire after `session.idleMinutes` (default **60**). The **next**
+message starts a fresh session id for that chat key. This does not delete
+transcripts — it just starts a new session.
 
 ```json5
 {
   session: {
-    reset: {
-      mode: "daily",
-      atHour: 4,
-      idleMinutes: 240
-    }
+    idleMinutes: 240
   }
 }
 ```

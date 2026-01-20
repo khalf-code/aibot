@@ -4,6 +4,7 @@ import { loadChannels } from "./controllers/channels";
 import { loadDebug } from "./controllers/debug";
 import { loadLogs } from "./controllers/logs";
 import { loadNodes } from "./controllers/nodes";
+import { loadExecApprovals } from "./controllers/exec-approvals";
 import { loadPresence } from "./controllers/presence";
 import { loadSessions } from "./controllers/sessions";
 import { loadSkills } from "./controllers/skills";
@@ -84,9 +85,12 @@ export function applySettingsFromUrl(host: SettingsHost) {
     const session = sessionRaw.trim();
     if (session) {
       host.sessionKey = session;
+      applySettings(host, {
+        ...host.settings,
+        sessionKey: session,
+        lastActiveSessionKey: session,
+      });
     }
-    params.delete("session");
-    shouldCleanUrl = true;
   }
 
   if (!shouldCleanUrl) return;
@@ -130,7 +134,11 @@ export async function refreshActiveTab(host: SettingsHost) {
   if (host.tab === "sessions") await loadSessions(host as unknown as ClawdbotApp);
   if (host.tab === "cron") await loadCron(host);
   if (host.tab === "skills") await loadSkills(host as unknown as ClawdbotApp);
-  if (host.tab === "nodes") await loadNodes(host as unknown as ClawdbotApp);
+  if (host.tab === "nodes") {
+    await loadNodes(host as unknown as ClawdbotApp);
+    await loadConfig(host as unknown as ClawdbotApp);
+    await loadExecApprovals(host as unknown as ClawdbotApp);
+  }
   if (host.tab === "chat") {
     await refreshChat(host as unknown as Parameters<typeof refreshChat>[0]);
     scheduleChatScroll(
@@ -220,6 +228,18 @@ export function onPopState(host: SettingsHost) {
   if (typeof window === "undefined") return;
   const resolved = tabFromPath(window.location.pathname, host.basePath);
   if (!resolved) return;
+
+  const url = new URL(window.location.href);
+  const session = url.searchParams.get("session")?.trim();
+  if (session) {
+    host.sessionKey = session;
+    applySettings(host, {
+      ...host.settings,
+      sessionKey: session,
+      lastActiveSessionKey: session,
+    });
+  }
+
   setTabFromRoute(host, resolved);
 }
 
@@ -236,14 +256,35 @@ export function syncUrlWithTab(host: SettingsHost, tab: Tab, replace: boolean) {
   if (typeof window === "undefined") return;
   const targetPath = normalizePath(pathForTab(tab, host.basePath));
   const currentPath = normalizePath(window.location.pathname);
-  if (currentPath === targetPath) return;
   const url = new URL(window.location.href);
-  url.pathname = targetPath;
+
+  if (tab === "chat" && host.sessionKey) {
+    url.searchParams.set("session", host.sessionKey);
+  } else {
+    url.searchParams.delete("session");
+  }
+
+  if (currentPath !== targetPath) {
+    url.pathname = targetPath;
+  }
+
   if (replace) {
     window.history.replaceState({}, "", url.toString());
   } else {
     window.history.pushState({}, "", url.toString());
   }
+}
+
+export function syncUrlWithSessionKey(
+  host: SettingsHost,
+  sessionKey: string,
+  replace: boolean,
+) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("session", sessionKey);
+  if (replace) window.history.replaceState({}, "", url.toString());
+  else window.history.pushState({}, "", url.toString());
 }
 
 export async function loadOverview(host: SettingsHost) {

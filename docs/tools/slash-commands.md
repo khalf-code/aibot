@@ -64,7 +64,7 @@ Text + native (when enabled):
 - `/subagents list|stop|log|info|send` (inspect, stop, log, or message sub-agent runs for the current session)
 - `/config show|get|set|unset` (persist config to disk, owner-only; requires `commands.config: true`)
 - `/debug show|set|unset|reset` (runtime overrides, owner-only; requires `commands.debug: true`)
-- `/usage off|tokens|full` (per-response usage footer)
+- `/usage off|tokens|full|cost` (per-response usage footer or local cost summary)
 - `/stop`
 - `/restart`
 - `/dock-telegram` (alias: `/dock_telegram`) (switch replies to Telegram)
@@ -91,7 +91,7 @@ Text-only:
 Notes:
 - Commands accept an optional `:` between the command and args (e.g. `/think: high`, `/send: on`, `/help:`).
 - For full provider usage breakdown, use `clawdbot status --usage`.
-- `/usage` controls the per-response usage footer. It only shows dollar cost when the model uses an API key (OAuth hides cost).
+- `/usage` controls the per-response usage footer; `/usage cost` prints a local cost summary from Clawdbot session logs.
 - `/restart` is disabled by default; set `commands.restart: true` to enable it.
 - `/verbose` is meant for debugging and extra visibility; keep it **off** in normal use.
 - `/reasoning` (and `/verbose`) are risky in group settings: they may reveal internal reasoning or tool output you did not intend to expose. Prefer leaving them off, especially in group chats.
@@ -102,6 +102,8 @@ Notes:
 - Currently: `/help`, `/commands`, `/status`, `/whoami` (`/id`).
 - Unauthorized command-only messages are silently ignored, and inline `/...` tokens are treated as plain text.
 - **Skill commands:** `user-invocable` skills are exposed as slash commands. Names are sanitized to `a-z0-9_` (max 32 chars); collisions get numeric suffixes (e.g. `_2`).
+  - By default, skill commands are forwarded to the model as a normal request.
+  - Skills may optionally declare `command-dispatch: tool` to route the command directly to a tool (deterministic, no model).
 - **Native command arguments:** Discord uses autocomplete for dynamic options (and button menus when you omit required args). Telegram and Slack show a button menu when a command supports choices and you omit the arg.
 
 ## Usage surfaces (what shows where)

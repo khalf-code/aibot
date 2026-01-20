@@ -7,7 +7,7 @@ import {
 import { normalizeAgentId } from "../routing/session-key.js";
 import { helpText, parseCommand } from "./commands.js";
 import type { ChatLog } from "./components/chat-log.js";
-import { createSelectList, createSettingsList } from "./components/selectors.js";
+import { createSearchableSelectList, createSettingsList } from "./components/selectors.js";
 import type { GatewayChatClient } from "./gateway-chat.js";
 import { formatStatusSummary } from "./tui-status-summary.js";
 import type {
@@ -72,7 +72,7 @@ export function createCommandHandlers(context: CommandHandlerContext) {
         label: `${model.provider}/${model.id}`,
         description: model.name && model.name !== model.id ? model.name : "",
       }));
-      const selector = createSelectList(items, 9);
+      const selector = createSearchableSelectList(items, 9);
       selector.onSelect = (item) => {
         void (async () => {
           try {
@@ -113,7 +113,7 @@ export function createCommandHandlers(context: CommandHandlerContext) {
       label: agent.name ? `${agent.id} (${agent.name})` : agent.id,
       description: agent.id === state.agentDefaultId ? "default" : "",
     }));
-    const selector = createSelectList(items, 9);
+    const selector = createSearchableSelectList(items, 9);
     selector.onSelect = (item) => {
       void (async () => {
         closeOverlay();
@@ -143,7 +143,7 @@ export function createCommandHandlers(context: CommandHandlerContext) {
           : formatSessionKey(session.key),
         description: session.updatedAt ? new Date(session.updatedAt).toLocaleString() : "",
       }));
-      const selector = createSelectList(items, 9);
+      const selector = createSearchableSelectList(items, 9);
       selector.onSelect = (item) => {
         void (async () => {
           closeOverlay();

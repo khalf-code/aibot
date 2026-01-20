@@ -7,6 +7,7 @@ import type { RuntimeEnv } from "../runtime.js";
 import { runSecurityAudit } from "../security/audit.js";
 import { renderTable } from "../terminal/table.js";
 import { theme } from "../terminal/theme.js";
+import { formatCliCommand } from "../cli/command-format.js";
 import {
   resolveMemoryCacheSummary,
   resolveMemoryFtsState,
@@ -15,7 +16,7 @@ import {
 } from "../memory/status-format.js";
 import { formatHealthChannelLines, type HealthSummary } from "./health.js";
 import { resolveControlUiLinks } from "./onboard-helpers.js";
-import { getDaemonStatusSummary } from "./status.daemon.js";
+import { getDaemonStatusSummary, getNodeDaemonStatusSummary } from "./status.daemon.js";
 import {
   formatAge,
   formatDuration,
@@ -116,6 +117,10 @@ export async function statusCommand(
     : undefined;
 
   if (opts.json) {
+    const [daemon, nodeDaemon] = await Promise.all([
+      getDaemonStatusSummary(),
+      getNodeDaemonStatusSummary(),
+    ]);
     runtime.log(
       JSON.stringify(
         {
@@ -134,6 +139,8 @@ export async function statusCommand(
             self: gatewaySelf,
             error: gatewayProbe?.error ?? null,
           },
+          gatewayService: daemon,
+          nodeService: nodeDaemon,
           agents: agentStatus,
           securityAudit,
           ...(health || usage ? { health, usage } : {}),
@@ -210,11 +217,19 @@ export async function statusCommand(
     return `${agentStatus.agents.length} · ${pending} · sessions ${agentStatus.totalSessions}${defSuffix}`;
   })();
 
-  const daemon = await getDaemonStatusSummary();
+  const [daemon, nodeDaemon] = await Promise.all([
+    getDaemonStatusSummary(),
+    getNodeDaemonStatusSummary(),
+  ]);
   const daemonValue = (() => {
     if (daemon.installed === false) return `${daemon.label} not installed`;
     const installedPrefix = daemon.installed === true ? "installed · " : "";
     return `${daemon.label} ${installedPrefix}${daemon.loadedText}${daemon.runtimeShort ? ` · ${daemon.runtimeShort}` : ""}`;
+  })();
+  const nodeDaemonValue = (() => {
+    if (nodeDaemon.installed === false) return `${nodeDaemon.label} not installed`;
+    const installedPrefix = nodeDaemon.installed === true ? "installed · " : "";
+    return `${nodeDaemon.label} ${installedPrefix}${nodeDaemon.loadedText}${nodeDaemon.runtimeShort ? ` · ${nodeDaemon.runtimeShort}` : ""}`;
   })();
 
   const defaults = summary.sessions.defaults;
@@ -298,7 +313,8 @@ export async function statusCommand(
       Value: updateAvailability.available ? warn(`available · ${updateLine}`) : updateLine,
     },
     { Item: "Gateway", Value: gatewayValue },
-    { Item: "Daemon", Value: daemonValue },
+    { Item: "Gateway service", Value: daemonValue },
+    { Item: "Node service", Value: nodeDaemonValue },
     { Item: "Agents", Value: agentsValue },
     { Item: "Memory", Value: memoryValue },
     { Item: "Probes", Value: probesValue },
@@ -359,8 +375,8 @@ export async function statusCommand(
       runtime.log(theme.muted(`… +${sorted.length - shown.length} more`));
     }
   }
-  runtime.log(theme.muted("Full report: clawdbot security audit"));
-  runtime.log(theme.muted("Deep probe: clawdbot security audit --deep"));
+  runtime.log(theme.muted(`Full report: ${formatCliCommand("clawdbot security audit")}`));
+  runtime.log(theme.muted(`Deep probe: ${formatCliCommand("clawdbot security audit --deep")}`));
 
   runtime.log("");
   runtime.log(theme.heading("Channels"));
@@ -516,11 +532,11 @@ export async function statusCommand(
     runtime.log("");
   }
   runtime.log("Next steps:");
-  runtime.log("  Need to share?      clawdbot status --all");
-  runtime.log("  Need to debug live? clawdbot logs --follow");
+  runtime.log(`  Need to share?      ${formatCliCommand("clawdbot status --all")}`);
+  runtime.log(`  Need to debug live? ${formatCliCommand("clawdbot logs --follow")}`);
   if (gatewayReachable) {
-    runtime.log("  Need to test channels? clawdbot status --deep");
+    runtime.log(`  Need to test channels? ${formatCliCommand("clawdbot status --deep")}`);
   } else {
-    runtime.log("  Fix reachability first: clawdbot gateway status");
+    runtime.log(`  Fix reachability first: ${formatCliCommand("clawdbot gateway status")}`);
   }
 }

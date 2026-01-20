@@ -97,6 +97,8 @@ const GROUP_ORDER: Record<string, number> = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
+  "meta.lastTouchedVersion": "Config Last Touched Version",
+  "meta.lastTouchedAt": "Config Last Touched At",
   "update.channel": "Update Channel",
   "update.checkOnStart": "Update Check on Start",
   "gateway.remote.url": "Remote Gateway URL",
@@ -144,6 +146,7 @@ const FIELD_LABELS: Record<string, string> = {
   "tools.exec.security": "Exec Security",
   "tools.exec.ask": "Exec Ask",
   "tools.exec.node": "Exec Node Binding",
+  "tools.exec.pathPrepend": "Exec PATH Prepend",
   "tools.message.allowCrossContextSend": "Allow Cross-Context Messaging",
   "tools.message.crossContext.allowWithinProvider": "Allow Cross-Context (Same Provider)",
   "tools.message.crossContext.allowAcrossProviders": "Allow Cross-Context (Across Providers)",
@@ -170,6 +173,9 @@ const FIELD_LABELS: Record<string, string> = {
   "skills.load.watchDebounceMs": "Skills Watch Debounce (ms)",
   "agents.defaults.workspace": "Workspace",
   "agents.defaults.bootstrapMaxChars": "Bootstrap Max Chars",
+  "agents.defaults.envelopeTimezone": "Envelope Timezone",
+  "agents.defaults.envelopeTimestamp": "Envelope Timestamp",
+  "agents.defaults.envelopeElapsed": "Envelope Elapsed",
   "agents.defaults.memorySearch": "Memory Search",
   "agents.defaults.memorySearch.enabled": "Enable Memory Search",
   "agents.defaults.memorySearch.sources": "Memory Search Sources",
@@ -296,6 +302,8 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const FIELD_HELP: Record<string, string> = {
+  "meta.lastTouchedVersion": "Auto-set when Clawdbot writes the config.",
+  "meta.lastTouchedAt": "ISO timestamp of the last config write (auto-set).",
   "update.channel": 'Update channel for npm installs ("stable" or "beta").',
   "update.checkOnStart": "Check for npm updates when the gateway starts (default: true).",
   "gateway.remote.url": "Remote Gateway WebSocket URL (ws:// or wss://).",
@@ -316,6 +324,7 @@ const FIELD_HELP: Record<string, string> = {
     'Optional allowlist of model ids (e.g. "gpt-5.2" or "openai/gpt-5.2").',
   "tools.exec.notifyOnExit":
     "When true (default), backgrounded exec sessions enqueue a system event and request a heartbeat on exit.",
+  "tools.exec.pathPrepend": "Directories to prepend to PATH for exec runs (gateway/sandbox).",
   "tools.message.allowCrossContextSend":
     "Legacy override: allow cross-context sends across all providers.",
   "tools.message.crossContext.allowWithinProvider":
@@ -367,6 +376,11 @@ const FIELD_HELP: Record<string, string> = {
   "auth.cooldowns.failureWindowHours": "Failure window (hours) for backoff counters (default: 24).",
   "agents.defaults.bootstrapMaxChars":
     "Max characters of each workspace bootstrap file injected into the system prompt before truncation (default: 20000).",
+  "agents.defaults.envelopeTimezone":
+    'Timezone for message envelopes ("utc", "local", "user", or an IANA timezone string).',
+  "agents.defaults.envelopeTimestamp":
+    'Include absolute timestamps in message envelopes ("on" or "off").',
+  "agents.defaults.envelopeElapsed": 'Include elapsed time in message envelopes ("on" or "off").',
   "agents.defaults.models": "Configured model catalog (keys are full provider/model IDs).",
   "agents.defaults.memorySearch":
     "Vector search over MEMORY.md and memory/*.md (per-agent overrides supported).",
@@ -374,26 +388,26 @@ const FIELD_HELP: Record<string, string> = {
     'Sources to index for memory search (default: ["memory"]; add "sessions" to include session transcripts).',
   "agents.defaults.memorySearch.experimental.sessionMemory":
     "Enable experimental session transcript indexing for memory search (default: false).",
-  "agents.defaults.memorySearch.provider": 'Embedding provider ("openai" or "local").',
+  "agents.defaults.memorySearch.provider": 'Embedding provider ("openai", "gemini", or "local").',
   "agents.defaults.memorySearch.remote.baseUrl":
-    "Custom OpenAI-compatible base URL (e.g. for Gemini/OpenRouter proxies).",
+    "Custom base URL for remote embeddings (OpenAI-compatible proxies or Gemini overrides).",
   "agents.defaults.memorySearch.remote.apiKey": "Custom API key for the remote embedding provider.",
   "agents.defaults.memorySearch.remote.headers":
     "Extra headers for remote embeddings (merged; remote overrides OpenAI headers).",
   "agents.defaults.memorySearch.remote.batch.enabled":
-    "Enable OpenAI Batch API for memory embeddings (default: true).",
+    "Enable batch API for memory embeddings (OpenAI/Gemini; default: true).",
   "agents.defaults.memorySearch.remote.batch.wait":
-    "Wait for OpenAI batch completion when indexing (default: true).",
+    "Wait for batch completion when indexing (default: true).",
   "agents.defaults.memorySearch.remote.batch.concurrency":
-    "Max concurrent OpenAI batch jobs for memory indexing (default: 2).",
+    "Max concurrent embedding batch jobs for memory indexing (default: 2).",
   "agents.defaults.memorySearch.remote.batch.pollIntervalMs":
-    "Polling interval in ms for OpenAI batch status (default: 2000).",
+    "Polling interval in ms for batch status (default: 2000).",
   "agents.defaults.memorySearch.remote.batch.timeoutMinutes":
-    "Timeout in minutes for OpenAI batch indexing (default: 60).",
+    "Timeout in minutes for batch indexing (default: 60).",
   "agents.defaults.memorySearch.local.modelPath":
     "Local GGUF model path or hf: URI (node-llama-cpp).",
   "agents.defaults.memorySearch.fallback":
-    'Fallback to OpenAI when local embeddings fail ("openai" or "none").',
+    'Fallback provider when embeddings fail ("openai", "gemini", "local", or "none").',
   "agents.defaults.memorySearch.store.path":
     "SQLite index path (default: ~/.clawdbot/memory/{agentId}.sqlite).",
   "agents.defaults.memorySearch.store.vector.enabled":

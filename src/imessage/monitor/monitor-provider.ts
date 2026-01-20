@@ -11,7 +11,11 @@ import {
 } from "../../auto-reply/reply/response-prefix-template.js";
 import { resolveTextChunkLimit } from "../../auto-reply/chunk.js";
 import { hasControlCommand } from "../../auto-reply/command-detection.js";
-import { formatInboundEnvelope, formatInboundFromLabel } from "../../auto-reply/envelope.js";
+import {
+  formatInboundEnvelope,
+  formatInboundFromLabel,
+  resolveEnvelopeFormatOptions,
+} from "../../auto-reply/envelope.js";
 import {
   createInboundDebouncer,
   resolveInboundDebounceMs,
@@ -33,6 +37,7 @@ import {
   resolveChannelGroupRequireMention,
 } from "../../config/group-policy.js";
 import {
+  readSessionUpdatedAt,
   recordSessionMetaFromInbound,
   resolveStorePath,
   updateLastRoute,
@@ -307,9 +312,14 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
     const mentionRegexes = buildMentionRegexes(cfg, route.agentId);
     const messageText = (message.text ?? "").trim();
     const attachments = includeAttachments ? (message.attachments ?? []) : [];
-    const firstAttachment = attachments?.find((entry) => entry?.original_path && !entry?.missing);
+    // Filter to valid attachments with paths
+    const validAttachments = attachments.filter((entry) => entry?.original_path && !entry?.missing);
+    const firstAttachment = validAttachments[0];
     const mediaPath = firstAttachment?.original_path ?? undefined;
     const mediaType = firstAttachment?.mime_type ?? undefined;
+    // Build arrays for all attachments (for multi-image support)
+    const mediaPaths = validAttachments.map((a) => a.original_path).filter(Boolean) as string[];
+    const mediaTypes = validAttachments.map((a) => a.mime_type ?? undefined);
     const kind = mediaKindFromMime(mediaType ?? undefined);
     const placeholder = kind ? `<media:${kind}>` : attachments?.length ? "<media:attachment>" : "";
     const bodyText = messageText || placeholder;
@@ -396,6 +406,14 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
       directLabel: senderNormalized,
       directId: sender,
     });
+    const storePath = resolveStorePath(cfg.session?.store, {
+      agentId: route.agentId,
+    });
+    const envelopeOptions = resolveEnvelopeFormatOptions(cfg);
+    const previousTimestamp = readSessionUpdatedAt({
+      storePath,
+      sessionKey: route.sessionKey,
+    });
     const body = formatInboundEnvelope({
       channel: "iMessage",
       from: fromLabel,
@@ -403,6 +421,8 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
       body: bodyText,
       chatType: isGroup ? "group" : "direct",
       sender: { name: senderNormalized, id: sender },
+      previousTimestamp,
+      envelope: envelopeOptions,
     });
     let combinedBody = body;
     if (isGroup && historyKey && historyLimit > 0) {
@@ -419,6 +439,7 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
             body: `${entry.body}${entry.messageId ? ` [id:${entry.messageId}]` : ""}`,
             chatType: "group",
             senderLabel: entry.sender,
+            envelope: envelopeOptions,
           }),
       });
     }
@@ -445,6 +466,9 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
       MediaPath: mediaPath,
       MediaType: mediaType,
       MediaUrl: mediaPath,
+      MediaPaths: mediaPaths.length > 0 ? mediaPaths : undefined,
+      MediaTypes: mediaTypes.length > 0 ? mediaTypes : undefined,
+      MediaUrls: mediaPaths.length > 0 ? mediaPaths : undefined,
       MediaRemoteHost: remoteHost,
       WasMentioned: effectiveWasMentioned,
       CommandAuthorized: commandAuthorized,
@@ -453,9 +477,6 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
       OriginatingTo: imessageTo,
     });
 
-    const storePath = resolveStorePath(cfg.session?.store, {
-      agentId: route.agentId,
-    });
     void recordSessionMetaFromInbound({
       storePath,
       sessionKey: ctxPayload.SessionKey ?? route.sessionKey,

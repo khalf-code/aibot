@@ -1,8 +1,46 @@
 import type { Command } from "commander";
 import { defaultRuntime } from "../../runtime.js";
 import { formatAge, formatPermissions, parseNodeList, parsePairingList } from "./format.js";
+import { runNodesCommand } from "./cli-utils.js";
 import { callGatewayCli, nodesCallOpts, resolveNodeId } from "./rpc.js";
 import type { NodesRpcOpts } from "./types.js";
+
+function formatVersionLabel(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return raw;
+  if (trimmed.toLowerCase().startsWith("v")) return trimmed;
+  return /^\d/.test(trimmed) ? `v${trimmed}` : trimmed;
+}
+
+function resolveNodeVersions(node: {
+  platform?: string;
+  version?: string;
+  coreVersion?: string;
+  uiVersion?: string;
+}) {
+  const core = node.coreVersion?.trim() || undefined;
+  const ui = node.uiVersion?.trim() || undefined;
+  if (core || ui) return { core, ui };
+  const legacy = node.version?.trim();
+  if (!legacy) return { core: undefined, ui: undefined };
+  const platform = node.platform?.trim().toLowerCase() ?? "";
+  const headless =
+    platform === "darwin" || platform === "linux" || platform === "win32" || platform === "windows";
+  return headless ? { core: legacy, ui: undefined } : { core: undefined, ui: legacy };
+}
+
+function formatNodeVersions(node: {
+  platform?: string;
+  version?: string;
+  coreVersion?: string;
+  uiVersion?: string;
+}) {
+  const { core, ui } = resolveNodeVersions(node);
+  const parts: string[] = [];
+  if (core) parts.push(`core ${formatVersionLabel(core)}`);
+  if (ui) parts.push(`ui ${formatVersionLabel(ui)}`);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
 
 export function registerNodesStatusCommands(nodes: Command) {
   nodesCallOpts(
@@ -10,7 +48,7 @@ export function registerNodesStatusCommands(nodes: Command) {
       .command("status")
       .description("List known nodes with connection status and capabilities")
       .action(async (opts: NodesRpcOpts) => {
-        try {
+        await runNodesCommand("status", async () => {
           const result = (await callGatewayCli("node.list", opts, {})) as unknown;
           if (opts.json) {
             defaultRuntime.log(JSON.stringify(result, null, 2));
@@ -29,6 +67,8 @@ export function registerNodesStatusCommands(nodes: Command) {
             const hw = n.modelIdentifier ? ` · hw: ${n.modelIdentifier}` : "";
             const perms = formatPermissions(n.permissions);
             const permsText = perms ? ` · perms: ${perms}` : "";
+            const versions = formatNodeVersions(n);
+            const versionText = versions ? ` · ${versions}` : "";
             const caps =
               Array.isArray(n.caps) && n.caps.length > 0
                 ? `[${n.caps.map(String).filter(Boolean).sort().join(",")}]`
@@ -37,13 +77,10 @@ export function registerNodesStatusCommands(nodes: Command) {
                   : "?";
             const pairing = n.paired ? "paired" : "unpaired";
             defaultRuntime.log(
-              `- ${name} · ${n.nodeId}${ip}${device}${hw}${permsText} · ${pairing} · ${n.connected ? "connected" : "disconnected"} · caps: ${caps}`,
+              `- ${name} · ${n.nodeId}${ip}${device}${hw}${permsText}${versionText} · ${pairing} · ${n.connected ? "connected" : "disconnected"} · caps: ${caps}`,
             );
           }
-        } catch (err) {
-          defaultRuntime.error(`nodes status failed: ${String(err)}`);
-          defaultRuntime.exit(1);
-        }
+        });
       }),
   );
 
@@ -53,7 +90,7 @@ export function registerNodesStatusCommands(nodes: Command) {
       .description("Describe a node (capabilities + supported invoke commands)")
       .requiredOption("--node <idOrNameOrIp>", "Node id, name, or IP")
       .action(async (opts: NodesRpcOpts) => {
-        try {
+        await runNodesCommand("describe", async () => {
           const nodeId = await resolveNodeId(opts, String(opts.node ?? ""));
           const result = (await callGatewayCli("node.describe", opts, {
             nodeId,
@@ -77,12 +114,21 @@ export function registerNodesStatusCommands(nodes: Command) {
           const family = typeof obj.deviceFamily === "string" ? obj.deviceFamily : null;
           const model = typeof obj.modelIdentifier === "string" ? obj.modelIdentifier : null;
           const ip = typeof obj.remoteIp === "string" ? obj.remoteIp : null;
+          const versions = formatNodeVersions(
+            obj as {
+              platform?: string;
+              version?: string;
+              coreVersion?: string;
+              uiVersion?: string;
+            },
+          );
 
           const parts: string[] = ["Node:", displayName, nodeId];
           if (ip) parts.push(ip);
           if (family) parts.push(`device: ${family}`);
           if (model) parts.push(`hw: ${model}`);
           if (perms) parts.push(`perms: ${perms}`);
+          if (versions) parts.push(versions);
           parts.push(connected ? "connected" : "disconnected");
           parts.push(`caps: ${caps ? `[${caps.join(",")}]` : "?"}`);
           defaultRuntime.log(parts.join(" · "));
@@ -92,10 +138,7 @@ export function registerNodesStatusCommands(nodes: Command) {
             return;
           }
           for (const c of commands) defaultRuntime.log(`- ${c}`);
-        } catch (err) {
-          defaultRuntime.error(`nodes describe failed: ${String(err)}`);
-          defaultRuntime.exit(1);
-        }
+        });
       }),
   );
 
@@ -104,7 +147,7 @@ export function registerNodesStatusCommands(nodes: Command) {
       .command("list")
       .description("List pending and paired nodes")
       .action(async (opts: NodesRpcOpts) => {
-        try {
+        await runNodesCommand("list", async () => {
           const result = (await callGatewayCli("node.pair.list", opts, {})) as unknown;
           if (opts.json) {
             defaultRuntime.log(JSON.stringify(result, null, 2));
@@ -130,10 +173,7 @@ export function registerNodesStatusCommands(nodes: Command) {
               defaultRuntime.log(`- ${n.nodeId}: ${name}${ip}`);
             }
           }
-        } catch (err) {
-          defaultRuntime.error(`nodes list failed: ${String(err)}`);
-          defaultRuntime.exit(1);
-        }
+        });
       }),
   );
 }

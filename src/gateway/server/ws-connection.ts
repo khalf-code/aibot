@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { WebSocket, WebSocketServer } from "ws";
 import { resolveCanvasHostUrl } from "../../infra/canvas-host-url.js";
 import { listSystemPresence, upsertPresence } from "../../infra/system-presence.js";
-import type { createSubsystemLogger } from "../../logging.js";
+import type { createSubsystemLogger } from "../../logging/subsystem.js";
 import { isWebchatClient } from "../../utils/message-channel.js";
 
 import type { ResolvedGatewayAuth } from "../auth.js";
@@ -22,7 +22,7 @@ export function attachGatewayWsConnectionHandler(params: {
   wss: WebSocketServer;
   clients: Set<GatewayWsClient>;
   port: number;
-  bridgeHost?: string;
+  gatewayHost?: string;
   canvasHostEnabled: boolean;
   canvasHostServerPort?: number;
   resolvedAuth: ResolvedGatewayAuth;
@@ -46,7 +46,7 @@ export function attachGatewayWsConnectionHandler(params: {
     wss,
     clients,
     port,
-    bridgeHost,
+    gatewayHost,
     canvasHostEnabled,
     canvasHostServerPort,
     resolvedAuth,
@@ -76,7 +76,7 @@ export function attachGatewayWsConnectionHandler(params: {
 
     const canvasHostPortForWs = canvasHostServerPort ?? (canvasHostEnabled ? port : undefined);
     const canvasHostOverride =
-      bridgeHost && bridgeHost !== "0.0.0.0" && bridgeHost !== "::" ? bridgeHost : undefined;
+      gatewayHost && gatewayHost !== "0.0.0.0" && gatewayHost !== "::" ? gatewayHost : undefined;
     const canvasHostUrl = resolveCanvasHostUrl({
       canvasPort: canvasHostPortForWs,
       hostOverride: canvasHostServerPort ? canvasHostOverride : undefined,
@@ -181,6 +181,13 @@ export function attachGatewayWsConnectionHandler(params: {
             },
           },
         );
+      }
+      if (client?.connect?.role === "node") {
+        const context = buildRequestContext();
+        const nodeId = context.nodeRegistry.unregister(connId);
+        if (nodeId) {
+          context.nodeUnsubscribeAll(nodeId);
+        }
       }
       logWs("out", "close", {
         connId,

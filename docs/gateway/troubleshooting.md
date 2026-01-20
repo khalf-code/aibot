@@ -326,6 +326,22 @@ Clawdbot keeps conversation history in memory.
 
 ## Common troubleshooting
 
+### “Gateway won’t start — configuration invalid”
+
+Clawdbot now refuses to start when the config contains unknown keys, malformed values, or invalid types.
+This is intentional for safety.
+
+Fix it with Doctor:
+```bash
+clawdbot doctor
+clawdbot doctor --fix
+```
+
+Notes:
+- `clawdbot doctor` reports every invalid entry.
+- `clawdbot doctor --fix` applies migrations/repairs and rewrites the config.
+- Diagnostic commands like `clawdbot logs`, `clawdbot health`, `clawdbot status`, and `clawdbot service` still run even if the config is invalid.
+
 ### “All models failed” — what should I check first?
 
 - **Credentials** present for the provider(s) being tried (auth profiles + env vars).
@@ -362,7 +378,7 @@ clawdbot channels login
 ### Build errors on `main` — what’s the standard fix path?
 
 1) `git pull origin main && pnpm install`
-2) `pnpm clawdbot doctor`
+2) `clawdbot doctor`
 3) Check GitHub issues or Discord
 4) Temporary workaround: check out an older commit
 
@@ -376,7 +392,7 @@ Typical recovery:
 git status   # ensure you’re in the repo root
 pnpm install
 pnpm build
-pnpm clawdbot doctor
+clawdbot doctor
 clawdbot daemon restart
 ```
 

@@ -129,6 +129,8 @@ export type ExecToolConfig = {
   ask?: "off" | "on-miss" | "always";
   /** Default node binding for exec.host=node (node id/name). */
   node?: string;
+  /** Directories to prepend to PATH when running exec (gateway/sandbox). */
+  pathPrepend?: string[];
   /** Default time (ms) before an exec command auto-backgrounds. */
   backgroundMs?: number;
   /** Default timeout (seconds) before auto-killing exec commands. */
@@ -184,13 +186,13 @@ export type MemorySearchConfig = {
     sessionMemory?: boolean;
   };
   /** Embedding provider mode. */
-  provider?: "openai" | "local";
+  provider?: "openai" | "gemini" | "local";
   remote?: {
     baseUrl?: string;
     apiKey?: string;
     headers?: Record<string, string>;
     batch?: {
-      /** Enable OpenAI Batch API for embedding indexing (default: true). */
+      /** Enable batch API for embedding indexing (OpenAI/Gemini; default: true). */
       enabled?: boolean;
       /** Wait for batch completion (default: true). */
       wait?: boolean;
@@ -202,8 +204,8 @@ export type MemorySearchConfig = {
       timeoutMinutes?: number;
     };
   };
-  /** Fallback behavior when local embeddings fail. */
-  fallback?: "openai" | "none";
+  /** Fallback behavior when embeddings fail. */
+  fallback?: "openai" | "gemini" | "local" | "none";
   /** Embedding model id (remote) or alias (local). */
   model?: string;
   /** Local embedding settings (node-llama-cpp). */
