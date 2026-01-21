@@ -198,21 +198,65 @@ export async function handleBubbleReply(params: {
   replyToMessageId: number;
   text: string;
   api: Bot["api"];
+  /** Original message text for fallback resume token extraction */
+  originalMessageText?: string;
 }): Promise<boolean> {
-  const { chatId, replyToMessageId, text, api } = params;
+  const { chatId, replyToMessageId, text, api, originalMessageText } = params;
 
-  // Check if this is a reply to a bubble
+  // Check if this is a reply to a bubble (in-memory lookup)
   const {
     isReplyToBubble,
     sendInput: sendSessionInput,
     getSession,
     startSession: startNewSession,
     logDyDoCommand,
+    resolveProject,
   } = await import("../agents/claude-code/index.js");
 
   const bubbleInfo = isReplyToBubble(chatId, replyToMessageId);
+
+  // If not found in memory, try to extract from message text
   if (!bubbleInfo) {
-    return false; // Not a bubble reply
+    // Try fallback: parse resume token from original message text
+    const fallbackInfo = parseResumeTokenFromMessage(originalMessageText);
+    if (!fallbackInfo) {
+      return false; // Not a bubble reply
+    }
+
+    log.info(`Handling bubble reply via fallback parsing: ${fallbackInfo.resumeToken}`);
+
+    // Log the new instruction
+    logDyDoCommand({
+      prompt: text,
+      resumeToken: fallbackInfo.resumeToken,
+      short: text.length > 50 ? `${text.slice(0, 47)}...` : text,
+      project: fallbackInfo.projectName,
+    });
+
+    // Resolve project to get working directory
+    const resolved = await resolveProject(fallbackInfo.projectName);
+    if (!resolved) {
+      log.warn(`Could not resolve project: ${fallbackInfo.projectName}`);
+      await api
+        .sendMessage(chatId, `Could not find project: ${fallbackInfo.projectName}`, {
+          parse_mode: "Markdown",
+        })
+        .catch(() => {});
+      return true; // We handled it, just couldn't resume
+    }
+
+    // Resume with the extracted info
+    await resumeWithNewInstructions(
+      {
+        resumeToken: fallbackInfo.resumeToken,
+        workingDir: resolved.workingDir,
+        projectName: fallbackInfo.projectName,
+      },
+      text,
+      chatId,
+      api,
+    );
+    return true;
   }
 
   const { sessionId, bubble } = bubbleInfo;
@@ -255,6 +299,41 @@ export async function handleBubbleReply(params: {
   // Session not running - resume with the text as prompt
   await resumeWithNewInstructions(bubble, text, chatId, api);
   return true;
+}
+
+/**
+ * Parse resume token and project name from bubble message text.
+ * Looks for patterns like:
+ * - `claude --resume <UUID>`
+ * - `ctx: <projectName>`
+ */
+function parseResumeTokenFromMessage(
+  messageText: string | undefined,
+): { resumeToken: string; projectName: string } | null {
+  if (!messageText) return null;
+
+  // Extract resume token: `claude --resume <UUID>`
+  const resumeMatch = messageText.match(/claude --resume ([a-f0-9-]{36})/);
+  if (!resumeMatch) return null;
+
+  const resumeToken = resumeMatch[1];
+
+  // Extract project name: "ctx: <projectName>" or from header "**done** · <projectName> · "
+  let projectName = "unknown";
+
+  // Try "ctx: project @branch" format
+  const ctxMatch = messageText.match(/ctx:\s*([^\n]+)/);
+  if (ctxMatch) {
+    projectName = ctxMatch[1].trim();
+  } else {
+    // Try header format "**working** · project · 5m"
+    const headerMatch = messageText.match(/\*\*(?:working|done)\*\*\s*·\s*([^·]+)\s*·/);
+    if (headerMatch) {
+      projectName = headerMatch[1].trim();
+    }
+  }
+
+  return { resumeToken, projectName };
 }
 
 /**

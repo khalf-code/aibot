@@ -39,6 +39,8 @@ export const createTelegramMessageProcessor = (deps) => {
           replyToMessageId: msg.reply_to_message.message_id,
           text: msg.text,
           api: bot.api,
+          // Pass original message text for fallback resume token extraction
+          originalMessageText: msg.reply_to_message.text,
         });
         if (handled) {
           // Bubble reply was handled, skip normal message processing
