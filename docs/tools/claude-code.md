@@ -11,10 +11,12 @@ Start and manage [Claude Code](https://docs.anthropic.com/en/docs/claude-code) s
 ## Quick start
 
 ```
-/claude juzi          # Start session in project "juzi"
-/claude juzi @main    # Start in worktree
-/claude status        # Show active sessions
-/claude cancel abc123 # Cancel session by token
+/claude juzi implement the auth system     # Start with task (DyDo plans first)
+/claude juzi @experimental fix the bug     # Start in worktree with task
+/claude juzi --quick fix the typo          # Quick mode (bypass DyDo planning)
+/claude juzi                               # Interactive session (no task)
+/claude status                             # Show active sessions
+/claude cancel abc123                      # Cancel session by token
 ```
 
 ## Project resolution
@@ -52,13 +54,125 @@ This looks for `.worktrees/experimental` inside the project directory.
 
 ## Commands
 
+### Start a Session
+
+```
+/claude <project> <task>
+```
+
+Start a Claude Code session with a task. DyDo analyzes the task first, then launches Claude Code with an enriched prompt.
+
+**Examples:**
+```
+/claude juzi implement the auth system
+/claude juzi @experimental fix the login bug
+/claude clawdbot add dark mode support
+```
+
+### Quick Mode
+
+```
+/claude <project> --quick <task>
+```
+
+Skip DyDo planning and send the task directly to Claude Code.
+
+**Examples:**
+```
+/claude juzi --quick fix the typo in README
+/claude clawdbot --quick run the tests
+```
+
+### Interactive Session
+
+```
+/claude <project>
+```
+
+Start an interactive session without a specific task.
+
+**Examples:**
+```
+/claude juzi
+/claude clawdbot
+```
+
+### Resume Session
+
+```
+/claude resume <token> [task]
+```
+
+Resume a previous session. Token can be the full UUID or just the first few characters.
+
+**Examples:**
+```
+/claude resume 66a15def-b044-4927-8c16-6d5e477e0fe2
+/claude resume 66a15def continue the work
+/claude resume 66a15 fix the remaining tests
+```
+
+### Send Message to Running Session
+
+```
+/claude say <token> <message>
+```
+
+Send a message or instruction to an active session.
+
+**Examples:**
+```
+/claude say 66a15 use TypeScript instead
+/claude say 66a15def please also add error handling
+```
+
+### Cancel Session
+
+```
+/claude cancel <token>
+```
+
+**Examples:**
+```
+/claude cancel 66a15
+/claude cancel 66a15def-b044-4927-8c16-6d5e477e0fe2
+```
+
+### Status and Listing
+
+```
+/claude status      # Show active sessions
+/claude list        # Same as status
+```
+
+### Project Management
+
+```
+/claude projects                        # List known projects
+/claude register <name> <path>          # Register alias
+/claude unregister <name>               # Remove alias
+```
+
+**Examples:**
+```
+/claude projects
+/claude register myapp ~/projects/my-app
+/claude unregister myapp
+```
+
+### Reply to Bubble
+
+Reply to any bubble message with new instructions - the session will resume with your text as the new prompt. This works even after the session has ended.
+
 | Command | Description |
 |---------|-------------|
-| `/claude <project>` | Start a session |
-| `/claude <project> @<worktree>` | Start in worktree |
-| `/claude status` | Show active sessions |
-| `/claude cancel <token>` | Cancel a session |
+| `/claude <project> <task>` | Start session with task (DyDo planning) |
+| `/claude <project> --quick <task>` | Quick mode (no DyDo planning) |
+| `/claude <project>` | Interactive session |
+| `/claude resume <token> [task]` | Resume previous session |
 | `/claude say <token> <msg>` | Send message to session |
+| `/claude cancel <token>` | Cancel a session |
+| `/claude status` | Show active sessions |
 | `/claude projects` | List known projects |
 | `/claude register <name> <path>` | Register project alias |
 | `/claude unregister <name>` | Remove project alias |
@@ -121,7 +235,9 @@ Session activity is forwarded to chat with emoji indicators:
 
 This lets you follow the conversation between DyDo and Claude Code in real-time.
 
-## Chiming in
+## Interacting with Sessions
+
+### Chiming in
 
 To send a message to an active session (e.g., provide context or instructions):
 
@@ -130,6 +246,15 @@ To send a message to an active session (e.g., provide context or instructions):
 ```
 
 Where `abc123` is the first 8 characters of the session token (shown in status bubble).
+
+### Reply to Bubble
+
+Alternatively, just **reply to any bubble message** with new instructions. This works:
+
+- While the session is running (sends your text as input)
+- After the session has ended (resumes the session with your text as the new prompt)
+
+This is the easiest way to give follow-up instructions.
 
 ## Runtime limits
 
@@ -144,4 +269,6 @@ Sessions automatically pause after **3 hours** to prevent runaway execution. Whe
 - Sessions run in `bypassPermissions` mode by default (no permission prompts)
 - Only authorized senders can use `/claude`
 - Use `/claude projects` to see all known projects and search directories
-- Questions from Claude Code are forwarded to chat - reply with `/claude say`
+- **DyDo automatically answers Claude Code questions** - no user intervention needed
+- Reply to bubble messages to give new instructions at any time
+- Token prefixes work (e.g., `66a15` instead of `66a15def-b044-4927-8c16-6d5e477e0fe2`)
