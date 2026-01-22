@@ -17,8 +17,9 @@ function buildSkillsSection(params: {
   isMinimal: boolean;
   readToolName: string;
 }) {
+  if (params.isMinimal) return [];
   const trimmed = params.skillsPrompt?.trim();
-  if (!trimmed || params.isMinimal) return [];
+  if (!trimmed) return [];
   return [
     "## Skills (mandatory)",
     "Before replying: scan <available_skills> <description> entries.",
