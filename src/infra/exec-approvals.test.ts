@@ -14,8 +14,16 @@ import {
   normalizeSafeBins,
   resolveCommandResolution,
   resolveExecApprovals,
+  resolveExecApprovalsFromFile,
   type ExecAllowlistEntry,
 } from "./exec-approvals.js";
+
+function makePathEnv(binDir: string): NodeJS.ProcessEnv {
+  if (process.platform !== "win32") {
+    return { PATH: binDir };
+  }
+  return { PATH: binDir, PATHEXT: ".EXE;.CMD;.BAT;.COM" };
+}
 
 function makeTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "clawdbot-exec-approvals-"));
@@ -72,12 +80,13 @@ describe("exec approvals command resolution", () => {
     const dir = makeTempDir();
     const binDir = path.join(dir, "bin");
     fs.mkdirSync(binDir, { recursive: true });
-    const exe = path.join(binDir, "rg");
+    const exeName = process.platform === "win32" ? "rg.exe" : "rg";
+    const exe = path.join(binDir, exeName);
     fs.writeFileSync(exe, "");
     fs.chmodSync(exe, 0o755);
-    const res = resolveCommandResolution("rg -n foo", undefined, { PATH: binDir });
+    const res = resolveCommandResolution("rg -n foo", undefined, makePathEnv(binDir));
     expect(res?.resolvedPath).toBe(exe);
-    expect(res?.executableName).toBe("rg");
+    expect(res?.executableName).toBe(exeName);
   });
 
   it("resolves relative paths against cwd", () => {
@@ -127,13 +136,14 @@ describe("exec approvals safe bins", () => {
     const dir = makeTempDir();
     const binDir = path.join(dir, "bin");
     fs.mkdirSync(binDir, { recursive: true });
-    const exe = path.join(binDir, "jq");
+    const exeName = process.platform === "win32" ? "jq.exe" : "jq";
+    const exe = path.join(binDir, exeName);
     fs.writeFileSync(exe, "");
     fs.chmodSync(exe, 0o755);
     const res = analyzeShellCommand({
       command: "jq .foo",
       cwd: dir,
-      env: { PATH: binDir },
+      env: makePathEnv(binDir),
     });
     expect(res.ok).toBe(true);
     const segment = res.segments[0];
@@ -150,7 +160,8 @@ describe("exec approvals safe bins", () => {
     const dir = makeTempDir();
     const binDir = path.join(dir, "bin");
     fs.mkdirSync(binDir, { recursive: true });
-    const exe = path.join(binDir, "jq");
+    const exeName = process.platform === "win32" ? "jq.exe" : "jq";
+    const exe = path.join(binDir, exeName);
     fs.writeFileSync(exe, "");
     fs.chmodSync(exe, 0o755);
     const file = path.join(dir, "secret.json");
@@ -158,7 +169,7 @@ describe("exec approvals safe bins", () => {
     const res = analyzeShellCommand({
       command: "jq .foo secret.json",
       cwd: dir,
-      env: { PATH: binDir },
+      env: makePathEnv(binDir),
     });
     expect(res.ok).toBe(true);
     const segment = res.segments[0];
@@ -215,5 +226,34 @@ describe("exec approvals wildcard agent", () => {
     } finally {
       homedirSpy.mockRestore();
     }
+  });
+});
+
+describe("exec approvals default agent migration", () => {
+  it("migrates legacy default agent entries to main", () => {
+    const file = {
+      version: 1,
+      agents: {
+        default: { allowlist: [{ pattern: "/bin/legacy" }] },
+      },
+    };
+    const resolved = resolveExecApprovalsFromFile({ file });
+    expect(resolved.allowlist.map((entry) => entry.pattern)).toEqual(["/bin/legacy"]);
+    expect(resolved.file.agents?.default).toBeUndefined();
+    expect(resolved.file.agents?.main?.allowlist?.[0]?.pattern).toBe("/bin/legacy");
+  });
+
+  it("prefers main agent settings when both main and default exist", () => {
+    const file = {
+      version: 1,
+      agents: {
+        main: { ask: "always", allowlist: [{ pattern: "/bin/main" }] },
+        default: { ask: "off", allowlist: [{ pattern: "/bin/legacy" }] },
+      },
+    };
+    const resolved = resolveExecApprovalsFromFile({ file });
+    expect(resolved.agent.ask).toBe("always");
+    expect(resolved.allowlist.map((entry) => entry.pattern)).toEqual(["/bin/main", "/bin/legacy"]);
+    expect(resolved.file.agents?.default).toBeUndefined();
   });
 });
