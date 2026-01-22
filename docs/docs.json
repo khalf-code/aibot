@@ -918,7 +918,8 @@
           "cli/pairing",
           "cli/security",
           "cli/update",
-          "cli/sandbox"
+          "cli/sandbox",
+          "cli/mcp-server"
         ]
       },
       {
