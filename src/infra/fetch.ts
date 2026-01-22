@@ -34,7 +34,7 @@ export function wrapFetchWithAbortSignal(fetchImpl: typeof fetch): typeof fetch 
   const fetchWithPreconnect = fetchImpl as FetchWithPreconnect;
   wrapped.preconnect =
     typeof fetchWithPreconnect.preconnect === "function"
-      ? fetchWithPreconnect.preconnect.bind(fetchImpl)
+      ? fetchWithPreconnect.preconnect.bind(fetchWithPreconnect)
       : () => {};
 
   return Object.assign(wrapped, fetchImpl);
