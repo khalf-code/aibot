@@ -5,6 +5,7 @@ export interface Repository {
   name: string
   owner: string
   defaultBranch: string
+  language?: string
 }
 
 export const getFullName = (repo: Repository) => `${repo.owner}/${repo.name}`

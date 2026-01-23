@@ -17,9 +17,10 @@ import NewSessionSheet from '../components/NewSessionSheet'
 
 interface Props {
   onSessionPress: (session: Session) => void
+  onSettingsPress: () => void
 }
 
-const SessionListView: React.FC<Props> = ({ onSessionPress }) => {
+const SessionListView: React.FC<Props> = ({ onSessionPress, onSettingsPress }) => {
   const { sessions } = useAppState()
   const [showNewSessionSheet, setShowNewSessionSheet] = useState(false)
 
@@ -27,8 +28,8 @@ const SessionListView: React.FC<Props> = ({ onSessionPress }) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={Colors.primaryText} />
+        <TouchableOpacity style={styles.menuButton} onPress={onSettingsPress}>
+          <Ionicons name="settings-outline" size={24} color={Colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Code</Text>
         <View style={{ width: 24 }} />

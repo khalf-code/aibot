@@ -4,9 +4,12 @@ import { AppProvider } from './src/contexts/AppContext'
 import { Session } from './src/models/types'
 import SessionListView from './src/views/SessionListView'
 import ChatView from './src/views/ChatView'
+import SettingsView from './src/views/SettingsView'
+
+type ViewType = 'list' | 'chat' | 'settings'
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'list' | 'chat'>('list')
+  const [currentView, setCurrentView] = useState<ViewType>('list')
   const [activeSession, setActiveSession] = useState<Session | null>(null)
 
   const handleSessionPress = (session: Session) => {
@@ -19,11 +22,17 @@ export default function App() {
     setActiveSession(null)
   }
 
+  const handleSettingsPress = () => {
+    setCurrentView('settings')
+  }
+
   return (
     <AppProvider>
       <StatusBar style="light" />
       {currentView === 'list' ? (
-        <SessionListView onSessionPress={handleSessionPress} />
+        <SessionListView onSessionPress={handleSessionPress} onSettingsPress={handleSettingsPress} />
+      ) : currentView === 'settings' ? (
+        <SettingsView onBack={handleBackToList} />
       ) : activeSession ? (
         <ChatView session={activeSession} onBack={handleBackToList} />
       ) : null}

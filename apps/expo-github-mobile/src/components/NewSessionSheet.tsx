@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors, Spacing, Radius } from '../theme/colors'
@@ -22,6 +23,9 @@ import {
 } from '../models/types'
 import MessageInputView from './MessageInputView'
 import Chip from './Chip'
+import { useGitHubRepos, type GitHubRepo, type GitHubBranch } from '../hooks/useGitHub'
+import { useSettings } from '../hooks/useSettings'
+import { GitHubAPI } from '../services/github'
 
 interface Props {
   visible: boolean
@@ -30,27 +34,70 @@ interface Props {
 }
 
 const NewSessionSheet: React.FC<Props> = ({ visible, onClose, onSessionCreate }) => {
-  const { repositories, createNewSession, sendMessage } = useAppState()
+  const { createNewSession, sendMessage } = useAppState()
+  const { settings } = useSettings()
+  const { repos, loading: loadingRepos, error: reposError, refetch } = useGitHubRepos()
+
   const [messageText, setMessageText] = useState('')
-  const [selectedRepository, setSelectedRepository] = useState<Repository | undefined>()
+  const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | undefined>()
+  const [selectedBranch, setSelectedBranch] = useState<string>('')
   const [selectedModel, setSelectedModel] = useState<AIModel>(AIModels.sonnet)
   const [showModelPicker, setShowModelPicker] = useState(false)
   const [showRepoPicker, setShowRepoPicker] = useState(false)
+  const [showBranchPicker, setShowBranchPicker] = useState(false)
 
+  const [branches, setBranches] = useState<GitHubBranch[]>([])
+  const [loadingBranches, setLoadingBranches] = useState(false)
+
+  // Set initial repo when repos load
   useEffect(() => {
-    if (visible && repositories.length > 0 && !selectedRepository) {
-      setSelectedRepository(repositories[0])
+    if (visible && repos.length > 0 && !selectedRepo) {
+      setSelectedRepo(repos[0])
+      setSelectedBranch(repos[0].default_branch)
     }
-  }, [visible, repositories])
+  }, [visible, repos])
+
+  // Fetch branches when repo changes
+  useEffect(() => {
+    if (!selectedRepo) return
+
+    const fetchBranches = async () => {
+      setLoadingBranches(true)
+      try {
+        const b = await GitHubAPI.getRepoBranches(selectedRepo.owner.login, selectedRepo.name)
+        setBranches(b)
+        if (!selectedBranch && b.length > 0) {
+          setSelectedBranch(selectedRepo.default_branch || b[0].name)
+        }
+      } catch (e) {
+        console.error('Failed to fetch branches', e)
+      } finally {
+        setLoadingBranches(false)
+      }
+    }
+
+    fetchBranches()
+  }, [selectedRepo])
 
   const handleCreateSession = () => {
-    if (!messageText.trim() || !selectedRepository) return
+    if (!messageText.trim() || !selectedRepo) return
 
-    const session = createNewSession(messageText.slice(0, 50), selectedRepository)
+    // Convert GitHubRepo to app Repository
+    const repository: Repository = {
+      id: String(selectedRepo.id),
+      name: selectedRepo.name,
+      owner: selectedRepo.owner.login,
+      defaultBranch: selectedRepo.default_branch,
+      language: selectedRepo.language || undefined,
+    }
+
+    const session = createNewSession(messageText.slice(0, 50), repository)
     sendMessage(messageText, session)
     setMessageText('')
     onSessionCreate(session)
   }
+
+  const showNoUsername = !settings.githubUsername && !loadingRepos
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -70,46 +117,78 @@ const NewSessionSheet: React.FC<Props> = ({ visible, onClose, onSessionCreate })
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={0}
         >
-          <View style={{ flex: 1 }} />
+          {showNoUsername ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="logo-github" size={64} color={Colors.tertiaryText} />
+              <Text style={styles.emptyTitle}>GitHub Username Required</Text>
+              <Text style={styles.emptyText}>
+                Please set your GitHub username in Settings to fetch repositories.
+              </Text>
+            </View>
+          ) : loadingRepos ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="large" color={Colors.accent} />
+              <Text style={styles.emptyText}>Loading repositories...</Text>
+            </View>
+          ) : repos.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="folder-open-outline" size={64} color={Colors.tertiaryText} />
+              <Text style={styles.emptyTitle}>No Repositories Found</Text>
+              <Text style={styles.emptyText}>
+                {reposError || `No repositories found for ${settings.githubUsername}`}
+              </Text>
+              <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ flex: 1 }} />
+          )}
 
           {/* Message input area */}
-          <View style={styles.inputContainer}>
-            <MessageInputView
-              text={messageText}
-              placeholder="Ask Claude to help with code..."
-              onChangeText={setMessageText}
-              onSend={handleCreateSession}
-            />
+          {!showNoUsername && repos.length > 0 && (
+            <View style={styles.inputContainer}>
+              <MessageInputView
+                text={messageText}
+                placeholder="Ask Claude to help with code..."
+                onChangeText={setMessageText}
+                onSend={handleCreateSession}
+              />
 
-            {/* Bottom chips */}
-            <View style={styles.chipsContainer}>
-              <TouchableOpacity
-                style={styles.chip}
-                onPress={() => setShowModelPicker(true)}
-              >
-                <Ionicons name="cube-outline" size={16} color={Colors.primaryText} />
-                <Text style={styles.chipText}>{selectedModel.displayName}</Text>
-                <Ionicons name="chevron-down" size={12} color={Colors.primaryText} />
-              </TouchableOpacity>
+              {/* Bottom chips */}
+              <View style={styles.chipsContainer}>
+                <TouchableOpacity
+                  style={styles.chip}
+                  onPress={() => setShowModelPicker(true)}
+                >
+                  <Ionicons name="cube-outline" size={16} color={Colors.primaryText} />
+                  <Text style={styles.chipText}>{selectedModel.displayName}</Text>
+                  <Ionicons name="chevron-down" size={12} color={Colors.primaryText} />
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.chip}
-                onPress={() => setShowRepoPicker(true)}
-              >
-                <Ionicons name="folder-outline" size={16} color={Colors.primaryText} />
-                <Text style={styles.chipText}>
-                  {selectedRepository?.name || 'Select repo'}
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.chip}
+                  onPress={() => setShowRepoPicker(true)}
+                >
+                  <Ionicons name="folder-outline" size={16} color={Colors.primaryText} />
+                  <Text style={styles.chipText} numberOfLines={1}>
+                    {selectedRepo?.name || 'Select repo'}
+                  </Text>
+                </TouchableOpacity>
 
-              {selectedRepository && (
-                <View style={styles.chip}>
-                  <Ionicons name="git-branch-outline" size={16} color={Colors.primaryText} />
-                  <Text style={styles.chipText}>{selectedRepository.defaultBranch}</Text>
-                </View>
-              )}
+                {selectedRepo && (
+                  <TouchableOpacity
+                    style={styles.chip}
+                    onPress={() => setShowBranchPicker(true)}
+                  >
+                    <Ionicons name="git-branch-outline" size={16} color={Colors.primaryText} />
+                    <Text style={styles.chipText}>{selectedBranch || 'main'}</Text>
+                    <Ionicons name="chevron-down" size={12} color={Colors.primaryText} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-          </View>
+          )}
         </KeyboardAvoidingView>
 
         {/* Model Picker Modal */}
@@ -137,18 +216,45 @@ const NewSessionSheet: React.FC<Props> = ({ visible, onClose, onSessionCreate })
           onClose={() => setShowRepoPicker(false)}
           title="Select Repository"
         >
-          {repositories.map((repo) => (
+          {repos.map((repo) => (
             <PickerItem
               key={repo.id}
               title={repo.name}
-              subtitle={`${repo.owner}/${repo.name}`}
-              selected={selectedRepository?.id === repo.id}
+              subtitle={repo.description || `Updated: ${new Date(repo.updated_at).toLocaleDateString()}`}
+              selected={selectedRepo?.id === repo.id}
               onPress={() => {
-                setSelectedRepository(repo)
+                setSelectedRepo(repo)
+                setSelectedBranch(repo.default_branch)
                 setShowRepoPicker(false)
               }}
             />
           ))}
+        </PickerModal>
+
+        {/* Branch Picker Modal */}
+        <PickerModal
+          visible={showBranchPicker}
+          onClose={() => setShowBranchPicker(false)}
+          title="Select Branch"
+        >
+          {loadingBranches ? (
+            <View style={{ padding: Spacing.LG, alignItems: 'center' }}>
+              <ActivityIndicator color={Colors.accent} />
+            </View>
+          ) : (
+            branches.map((branch) => (
+              <PickerItem
+                key={branch.name}
+                title={branch.name}
+                subtitle={branch.protected ? '🔒 Protected' : undefined}
+                selected={selectedBranch === branch.name}
+                onPress={() => {
+                  setSelectedBranch(branch.name)
+                  setShowBranchPicker(false)
+                }}
+              />
+            ))
+          )}
         </PickerModal>
       </SafeAreaView>
     </Modal>
@@ -184,9 +290,9 @@ const PickerItem: React.FC<{
   onPress: () => void
 }> = ({ title, subtitle, selected, onPress }) => (
   <TouchableOpacity style={styles.pickerItem} onPress={onPress}>
-    <View>
+    <View style={{ flex: 1 }}>
       <Text style={styles.pickerItemTitle}>{title}</Text>
-      {subtitle && <Text style={styles.pickerItemSubtitle}>{subtitle}</Text>}
+      {subtitle && <Text style={styles.pickerItemSubtitle} numberOfLines={1}>{subtitle}</Text>}
     </View>
     {selected && <Ionicons name="checkmark" size={20} color={Colors.accent} />}
   </TouchableOpacity>
@@ -219,6 +325,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.XL,
+    gap: Spacing.MD,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.primaryText,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: Spacing.MD,
+    paddingHorizontal: Spacing.LG,
+    paddingVertical: Spacing.SM,
+    backgroundColor: Colors.chipBackground,
+    borderRadius: Radius.MD,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primaryText,
+  },
   inputContainer: {
     paddingBottom: Spacing.LG,
   },
@@ -239,10 +375,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.Full,
     borderWidth: 1,
     borderColor: Colors.chipBorder,
+    maxWidth: '45%',
   },
   chipText: {
     fontSize: 14,
     color: Colors.primaryText,
+    flex: 1,
   },
   pickerContainer: {
     flex: 1,
