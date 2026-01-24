@@ -35,7 +35,7 @@ const log = createSubsystemLogger("claude-code/bubble-service");
 // Persistent bubble registry for recovery on restart
 const BUBBLE_REGISTRY_PATH = path.join(os.homedir(), ".clawdbot", "bubble-registry.json");
 
-interface BubbleRegistryEntry {
+export interface BubbleRegistryEntry {
   sessionId: string;
   resumeToken: string;
   chatId: string;
@@ -142,11 +142,11 @@ function formatHybridBubbleMessage(state: SessionState, sessionId: string): stri
         // Use fullText if available (contains complete message), otherwise fall back to description
         let fullMsg = lastMessage.fullText || lastMessage.description;
 
-        // Clean up: remove code blocks that contain ctx:/resume lines to avoid duplication with footer
-        // This prevents Claude Code's usage examples from polluting the summary
-        fullMsg = fullMsg.replace(/```[\s\S]*?(ctx:|claude --resume)[\s\S]*?```/g, "").trim();
+        // CRITICAL: Remove ALL code blocks to prevent unclosed blocks from eating the footer
+        // Claude Code's summaries often have code examples that break Telegram Markdown rendering
+        fullMsg = fullMsg.replace(/```[\s\S]*?```/g, "").trim();
 
-        // Also remove standalone ctx:/resume lines that might appear outside code blocks
+        // Also remove inline code that might contain ctx:/resume
         fullMsg = fullMsg
           .split("\n")
           .filter(
@@ -158,18 +158,34 @@ function formatHybridBubbleMessage(state: SessionState, sessionId: string): stri
           .join("\n")
           .trim();
 
-        // Allow up to 2500 chars for the summary in done state
-        // (Telegram limit is 4096, header+footer ~200 chars)
-        const maxSummaryLength = 2500;
-        const msg =
-          fullMsg.length > maxSummaryLength
-            ? fullMsg.slice(0, maxSummaryLength - 3) + "..."
-            : fullMsg;
-
-        if (msg) {
-          bodyLines.push(`💬 ${msg}`);
-        } else {
+        // If summary is now empty after cleanup, show fallback
+        if (!fullMsg || fullMsg.length < 10) {
           bodyLines.push("_(session complete)_");
+        } else {
+          // Telegram limit: 4096 chars total
+          // Header ~80 chars, footer ~150 chars = ~230 chars overhead
+          // Leave 3800 chars for summary (with safety margin)
+          const maxSummaryLength = 3800;
+
+          let msg = fullMsg;
+          if (fullMsg.length > maxSummaryLength) {
+            // Smart truncation: find last complete sentence or newline within limit
+            const truncated = fullMsg.slice(0, maxSummaryLength - 10);
+            const lastNewline = truncated.lastIndexOf("\n");
+            const lastPeriod = truncated.lastIndexOf(". ");
+
+            // Prefer breaking at sentence or paragraph boundary
+            const breakPoint = Math.max(lastNewline, lastPeriod);
+            if (breakPoint > maxSummaryLength * 0.8) {
+              // Only use smart break if it's >80% of target length
+              msg = fullMsg.slice(0, breakPoint + (lastPeriod > 0 ? 2 : 1)) + "\n\n_(truncated)_";
+            } else {
+              // Fall back to hard truncation if no good break point
+              msg = truncated + "...";
+            }
+          }
+
+          bodyLines.push(`💬 ${msg}`);
         }
       } else {
         bodyLines.push("_(session complete)_");
@@ -348,7 +364,7 @@ const activeBubbles = new Map<string, ActiveBubble>();
 /**
  * Load bubble registry from disk.
  */
-function loadBubbleRegistry(): BubbleRegistryEntry[] {
+export function loadBubbleRegistry(): BubbleRegistryEntry[] {
   try {
     if (!fs.existsSync(BUBBLE_REGISTRY_PATH)) {
       return [];

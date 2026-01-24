@@ -134,6 +134,19 @@ async function main() {
         // This prevents stale "working" bubbles when gateway restarts
         await interruptAllBubbles(isRestart ? "Gateway restarting" : "Gateway stopping");
 
+        // Write restart marker for post-restart notification
+        if (isRestart) {
+          defaultRuntime.log("[debug] About to write restart marker...");
+          try {
+            const { writeRestartMarker } = await import("../agents/gateway-restart-notifier.js");
+            defaultRuntime.log("[debug] Imported writeRestartMarker, calling it...");
+            await writeRestartMarker();
+            defaultRuntime.log("[debug] writeRestartMarker completed");
+          } catch (err) {
+            defaultRuntime.log(`[warn] Failed to write restart marker: ${String(err)}`);
+          }
+        }
+
         await server?.close({
           reason: isRestart ? "gateway restarting" : "gateway stopping",
           restartExpectedMs: isRestart ? 1500 : null,
@@ -186,6 +199,14 @@ async function main() {
         // Recover orphaned bubbles after successful startup
         try {
           await recoverOrphanedBubbles();
+
+          // Notify main session about gateway restart
+          try {
+            const { notifyGatewayRestart } = await import("../agents/gateway-restart-notifier.js");
+            await notifyGatewayRestart();
+          } catch (notifyErr) {
+            defaultRuntime.log(`[warn] Restart notification failed: ${String(notifyErr)}`);
+          }
         } catch (err) {
           defaultRuntime.error(`Bubble recovery failed: ${String(err)}`);
         }
