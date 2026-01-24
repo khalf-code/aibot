@@ -121,7 +121,7 @@ export function buildMinimalServicePath(options: BuildServicePathOptions = {}): 
     return env.PATH ?? "";
   }
 
-  return getMinimalServicePathPartsFromEnv({ ...options, env }).join(path.delimiter);
+  return getMinimalServicePathPartsFromEnv({ ...options, env }).join(path.posix.delimiter);
 }
 
 export function buildServiceEnvironment(params: {
