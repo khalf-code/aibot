@@ -1,4 +1,5 @@
 import type { ClawdbotConfig } from "../config/config.js";
+import type { ModelDefinitionConfig } from "../config/types.models.js";
 import {
   DEFAULT_COPILOT_API_BASE_URL,
   resolveCopilotApiToken,
@@ -88,17 +89,7 @@ interface OllamaTagsResponse {
   models: OllamaModel[];
 }
 
-async function discoverOllamaModels(): Promise<
-  Array<{
-    id: string;
-    name: string;
-    reasoning: boolean;
-    input: string[];
-    cost: typeof OLLAMA_DEFAULT_COST;
-    contextWindow: number;
-    maxTokens: number;
-  }>
-> {
+async function discoverOllamaModels(): Promise<ModelDefinitionConfig[]> {
   try {
     const response = await fetch(`${OLLAMA_API_BASE_URL}/api/tags`, {
       signal: AbortSignal.timeout(5000),
@@ -120,14 +111,14 @@ async function discoverOllamaModels(): Promise<
         id: modelId,
         name: modelId,
         reasoning: isReasoning,
-        input: ["text"] as string[],
+        input: ["text"],
         cost: OLLAMA_DEFAULT_COST,
         contextWindow: OLLAMA_DEFAULT_CONTEXT_WINDOW,
         maxTokens: OLLAMA_DEFAULT_MAX_TOKENS,
       };
     });
   } catch (error) {
-    console.warn(`Failed to discover Ollama models: ${error}`);
+    console.warn(`Failed to discover Ollama models: ${String(error)}`);
     return [];
   }
 }
