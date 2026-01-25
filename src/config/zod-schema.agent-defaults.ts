@@ -150,6 +150,7 @@ export const AgentDefaultsSchema = z
               .strict(),
           ])
           .optional(),
+        allowDirectMessageSend: z.boolean().optional(),
       })
       .strict()
       .optional(),

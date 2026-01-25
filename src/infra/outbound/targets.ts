@@ -182,7 +182,8 @@ export function resolveHeartbeatDeliveryTarget(params: {
   const { cfg, entry } = params;
   const heartbeat = params.heartbeat ?? cfg.agents?.defaults?.heartbeat;
   const rawTarget = heartbeat?.target;
-  const requireExplicitTarget = heartbeat?.requireExplicitTarget ?? false;
+  // FIX-1.4: Default to strict mode - require explicit target for heartbeat delivery
+  const requireExplicitTarget = heartbeat?.requireExplicitTarget ?? true;
   const explicitTo = heartbeat?.to?.trim();
   let target: HeartbeatTarget = "last";
   if (rawTarget === "none" || rawTarget === "last") {
@@ -203,16 +204,13 @@ export function resolveHeartbeatDeliveryTarget(params: {
     };
   }
 
-  // When requireExplicitTarget is enabled, only allow delivery if an explicit target is set
+  // FIX-1.4: When requireExplicitTarget is enabled, throw an error if no explicit target is set
+  // This prevents accidental sends to stale/implicit targets from cron/system events
   if (requireExplicitTarget && !explicitTo) {
-    const base = resolveSessionDeliveryTarget({ entry });
-    return {
-      channel: "none",
-      reason: "require-explicit",
-      accountId: undefined,
-      lastChannel: base.lastChannel,
-      lastAccountId: base.lastAccountId,
-    };
+    throw new Error(
+      `Heartbeat delivery blocked: requireExplicitTarget is enabled but no explicit 'to' target was provided. ` +
+        `Set agents.defaults.heartbeat.to to an explicit target, or set agents.defaults.heartbeat.requireExplicitTarget: false to allow implicit routing.`,
+    );
   }
 
   const resolvedTarget = resolveSessionDeliveryTarget({

@@ -10,7 +10,7 @@ import type { ChannelMessageActionName as ChannelMessageActionNameFromList } fro
 
 export type ChannelId = ChatChannelId | (string & {});
 
-export type ChannelOutboundTargetMode = "explicit" | "implicit" | "heartbeat";
+export type ChannelOutboundTargetMode = "explicit" | "implicit" | "heartbeat" | "automation";
 
 export type ChannelAgentTool = AgentTool<TSchema, unknown>;
 

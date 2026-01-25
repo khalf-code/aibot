@@ -195,8 +195,8 @@ export type AgentDefaultsConfig = {
     includeReasoning?: boolean;
     /**
      * When true, require an explicit target for heartbeat delivery (no implicit routing).
-     * If no explicit target is provided, heartbeat delivery is skipped with reason "require-explicit".
-     * Default: false (backwards compatible; falls back to session-derived or "last" routing).
+     * If no explicit target is provided, heartbeat delivery fails with an error.
+     * Default: true (strict mode; prevents accidental sends to stale/implicit targets).
      */
     requireExplicitTarget?: boolean;
   };
@@ -210,6 +210,12 @@ export type AgentDefaultsConfig = {
     archiveAfterMinutes?: number;
     /** Default model selection for spawned sub-agents (string or {primary,fallbacks}). */
     model?: string | { primary?: string; fallbacks?: string[] };
+    /**
+     * Allow subagents to call `message send` API directly (default: false).
+     * When false, subagents must use `sessions_send` instead.
+     * Blocked attempts are logged: `[security] Subagent xxx attempted direct message send - blocked`
+     */
+    allowDirectMessageSend?: boolean;
   };
   /** Optional sandbox settings for non-main sessions. */
   sandbox?: {

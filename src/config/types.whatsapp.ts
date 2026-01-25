@@ -14,6 +14,15 @@ export type WhatsAppActionConfig = {
   polls?: boolean;
 };
 
+export type WhatsAppAutomationConfig = {
+  /**
+   * Recipients that automation/system events can send to (E.164).
+   * All non-interactive sends (system events, cron, subagent callbacks, daemon)
+   * must validate against this list. Default: empty (no automation sends allowed).
+   */
+  recipients?: string[];
+};
+
 export type WhatsAppConfig = {
   /** Optional per-account WhatsApp configuration (multi-account). */
   accounts?: Record<string, WhatsAppAccountConfig>;
@@ -47,6 +56,8 @@ export type WhatsAppConfig = {
    * - "allowlist": only allow group messages from senders in groupAllowFrom/allowFrom
    */
   groupPolicy?: GroupPolicy;
+  /** Automation/system event settings. */
+  automation?: WhatsAppAutomationConfig;
   /** Max group messages to keep as history context (0 disables). */
   historyLimit?: number;
   /** Max DM turns to keep as history context. */
@@ -118,6 +129,8 @@ export type WhatsAppAccountConfig = {
   allowFrom?: string[];
   groupAllowFrom?: string[];
   groupPolicy?: GroupPolicy;
+  /** Automation/system event settings for this account. */
+  automation?: WhatsAppAutomationConfig;
   /** Max group messages to keep as history context (0 disables). */
   historyLimit?: number;
   /** Max DM turns to keep as history context. */

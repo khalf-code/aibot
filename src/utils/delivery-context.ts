@@ -1,11 +1,16 @@
 import { normalizeAccountId } from "./account-id.js";
 import { normalizeMessageChannel } from "./message-channel.js";
 
+/** Default TTL for delivery context in milliseconds (24 hours) */
+export const DEFAULT_DELIVERY_CONTEXT_TTL_MS = 24 * 60 * 60 * 1000;
+
 export type DeliveryContext = {
   channel?: string;
   to?: string;
   accountId?: string;
   threadId?: string | number;
+  /** Timestamp when this context was last updated (ms since epoch) */
+  updatedAt?: number;
 };
 
 export type DeliveryContextTrustParams = {
@@ -55,6 +60,33 @@ export type DeliveryContextSessionSource = {
   deliveryContext?: DeliveryContext;
 };
 
+/**
+ * Check if a delivery context has expired based on its updatedAt timestamp.
+ * @param context The delivery context to check
+ * @param ttlMs TTL in milliseconds (default: 24 hours)
+ * @returns true if the context has expired or has no timestamp
+ */
+export function isDeliveryContextExpired(
+  context?: DeliveryContext,
+  ttlMs: number = DEFAULT_DELIVERY_CONTEXT_TTL_MS,
+): boolean {
+  if (!context) return true;
+  const updatedAt = context.updatedAt;
+  if (typeof updatedAt !== "number" || !Number.isFinite(updatedAt)) return true;
+  const now = Date.now();
+  return now - updatedAt > ttlMs;
+}
+
+/**
+ * Create a fresh delivery context with the current timestamp.
+ */
+export function createDeliveryContext(params: Omit<DeliveryContext, "updatedAt">): DeliveryContext {
+  return {
+    ...normalizeDeliveryContext(params),
+    updatedAt: Date.now(),
+  };
+}
+
 export function normalizeDeliveryContext(context?: DeliveryContext): DeliveryContext | undefined {
   if (!context) return undefined;
   const channel =
@@ -71,6 +103,11 @@ export function normalizeDeliveryContext(context?: DeliveryContext): DeliveryCon
         : undefined;
   const normalizedThreadId =
     typeof threadId === "string" ? (threadId ? threadId : undefined) : threadId;
+  // Preserve updatedAt timestamp if present
+  const updatedAt =
+    typeof context.updatedAt === "number" && Number.isFinite(context.updatedAt)
+      ? context.updatedAt
+      : undefined;
   if (!channel && !to && !accountId && normalizedThreadId == null) return undefined;
   const normalized: DeliveryContext = {
     channel: channel || undefined,
@@ -78,6 +115,7 @@ export function normalizeDeliveryContext(context?: DeliveryContext): DeliveryCon
     accountId,
   };
   if (normalizedThreadId != null) normalized.threadId = normalizedThreadId;
+  if (updatedAt != null) normalized.updatedAt = updatedAt;
   return normalized;
 }
 
@@ -129,9 +167,15 @@ export function normalizeSessionDeliveryFields(source?: DeliveryContextSessionSo
 
 export function deliveryContextFromSession(
   entry?: DeliveryContextSessionSource,
+  options?: { ttlMs?: number; checkExpiry?: boolean },
 ): DeliveryContext | undefined {
   if (!entry) return undefined;
-  return normalizeSessionDeliveryFields(entry).deliveryContext;
+  const context = normalizeSessionDeliveryFields(entry).deliveryContext;
+  // FIX-3.2: Check for TTL expiration if requested
+  if (options?.checkExpiry !== false && isDeliveryContextExpired(context, options?.ttlMs)) {
+    return undefined;
+  }
+  return context;
 }
 
 export function mergeDeliveryContext(
@@ -141,12 +185,25 @@ export function mergeDeliveryContext(
   const normalizedPrimary = normalizeDeliveryContext(primary);
   const normalizedFallback = normalizeDeliveryContext(fallback);
   if (!normalizedPrimary && !normalizedFallback) return undefined;
+  // Use the most recent timestamp from either context
+  const primaryUpdatedAt = normalizedPrimary?.updatedAt ?? 0;
+  const fallbackUpdatedAt = normalizedFallback?.updatedAt ?? 0;
+  const updatedAt = Math.max(primaryUpdatedAt, fallbackUpdatedAt) || Date.now();
   return normalizeDeliveryContext({
     channel: normalizedPrimary?.channel ?? normalizedFallback?.channel,
     to: normalizedPrimary?.to ?? normalizedFallback?.to,
     accountId: normalizedPrimary?.accountId ?? normalizedFallback?.accountId,
     threadId: normalizedPrimary?.threadId ?? normalizedFallback?.threadId,
+    updatedAt,
   });
+}
+
+/**
+ * Clear the delivery context (returns undefined).
+ * Used when resetting routing state (e.g., on logout).
+ */
+export function clearDeliveryContext(): undefined {
+  return undefined;
 }
 
 export function deliveryContextKey(context?: DeliveryContext): string | undefined {

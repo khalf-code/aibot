@@ -22,6 +22,14 @@ import {
 } from "../protocol/index.js";
 import { formatForLog } from "../ws-log.js";
 import type { GatewayRequestContext, GatewayRequestHandlers } from "./types.js";
+// FIX-2.2: Request logging for gateway send RPC
+import { logSendRequest } from "../../infra/outbound/send-logging.js";
+import { isDryRunModeEnabled, logDryRunSend } from "../../infra/outbound/dry-run.js";
+import {
+  isKnownRecipient,
+  recordRecipient,
+  logFirstTimeRecipient,
+} from "../../infra/outbound/known-recipients.js";
 
 type InflightResult = {
   ok: boolean;
@@ -118,6 +126,24 @@ export const sendHandlers: GatewayRequestHandlers = {
     const work = (async (): Promise<InflightResult> => {
       try {
         const cfg = loadConfig();
+
+        // FIX-3.3: Check for environment variable dry-run mode
+        const dryRun = isDryRunModeEnabled();
+        if (dryRun) {
+          logDryRunSend({
+            channel,
+            target: to,
+            message,
+            mediaUrl: request.mediaUrl,
+            source: "rpc",
+          });
+          return {
+            ok: true,
+            payload: { runId: idem, messageId: "dry-run", channel, dryRun: true },
+            meta: { channel, dryRun: true },
+          };
+        }
+
         const resolved = resolveOutboundTarget({
           channel: outboundChannel,
           to,
@@ -131,6 +157,30 @@ export const sendHandlers: GatewayRequestHandlers = {
             error: errorShape(ErrorCodes.INVALID_REQUEST, String(resolved.error)),
             meta: { channel },
           };
+        }
+
+        // FIX-2.2: Log send request with full context
+        logSendRequest({
+          source: "rpc",
+          sessionKey: request.sessionKey,
+          channel,
+          target: to,
+          resolvedTarget: resolved.to,
+          resolvedFrom: to === resolved.to ? "explicit" : "allowlist",
+          accountId,
+          firstTimeRecipient:
+            channel === "whatsapp" ? !isKnownRecipient(channel, resolved.to) : undefined,
+        });
+
+        // FIX-3.1: Log warning for first-time WhatsApp recipients
+        if (channel === "whatsapp" && !isKnownRecipient(channel, resolved.to)) {
+          const allowFrom = cfg.channels?.whatsapp?.allowFrom ?? [];
+          const inAllowlist = allowFrom.some((entry) => {
+            const normalized = String(entry).replace(/\D/g, "");
+            const targetNormalized = resolved.to.replace(/\D/g, "").replace(/@.*$/, "");
+            return normalized === targetNormalized;
+          });
+          logFirstTimeRecipient(channel, resolved.to, inAllowlist);
         }
         const outboundDeps = context.deps ? createOutboundSendDeps(context.deps) : undefined;
         const mirrorPayloads = normalizeReplyPayloadsForDelivery([
@@ -196,6 +246,10 @@ export const sendHandlers: GatewayRequestHandlers = {
         if (!result) {
           throw new Error("No delivery result");
         }
+
+        // FIX-3.1: Record successful send for known recipients tracking
+        recordRecipient(channel, resolved.to);
+
         const payload: Record<string, unknown> = {
           runId: idem,
           messageId: result.messageId,

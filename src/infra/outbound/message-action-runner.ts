@@ -8,6 +8,7 @@ import {
   readStringParam,
 } from "../../agents/tools/common.js";
 import { resolveSessionAgentId } from "../../agents/agent-scope.js";
+import { isSubagentSessionKey } from "../../sessions/session-key-utils.js";
 import { parseReplyDirectives } from "../../auto-reply/reply/reply-directives.js";
 import { dispatchChannelMessageAction } from "../../channels/plugins/message-actions.js";
 import type {
@@ -43,6 +44,10 @@ import { resolveChannelTarget, type ResolvedMessagingTarget } from "./target-res
 import { loadWebMedia } from "../../web/media.js";
 import { extensionForMime } from "../../media/mime.js";
 import { parseSlackTarget } from "../../slack/targets.js";
+// FIX-2.2, FIX-3.1, FIX-3.3: Outbound security and logging improvements
+import { isDryRunModeEnabled, logDryRunSend, logDryRunPoll } from "./dry-run.js";
+import { isKnownRecipient, recordRecipient, logFirstTimeRecipient } from "./known-recipients.js";
+import { logSendRequest, inferSendSource, type SendLogContext } from "./send-logging.js";
 
 export type MessageActionRunnerGateway = {
   url?: string;
@@ -705,6 +710,56 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
   const mirrorMediaUrls =
     mergedMediaUrls.length > 0 ? mergedMediaUrls : mediaUrl ? [mediaUrl] : undefined;
   throwIfAborted(abortSignal);
+
+  // FIX-2.2: Log send request with full context
+  const sendSource = inferSendSource({
+    sessionKey: input.sessionKey,
+    isSubagent: input.sessionKey ? isSubagentSessionKey(input.sessionKey) : false,
+    isRpc: Boolean(gateway),
+    isCli: !gateway && !input.toolContext,
+    isTool: Boolean(input.toolContext),
+  });
+  const sendLogContext: SendLogContext = {
+    source: sendSource,
+    sessionKey: input.sessionKey,
+    channel,
+    target: to,
+    resolvedTarget: resolvedTarget?.to,
+    resolvedFrom: resolvedTarget ? (resolvedTarget.from ?? "explicit") : "explicit",
+    accountId: accountId ?? undefined,
+    dryRun,
+  };
+
+  // FIX-3.1: Check for first-time recipient and log warning
+  if (!dryRun && channel === "whatsapp") {
+    const isFirstTime = !isKnownRecipient(channel, to);
+    if (isFirstTime) {
+      sendLogContext.firstTimeRecipient = true;
+      // Check if target is in allowlist for the warning message
+      const allowFrom = cfg.channels?.whatsapp?.allowFrom ?? [];
+      const inAllowlist = allowFrom.some((entry) => {
+        const normalized = String(entry).replace(/\D/g, "");
+        const targetNormalized = to.replace(/\D/g, "").replace(/@.*$/, "");
+        return normalized === targetNormalized;
+      });
+      logFirstTimeRecipient(channel, to, inAllowlist);
+    }
+  }
+
+  // FIX-3.3: Log dry-run sends
+  if (dryRun) {
+    logDryRunSend({
+      channel,
+      target: to,
+      message,
+      mediaUrl: mediaUrl ?? undefined,
+      source: sendSource,
+    });
+  }
+
+  // FIX-2.2: Log the send request
+  logSendRequest(sendLogContext);
+
   const send = await executeSendAction({
     ctx: {
       cfg,
@@ -734,6 +789,11 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
     gifPlayback,
     bestEffort: bestEffort ?? undefined,
   });
+
+  // FIX-3.1: Record successful send for known recipients tracking
+  if (!dryRun && send.sendResult) {
+    recordRecipient(channel, to);
+  }
 
   return {
     kind: "send",
@@ -778,6 +838,35 @@ async function handlePollAction(ctx: ResolvedActionContext): Promise<MessageActi
     preferEmbeds: true,
   });
 
+  // FIX-2.2: Log poll request with full context
+  const pollSource = inferSendSource({
+    sessionKey: input.sessionKey,
+    isSubagent: input.sessionKey ? isSubagentSessionKey(input.sessionKey) : false,
+    isRpc: Boolean(gateway),
+    isCli: !gateway && !input.toolContext,
+    isTool: Boolean(input.toolContext),
+  });
+  logSendRequest({
+    source: pollSource,
+    sessionKey: input.sessionKey,
+    channel,
+    target: to,
+    resolvedFrom: "explicit",
+    accountId: accountId ?? undefined,
+    dryRun,
+  });
+
+  // FIX-3.3: Log dry-run polls
+  if (dryRun) {
+    logDryRunPoll({
+      channel,
+      target: to,
+      question,
+      options,
+      source: pollSource,
+    });
+  }
+
   const poll = await executePollAction({
     ctx: {
       cfg,
@@ -794,6 +883,11 @@ async function handlePollAction(ctx: ResolvedActionContext): Promise<MessageActi
     maxSelections,
     durationHours: durationHours ?? undefined,
   });
+
+  // FIX-3.1: Record successful poll send for known recipients tracking
+  if (!dryRun && poll.pollResult) {
+    recordRecipient(channel, to);
+  }
 
   return {
     kind: "poll",
@@ -851,6 +945,27 @@ export async function runMessageAction(
   input: RunMessageActionParams,
 ): Promise<MessageActionRunResult> {
   const cfg = input.cfg;
+
+  // FIX-1.5: Block direct message sends from subagent contexts unless explicitly allowed
+  const sessionKey = input.sessionKey;
+  if (sessionKey && isSubagentSessionKey(sessionKey)) {
+    const allowDirectSend = cfg.agents?.defaults?.subagents?.allowDirectMessageSend ?? false;
+    if (!allowDirectSend) {
+      const action = input.action;
+      // Block send, poll, and broadcast actions from subagents
+      if (action === "send" || action === "poll" || action === "broadcast") {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[security] Subagent ${sessionKey} attempted direct message send - blocked. ` +
+            `Use sessions_send instead, or set agents.defaults.subagents.allowDirectMessageSend: true to allow.`,
+        );
+        throw new Error(
+          `Subagent direct message send blocked. Use sessions_send to route through parent session.`,
+        );
+      }
+    }
+  }
+
   const params = { ...input.params };
   const resolvedAgentId =
     input.agentId ??
@@ -914,7 +1029,9 @@ export async function runMessageAction(
   if (accountId) {
     params.accountId = accountId;
   }
-  const dryRun = Boolean(input.dryRun ?? readBooleanParam(params, "dryRun"));
+  // FIX-3.3: Check for environment variable dry-run mode
+  const envDryRun = isDryRunModeEnabled();
+  const dryRun = Boolean(input.dryRun ?? readBooleanParam(params, "dryRun") ?? envDryRun);
 
   await hydrateSendAttachmentParams({
     cfg,

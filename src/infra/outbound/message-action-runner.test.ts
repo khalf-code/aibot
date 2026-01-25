@@ -510,3 +510,142 @@ describe("runMessageAction accountId defaults", () => {
     expect(ctx.params.accountId).toBe("ops");
   });
 });
+
+describe("runMessageAction subagent blocking (FIX-1.5)", () => {
+  beforeEach(async () => {
+    const { createPluginRuntime } = await import("../../plugins/runtime/index.js");
+    const { setSlackRuntime } = await import("../../../extensions/slack/src/runtime.js");
+    const runtime = createPluginRuntime();
+    setSlackRuntime(runtime);
+    setActivePluginRegistry(
+      createTestRegistry([
+        {
+          pluginId: "slack",
+          source: "test",
+          plugin: slackPlugin,
+        },
+      ]),
+    );
+  });
+
+  afterEach(() => {
+    setActivePluginRegistry(createTestRegistry([]));
+  });
+
+  const slackCfg = {
+    channels: {
+      slack: {
+        botToken: "xoxb-test",
+        appToken: "xapp-test",
+      },
+    },
+  } as ClawdbotConfig;
+
+  it("blocks direct message send from subagent session by default", async () => {
+    await expect(
+      runMessageAction({
+        cfg: slackCfg,
+        action: "send",
+        params: {
+          channel: "slack",
+          target: "#C12345678",
+          message: "hi",
+        },
+        sessionKey: "agent:main:subagent:test-123",
+        dryRun: true,
+      }),
+    ).rejects.toThrow(/Subagent direct message send blocked/);
+  });
+
+  it("blocks poll action from subagent session", async () => {
+    await expect(
+      runMessageAction({
+        cfg: slackCfg,
+        action: "poll",
+        params: {
+          channel: "slack",
+          target: "#C12345678",
+          pollQuestion: "Test?",
+          pollOption: ["A", "B"],
+        },
+        sessionKey: "agent:main:subagent:test-123",
+        dryRun: true,
+      }),
+    ).rejects.toThrow(/Subagent direct message send blocked/);
+  });
+
+  it("blocks broadcast action from subagent session", async () => {
+    await expect(
+      runMessageAction({
+        cfg: {
+          ...slackCfg,
+          tools: { message: { broadcast: { enabled: true } } },
+        },
+        action: "broadcast",
+        params: {
+          channel: "slack",
+          targets: ["#C12345678"],
+          message: "hi",
+        },
+        sessionKey: "agent:main:subagent:test-123",
+        dryRun: true,
+      }),
+    ).rejects.toThrow(/Subagent direct message send blocked/);
+  });
+
+  it("allows direct message send from subagent when allowDirectMessageSend is true", async () => {
+    const result = await runMessageAction({
+      cfg: {
+        ...slackCfg,
+        agents: {
+          defaults: {
+            subagents: {
+              allowDirectMessageSend: true,
+            },
+          },
+        },
+      },
+      action: "send",
+      params: {
+        channel: "slack",
+        target: "#C12345678",
+        message: "hi",
+      },
+      sessionKey: "agent:main:subagent:test-123",
+      dryRun: true,
+    });
+
+    expect(result.kind).toBe("send");
+  });
+
+  it("allows direct message send from main session", async () => {
+    const result = await runMessageAction({
+      cfg: slackCfg,
+      action: "send",
+      params: {
+        channel: "slack",
+        target: "#C12345678",
+        message: "hi",
+      },
+      sessionKey: "agent:main:main",
+      dryRun: true,
+    });
+
+    expect(result.kind).toBe("send");
+  });
+
+  it("allows direct message send when no session key is provided", async () => {
+    const result = await runMessageAction({
+      cfg: slackCfg,
+      action: "send",
+      params: {
+        channel: "slack",
+        target: "#C12345678",
+        message: "hi",
+      },
+      dryRun: true,
+    });
+
+    expect(result.kind).toBe("send");
+  });
+});

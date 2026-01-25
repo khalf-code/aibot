@@ -208,6 +208,172 @@ describe("resolveOutboundTarget", () => {
       expect(res).toEqual({ ok: true, to: "+1555000001" });
     });
   });
+
+  describe("whatsapp automation recipients validation (FIX-1.6)", () => {
+    it("blocks heartbeat mode send when target not in automation.recipients", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001", "+1555999999"],
+            automation: { recipients: ["+1555000001"] },
+          },
+        },
+      };
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "+1555999999",
+        cfg,
+        mode: "heartbeat",
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error.message).toContain("automation.recipients");
+        expect(res.error.message).toContain("Automation send");
+      }
+    });
+
+    it("allows heartbeat mode send when target is in automation.recipients", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001", "+1555999999"],
+            automation: { recipients: ["+1555000001"] },
+          },
+        },
+      };
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "+1555000001",
+        cfg,
+        mode: "heartbeat",
+      });
+      expect(res).toEqual({ ok: true, to: "+1555000001" });
+    });
+
+    it("blocks automation mode send when target not in automation.recipients", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001", "+1555999999"],
+            automation: { recipients: ["+1555000001"] },
+          },
+        },
+      };
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "+1555999999",
+        cfg,
+        mode: "automation",
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error.message).toContain("automation.recipients");
+      }
+    });
+
+    it("allows automation mode send when target is in automation.recipients", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001"],
+            automation: { recipients: ["+1555000001"] },
+          },
+        },
+      };
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "+1555000001",
+        cfg,
+        mode: "automation",
+      });
+      expect(res).toEqual({ ok: true, to: "+1555000001" });
+    });
+
+    it("blocks automation when automation.recipients is explicitly empty", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001", "+1555000002"],
+            automation: { recipients: [] },
+          },
+        },
+      };
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "+1555999999",
+        cfg,
+        mode: "heartbeat",
+      });
+      // FIX-2: When automation.recipients is explicitly empty, block ALL automation sends
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error.message).toContain("automation.recipients is configured but empty");
+      }
+    });
+
+    it("falls back to allowlist when automation.recipients is NOT configured (undefined)", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001", "+1555000002"],
+            // automation.recipients is undefined - not configured
+          },
+        },
+      };
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "+1555999999",
+        cfg,
+        mode: "heartbeat",
+      });
+      // When automation.recipients is NOT configured (undefined), fall back to allowlist
+      expect(res).toEqual({ ok: true, to: "+1555000001" });
+    });
+
+    it("allows groups in heartbeat mode regardless of automation.recipients", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001"],
+            automation: { recipients: ["+1555000001"] },
+          },
+        },
+      };
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "120363401234567890@g.us",
+        cfg,
+        mode: "heartbeat",
+      });
+      expect(res).toEqual({ ok: true, to: "120363401234567890@g.us" });
+    });
+
+    it("uses account-level automation.recipients when configured", () => {
+      const cfg: ClawdbotConfig = {
+        channels: {
+          whatsapp: {
+            allowFrom: ["+1555000001"],
+            automation: { recipients: ["+1555000001"] },
+            accounts: {
+              personal: {
+                allowFrom: ["+1555000001", "+1555000002"],
+                automation: { recipients: ["+1555000002"] },
+              },
+            },
+          },
+        },
+      };
+      // Account-level automation.recipients (+1555000002) should take precedence over global (+1555000001)
+      const res = resolveOutboundTarget({
+        channel: "whatsapp",
+        to: "+1555000002",
+        cfg,
+        accountId: "personal",
+        mode: "heartbeat",
+      });
+      expect(res).toEqual({ ok: true, to: "+1555000002" });
+    });
+  });
 });
 
 describe("resolveHeartbeatDeliveryTarget", () => {
@@ -220,7 +386,7 @@ describe("resolveHeartbeatDeliveryTarget", () => {
     );
   });
 
-  it("returns none with reason require-explicit when requireExplicitTarget is true and no to is set", () => {
+  it("throws error when requireExplicitTarget is true and no to is set", () => {
     const cfg: ClawdbotConfig = {
       agents: {
         defaults: {
@@ -233,12 +399,35 @@ describe("resolveHeartbeatDeliveryTarget", () => {
       },
       channels: { whatsapp: { allowFrom: ["+1555000001"] } },
     };
-    const result = resolveHeartbeatDeliveryTarget({
-      cfg,
-      entry: { sessionId: "test", updatedAt: 1, lastChannel: "whatsapp", lastTo: "+1555000001" },
-    });
-    expect(result.channel).toBe("none");
-    expect(result.reason).toBe("require-explicit");
+    // FIX-1.4: Now throws instead of returning channel: "none" (stricter behavior)
+    expect(() =>
+      resolveHeartbeatDeliveryTarget({
+        cfg,
+        entry: { sessionId: "test", updatedAt: 1, lastChannel: "whatsapp", lastTo: "+1555000001" },
+      }),
+    ).toThrow(/requireExplicitTarget is enabled but no explicit 'to' target was provided/);
+  });
+
+  it("throws error when requireExplicitTarget defaults to true and no to is set", () => {
+    const cfg: ClawdbotConfig = {
+      agents: {
+        defaults: {
+          heartbeat: {
+            target: "whatsapp",
+            // requireExplicitTarget defaults to true now
+            // no `to` set
+          },
+        },
+      },
+      channels: { whatsapp: { allowFrom: ["+1555000001"] } },
+    };
+    // FIX-1.4: Default is now strict mode - throws if no explicit target
+    expect(() =>
+      resolveHeartbeatDeliveryTarget({
+        cfg,
+        entry: { sessionId: "test", updatedAt: 1, lastChannel: "whatsapp", lastTo: "+1555000001" },
+      }),
+    ).toThrow(/requireExplicitTarget is enabled but no explicit 'to' target was provided/);
   });
 
   it("allows heartbeat delivery when requireExplicitTarget is true and to is set", () => {
@@ -262,13 +451,14 @@ describe("resolveHeartbeatDeliveryTarget", () => {
     expect(result.to).toBe("+1555000001");
   });
 
-  it("allows implicit routing when requireExplicitTarget is false (default)", () => {
+  it("allows implicit routing when requireExplicitTarget is explicitly set to false", () => {
     const cfg: ClawdbotConfig = {
       agents: {
         defaults: {
           heartbeat: {
             target: "last",
-            // requireExplicitTarget defaults to false
+            // Must explicitly set to false to allow implicit routing
+            requireExplicitTarget: false,
           },
         },
       },

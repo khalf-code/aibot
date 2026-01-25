@@ -380,6 +380,49 @@ export async function recordSessionMetaFromInbound(params: {
   });
 }
 
+/**
+ * Clear delivery context for all sessions matching a specific channel/account.
+ * Used when a channel logs out to prevent stale routing state.
+ * FIX-3.2: Delivery context logout clearing
+ */
+export async function clearDeliveryContextsForChannel(params: {
+  storePath: string;
+  channel: string;
+  accountId?: string;
+}): Promise<{ clearedCount: number }> {
+  const { storePath, channel, accountId } = params;
+  let clearedCount = 0;
+  await updateSessionStore(storePath, (store) => {
+    for (const [key, entry] of Object.entries(store)) {
+      if (!entry) continue;
+      const context = entry.deliveryContext;
+      const lastChannel = entry.lastChannel;
+      // Check if this session's delivery context matches the channel being logged out
+      const matchesChannel =
+        context?.channel === channel ||
+        lastChannel === channel ||
+        context?.channel?.toLowerCase() === channel.toLowerCase() ||
+        lastChannel?.toLowerCase() === channel.toLowerCase();
+      const matchesAccount =
+        !accountId || context?.accountId === accountId || entry.lastAccountId === accountId;
+      if (matchesChannel && matchesAccount) {
+        // Clear the delivery context and last route info
+        store[key] = {
+          ...entry,
+          deliveryContext: undefined,
+          lastChannel: undefined,
+          lastTo: undefined,
+          lastAccountId: undefined,
+          lastThreadId: undefined,
+        };
+        clearedCount++;
+      }
+    }
+    return clearedCount;
+  });
+  return { clearedCount };
+}
+
 export async function updateLastRoute(params: {
   storePath: string;
   sessionKey: string;

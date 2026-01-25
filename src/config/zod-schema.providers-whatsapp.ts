@@ -12,6 +12,14 @@ import { ChannelHeartbeatVisibilitySchema } from "./zod-schema.channels.js";
 
 const ToolPolicyBySenderSchema = z.record(z.string(), ToolPolicySchema).optional();
 
+export const WhatsAppAutomationSchema = z
+  .object({
+    /** Recipients that automation/system events can send to (E.164). */
+    recipients: z.array(z.string()).optional(),
+  })
+  .strict()
+  .optional();
+
 export const WhatsAppAccountSchema = z
   .object({
     name: z.string().optional(),
@@ -59,6 +67,7 @@ export const WhatsAppAccountSchema = z
       .optional(),
     debounceMs: z.number().int().nonnegative().optional().default(0),
     heartbeat: ChannelHeartbeatVisibilitySchema,
+    automation: WhatsAppAutomationSchema,
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -124,6 +133,7 @@ export const WhatsAppConfigSchema = z
       .optional(),
     debounceMs: z.number().int().nonnegative().optional().default(0),
     heartbeat: ChannelHeartbeatVisibilitySchema,
+    automation: WhatsAppAutomationSchema,
   })
   .strict()
   .superRefine((value, ctx) => {

@@ -18,11 +18,15 @@ export type TargetResolveKind = ChannelDirectoryEntryKind | "channel";
 
 export type ResolveAmbiguousMode = "error" | "best" | "first";
 
+export type TargetResolutionMethod = "explicit" | "directory" | "allowlist" | "fallback";
+
 export type ResolvedMessagingTarget = {
   to: string;
   kind: TargetResolveKind;
   display?: string;
   source: "normalized" | "directory";
+  /** How the target was resolved - used for audit logging (FIX-2.2) */
+  from?: TargetResolutionMethod;
 };
 
 export type ResolveMessagingTargetResult =
@@ -324,6 +328,7 @@ export async function resolveMessagingTarget(params: {
         kind,
         display: stripTargetPrefixes(raw),
         source: "normalized",
+        from: "explicit",
       },
     };
   }
@@ -347,6 +352,7 @@ export async function resolveMessagingTarget(params: {
         kind,
         display: entry.name ?? entry.handle ?? stripTargetPrefixes(entry.id),
         source: "directory",
+        from: "directory",
       },
     };
   }
@@ -362,6 +368,7 @@ export async function resolveMessagingTarget(params: {
             kind,
             display: best.name ?? best.handle ?? stripTargetPrefixes(best.id),
             source: "directory",
+            from: "directory",
           },
         };
       }
@@ -386,6 +393,7 @@ export async function resolveMessagingTarget(params: {
         kind,
         display: stripTargetPrefixes(raw),
         source: "normalized",
+        from: "fallback",
       },
     };
   }

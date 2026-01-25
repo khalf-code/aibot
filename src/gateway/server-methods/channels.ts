@@ -22,6 +22,9 @@ import {
 } from "../protocol/index.js";
 import { formatForLog } from "../ws-log.js";
 import type { GatewayRequestContext, GatewayRequestHandlers } from "./types.js";
+// FIX-3.2: Clear delivery context on logout
+import { clearDeliveryContextsForChannel } from "../../config/sessions/store.js";
+import { resolveStorePath } from "../../config/sessions/paths.js";
 
 type ChannelLogoutPayload = {
   channel: ChannelId;
@@ -57,6 +60,26 @@ export async function logoutChannelAccount(params: {
   const loggedOut = typeof result.loggedOut === "boolean" ? result.loggedOut : cleared;
   if (loggedOut) {
     params.context.markChannelLoggedOut(params.channelId, true, resolvedAccountId);
+    // FIX-3.2: Clear delivery context for all sessions using this channel/account
+    // This prevents stale routing state after logout
+    try {
+      const storePath = resolveStorePath(params.cfg.session?.store);
+      const { clearedCount } = await clearDeliveryContextsForChannel({
+        storePath,
+        channel: params.channelId,
+        accountId: resolvedAccountId,
+      });
+      if (clearedCount > 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[security] Cleared delivery context for ${clearedCount} session(s) after ${params.channelId}:${resolvedAccountId} logout`,
+        );
+      }
+    } catch (err) {
+      // Log but don't fail the logout if delivery context clearing fails
+      // eslint-disable-next-line no-console
+      console.error(`[security] Failed to clear delivery contexts on logout:`, err);
+    }
   }
   return {
     channel: params.channelId,

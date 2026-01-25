@@ -279,7 +279,7 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
     chunkerMode: "text",
     textChunkLimit: 4000,
     pollMaxOptions: 12,
-    resolveTarget: ({ to, allowFrom, mode, allowUnlisted }) => {
+    resolveTarget: ({ cfg, to, allowFrom, accountId, mode, allowUnlisted }) => {
       const trimmed = to?.trim() ?? "";
       const allowListRaw = (allowFrom ?? []).map((entry) => String(entry).trim()).filter(Boolean);
       const hasWildcard = allowListRaw.includes("*");
@@ -287,6 +287,25 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
         .filter((entry) => entry !== "*")
         .map((entry) => normalizeWhatsAppTarget(entry))
         .filter((entry): entry is string => Boolean(entry));
+
+      // FIX-1.6: Resolve automation recipients for heartbeat/automation mode validation
+      const isAutomationMode = mode === "heartbeat" || mode === "automation";
+      // Track whether automation.recipients is explicitly configured (vs undefined)
+      // Empty array = "no automation allowed", undefined = "fall back to allowlist"
+      let automationRecipientsConfigured = false;
+      let automationRecipients: string[] = [];
+      if (isAutomationMode && cfg) {
+        const account = resolveWhatsAppAccount({ cfg, accountId });
+        const accountAutomation = account.automation?.recipients;
+        const globalAutomation = cfg.channels?.whatsapp?.automation?.recipients;
+        // Check if automation.recipients is explicitly configured at any level
+        automationRecipientsConfigured =
+          accountAutomation !== undefined || globalAutomation !== undefined;
+        const rawRecipients = accountAutomation ?? globalAutomation ?? [];
+        automationRecipients = rawRecipients
+          .map((entry) => normalizeWhatsAppTarget(String(entry).trim()))
+          .filter((entry): entry is string => Boolean(entry));
+      }
 
       if (trimmed) {
         const normalizedTo = normalizeWhatsAppTarget(trimmed);
@@ -306,7 +325,52 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> = {
         if (isWhatsAppGroupJid(normalizedTo)) {
           return { ok: true, to: normalizedTo };
         }
-        if (mode === "implicit" || mode === "heartbeat") {
+
+        // FIX-1.6: Validate automation recipients for heartbeat/automation sends
+        if (isAutomationMode) {
+          // FIX-2: If automation.recipients is configured, enforce it strictly
+          if (automationRecipientsConfigured) {
+            // If configured but empty, block ALL automation sends
+            if (automationRecipients.length === 0) {
+              // eslint-disable-next-line no-console
+              console.error(
+                `[security] Automation send to ${normalizedTo} blocked - automation.recipients is empty (no automation sends allowed)`,
+              );
+              return {
+                ok: false,
+                error: new Error(
+                  `Automation send to ${normalizedTo} blocked. automation.recipients is configured but empty, ` +
+                    `meaning no automated sends are allowed. Add the target to automation.recipients to allow automated sends.`,
+                ),
+              };
+            }
+            // If configured and non-empty, validate against the list
+            if (!automationRecipients.includes(normalizedTo)) {
+              // eslint-disable-next-line no-console
+              console.error(
+                `[security] Automation send to ${normalizedTo} blocked - not in channels.whatsapp.automation.recipients`,
+              );
+              return {
+                ok: false,
+                error: new Error(
+                  `Automation send to ${normalizedTo} blocked. Target not in channels.whatsapp.automation.recipients. ` +
+                    `Add the target to automation.recipients to allow automated sends.`,
+                ),
+              };
+            }
+            return { ok: true, to: normalizedTo };
+          }
+          // If automation.recipients is NOT configured (undefined), fall through to allowlist
+          if (hasWildcard || allowList.length === 0) {
+            return { ok: true, to: normalizedTo };
+          }
+          if (allowList.includes(normalizedTo)) {
+            return { ok: true, to: normalizedTo };
+          }
+          return { ok: true, to: allowList[0] };
+        }
+
+        if (mode === "implicit") {
           if (hasWildcard || allowList.length === 0) {
             return { ok: true, to: normalizedTo };
           }
