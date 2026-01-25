@@ -688,6 +688,106 @@
 }
 
 /* ===========================================
+   Event Log - Compact debug view
+   =========================================== */
+
+.event-log {
+  display: grid;
+  gap: 6px;
+}
+
+.event-log-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  overflow: hidden;
+}
+
+.event-log-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.event-log-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.event-log-time {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.event-log-payload {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 8px 12px;
+  max-height: 200px;
+}
+
+/* ===========================================
+   Debug View Layout
+   =========================================== */
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto;
+  gap: 14px;
+}
+
+.debug-right-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: fit-content;
+  max-height: 100%;
+}
+
+.debug-models-card > .code-block {
+  margin-top: 8px;
+  max-height: 280px;
+}
+
+.rpc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.rpc-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.rpc-params {
+  font-family: var(--mono);
+  font-size: 12px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+@media (max-width: 768px) {
+  .debug-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===========================================
    Chips - Compact and punchy
    =========================================== */
 

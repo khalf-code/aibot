@@ -22,7 +22,8 @@ export type DebugProps = {
 
 export function renderDebug(props: DebugProps) {
   return html`
-    <section class="grid grid-cols-2">
+    <section class="debug-grid">
+      <!-- Left: Snapshots -->
       <div class="card">
         <div class="row" style="justify-content: space-between;">
           <div>
@@ -49,51 +50,52 @@ export function renderDebug(props: DebugProps) {
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Manual RPC</div>
-        <div class="card-sub">Send a raw gateway method with JSON params.</div>
-        <div class="form-grid" style="margin-top: 16px;">
-          <label class="field">
-            <span>Method</span>
-            <input
-              .value=${props.callMethod}
-              @input=${(e: Event) =>
-                props.onCallMethodChange((e.target as HTMLInputElement).value)}
-              placeholder="system-presence"
-            />
-          </label>
-          <label class="field">
-            <span>Params (JSON)</span>
-            <textarea
-              .value=${props.callParams}
-              @input=${(e: Event) =>
-                props.onCallParamsChange((e.target as HTMLTextAreaElement).value)}
-              rows="6"
-            ></textarea>
-          </label>
+      <!-- Right: RPC + Models stacked -->
+      <div class="debug-right-stack">
+        <div class="card">
+          <div class="card-title">Manual RPC</div>
+          <div class="card-sub">Send a raw gateway method with JSON params.</div>
+          <div class="rpc-form">
+            <div class="rpc-input-row">
+              <label class="field" style="flex: 1;">
+                <span>Method</span>
+                <input
+                  .value=${props.callMethod}
+                  @input=${(e: Event) =>
+                    props.onCallMethodChange((e.target as HTMLInputElement).value)}
+                  placeholder="system-presence"
+                />
+              </label>
+              <button class="btn primary" @click=${props.onCall}>Call</button>
+            </div>
+            <label class="field">
+              <span>Params (JSON)</span>
+              <textarea
+                class="rpc-params"
+                .value=${props.callParams}
+                @input=${(e: Event) =>
+                  props.onCallParamsChange((e.target as HTMLTextAreaElement).value)}
+                rows="3"
+                placeholder="{}"
+              ></textarea>
+            </label>
+          </div>
+          ${props.callError
+            ? html`<div class="callout danger" style="margin-top: 8px;">
+                ${props.callError}
+              </div>`
+            : nothing}
+          ${props.callResult
+            ? html`<pre class="code-block" style="margin-top: 8px; max-height: 120px;">${props.callResult}</pre>`
+            : nothing}
         </div>
-        <div class="row" style="margin-top: 12px;">
-          <button class="btn primary" @click=${props.onCall}>Call</button>
-        </div>
-        ${props.callError
-          ? html`<div class="callout danger" style="margin-top: 12px;">
-              ${props.callError}
-            </div>`
-          : nothing}
-        ${props.callResult
-          ? html`<pre class="code-block" style="margin-top: 12px;">${props.callResult}</pre>`
-          : nothing}
-      </div>
-    </section>
 
-    <section class="card" style="margin-top: 18px;">
-      <div class="card-title">Models</div>
-      <div class="card-sub">Catalog from models.list.</div>
-      <pre class="code-block" style="margin-top: 12px;">${JSON.stringify(
-        props.models ?? [],
-        null,
-        2,
-      )}</pre>
+        <div class="card debug-models-card">
+          <div class="card-title">Models</div>
+          <div class="card-sub">Catalog from models.list.</div>
+          <pre class="code-block">${JSON.stringify(props.models ?? [], null, 2)}</pre>
+        </div>
+      </div>
     </section>
 
     <section class="card" style="margin-top: 18px;">
@@ -102,17 +104,15 @@ export function renderDebug(props: DebugProps) {
       ${props.eventLog.length === 0
         ? html`<div class="muted" style="margin-top: 12px;">No events yet.</div>`
         : html`
-            <div class="list" style="margin-top: 12px;">
+            <div class="event-log" style="margin-top: 12px;">
               ${props.eventLog.map(
                 (evt) => html`
-                  <div class="list-item">
-                    <div class="list-main">
-                      <div class="list-title">${evt.event}</div>
-                      <div class="list-sub">${new Date(evt.ts).toLocaleTimeString()}</div>
+                  <div class="event-log-item">
+                    <div class="event-log-header">
+                      <span class="event-log-name">${evt.event}</span>
+                      <span class="event-log-time">${new Date(evt.ts).toLocaleTimeString()}</span>
                     </div>
-                    <div class="list-meta">
-                      <pre class="code-block">${formatEventPayload(evt.payload)}</pre>
-                    </div>
+                    <pre class="code-block event-log-payload">${formatEventPayload(evt.payload)}</pre>
                   </div>
                 `,
               )}
