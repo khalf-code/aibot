@@ -1,0 +1,23 @@
+{
+  "name": "ppal-discord-handler",
+  "version": "1.0.0",
+  "description": "PPAL Discord Bot Lambda Handler",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.709.0",
+    "@aws-sdk/client-secrets-manager": "^3.709.0",
+    "@aws-sdk/lib-dynamodb": "^3.709.0",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}
