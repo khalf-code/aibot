@@ -16,6 +16,7 @@ import { probeTwitch } from "./probe.js";
 import { resolveTwitchTargets } from "./resolver.js";
 import { collectTwitchStatusIssues } from "./status.js";
 import { removeClientManager } from "./client-manager-registry.js";
+import { resolveTwitchToken } from "./token.js";
 import type {
   ChannelAccountSnapshot,
   ChannelCapabilities,
@@ -30,8 +31,13 @@ import type {
 /**
  * Check if an account is properly configured.
  */
-function isConfigured(account: TwitchAccountConfig | null | undefined): boolean {
-  return Boolean(account?.token && account?.username && account?.clientId);
+function isConfigured(
+  account: TwitchAccountConfig | null | undefined,
+  cfg: ClawdbotConfig,
+  accountId: string,
+): boolean {
+  const tokenResolution = resolveTwitchToken(cfg, { accountId });
+  return Boolean(account?.username && account?.clientId && tokenResolution.token);
 }
 
 /**
@@ -105,7 +111,7 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
     /** Check if an account is configured */
     isConfigured: (_account: unknown, cfg: ClawdbotConfig): boolean => {
       const account = getAccountConfig(cfg, DEFAULT_ACCOUNT_ID);
-      return isConfigured(account);
+      return isConfigured(account, cfg, DEFAULT_ACCOUNT_ID);
     },
 
     /** Check if an account is enabled */
@@ -115,7 +121,7 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
     describeAccount: (account: TwitchAccountConfig | undefined) => ({
       accountId: DEFAULT_ACCOUNT_ID,
       enabled: account?.enabled !== false,
-      configured: account ? isConfigured(account) : false,
+      configured: account ? isConfigured(account, cfg, DEFAULT_ACCOUNT_ID) : false,
     }),
   },
 
@@ -205,10 +211,13 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
       runtime?: ChannelAccountSnapshot;
       probe?: unknown;
     }): ChannelAccountSnapshot => {
+      const accountMap = cfg.channels?.twitch?.accounts ?? {};
+      const resolvedAccountId =
+        Object.entries(accountMap).find(([, value]) => value === account)?.[0] ?? DEFAULT_ACCOUNT_ID;
       return {
         accountId: DEFAULT_ACCOUNT_ID,
         enabled: account?.enabled !== false,
-        configured: isConfigured(account),
+        configured: isConfigured(account, cfg, resolvedAccountId),
         running: runtime?.running ?? false,
         lastStartAt: runtime?.lastStartAt ?? null,
         lastStopAt: runtime?.lastStopAt ?? null,

@@ -65,10 +65,14 @@ export function normalizeToken(token: string): string {
  * @param account - The Twitch account config to check
  * @returns true if the account has required credentials
  */
-export function isAccountConfigured(account: {
-  username?: string;
-  token?: string;
-  clientId?: string;
-}): boolean {
-  return Boolean(account?.username && account?.token && account?.clientId);
+export function isAccountConfigured(
+  account: {
+    username?: string;
+    token?: string;
+    clientId?: string;
+  },
+  resolvedToken?: string | null,
+): boolean {
+  const token = resolvedToken ?? account?.token;
+  return Boolean(account?.username && token && account?.clientId);
 }

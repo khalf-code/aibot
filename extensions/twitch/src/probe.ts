@@ -1,6 +1,7 @@
 import { StaticAuthProvider } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
 import type { TwitchAccountConfig } from "./types.js";
+import { normalizeToken } from "./utils/twitch.js";
 
 /**
  * Result of probing a Twitch account
@@ -35,7 +36,7 @@ export async function probeTwitch(
     };
   }
 
-  const rawToken = account.token.trim();
+  const rawToken = normalizeToken(account.token.trim());
 
   let client: ChatClient | undefined;
 

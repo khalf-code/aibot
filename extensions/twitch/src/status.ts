@@ -6,6 +6,7 @@
 
 import { getAccountConfig } from "./config.js";
 import type { ChannelAccountSnapshot, ChannelStatusIssue } from "./types.js";
+import { resolveTwitchToken } from "./token.js";
 import { isAccountConfigured } from "./utils/twitch.js";
 
 /**
@@ -39,9 +40,10 @@ export function collectTwitchStatusIssues(
 
     // Get full account config if available
     let account: ReturnType<typeof getAccountConfig> | null = null;
+    let cfg: Parameters<typeof resolveTwitchToken>[0] | undefined;
     if (getCfg) {
       try {
-        const cfg = getCfg() as {
+        cfg = getCfg() as {
           channels?: { twitch?: { accounts?: Record<string, unknown> } };
         };
         account = getAccountConfig(cfg, accountId);
@@ -86,7 +88,10 @@ export function collectTwitchStatusIssues(
     }
 
     // Checks that require account config
-    if (account && isAccountConfigured(account)) {
+    const tokenResolution = cfg
+      ? resolveTwitchToken(cfg as Parameters<typeof resolveTwitchToken>[0], { accountId })
+      : { token: "", source: "none" };
+    if (account && isAccountConfigured(account, tokenResolution.token)) {
       // Check 4: Token format warning (normalized, but may indicate config issue)
       if (account.token?.startsWith("oauth:")) {
         issues.push({

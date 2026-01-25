@@ -8,6 +8,7 @@
 import { DEFAULT_ACCOUNT_ID, getAccountConfig } from "./config.js";
 import { getClientManager as getRegistryClientManager } from "./client-manager-registry.js";
 import type { ClawdbotConfig } from "clawdbot/plugin-sdk";
+import { resolveTwitchToken } from "./token.js";
 import { stripMarkdownForTwitch } from "./utils/markdown.js";
 import { generateMessageId, isAccountConfigured, normalizeTwitchChannel } from "./utils/twitch.js";
 
@@ -66,11 +67,14 @@ export async function sendMessageTwitchInternal(
     };
   }
 
-  if (!isAccountConfigured(account)) {
+  const tokenResolution = resolveTwitchToken(cfg, { accountId });
+  if (!isAccountConfigured(account, tokenResolution.token)) {
     return {
       ok: false,
       messageId: generateMessageId(),
-      error: `Account ${accountId} is not properly configured. Required: username, token, clientId`,
+      error:
+        `Account ${accountId} is not properly configured. ` +
+        "Required: username, clientId, and token (config or env for default account).",
     };
   }
 
