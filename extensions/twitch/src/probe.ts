@@ -40,14 +40,6 @@ export async function probeTwitch(
 	let client: ChatClient | undefined;
 
 	try {
-		// Create a timeout promise
-		const timeout = new Promise<never>((_, reject) => {
-			setTimeout(
-				() => reject(new Error(`connection timeout after ${timeoutMs}ms`)),
-				timeoutMs,
-			);
-		});
-
 		// Create auth provider with the token
 		const authProvider = new StaticAuthProvider(
 			account.clientId ?? "",
@@ -59,11 +51,53 @@ export async function probeTwitch(
 			authProvider,
 		});
 
-		// Race between connection and timeout
-		await Promise.race([client.connect(), timeout]);
+		// Create a promise that resolves when connected
+		const connectionPromise = new Promise<void>((resolve, reject) => {
+			let settled = false;
+			let connectListener: ReturnType<ChatClient["onConnect"]> | undefined;
+			let disconnectListener: ReturnType<ChatClient["onDisconnect"]> | undefined;
+			let authFailListener: ReturnType<ChatClient["onAuthenticationFailure"]> | undefined;
 
-		// Wait a moment for the connection to fully establish
-		await new Promise<void>((resolve) => setTimeout(resolve, 500));
+			const cleanup = () => {
+				if (settled) return;
+				settled = true;
+				// Remove all listeners
+				connectListener?.unbind();
+				disconnectListener?.unbind();
+				authFailListener?.unbind();
+			};
+
+			// Success: connection established
+			connectListener = client?.onConnect(() => {
+				cleanup();
+				resolve();
+			});
+
+			// Failure: disconnected (e.g., auth failed)
+			disconnectListener = client?.onDisconnect((_manually, reason) => {
+				cleanup();
+				reject(reason || new Error("Disconnected"));
+			});
+
+			// Failure: authentication failed
+			authFailListener = client?.onAuthenticationFailure(() => {
+				cleanup();
+				reject(new Error("Authentication failed"));
+			});
+		});
+
+		// Create timeout promise
+		const timeout = new Promise<never>((_, reject) => {
+			setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+		});
+
+		// Set up listeners BEFORE connecting, then race against timeout
+		client.connect();
+		await Promise.race([connectionPromise, timeout]);
+
+		// Clean up connection before returning
+		client.quit();
+		client = undefined;
 
 		// If we got here, connection was successful
 		return {

@@ -22,7 +22,7 @@ const TwitchAccountSchema = z.object({
   enabled: z.boolean().optional(),
   /** Allowlist of Twitch user IDs who can interact with the bot (use IDs for safety, not usernames) */
   allowFrom: z.array(z.string()).optional(),
-  /** Roles allowed to interact with the bot (e.g., ["mod", "vip", "sub"]) */
+  /** Roles allowed to interact with the bot (e.g., ["moderator", "vip", "subscriber"]) */
   allowedRoles: z.array(TwitchRoleSchema).optional(),
   /** Require @mention to trigger bot responses */
   requireMention: z.boolean().optional(),

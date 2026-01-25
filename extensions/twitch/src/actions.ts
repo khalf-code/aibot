@@ -59,45 +59,23 @@ function readStringParam(
 	return options.trim !== false ? str.trim() : str;
 }
 
+/** Supported Twitch actions */
+const TWITCH_ACTIONS = new Set(["send" as const]);
+type TwitchAction = typeof TWITCH_ACTIONS extends Set<infer U> ? U : never;
+
 /**
  * Twitch message actions adapter.
- *
- * Supports the "send" action for sending messages to Twitch channels.
- *
- * NOTE: Currently only the "send" action is supported. The action gate pattern
- * (configurable actions per channel) will be added in a future update. For now,
- * the available actions are hardcoded as Twitch chat only supports sending messages.
  */
 export const twitchMessageActions: ChannelMessageActionAdapter = {
 	/**
 	 * List available actions for this channel.
-	 *
-	 * Currently supports:
-	 * - "send" - Send a message to a Twitch channel
-	 *
-	 * Future actions may include:
-	 * - "ban"/"timeout" - Moderation actions
-	 * - "announce" - Send announcements
-	 *
-	 * @param params - Parameters including config
-	 * @returns Array of available action names
 	 */
-	listActions: () => {
-		// Action gate pattern: In future, this will check channel config to determine
-		// which actions are enabled. For now, all Twitch channels support "send".
-		const actions = new Set<string>(["send"]);
-		return Array.from(actions);
-	},
+	listActions: () => [...TWITCH_ACTIONS],
 
 	/**
 	 * Check if an action is supported.
-	 *
-	 * @param params - Action to check
-	 * @returns true if the action is supported
 	 */
-	supportsAction: ({ action }) => {
-		return action === "send";
-	},
+	supportsAction: ({ action }) => TWITCH_ACTIONS.has(action as TwitchAction),
 
 	/**
 	 * Extract tool send parameters from action arguments.
