@@ -13,12 +13,20 @@
 import type { ClawdbotPluginApi } from "clawdbot/plugin-sdk";
 
 import { RuvectorService } from "./service.js";
-import { createRuvectorSearchTool, createRuvectorFeedbackTool, createRuvectorGraphTool } from "./tool.js";
+import {
+  createRuvectorSearchTool,
+  createRuvectorFeedbackTool,
+  createRuvectorGraphTool,
+  createRuvectorRecallTool,
+} from "./tool.js";
 import { ruvectorConfigSchema, type RuvectorConfig } from "./config.js";
 import { createDatabase } from "./db.js";
 import { createEmbeddingProvider } from "./embeddings.js";
 import { registerHooks } from "./hooks.js";
 import type { MessageBatcher } from "./hooks.js";
+import { PatternStore } from "./sona/patterns.js";
+import { ContextInjector, registerContextInjectionHook } from "./context-injection.js";
+import { TrajectoryRecorder } from "./sona/trajectory.js";
 
 // ============================================================================
 // Config Parsing
@@ -179,12 +187,25 @@ function registerRemoteMode(api: ClawdbotPluginApi, config: RemoteServiceConfig)
     { name: "ruvector_search", optional: true },
   );
 
+  // Register the ruvector_recall tool (pattern-aware memory recall)
+  api.registerTool(
+    createRuvectorRecallTool({
+      api,
+      service,
+      embedQuery,
+    }),
+    { name: "ruvector_recall", optional: true },
+  );
+
   // Register the service for lifecycle management
   api.registerService({
     id: "memory-ruvector",
 
     async start(_ctx) {
       await service.start();
+      // Initialize pattern store for learning
+      const client = service.getClient();
+      client.initializePatternStore();
       api.logger.info(
         `memory-ruvector: service started (url: ${config.url}, collection: ${config.collection})`,
       );
@@ -218,6 +239,41 @@ function registerLocalMode(api: ClawdbotPluginApi, config: RuvectorConfig): void
 
   const hookResult = registerHooks(api, db, embeddings, config.hooks);
   batcher = hookResult.batcher;
+
+  // =========================================================================
+  // ruvLLM Integration (Context Injection + Trajectory Recording)
+  // =========================================================================
+
+  let contextInjector: ContextInjector | null = null;
+  let trajectoryRecorder: TrajectoryRecorder | null = null;
+
+  if (config.ruvllm?.enabled) {
+    api.logger.info("memory-ruvector: ruvLLM features enabled");
+
+    // Initialize context injector if enabled
+    if (config.ruvllm.contextInjection.enabled) {
+      contextInjector = new ContextInjector(config.ruvllm.contextInjection, {
+        db,
+        embeddings,
+        logger: api.logger,
+      });
+      registerContextInjectionHook(api, contextInjector);
+      api.logger.info(
+        `memory-ruvector: context injection enabled (maxTokens: ${config.ruvllm.contextInjection.maxTokens}, threshold: ${config.ruvllm.contextInjection.relevanceThreshold})`,
+      );
+    }
+
+    // Initialize trajectory recorder if enabled
+    if (config.ruvllm.trajectoryRecording.enabled) {
+      trajectoryRecorder = new TrajectoryRecorder(
+        config.ruvllm.trajectoryRecording,
+        api.logger,
+      );
+      api.logger.info(
+        `memory-ruvector: trajectory recording enabled (max: ${config.ruvllm.trajectoryRecording.maxTrajectories})`,
+      );
+    }
+  }
 
   // =========================================================================
   // Register Tools
@@ -268,10 +324,22 @@ function registerLocalMode(api: ClawdbotPluginApi, config: RuvectorConfig): void
             filter: { direction, channel, sessionKey },
           });
 
+          // Record trajectory for ruvLLM learning
+          let trajectoryId = "";
+          if (trajectoryRecorder?.isEnabled()) {
+            trajectoryId = trajectoryRecorder.record({
+              query,
+              queryVector: vector,
+              resultIds: results.map((r) => r.document.id),
+              resultScores: results.map((r) => r.score),
+              sessionId: sessionKey,
+            });
+          }
+
           if (results.length === 0) {
             return {
               content: [{ type: "text", text: "No relevant messages found." }],
-              details: { count: 0 },
+              details: { count: 0, trajectoryId: trajectoryId || undefined },
             };
           }
 
@@ -298,7 +366,11 @@ function registerLocalMode(api: ClawdbotPluginApi, config: RuvectorConfig): void
             content: [
               { type: "text", text: `Found ${results.length} messages:\n\n${text}` },
             ],
-            details: { count: results.length, messages: sanitizedResults },
+            details: {
+              count: results.length,
+              messages: sanitizedResults,
+              trajectoryId: trajectoryId || undefined,
+            },
           };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -406,6 +478,208 @@ function registerLocalMode(api: ClawdbotPluginApi, config: RuvectorConfig): void
       db,
     }),
     { name: "ruvector_graph", optional: true },
+  );
+
+  // =========================================================================
+  // Pattern Store for ruvLLM Learning
+  // =========================================================================
+
+  const patternStore = new PatternStore({
+    maxClusters: 10,
+    minSamplesPerCluster: 3,
+    qualityThreshold: config.sona?.qualityThreshold ?? 0.5,
+  });
+
+  // Pattern-aware recall tool (local mode)
+  api.registerTool(
+    {
+      name: "ruvector_recall",
+      label: "Pattern-Aware Memory Recall",
+      description:
+        "Recall memories using learned patterns and optional graph expansion. " +
+        "Combines semantic vector search with pattern matching from past interactions " +
+        "and knowledge graph traversal for comprehensive memory retrieval.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query text" },
+          limit: { type: "number", description: "Max results (default: 10)" },
+          usePatterns: {
+            type: "boolean",
+            description: "Use learned patterns to re-rank results (default: true)",
+          },
+          expandGraph: {
+            type: "boolean",
+            description: "Include graph-connected memories (default: false)",
+          },
+          graphDepth: {
+            type: "number",
+            description: "Depth for graph traversal (1-3, default: 1)",
+          },
+          patternBoost: {
+            type: "number",
+            description: "Boost factor for pattern matches (0-1, default: 0.2)",
+          },
+        },
+        required: ["query"],
+      },
+      async execute(_toolCallId, params) {
+        const {
+          query,
+          limit = 10,
+          usePatterns = true,
+          expandGraph = false,
+          graphDepth = 1,
+          patternBoost = 0.2,
+        } = params as {
+          query: string;
+          limit?: number;
+          usePatterns?: boolean;
+          expandGraph?: boolean;
+          graphDepth?: number;
+          patternBoost?: number;
+        };
+
+        try {
+          const queryVector = await embeddings.embed(query);
+          let results = await db.search(queryVector, {
+            limit,
+            minScore: 0.1,
+          });
+
+          // Apply pattern re-ranking if enabled
+          if (usePatterns && patternStore.getClusterCount() > 0) {
+            results = rerankWithPatterns(results, queryVector, patternStore, patternBoost);
+          }
+
+          // Graph expansion
+          let graphResults: Array<{
+            id: string;
+            content: string;
+            score: number;
+            source: "graph";
+          }> = [];
+
+          if (expandGraph) {
+            const hasGraphSupport =
+              "findRelated" in db &&
+              typeof (db as Record<string, unknown>).findRelated === "function";
+
+            if (hasGraphSupport) {
+              const graphDb = db as typeof db & {
+                findRelated: (id: string, rel?: string, depth?: number) => Promise<Array<{ document: { id: string; content: string }; score: number }>>;
+              };
+
+              // Get graph-connected results from top search hits
+              for (const result of results.slice(0, 5)) {
+                try {
+                  const related = await graphDb.findRelated(
+                    result.document.id ?? "",
+                    undefined,
+                    Math.max(1, Math.min(graphDepth, 3)),
+                  );
+
+                  for (const rel of related) {
+                    // Skip if already in results
+                    if (results.some((r) => r.document.id === rel.document.id)) continue;
+                    if (graphResults.some((r) => r.id === rel.document.id)) continue;
+
+                    graphResults.push({
+                      id: rel.document.id ?? "",
+                      content: rel.document.content,
+                      score: rel.score * 0.8, // Decay for graph distance
+                      source: "graph",
+                    });
+                  }
+                } catch {
+                  // Skip graph expansion errors
+                }
+              }
+
+              graphResults.sort((a, b) => b.score - a.score);
+              graphResults = graphResults.slice(0, Math.max(3, Math.floor(limit / 3)));
+            }
+          }
+
+          if (results.length === 0 && graphResults.length === 0) {
+            return {
+              content: [{ type: "text", text: "No relevant memories found." }],
+              details: { count: 0, graphCount: 0 },
+            };
+          }
+
+          // Format output
+          const vectorText = results
+            .map(
+              (r, i) =>
+                `${i + 1}. [${r.document.direction}] ${r.document.content.slice(0, 200)}${
+                  r.document.content.length > 200 ? "..." : ""
+                } (${(r.score * 100).toFixed(0)}%)`,
+            )
+            .join("\n");
+
+          let graphText = "";
+          if (graphResults.length > 0) {
+            graphText =
+              "\n\nGraph-connected:\n" +
+              graphResults
+                .map(
+                  (r, i) =>
+                    `  ${i + 1}. ${r.content.slice(0, 150)}${
+                      r.content.length > 150 ? "..." : ""
+                    } (${(r.score * 100).toFixed(0)}%)`,
+                )
+                .join("\n");
+          }
+
+          // Pattern info
+          let patternInfo = "";
+          if (usePatterns) {
+            const clusterCount = patternStore.getClusterCount();
+            const sampleCount = patternStore.getSampleCount();
+            if (clusterCount > 0 || sampleCount > 0) {
+              patternInfo = ` [patterns: ${clusterCount} clusters from ${sampleCount} samples]`;
+            }
+          }
+
+          const sanitizedResults = results.map((r) => ({
+            id: r.document.id,
+            content: r.document.content,
+            direction: r.document.direction,
+            channel: r.document.channel,
+            user: r.document.user,
+            timestamp: r.document.timestamp,
+            score: r.score,
+            source: "vector" as const,
+          }));
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Found ${results.length} memories${patternInfo}:\n\n${vectorText}${graphText}`,
+              },
+            ],
+            details: {
+              count: results.length,
+              graphCount: graphResults.length,
+              messages: sanitizedResults,
+              graphResults,
+              usePatterns,
+              expandGraph,
+            },
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          api.logger.warn(`ruvector_recall: recall failed: ${message}`);
+          return {
+            content: [{ type: "text", text: `Recall failed: ${message}` }],
+            details: { error: message },
+          };
+        }
+      },
+    },
+    { name: "ruvector_recall", optional: true },
   );
 
   // =========================================================================
@@ -549,6 +823,253 @@ function registerLocalMode(api: ClawdbotPluginApi, config: RuvectorConfig): void
             console.log(JSON.stringify(neighbors, null, 2));
           }
         });
+
+      // Pattern export command (P3 Advanced Features)
+      rv.command("export-patterns")
+        .description("Export learned patterns to a JSON file")
+        .argument("<path>", "File path to export patterns to")
+        .option("--compact", "Output compact JSON without indentation", false)
+        .action(async (exportPath: string, opts: { compact?: boolean }) => {
+          // Validate path
+          if (!exportPath || typeof exportPath !== "string" || exportPath.trim() === "") {
+            console.error("Error: path must be a non-empty string");
+            process.exitCode = 1;
+            return;
+          }
+
+          const clusterCount = patternStore.getClusterCount();
+          const sampleCount = patternStore.getSampleCount();
+
+          if (clusterCount === 0 && sampleCount === 0) {
+            console.log("No patterns to export. Learn some patterns first via feedback.");
+            return;
+          }
+
+          const exportData = patternStore.export();
+          const output = {
+            version: "1.0.0",
+            exportedAt: Date.now(),
+            dimension: config.dimension,
+            metric: config.metric,
+            clusters: exportData.clusters,
+            samples: exportData.samples,
+            metadata: {
+              clusterCount,
+              sampleCount,
+            },
+          };
+
+          try {
+            const { writeFile } = await import("node:fs/promises");
+            const jsonOutput = opts.compact
+              ? JSON.stringify(output)
+              : JSON.stringify(output, null, 2);
+            await writeFile(exportPath, jsonOutput, "utf-8");
+            console.log(`Exported ${clusterCount} clusters and ${sampleCount} samples to ${exportPath}`);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`Failed to export patterns: ${message}`);
+            process.exitCode = 1;
+          }
+        });
+
+      // Pattern import command (P3 Advanced Features)
+      rv.command("import-patterns")
+        .description("Import learned patterns from a JSON file")
+        .argument("<path>", "File path to import patterns from")
+        .option("--merge", "Merge with existing patterns instead of replacing", false)
+        .action(async (importPath: string, opts: { merge?: boolean }) => {
+          // Validate path
+          if (!importPath || typeof importPath !== "string" || importPath.trim() === "") {
+            console.error("Error: path must be a non-empty string");
+            process.exitCode = 1;
+            return;
+          }
+
+          try {
+            const { readFile } = await import("node:fs/promises");
+            let content: string;
+            try {
+              content = await readFile(importPath, "utf-8");
+            } catch (readErr) {
+              const readMessage = readErr instanceof Error ? readErr.message : String(readErr);
+              console.error(`Failed to read file: ${readMessage}`);
+              process.exitCode = 1;
+              return;
+            }
+
+            let data: unknown;
+            try {
+              data = JSON.parse(content);
+            } catch (parseErr) {
+              console.error(`Invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+              process.exitCode = 1;
+              return;
+            }
+
+            // Type validation
+            if (
+              typeof data !== "object" ||
+              data === null ||
+              !("version" in data) ||
+              !("clusters" in data) ||
+              !("samples" in data)
+            ) {
+              console.error("Invalid pattern export format: missing required fields (version, clusters, samples)");
+              process.exitCode = 1;
+              return;
+            }
+
+            const typedData = data as {
+              version: string;
+              exportedAt?: number;
+              dimension?: number;
+              clusters: Array<{
+                id: string;
+                centroid: number[];
+                members: string[];
+                avgQuality: number;
+                lastUpdated: number;
+              }>;
+              samples: Array<{
+                id: string;
+                queryVector: number[];
+                resultVector: number[];
+                relevanceScore: number;
+                timestamp: number;
+              }>;
+            };
+
+            // Validate arrays
+            if (!Array.isArray(typedData.clusters) || !Array.isArray(typedData.samples)) {
+              console.error("Invalid pattern export format: clusters and samples must be arrays");
+              process.exitCode = 1;
+              return;
+            }
+
+            // Warn about dimension mismatch
+            if (typedData.dimension && typedData.dimension !== config.dimension) {
+              console.warn(
+                `Warning: dimension mismatch (file: ${typedData.dimension}, config: ${config.dimension}). ` +
+                  "Patterns may not work correctly.",
+              );
+            }
+
+            const beforeClusters = patternStore.getClusterCount();
+            const beforeSamples = patternStore.getSampleCount();
+
+            if (opts.merge) {
+              // Merge mode: add samples and re-cluster
+              for (const sample of typedData.samples) {
+                patternStore.addSample(sample);
+              }
+              patternStore.cluster();
+              console.log(
+                `Merged ${typedData.samples.length} samples. ` +
+                  `Before: ${beforeClusters} clusters, ${beforeSamples} samples. ` +
+                  `After: ${patternStore.getClusterCount()} clusters, ${patternStore.getSampleCount()} samples.`,
+              );
+            } else {
+              // Replace mode: full import
+              patternStore.import({
+                clusters: typedData.clusters,
+                samples: typedData.samples,
+              });
+              console.log(
+                `Imported ${typedData.clusters.length} clusters and ${typedData.samples.length} samples from ${importPath}`,
+              );
+            }
+
+            // Show export timestamp if available
+            if (typedData.exportedAt) {
+              console.log(`  (exported at ${new Date(typedData.exportedAt).toISOString()})`);
+            }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`Failed to import patterns: ${message}`);
+            process.exitCode = 1;
+          }
+        });
+
+      // Pattern statistics command
+      rv.command("pattern-stats")
+        .description("Show learned pattern statistics")
+        .action(() => {
+          const clusterCount = patternStore.getClusterCount();
+          const sampleCount = patternStore.getSampleCount();
+          const clusters = patternStore.getClusters();
+
+          console.log("Pattern Store Statistics:");
+          console.log(`  Total samples: ${sampleCount}`);
+          console.log(`  Total clusters: ${clusterCount}`);
+
+          if (clusterCount > 0) {
+            console.log("\nCluster Details:");
+            for (const cluster of clusters) {
+              const age = Date.now() - cluster.lastUpdated;
+              const ageStr = age < 3600000
+                ? `${Math.floor(age / 60000)}m ago`
+                : `${Math.floor(age / 3600000)}h ago`;
+              console.log(
+                `  ${cluster.id}: ${cluster.members.length} members, ` +
+                  `quality ${(cluster.avgQuality * 100).toFixed(1)}%, ` +
+                  `updated ${ageStr}`,
+              );
+            }
+          } else {
+            console.log("\nNo clusters yet. Provide feedback via ruvector_feedback tool to learn patterns.");
+          }
+        });
+
+      // Trajectory statistics command (ruvLLM)
+      rv.command("trajectory-stats")
+        .description("Show ruvLLM trajectory recording statistics")
+        .action(() => {
+          if (!trajectoryRecorder) {
+            console.log("Trajectory recording not enabled.");
+            console.log("Enable ruvllm.trajectoryRecording in config to use this feature.");
+            return;
+          }
+
+          const stats = trajectoryRecorder.getStats();
+          console.log("Trajectory Recording Statistics:");
+          console.log(`  Total trajectories: ${stats.totalTrajectories}`);
+          console.log(`  With feedback: ${stats.trajectoriesWithFeedback}`);
+          console.log(
+            `  Average feedback: ${stats.trajectoriesWithFeedback > 0 ? (stats.averageFeedbackScore * 100).toFixed(1) + "%" : "N/A"}`,
+          );
+          if (stats.oldestTimestamp) {
+            console.log(`  Oldest: ${new Date(stats.oldestTimestamp).toISOString()}`);
+          }
+          if (stats.newestTimestamp) {
+            console.log(`  Newest: ${new Date(stats.newestTimestamp).toISOString()}`);
+          }
+        });
+
+      // Context injection status command (ruvLLM)
+      rv.command("ruvllm-status")
+        .description("Show ruvLLM feature status")
+        .action(() => {
+          console.log("ruvLLM Feature Status:");
+          console.log(`  ruvLLM enabled: ${config.ruvllm?.enabled ?? false}`);
+
+          if (config.ruvllm?.enabled) {
+            console.log("\nContext Injection:");
+            console.log(`  Enabled: ${contextInjector !== null}`);
+            if (contextInjector) {
+              console.log(`  Max tokens: ${contextInjector.getMaxTokens()}`);
+              console.log(`  Relevance threshold: ${contextInjector.getRelevanceThreshold()}`);
+            }
+
+            console.log("\nTrajectory Recording:");
+            console.log(`  Enabled: ${trajectoryRecorder !== null}`);
+            if (trajectoryRecorder) {
+              const stats = trajectoryRecorder.getStats();
+              console.log(`  Trajectories: ${stats.totalTrajectories}`);
+              console.log(`  With feedback: ${stats.trajectoriesWithFeedback}`);
+            }
+          }
+        });
     },
     { commands: ["ruvector"] },
   );
@@ -572,8 +1093,101 @@ function registerLocalMode(api: ClawdbotPluginApi, config: RuvectorConfig): void
         await batcher.forceFlush();
         batcher.destroy();
       }
+
+      // Clean up trajectory recorder (prune before shutdown)
+      if (trajectoryRecorder) {
+        trajectoryRecorder.prune();
+        trajectoryRecorder.clear();
+      }
+
       await db.close();
       api.logger.info("memory-ruvector: service stopped");
     },
   });
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+import type { SearchResult } from "./db.js";
+
+/**
+ * Re-rank search results using learned patterns.
+ *
+ * @param results - Original search results
+ * @param queryVector - Query vector used for search
+ * @param patternStore - Pattern store with learned clusters
+ * @param boostFactor - How much to boost pattern-matched results
+ * @returns Re-ranked results
+ */
+function rerankWithPatterns(
+  results: SearchResult[],
+  queryVector: number[],
+  patternStore: PatternStore,
+  boostFactor: number,
+): SearchResult[] {
+  if (results.length === 0 || patternStore.getClusterCount() === 0) {
+    return results;
+  }
+
+  // Find similar patterns to the query
+  const similarPatterns = patternStore.findSimilar(queryVector, 5);
+  if (similarPatterns.length === 0) {
+    return results;
+  }
+
+  // Calculate pattern-based boosts
+  const boostedResults = results.map((result) => {
+    let patternBoost = 0;
+
+    for (const pattern of similarPatterns) {
+      // Pattern centroid contains [query, result], extract result portion
+      const dim = queryVector.length;
+      const patternResultCentroid = pattern.centroid.slice(dim, dim * 2);
+
+      if (patternResultCentroid.length > 0 && result.document.vector.length > 0) {
+        const similarity = cosineSimilarity(result.document.vector, patternResultCentroid);
+        patternBoost += similarity * pattern.avgQuality * boostFactor;
+      }
+    }
+
+    // Normalize boost
+    patternBoost = Math.min(patternBoost / similarPatterns.length, boostFactor);
+
+    return {
+      ...result,
+      score: Math.min(1.0, result.score + patternBoost),
+    };
+  });
+
+  // Sort by new score
+  boostedResults.sort((a, b) => b.score - a.score);
+
+  return boostedResults;
+}
+
+/**
+ * Calculate cosine similarity between two vectors.
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  const len = Math.min(a.length, b.length);
+  if (len === 0) return 0;
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < len; i++) {
+    const aVal = a[i] ?? 0;
+    const bVal = b[i] ?? 0;
+    dotProduct += aVal * bVal;
+    normA += aVal * aVal;
+    normB += bVal * bVal;
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) return 0;
+
+  return dotProduct / denominator;
 }

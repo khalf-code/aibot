@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 import type { HooksConfig } from "./hooks.js";
-import type { DistanceMetric, SONAConfig } from "./types.js";
+import type { DistanceMetric, RuvLLMConfig, SONAConfig } from "./types.js";
 
 // ============================================================================
 // Types
@@ -30,6 +30,8 @@ export type RuvectorConfig = {
   hooks: HooksConfig;
   /** SONA self-learning configuration */
   sona?: SONAConfig;
+  /** ruvLLM (Ruvector LLM Integration) configuration */
+  ruvllm?: RuvLLMConfig;
 };
 
 // ============================================================================
@@ -103,7 +105,7 @@ export const ruvectorConfigSchema = {
     const cfg = value as Record<string, unknown>;
     assertAllowedKeys(
       cfg,
-      ["dbPath", "dimension", "metric", "embedding", "hooks", "sona"],
+      ["dbPath", "dimension", "metric", "embedding", "hooks", "sona", "ruvllm"],
       "ruvector config",
     );
 
@@ -221,6 +223,85 @@ export const ruvectorConfigSchema = {
       };
     }
 
+    // Parse ruvLLM config
+    const ruvllmRaw = cfg.ruvllm as Record<string, unknown> | undefined;
+    let ruvllm: RuvLLMConfig | undefined;
+    if (ruvllmRaw) {
+      assertAllowedKeys(
+        ruvllmRaw,
+        ["enabled", "contextInjection", "trajectoryRecording"],
+        "ruvllm config",
+      );
+
+      // Parse context injection config
+      const contextInjectionRaw = ruvllmRaw.contextInjection as Record<string, unknown> | undefined;
+      let contextInjection = {
+        enabled: true,
+        maxTokens: 2000,
+        relevanceThreshold: 0.3,
+      };
+      if (contextInjectionRaw) {
+        assertAllowedKeys(
+          contextInjectionRaw,
+          ["enabled", "maxTokens", "relevanceThreshold"],
+          "ruvllm.contextInjection config",
+        );
+        const maxTokens = typeof contextInjectionRaw.maxTokens === "number"
+          ? contextInjectionRaw.maxTokens
+          : 2000;
+        const relevanceThreshold = typeof contextInjectionRaw.relevanceThreshold === "number"
+          ? contextInjectionRaw.relevanceThreshold
+          : 0.3;
+
+        // Validate context injection values
+        if (!Number.isInteger(maxTokens) || maxTokens <= 0 || maxTokens > 100000) {
+          throw new Error(`Invalid ruvllm.contextInjection.maxTokens: ${maxTokens}. Must be a positive integer up to 100000`);
+        }
+        if (relevanceThreshold < 0 || relevanceThreshold > 1) {
+          throw new Error(`Invalid ruvllm.contextInjection.relevanceThreshold: ${relevanceThreshold}. Must be between 0 and 1`);
+        }
+
+        contextInjection = {
+          enabled: contextInjectionRaw.enabled !== false,
+          maxTokens,
+          relevanceThreshold,
+        };
+      }
+
+      // Parse trajectory recording config
+      const trajectoryRecordingRaw = ruvllmRaw.trajectoryRecording as Record<string, unknown> | undefined;
+      let trajectoryRecording = {
+        enabled: true,
+        maxTrajectories: 1000,
+      };
+      if (trajectoryRecordingRaw) {
+        assertAllowedKeys(
+          trajectoryRecordingRaw,
+          ["enabled", "maxTrajectories"],
+          "ruvllm.trajectoryRecording config",
+        );
+        const maxTrajectories = typeof trajectoryRecordingRaw.maxTrajectories === "number"
+          ? trajectoryRecordingRaw.maxTrajectories
+          : 1000;
+
+        // Validate trajectory recording values
+        if (!Number.isInteger(maxTrajectories) || maxTrajectories <= 0 || maxTrajectories > 100000) {
+          throw new Error(`Invalid ruvllm.trajectoryRecording.maxTrajectories: ${maxTrajectories}. Must be a positive integer up to 100000`);
+        }
+
+        trajectoryRecording = {
+          enabled: trajectoryRecordingRaw.enabled !== false,
+          maxTrajectories,
+        };
+      }
+
+      ruvllm = {
+        enabled: ruvllmRaw.enabled === true,
+        contextInjection,
+        trajectoryRecording,
+      };
+    }
+
     return {
       dbPath: typeof cfg.dbPath === "string" ? cfg.dbPath : DEFAULT_DB_PATH,
       dimension: resolvedDimension,
@@ -235,6 +316,7 @@ export const ruvectorConfigSchema = {
       },
       hooks,
       sona,
+      ruvllm,
     };
   },
   uiHints: {
@@ -333,6 +415,36 @@ export const ruvectorConfigSchema = {
       placeholder: "30000",
       advanced: true,
       help: "Interval for background learning cycles",
+    },
+    "ruvllm.enabled": {
+      label: "Enable ruvLLM",
+      help: "Enable ruvLLM features for LLM context enrichment and adaptive learning",
+    },
+    "ruvllm.contextInjection.enabled": {
+      label: "Enable Context Injection",
+      help: "Automatically inject relevant memories into agent prompts",
+    },
+    "ruvllm.contextInjection.maxTokens": {
+      label: "Max Context Tokens",
+      placeholder: "2000",
+      advanced: true,
+      help: "Maximum number of tokens to inject as context",
+    },
+    "ruvllm.contextInjection.relevanceThreshold": {
+      label: "Relevance Threshold",
+      placeholder: "0.3",
+      advanced: true,
+      help: "Minimum relevance score (0-1) for including memories in context",
+    },
+    "ruvllm.trajectoryRecording.enabled": {
+      label: "Enable Trajectory Recording",
+      help: "Record search trajectories for learning and adaptation",
+    },
+    "ruvllm.trajectoryRecording.maxTrajectories": {
+      label: "Max Trajectories",
+      placeholder: "1000",
+      advanced: true,
+      help: "Maximum number of trajectories to store before pruning",
     },
   },
 };

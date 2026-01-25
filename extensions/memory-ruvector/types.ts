@@ -280,3 +280,99 @@ export type GraphNode = {
   /** Node properties */
   properties: Record<string, unknown>;
 };
+
+// =============================================================================
+// ruvLLM (Ruvector LLM Integration) Types
+// =============================================================================
+
+/**
+ * Configuration for context injection in ruvLLM.
+ * Controls how relevant memories are injected into agent prompts.
+ */
+export type ContextInjectionConfig = {
+  /** Whether context injection is enabled */
+  enabled: boolean;
+  /** Maximum number of tokens to inject as context */
+  maxTokens: number;
+  /** Minimum relevance score (0-1) for including results */
+  relevanceThreshold: number;
+};
+
+/**
+ * Configuration for trajectory recording in ruvLLM.
+ * Trajectories capture search queries, results, and feedback for learning.
+ */
+export type TrajectoryRecordingConfig = {
+  /** Whether trajectory recording is enabled */
+  enabled: boolean;
+  /** Maximum number of trajectories to store before pruning */
+  maxTrajectories: number;
+};
+
+/**
+ * Configuration for ruvLLM (Ruvector LLM Integration).
+ * Provides advanced features for LLM context enrichment and adaptive learning.
+ */
+export type RuvLLMConfig = {
+  /** Whether ruvLLM features are enabled */
+  enabled: boolean;
+  /** Context injection settings */
+  contextInjection: ContextInjectionConfig;
+  /** Trajectory recording settings */
+  trajectoryRecording: TrajectoryRecordingConfig;
+};
+
+/**
+ * A search trajectory recording for learning.
+ * Captures the full context of a search operation including feedback.
+ */
+export type Trajectory = {
+  /** Unique trajectory identifier */
+  id: string;
+  /** The original search query text */
+  query: string;
+  /** The query vector embedding */
+  queryVector: number[];
+  /** IDs of results returned by the search */
+  resultIds: string[];
+  /** Relevance scores for each result */
+  resultScores: number[];
+  /** User feedback on result quality (0-1, null if no feedback) */
+  feedback: number | null;
+  /** Unix timestamp when the trajectory was recorded */
+  timestamp: number;
+  /** Session ID for grouping related trajectories */
+  sessionId: string | null;
+  /** Additional metadata */
+  metadata?: Record<string, unknown>;
+};
+
+/**
+ * Summary statistics for trajectory recording.
+ */
+export type TrajectoryStats = {
+  /** Total number of recorded trajectories */
+  totalTrajectories: number;
+  /** Number of trajectories with feedback */
+  trajectoriesWithFeedback: number;
+  /** Average feedback score (across trajectories with feedback) */
+  averageFeedbackScore: number;
+  /** Oldest trajectory timestamp */
+  oldestTimestamp: number | null;
+  /** Newest trajectory timestamp */
+  newestTimestamp: number | null;
+};
+
+/**
+ * Result from context injection operation.
+ */
+export type InjectedContext = {
+  /** The formatted context string to inject */
+  contextText: string;
+  /** Number of memories included */
+  memoriesIncluded: number;
+  /** Estimated token count */
+  estimatedTokens: number;
+  /** IDs of memories that were included */
+  memoryIds: string[];
+};

@@ -9,6 +9,9 @@ This PR introduces `@clawdbot/memory-ruvector`, a new memory extension that prov
 - RAG-ready architecture for knowledge base integration
 - Multiple embedding providers (OpenAI, Voyage AI, local)
 - Production-ready with graceful degradation and comprehensive error handling
+- **ruvLLM adaptive learning**: Trajectory recording, context injection, pattern clustering
+- **Multi-temporal learning loops**: Instant, background, and consolidation learning
+- **EWC++ consolidation**: Prevents catastrophic forgetting during pattern updates
 
 ## Motivation
 
@@ -49,18 +52,34 @@ plugins:
 
 ```
 extensions/memory-ruvector/
-├── index.ts          # Plugin registration, dual-mode routing
-├── service.ts        # Lifecycle management (start/stop), SONA + Graph init
-├── client.ts         # RuvectorClient wrapper for native API
-├── db.ts             # High-level database abstraction
-├── embeddings.ts     # Multi-provider embedding support
-├── hooks.ts          # Auto-indexing via message hooks
-├── tool.ts           # Agent tools (search, feedback, graph)
-├── config.ts         # Configuration schema with validation
-├── types.ts          # TypeScript type definitions
-├── index.test.ts     # Vitest test suite (52 tests)
-├── package.json      # Dependencies
-└── tsconfig.json     # TypeScript config
+├── index.ts              # Plugin registration, dual-mode routing
+├── service.ts            # Lifecycle management (start/stop), SONA + Graph init
+├── client.ts             # RuvectorClient wrapper for native API
+├── db.ts                 # High-level database abstraction
+├── embeddings.ts         # Multi-provider embedding support
+├── hooks.ts              # Auto-indexing via message hooks
+├── tool.ts               # Agent tools (search, feedback, graph, recall, learn)
+├── config.ts             # Configuration schema with validation
+├── types.ts              # TypeScript type definitions
+├── context-injection.ts  # Context injection for agent prompts
+├── sona/
+│   ├── trajectory.ts     # Trajectory recording for search patterns
+│   ├── patterns.ts       # K-means++ pattern clustering
+│   ├── ewc.ts            # EWC++ consolidation (catastrophic forgetting prevention)
+│   └── loops/
+│       ├── index.ts      # Loop exports
+│       ├── instant.ts    # Instant learning (real-time feedback)
+│       ├── background.ts # Background learning (pattern clustering)
+│       └── consolidation.ts # Deep consolidation (EWC++ integration)
+├── graph/
+│   ├── index.ts          # Graph exports
+│   ├── expansion.ts      # Automatic edge discovery
+│   ├── attention.ts      # Multi-head graph attention
+│   └── relationships.ts  # Entity extraction & relationship inference
+├── index.test.ts         # Vitest test suite (229 tests)
+├── p1-ruvllm.test.ts     # ruvLLM P1 feature tests (46 tests)
+├── package.json          # Dependencies
+└── tsconfig.json         # TypeScript config
 ```
 
 ## Features
@@ -129,6 +148,88 @@ clawdbot ruvector flush
 
 Auto-dimension detection based on model name.
 
+### 6. ruvLLM Adaptive Learning
+
+#### Context Injection
+Relevant memories are automatically injected into agent system prompts:
+```typescript
+// Enabled via config
+ruvllm: {
+  enabled: true,
+  contextInjection: {
+    enabled: true,
+    maxTokens: 2000,
+    relevanceThreshold: 0.3
+  }
+}
+```
+
+#### Trajectory Recording
+Search queries and results are recorded for learning:
+```typescript
+{
+  id: "traj-abc123",
+  query: "user preferences",
+  queryVector: [...],
+  results: [...],
+  feedback: 0.85,
+  timestamp: 1706123456789
+}
+```
+
+#### Pattern Learning Tools
+
+**ruvector_recall** - Pattern-aware memory recall:
+```typescript
+{
+  query: "What are the user's coding preferences?",
+  usePatterns: true,    // Apply learned pattern re-ranking
+  expandGraph: true,    // Include graph-connected memories
+  graphDepth: 2,        // Depth for graph traversal
+  patternBoost: 0.2     // Boost factor for pattern matches
+}
+```
+
+**ruvector_learn** - Manual knowledge injection:
+```typescript
+{
+  content: "User prefers TypeScript over JavaScript",
+  category: "preference",
+  importance: 0.8,
+  relationships: ["msg-123"],
+  inferRelationships: true,
+  linkSimilar: true
+}
+```
+
+#### Multi-Temporal Learning Loops
+
+| Loop | Interval | Purpose |
+|------|----------|---------|
+| **Instant** | Immediate | Process feedback in real-time, apply micro-boosts |
+| **Background** | 30s | Cluster recent trajectories, update pattern store |
+| **Consolidation** | 5min | Deep reanalysis, merge patterns, prune stale data |
+
+#### EWC++ Consolidation
+Prevents catastrophic forgetting by:
+- Tracking pattern importance via Fisher Information Matrix
+- Protecting critical patterns during consolidation
+- Computing penalties for modifying important patterns
+
+#### Graph Attention
+Multi-head attention aggregates context from graph neighbors:
+- Semantic head: Weights by content similarity
+- Temporal head: Weights by time proximity
+- Causal head: Weights by cause-effect relationships
+- Structural head: Weights by graph structure
+
+#### Pattern Export/Import
+```bash
+clawdbot ruvector export-patterns ./patterns.json
+clawdbot ruvector import-patterns ./patterns.json --merge
+clawdbot ruvector pattern-stats
+```
+
 ## Implementation Details
 
 ### Error Handling
@@ -161,7 +262,7 @@ Auto-dimension detection based on model name.
 
 ## Test Coverage
 
-52 test cases covering:
+275 test cases covering:
 - RuvectorClient operations (connect, insert, search, delete)
 - RuvectorService lifecycle
 - Configuration parsing and validation
@@ -172,6 +273,19 @@ Auto-dimension detection based on model name.
 - Error handling paths
 - SONA self-learning (enable, feedback recording, pattern finding, stats)
 - Graph features (init, edge management, Cypher queries, neighbors, message linking)
+- **ruvLLM Config** - Config parsing with ruvllm options
+- **TrajectoryRecorder** - record(), getRecent(), prune(), findSimilar(), import/export
+- **ContextInjector** - injectContext(), formatContext(), buildContextForMessage()
+- **PatternStore** - addSample(), cluster(), findSimilar(), export/import
+- **GraphExpander** - expandFromSearch(), suggestRelationships()
+- **BackgroundLoop** - start(), stop(), runCycle(), pattern learning
+- **InstantLoop** - processImmediateFeedback(), getBoostForVector(), decay
+- **RelationshipInferrer** - inferFromContent(), linkSimilar(), entity extraction
+- **EWCConsolidator** - consolidate(), protectCritical(), computePenalty()
+- **ConsolidationLoop** - runDeepConsolidation(), exportPatterns(), importPatterns()
+- **GraphAttention** - aggregateContext(), addHead(), multi-head attention
+- **ruvector_recall tool** - pattern-aware recall with graph expansion
+- **ruvector_learn tool** - content indexing with relationships
 
 ## Dependencies
 
@@ -215,27 +329,36 @@ None - this is a new optional plugin.
 - [x] Plugin follows clawdbot extension patterns
 - [x] Comprehensive TypeScript types
 - [x] Error handling with graceful degradation
-- [x] Test coverage (52 tests)
+- [x] Test coverage (275 tests)
 - [x] CLI commands registered
-- [x] Documentation (integration analysis, SONA, Graph queries)
+- [x] Documentation (plugin docs, SONA, Graph queries, ruvLLM)
 - [x] Configuration validation
 - [x] Resource cleanup on shutdown
 - [x] SONA self-learning implementation
 - [x] Cypher graph query support
+- [x] ruvLLM adaptive learning (trajectory recording, context injection)
+- [x] Pattern clustering with K-means++
+- [x] Multi-temporal learning loops (instant, background, consolidation)
+- [x] EWC++ consolidation for catastrophic forgetting prevention
+- [x] Multi-head graph attention
+- [x] Pattern export/import CLI commands
+- [x] ruvector_recall and ruvector_learn tools
 
 ## Test Plan
 
-- [ ] Run `pnpm test extensions/memory-ruvector/index.test.ts`
+- [x] Run `npx vitest run extensions/memory-ruvector` (275 tests pass)
 - [ ] Verify plugin loads: `clawdbot config get plugins`
 - [ ] Test local mode with OpenAI embeddings
 - [ ] Test CLI commands: `clawdbot ruvector stats`
 - [ ] Send messages and verify auto-indexing
 - [ ] Test search tool via agent interaction
 - [ ] Verify graceful shutdown flushes pending batch
+- [ ] Test ruvLLM features: `clawdbot ruvector ruvllm-status`
+- [ ] Test pattern export/import: `clawdbot ruvector export-patterns`
 
 ## Documentation
 
-- Integration analysis: `docs/ruvector-integration-analysis.md`
+- Plugin docs: `docs/plugins/memory-ruvector.md`
 - Configuration: See `config.ts` uiHints for all options
 
 ---

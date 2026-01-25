@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
 import { CodeGraph, RuvectorLayer, SonaEngine, VectorDb } from "ruvector";
 
 import type { PluginLogger } from "clawdbot/plugin-sdk";
@@ -20,13 +21,18 @@ import {
   type LearnedPattern,
   type RuvectorClientConfig,
   type RuvectorStats,
+  type RuvLLMConfig,
   type SONAConfig,
   type SONAStats,
+  type Trajectory,
+  type TrajectoryStats,
   type VectorEntry,
   type VectorInsertInput,
   type VectorSearchParams,
   type VectorSearchResult,
 } from "./types.js";
+import { PatternStore, type FeedbackSample, type PatternClusterConfig } from "./sona/patterns.js";
+import { TrajectoryRecorder, type TrajectoryInput } from "./sona/trajectory.js";
 
 // =============================================================================
 // Ruvector Native Types (from ruvector package)
@@ -102,6 +108,14 @@ export class RuvectorClient {
   private graph: InstanceType<typeof CodeGraph> | null = null;
   private gnnLayer: InstanceType<typeof RuvectorLayer> | null = null;
   private gnnConfig: GNNConfig | null = null;
+
+  // Pattern store for ruvLLM learning
+  private patternStore: PatternStore | null = null;
+
+  // ruvLLM (Ruvector LLM Integration) state
+  private ruvllmConfig: RuvLLMConfig | null = null;
+  private trajectoryRecorder: TrajectoryRecorder | null = null;
+  private learningLoopTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: RuvectorClientConfig, logger: PluginLogger) {
     this.config = config;
@@ -439,8 +453,8 @@ export class RuvectorClient {
 
     try {
       return await db.isEmpty();
-    } catch (err) {
-      // Fallback to count check
+    } catch {
+      // Fallback to count check if isEmpty is not supported
       const count = await this.count();
       return count === 0;
     }
@@ -907,6 +921,816 @@ export class RuvectorClient {
       this.logger.debug?.("ruvector-client: forced SONA learning cycle");
     } catch (err) {
       this.logger.warn(`ruvector-client: failed to force SONA learn: ${formatError(err)}`);
+    }
+  }
+
+  // ===========================================================================
+  // Pattern Store (ruvLLM Learning Core)
+  // ===========================================================================
+
+  /**
+   * Initialize the pattern store for learned pattern clustering.
+   *
+   * @param config - Pattern clustering configuration
+   */
+  initializePatternStore(config?: PatternClusterConfig): void {
+    if (this.patternStore) {
+      this.logger.debug?.("ruvector-client: pattern store already initialized");
+      return;
+    }
+
+    this.patternStore = new PatternStore(config);
+    this.logger.info("ruvector-client: pattern store initialized");
+  }
+
+  /**
+   * Get the pattern store instance.
+   * Returns null if not initialized.
+   */
+  getPatternStore(): PatternStore | null {
+    return this.patternStore;
+  }
+
+  /**
+   * Add a feedback sample to the pattern store for learning.
+   *
+   * @param sample - Feedback sample to add
+   */
+  addPatternSample(sample: FeedbackSample): void {
+    if (!this.patternStore) {
+      this.logger.debug?.("ruvector-client: pattern store not initialized, skipping sample");
+      return;
+    }
+
+    this.patternStore.addSample(sample);
+    this.logger.debug?.(`ruvector-client: added pattern sample ${sample.id}`);
+  }
+
+  /**
+   * Re-rank search results using learned patterns.
+   *
+   * Boosts results that match high-quality patterns from past interactions.
+   * Results are sorted by a combined score that factors in both vector similarity
+   * and pattern matching.
+   *
+   * @param results - Original search results
+   * @param queryVector - Original query vector
+   * @param boostFactor - How much to boost pattern-matched results (default: 0.2)
+   * @returns Re-ranked search results
+   */
+  rerank(
+    results: VectorSearchResult[],
+    queryVector: number[],
+    boostFactor = 0.2,
+  ): VectorSearchResult[] {
+    if (!this.patternStore || results.length === 0) {
+      return results;
+    }
+
+    // Find similar patterns to the query
+    const similarPatterns = this.patternStore.findSimilar(queryVector, 5);
+    if (similarPatterns.length === 0) {
+      return results;
+    }
+
+    // Calculate pattern-based boosts for each result
+    const boostedResults: Array<{ result: VectorSearchResult; boostedScore: number }> = [];
+
+    for (const result of results) {
+      let patternBoost = 0;
+
+      // Check similarity to each pattern centroid (result portion)
+      for (const pattern of similarPatterns) {
+        // Pattern centroid contains [query, result], extract result portion
+        const dim = queryVector.length;
+        const patternResultCentroid = pattern.centroid.slice(dim, dim * 2);
+
+        if (patternResultCentroid.length > 0) {
+          const similarity = this.cosineSimilarity(result.entry.vector, patternResultCentroid);
+
+          // Boost based on pattern quality and similarity
+          patternBoost += similarity * pattern.avgQuality * boostFactor;
+        }
+      }
+
+      // Normalize boost (cap at boostFactor)
+      patternBoost = Math.min(patternBoost / similarPatterns.length, boostFactor);
+
+      boostedResults.push({
+        result,
+        boostedScore: Math.min(1.0, result.score + patternBoost),
+      });
+    }
+
+    // Sort by boosted score
+    boostedResults.sort((a, b) => b.boostedScore - a.boostedScore);
+
+    // Return results with updated scores (explicit property mapping for type safety)
+    return boostedResults.map(({ result, boostedScore }): VectorSearchResult => ({
+      entry: result.entry,
+      score: boostedScore,
+    }));
+  }
+
+  /**
+   * Search with pattern-aware re-ranking.
+   *
+   * @param params - Search parameters with optional pattern re-ranking
+   * @returns Search results, optionally re-ranked
+   */
+  async searchWithPatterns(
+    params: VectorSearchParams & { usePatterns?: boolean; patternBoost?: number },
+  ): Promise<VectorSearchResult[]> {
+    const { usePatterns = false, patternBoost = 0.2, ...searchParams } = params;
+
+    // Perform base search
+    const results = await this.search(searchParams);
+
+    // Apply pattern re-ranking if requested
+    if (usePatterns && this.patternStore) {
+      const queryVector = normalizeVector(searchParams.vector);
+      return this.rerank(results, queryVector, patternBoost);
+    }
+
+    return results;
+  }
+
+  /**
+   * Trigger pattern clustering on accumulated samples.
+   */
+  clusterPatterns(): void {
+    if (!this.patternStore) {
+      return;
+    }
+
+    this.patternStore.cluster();
+    this.logger.debug?.(
+      `ruvector-client: clustered patterns, ${this.patternStore.getClusterCount()} clusters`,
+    );
+  }
+
+  /**
+   * Calculate cosine similarity between two vectors.
+   */
+  private cosineSimilarity(a: number[], b: number[]): number {
+    const len = Math.min(a.length, b.length);
+    if (len === 0) return 0;
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < len; i++) {
+      const aVal = a[i] ?? 0;
+      const bVal = b[i] ?? 0;
+      dotProduct += aVal * bVal;
+      normA += aVal * aVal;
+      normB += bVal * bVal;
+    }
+
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    if (denominator === 0) return 0;
+
+    return dotProduct / denominator;
+  }
+
+  // ===========================================================================
+  // Pattern Export/Import (P3 Advanced Features)
+  // ===========================================================================
+
+  /**
+   * Export format for pattern persistence.
+   */
+  static readonly PATTERN_EXPORT_VERSION = "1.0.0";
+
+  /**
+   * Export learned patterns to a file.
+   *
+   * Saves the current pattern store state including:
+   * - All pattern clusters with centroids
+   * - Feedback samples used for learning
+   * - Configuration metadata
+   *
+   * @param path - File path to write patterns to
+   * @param metadata - Optional metadata to include in export
+   * @throws {RuvectorError} If pattern store is not initialized, path is invalid, or write fails
+   */
+  async exportPatterns(
+    path: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<{ clusterCount: number; sampleCount: number }> {
+    // Validate path
+    if (!path || typeof path !== "string" || path.trim() === "") {
+      throw new RuvectorError(
+        "INVALID_ID",
+        "Invalid export path: must be a non-empty string",
+      );
+    }
+
+    if (!this.patternStore) {
+      throw new RuvectorError(
+        "NOT_CONNECTED",
+        "Pattern store not initialized - call initializePatternStore() first",
+      );
+    }
+
+    const storeData = this.patternStore.export();
+
+    const exportData = {
+      version: RuvectorClient.PATTERN_EXPORT_VERSION,
+      exportedAt: Date.now(),
+      dimension: this.config.dimension,
+      metric: this.config.metric,
+      clusters: storeData.clusters,
+      samples: storeData.samples,
+      metadata: {
+        ...metadata,
+        clusterCount: storeData.clusters.length,
+        sampleCount: storeData.samples.length,
+      },
+    };
+
+    try {
+      await writeFile(path, JSON.stringify(exportData, null, 2), "utf-8");
+
+      this.logger.info(
+        `ruvector-client: exported ${storeData.clusters.length} clusters and ${storeData.samples.length} samples to ${path}`,
+      );
+
+      return {
+        clusterCount: storeData.clusters.length,
+        sampleCount: storeData.samples.length,
+      };
+    } catch (err) {
+      throw new RuvectorError(
+        "INSERT_FAILED",
+        `Failed to export patterns: ${formatError(err)}`,
+        err,
+      );
+    }
+  }
+
+  /**
+   * Import learned patterns from a file.
+   *
+   * Loads patterns from a previously exported file. By default, replaces
+   * the current pattern store. Use `mergePatterns` to combine with existing.
+   *
+   * @param path - File path to read patterns from
+   * @returns Import statistics
+   * @throws {RuvectorError} If path is invalid, read fails, or format is invalid
+   */
+  async importPatterns(path: string): Promise<{
+    clusterCount: number;
+    sampleCount: number;
+    version: string;
+    exportedAt: number;
+  }> {
+    // Validate path
+    if (!path || typeof path !== "string" || path.trim() === "") {
+      throw new RuvectorError(
+        "INVALID_ID",
+        "Invalid import path: must be a non-empty string",
+      );
+    }
+
+    let content: string;
+    try {
+      content = await readFile(path, "utf-8");
+    } catch (err) {
+      throw new RuvectorError(
+        "NOT_FOUND",
+        `Failed to read pattern file: ${formatError(err)}`,
+        err,
+      );
+    }
+
+    let data: {
+      version?: string;
+      exportedAt?: number;
+      dimension?: number;
+      clusters?: Array<{
+        id: string;
+        centroid: number[];
+        members: string[];
+        avgQuality: number;
+        lastUpdated: number;
+      }>;
+      samples?: Array<{
+        id: string;
+        queryVector: number[];
+        resultVector: number[];
+        relevanceScore: number;
+        timestamp: number;
+      }>;
+    };
+
+    try {
+      data = JSON.parse(content);
+    } catch (err) {
+      throw new RuvectorError(
+        "INVALID_DIMENSION",
+        `Invalid pattern export format: ${formatError(err)}`,
+        err,
+      );
+    }
+
+    // Validate format
+    if (!data.version || !data.clusters || !data.samples) {
+      throw new RuvectorError(
+        "INVALID_DIMENSION",
+        "Invalid pattern export format: missing required fields",
+      );
+    }
+
+    // Validate dimension compatibility
+    if (data.dimension && data.dimension !== this.config.dimension) {
+      this.logger.warn(
+        `ruvector-client: dimension mismatch (export: ${data.dimension}, config: ${this.config.dimension}). ` +
+          "Patterns may not work correctly.",
+      );
+    }
+
+    // Initialize pattern store if needed
+    if (!this.patternStore) {
+      this.initializePatternStore();
+    }
+
+    // Import into pattern store
+    this.patternStore!.import({
+      clusters: data.clusters,
+      samples: data.samples,
+    });
+
+    this.logger.info(
+      `ruvector-client: imported ${data.clusters.length} clusters and ${data.samples.length} samples from ${path}`,
+    );
+
+    return {
+      clusterCount: data.clusters.length,
+      sampleCount: data.samples.length,
+      version: data.version,
+      exportedAt: data.exportedAt ?? 0,
+    };
+  }
+
+  /**
+   * Merge patterns from a file with existing patterns.
+   *
+   * Unlike `importPatterns`, this combines the imported patterns with
+   * existing ones and triggers re-clustering to consolidate.
+   *
+   * @param path - File path to read patterns from
+   * @returns Merge statistics
+   * @throws {RuvectorError} If path is invalid, read fails, or format is invalid
+   */
+  async mergePatterns(path: string): Promise<{
+    importedClusters: number;
+    importedSamples: number;
+    finalClusters: number;
+    finalSamples: number;
+  }> {
+    // Validate path
+    if (!path || typeof path !== "string" || path.trim() === "") {
+      throw new RuvectorError(
+        "INVALID_ID",
+        "Invalid merge path: must be a non-empty string",
+      );
+    }
+
+    // Get current state
+    const existingSamples = this.patternStore?.getSampleCount() ?? 0;
+    const existingClusters = this.patternStore?.getClusterCount() ?? 0;
+
+    // Read the import file
+    let content: string;
+    try {
+      content = await readFile(path, "utf-8");
+    } catch (err) {
+      throw new RuvectorError(
+        "NOT_FOUND",
+        `Failed to read pattern file: ${formatError(err)}`,
+        err,
+      );
+    }
+
+    let data: {
+      version?: string;
+      dimension?: number;
+      samples?: Array<{
+        id: string;
+        queryVector: number[];
+        resultVector: number[];
+        relevanceScore: number;
+        timestamp: number;
+      }>;
+    };
+
+    try {
+      data = JSON.parse(content);
+    } catch (err) {
+      throw new RuvectorError(
+        "INVALID_DIMENSION",
+        `Invalid pattern export format: ${formatError(err)}`,
+        err,
+      );
+    }
+
+    if (!data.samples || !Array.isArray(data.samples)) {
+      throw new RuvectorError(
+        "INVALID_DIMENSION",
+        "Invalid pattern export format: missing samples array",
+      );
+    }
+
+    // Initialize pattern store if needed
+    if (!this.patternStore) {
+      this.initializePatternStore();
+    }
+
+    // Add imported samples (this will deduplicate by ID)
+    const importedCount = data.samples.length;
+    for (const sample of data.samples) {
+      this.patternStore!.addSample(sample);
+    }
+
+    // Force re-clustering to consolidate
+    this.patternStore!.cluster();
+
+    const finalClusters = this.patternStore!.getClusterCount();
+    const finalSamples = this.patternStore!.getSampleCount();
+
+    this.logger.info(
+      `ruvector-client: merged ${importedCount} samples. ` +
+        `Before: ${existingClusters} clusters, ${existingSamples} samples. ` +
+        `After: ${finalClusters} clusters, ${finalSamples} samples.`,
+    );
+
+    return {
+      importedClusters: 0, // Clusters are rebuilt during merge
+      importedSamples: importedCount,
+      finalClusters,
+      finalSamples,
+    };
+  }
+
+  /**
+   * Get pattern statistics without full export.
+   */
+  getPatternStats(): {
+    clusterCount: number;
+    sampleCount: number;
+    initialized: boolean;
+  } {
+    if (!this.patternStore) {
+      return {
+        clusterCount: 0,
+        sampleCount: 0,
+        initialized: false,
+      };
+    }
+
+    return {
+      clusterCount: this.patternStore.getClusterCount(),
+      sampleCount: this.patternStore.getSampleCount(),
+      initialized: true,
+    };
+  }
+
+  // ===========================================================================
+  // ruvLLM (Ruvector LLM Integration) Methods
+  // ===========================================================================
+
+  /**
+   * Enable ruvLLM features with the provided configuration.
+   * Initializes trajectory recording and sets up learning loops.
+   *
+   * @param config - ruvLLM configuration
+   */
+  enableRuvLLM(config: RuvLLMConfig): void {
+    if (this.ruvllmConfig) {
+      this.logger.warn("ruvector-client: ruvLLM already enabled, reconfiguring");
+      this.disableRuvLLM();
+    }
+
+    this.ruvllmConfig = config;
+
+    if (!config.enabled) {
+      this.logger.info("ruvector-client: ruvLLM disabled by config");
+      return;
+    }
+
+    this.logger.info(
+      `ruvector-client: enabling ruvLLM (contextInjection: ${config.contextInjection.enabled}, trajectoryRecording: ${config.trajectoryRecording.enabled})`,
+    );
+
+    // Initialize trajectory recorder if enabled
+    if (config.trajectoryRecording.enabled) {
+      this.trajectoryRecorder = new TrajectoryRecorder(
+        config.trajectoryRecording,
+        this.logger,
+      );
+      this.logger.info(
+        `ruvector-client: trajectory recording enabled (max: ${config.trajectoryRecording.maxTrajectories})`,
+      );
+    }
+
+    // Initialize pattern store for learning if not already present
+    if (!this.patternStore) {
+      this.initializePatternStore();
+    }
+
+    // Start background learning loop (every 5 minutes)
+    this.startLearningLoop(5 * 60 * 1000);
+  }
+
+  /**
+   * Disable ruvLLM features and clean up resources.
+   */
+  disableRuvLLM(): void {
+    if (!this.ruvllmConfig) {
+      return;
+    }
+
+    this.logger.info("ruvector-client: disabling ruvLLM");
+
+    // Stop learning loop
+    this.stopLearningLoop();
+
+    // Clean up trajectory recorder
+    this.trajectoryRecorder = null;
+    this.ruvllmConfig = null;
+
+    this.logger.info("ruvector-client: ruvLLM disabled");
+  }
+
+  /**
+   * Check if ruvLLM is enabled.
+   */
+  isRuvLLMEnabled(): boolean {
+    return this.ruvllmConfig?.enabled === true;
+  }
+
+  /**
+   * Get the ruvLLM configuration.
+   */
+  getRuvLLMConfig(): RuvLLMConfig | null {
+    return this.ruvllmConfig;
+  }
+
+  /**
+   * Get the trajectory recorder instance.
+   * Returns null if trajectory recording is not enabled.
+   */
+  getTrajectoryRecorder(): TrajectoryRecorder | null {
+    return this.trajectoryRecorder;
+  }
+
+  /**
+   * Record a search trajectory for learning.
+   * Called automatically by search methods when ruvLLM is enabled.
+   *
+   * @param input - Trajectory data to record
+   * @returns The trajectory ID, or empty string if recording is disabled
+   */
+  recordTrajectory(input: TrajectoryInput): string {
+    if (!this.trajectoryRecorder) {
+      return "";
+    }
+
+    return this.trajectoryRecorder.record(input);
+  }
+
+  /**
+   * Add feedback to a recorded trajectory.
+   *
+   * @param trajectoryId - ID of the trajectory to update
+   * @param feedback - Feedback score (0-1, higher is better)
+   * @returns true if feedback was added
+   */
+  addTrajectoryFeedback(trajectoryId: string, feedback: number): boolean {
+    if (!this.trajectoryRecorder) {
+      return false;
+    }
+
+    const success = this.trajectoryRecorder.addFeedback(trajectoryId, feedback);
+
+    // If feedback is high quality, also create a pattern sample
+    if (success && feedback >= 0.5 && this.patternStore) {
+      const trajectory = this.trajectoryRecorder.get(trajectoryId);
+      if (trajectory && trajectory.resultIds.length > 0) {
+        // Create a pattern sample from the trajectory
+        this.patternStore.addSample({
+          id: trajectoryId,
+          queryVector: trajectory.queryVector,
+          resultVector: trajectory.queryVector, // Placeholder - ideally fetch result vector
+          relevanceScore: feedback,
+          timestamp: Date.now(),
+        });
+      }
+    }
+
+    return success;
+  }
+
+  /**
+   * Get trajectory statistics.
+   */
+  getTrajectoryStats(): TrajectoryStats {
+    if (!this.trajectoryRecorder) {
+      return {
+        totalTrajectories: 0,
+        trajectoriesWithFeedback: 0,
+        averageFeedbackScore: 0,
+        oldestTimestamp: null,
+        newestTimestamp: null,
+      };
+    }
+
+    return this.trajectoryRecorder.getStats();
+  }
+
+  /**
+   * Get recent trajectories.
+   *
+   * @param limit - Maximum number to return (default: 100)
+   * @returns Array of recent trajectories
+   */
+  getRecentTrajectories(limit = 100): Trajectory[] {
+    if (!this.trajectoryRecorder) {
+      return [];
+    }
+
+    return this.trajectoryRecorder.getRecent({ limit });
+  }
+
+  /**
+   * Find similar past trajectories for a query.
+   * Useful for suggesting results based on past successful searches.
+   *
+   * @param queryVector - Query vector to find similar trajectories for
+   * @param limit - Maximum number to return (default: 10)
+   * @returns Array of similar trajectories with similarity scores
+   */
+  findSimilarTrajectories(
+    queryVector: number[],
+    limit = 10,
+  ): Array<{ trajectory: Trajectory; similarity: number }> {
+    if (!this.trajectoryRecorder) {
+      return [];
+    }
+
+    return this.trajectoryRecorder.findSimilar(queryVector, limit);
+  }
+
+  /**
+   * Search with trajectory recording enabled.
+   * Records the search as a trajectory and returns results.
+   *
+   * @param params - Search parameters
+   * @param sessionId - Optional session ID for trajectory grouping
+   * @returns Search results with trajectory ID
+   */
+  async searchWithTrajectory(
+    params: VectorSearchParams,
+    sessionId?: string,
+  ): Promise<{ results: VectorSearchResult[]; trajectoryId: string }> {
+    // Perform the search
+    const results = await this.search(params);
+
+    // Record trajectory
+    const queryVector = normalizeVector(params.vector);
+    const trajectoryId = this.recordTrajectory({
+      query: "", // Query text not available at this level
+      queryVector,
+      resultIds: results.map((r) => r.entry.id),
+      resultScores: results.map((r) => r.score),
+      sessionId,
+    });
+
+    return { results, trajectoryId };
+  }
+
+  /**
+   * Start the background learning loop.
+   * Periodically processes trajectories and updates patterns.
+   *
+   * @param intervalMs - Interval between learning cycles (default: 5 minutes)
+   */
+  private startLearningLoop(intervalMs = 5 * 60 * 1000): void {
+    if (this.learningLoopTimer) {
+      return;
+    }
+
+    this.learningLoopTimer = setInterval(() => {
+      this.runLearningCycle();
+    }, intervalMs);
+
+    this.logger.debug?.(
+      `ruvector-client: started learning loop (interval: ${intervalMs}ms)`,
+    );
+  }
+
+  /**
+   * Stop the background learning loop.
+   */
+  private stopLearningLoop(): void {
+    if (this.learningLoopTimer) {
+      clearInterval(this.learningLoopTimer);
+      this.learningLoopTimer = null;
+      this.logger.debug?.("ruvector-client: stopped learning loop");
+    }
+  }
+
+  /**
+   * Run a single learning cycle.
+   * Processes high-quality trajectories and updates patterns.
+   */
+  private runLearningCycle(): void {
+    if (!this.trajectoryRecorder || !this.patternStore) {
+      return;
+    }
+
+    try {
+      // Get high-quality trajectories for learning
+      const highQuality = this.trajectoryRecorder.getHighQuality(0.7, 50);
+
+      if (highQuality.length === 0) {
+        this.logger.debug?.("ruvector-client: no high-quality trajectories for learning");
+        return;
+      }
+
+      // Convert trajectories to pattern samples
+      let samplesAdded = 0;
+      for (const trajectory of highQuality) {
+        if (trajectory.feedback !== null && trajectory.resultIds.length > 0) {
+          this.patternStore.addSample({
+            id: trajectory.id,
+            queryVector: trajectory.queryVector,
+            resultVector: trajectory.queryVector,
+            relevanceScore: trajectory.feedback,
+            timestamp: trajectory.timestamp,
+          });
+          samplesAdded++;
+        }
+      }
+
+      // Trigger clustering
+      if (samplesAdded > 0) {
+        this.patternStore.cluster();
+        this.logger.debug?.(
+          `ruvector-client: learning cycle completed (${samplesAdded} samples, ${this.patternStore.getClusterCount()} clusters)`,
+        );
+      }
+
+      // Prune old trajectories
+      this.trajectoryRecorder.prune();
+    } catch (err) {
+      this.logger.warn(`ruvector-client: learning cycle error: ${formatError(err)}`);
+    }
+  }
+
+  /**
+   * Force an immediate learning cycle.
+   * Useful before shutdown to ensure patterns are learned.
+   */
+  forceLearningCycle(): void {
+    this.runLearningCycle();
+  }
+
+  /**
+   * Export ruvLLM state for persistence.
+   * Includes trajectories and patterns.
+   */
+  exportRuvLLMState(): {
+    trajectories: Trajectory[];
+    patterns: ReturnType<PatternStore["export"]> | null;
+  } {
+    return {
+      trajectories: this.trajectoryRecorder?.export() ?? [],
+      patterns: this.patternStore?.export() ?? null,
+    };
+  }
+
+  /**
+   * Import ruvLLM state from a previous export.
+   */
+  importRuvLLMState(state: {
+    trajectories?: Trajectory[];
+    patterns?: ReturnType<PatternStore["export"]>;
+  }): void {
+    if (state.trajectories && this.trajectoryRecorder) {
+      this.trajectoryRecorder.import(state.trajectories);
+      this.logger.info(
+        `ruvector-client: imported ${state.trajectories.length} trajectories`,
+      );
+    }
+
+    if (state.patterns && this.patternStore) {
+      this.patternStore.import(state.patterns);
+      this.logger.info(
+        `ruvector-client: imported ${state.patterns.clusters.length} clusters, ${state.patterns.samples.length} samples`,
+      );
     }
   }
 

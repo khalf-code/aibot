@@ -398,6 +398,170 @@ clawdbot ruvector neighbors msg-123 --depth 2 --relationship IN_CONVERSATION
 clawdbot ruvector link msg-123 msg-456 --relationship RELATES_TO
 ```
 
+## ruvLLM Adaptive Learning
+
+ruvLLM extends SONA with advanced adaptive learning features including trajectory recording, context injection, pattern clustering, and multi-temporal learning loops.
+
+### Configuration
+
+```json5
+{
+  plugins: {
+    entries: {
+      "memory-ruvector": {
+        enabled: true,
+        config: {
+          embedding: {
+            provider: "openai",
+            apiKey: "${OPENAI_API_KEY}"
+          },
+          ruvllm: {
+            enabled: true,
+            contextInjection: {
+              enabled: true,           // Inject relevant memories into agent context
+              maxTokens: 2000,         // Maximum tokens for injected context
+              relevanceThreshold: 0.3  // Minimum similarity for inclusion
+            },
+            trajectoryRecording: {
+              enabled: true,           // Record search trajectories for learning
+              maxTrajectories: 1000    // Maximum trajectories to retain
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Context injection
+
+When enabled, relevant memories are automatically injected into agent system prompts via the `before_agent_start` hook:
+
+1. Recent user messages are analyzed for semantic similarity
+2. Top matching memories are formatted as context
+3. Context is prepended to the agent's system prompt
+
+This enables agents to recall relevant past conversations without explicit search calls.
+
+### Trajectory recording
+
+Every search query and its results are recorded as trajectories:
+
+```typescript
+{
+  id: "traj-abc123",
+  query: "user preferences",
+  queryVector: [...],  // Embedding of the query
+  results: [...],      // Result IDs with scores
+  feedback: 0.85,      // User feedback score (optional)
+  timestamp: 1706123456789,
+  sessionId: "session-xyz"
+}
+```
+
+Trajectories enable:
+- Finding similar past searches
+- Learning from feedback patterns
+- Improving search ranking over time
+
+### Pattern learning
+
+The plugin learns patterns from feedback using K-means++ clustering:
+
+1. **Sample collection**: High-quality feedback is stored as samples
+2. **Clustering**: Similar samples are grouped into pattern clusters
+3. **Re-ranking**: Search results are boosted based on matching patterns
+
+### ruvector_recall tool
+
+Pattern-aware memory recall combining vector search, learned patterns, and graph traversal.
+
+```json5
+{
+  query: "What are the user's coding preferences?",
+  usePatterns: true,    // Apply learned pattern re-ranking (default: true)
+  expandGraph: true,    // Include graph-connected memories (default: false)
+  graphDepth: 2,        // Depth for graph traversal (1-3, default: 1)
+  patternBoost: 0.2     // Boost factor for pattern matches (0-1, default: 0.2)
+}
+```
+
+### ruvector_learn tool
+
+Manually index knowledge with automatic relationship inference.
+
+```json5
+{
+  content: "User prefers TypeScript over JavaScript",
+  category: "preference",     // "preference" | "fact" | "decision" | "entity" | "other"
+  importance: 0.8,            // 0-1, affects pattern clustering
+  relationships: ["msg-123"], // Explicit links to other entries
+  inferRelationships: true,   // Auto-detect entities and relationships (default: true)
+  linkSimilar: true,          // Link to similar existing entries (default: false)
+  similarityThreshold: 0.8    // Threshold for auto-linking (default: 0.8)
+}
+```
+
+### Learning loops
+
+Three temporal learning loops adapt the system over time:
+
+| Loop | Interval | Purpose |
+|------|----------|---------|
+| **Instant** | Immediate | Process feedback in real-time, apply micro-boosts |
+| **Background** | 30s | Cluster recent trajectories, update pattern store |
+| **Consolidation** | 5min | Deep reanalysis, merge patterns, prune stale data |
+
+### EWC++ (Elastic Weight Consolidation)
+
+Prevents catastrophic forgetting by:
+- Tracking pattern importance via Fisher Information Matrix
+- Protecting critical patterns during consolidation
+- Computing penalties for modifying important patterns
+
+### Pattern export and import
+
+Save and restore learned patterns across sessions:
+
+```bash
+# Export learned patterns
+clawdbot ruvector export-patterns ./patterns.json
+
+# Import patterns (replaces existing)
+clawdbot ruvector import-patterns ./patterns.json
+
+# Merge with existing patterns
+clawdbot ruvector import-patterns ./patterns.json --merge
+
+# View pattern statistics
+clawdbot ruvector pattern-stats
+```
+
+### Graph attention
+
+Multi-head attention aggregates context from graph neighbors:
+
+- **Semantic head**: Weights by content similarity
+- **Temporal head**: Weights by time proximity
+- **Causal head**: Weights by cause-effect relationships
+- **Structural head**: Weights by graph structure
+
+### CLI (ruvLLM)
+
+```bash
+# Show trajectory recording statistics
+clawdbot ruvector trajectory-stats
+
+# Show ruvLLM feature status
+clawdbot ruvector ruvllm-status
+
+# Export/import patterns
+clawdbot ruvector export-patterns <path>
+clawdbot ruvector import-patterns <path> [--merge]
+clawdbot ruvector pattern-stats
+```
+
 ## Error handling
 
 The plugin handles failures gracefully:
@@ -423,3 +587,14 @@ The plugin handles failures gracefully:
 | `hooks.indexAgentResponses` | boolean | `true` | Index agent turns |
 | `hooks.batchSize` | number | `10` | Messages per batch |
 | `hooks.debounceMs` | number | `500` | Batch flush delay |
+| `sona.enabled` | boolean | `false` | Enable SONA self-learning |
+| `sona.hiddenDim` | number | `256` | Hidden dimension for neural architecture |
+| `sona.learningRate` | number | `0.01` | Learning rate (0.001-0.1) |
+| `sona.qualityThreshold` | number | `0.5` | Minimum quality for learning |
+| `sona.backgroundIntervalMs` | number | `30000` | Background learning interval |
+| `ruvllm.enabled` | boolean | `false` | Enable ruvLLM features |
+| `ruvllm.contextInjection.enabled` | boolean | `false` | Enable context injection |
+| `ruvllm.contextInjection.maxTokens` | number | `2000` | Max tokens for injected context |
+| `ruvllm.contextInjection.relevanceThreshold` | number | `0.3` | Min similarity for inclusion |
+| `ruvllm.trajectoryRecording.enabled` | boolean | `false` | Enable trajectory recording |
+| `ruvllm.trajectoryRecording.maxTrajectories` | number | `1000` | Max trajectories to retain |
