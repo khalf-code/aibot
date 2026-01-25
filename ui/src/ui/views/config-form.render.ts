@@ -1,6 +1,7 @@
 import { html, nothing } from "lit";
 import { icon, type IconName } from "../icons";
 import type { ConfigUiHints } from "../types";
+import { icons } from "../icons";
 import {
   hintForPath,
   humanize,
@@ -186,7 +187,7 @@ export function renderConfigForm(props: ConfigFormProps) {
   if (filteredEntries.length === 0) {
     return html`
       <div class="config-empty">
-        <div class="config-empty__icon">🔍</div>
+        <div class="config-empty__icon">${icons.search}</div>
         <div class="config-empty__text">
           ${searchQuery 
             ? `No settings match "${searchQuery}"` 
