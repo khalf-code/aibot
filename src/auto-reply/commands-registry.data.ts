@@ -299,6 +299,19 @@ function buildChatCommands(): ChatCommandDefinition[] {
       textAlias: "/restart",
     }),
     defineChatCommand({
+      key: "restart-from-backup",
+      description: "List or restore config from backup.",
+      textAlias: "/restart-from-backup",
+      scope: "text",
+      args: [
+        {
+          name: "index",
+          description: "Backup index (0-4, 0 is most recent)",
+          type: "number",
+        },
+      ],
+    }),
+    defineChatCommand({
       key: "activation",
       nativeName: "activation",
       description: "Set group activation mode.",
