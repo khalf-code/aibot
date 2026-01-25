@@ -20,6 +20,8 @@ Onboarding: select Twitch and confirm the install prompt to fetch the plugin aut
 
 Minimal config (simplified single-account):
 
+**⚠️ Important:** Strongly recommended to add `requireMention` and access control (`allowFrom` or `allowedRoles`) to prevent the bot from replying to all chat messages.
+
 ```json5
 {
   channels: {
@@ -29,10 +31,17 @@ Minimal config (simplified single-account):
       accessToken: "oauth:abc123...", // OAuth Access Token (add oauth: prefix)
       clientId: "xyz789...", // Client ID from Token Generator
       channel: "vevisk", // Channel to join
+      requireMention: true, // (recommended) Only reply when mentioned
+      allowFrom: ["123456789"], // (recommended) Your Twitch user ID only  (Convert your twitch username to ID at https://www.streamweasels.com/tools/convert-twitch-username-%20to-user-id/)
     },
   },
 }
 ```
+
+**Recommended access control options:**
+- `requireMention: true` - Only respond when the bot is mentioned with `@botname`
+- `allowFrom: ["your_user_id"]` - Restrict to your Twitch user ID only (find your ID at https://www.twitchangles.com/xqc or similar)
+- `allowedRoles: ["moderator", "vip", "subscriber"]` - Restrict to specific roles
 
 Multi-account config (advanced):
 
@@ -62,7 +71,7 @@ Multi-account config (advanced):
 
 ## Setup
 
-1. Generate credentials: [Twitch Token Generator](https://twitchtokengenerator.com/)
+1. Create a dedicated Twitch account for the bot, then generate credentials: [Twitch Token Generator](https://twitchtokengenerator.com/)
    - Select **Bot Token**
    - Verify scopes `chat:read` and `chat:write` are selected
    - Copy the **Access Token** to `token` property
