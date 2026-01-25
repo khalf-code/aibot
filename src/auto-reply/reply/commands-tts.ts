@@ -45,6 +45,7 @@ function ttsUsage(): ReplyPayload {
       "/tts always\n" +
       "/tts provider openai\n" +
       "/tts provider edge\n" +
+      "/tts provider gemini\n" +
       "/tts limit 2000\n" +
       "/tts summary off\n" +
       "/tts audio Hello from Clawdbot",
@@ -152,6 +153,7 @@ export const handleTtsCommands: CommandHandler = async (params, allowTextCommand
       const hasOpenAI = Boolean(resolveTtsApiKey(config, "openai"));
       const hasElevenLabs = Boolean(resolveTtsApiKey(config, "elevenlabs"));
       const hasEdge = isTtsProviderConfigured(config, "edge");
+      const hasGemini = Boolean(resolveTtsApiKey(config, "gemini"));
       return {
         shouldContinue: false,
         reply: {
@@ -162,13 +164,19 @@ export const handleTtsCommands: CommandHandler = async (params, allowTextCommand
             `OpenAI key: ${hasOpenAI ? "✅" : "❌"}\n` +
             `ElevenLabs key: ${hasElevenLabs ? "✅" : "❌"}\n` +
             `Edge enabled: ${hasEdge ? "✅" : "❌"}\n` +
-            `Usage: /tts provider openai | elevenlabs | edge`,
+            `Gemini key: ${hasGemini ? "✅" : "❌"}\n` +
+            `Usage: /tts provider openai | elevenlabs | edge | gemini`,
         },
       };
     }
 
     const requested = args.trim().toLowerCase();
-    if (requested !== "openai" && requested !== "elevenlabs" && requested !== "edge") {
+    if (
+      requested !== "openai" &&
+      requested !== "elevenlabs" &&
+      requested !== "edge" &&
+      requested !== "gemini"
+    ) {
       return { shouldContinue: false, reply: ttsUsage() };
     }
 

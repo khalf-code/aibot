@@ -1503,8 +1503,9 @@ active agent’s `identity.emoji` when set, otherwise `"👀"`. Set it to `""` t
 #### `messages.tts`
 
 Enable text-to-speech for outbound replies. When on, Clawdbot generates audio
-using ElevenLabs or OpenAI and attaches it to responses. Telegram uses Opus
-voice notes; other channels send MP3 audio.
+using ElevenLabs, OpenAI, Edge TTS, or Gemini and attaches it to responses.
+Telegram uses Opus voice notes; other channels send MP3 audio. Edge TTS does not
+require an API key and is used when no other provider is configured.
 
 ```json5
 {
@@ -1540,6 +1541,17 @@ voice notes; other channels send MP3 audio.
         apiKey: "openai_api_key",
         model: "gpt-4o-mini-tts",
         voice: "alloy"
+      },
+      edge: {
+        enabled: true,
+        voice: "en-US-MichelleNeural",
+        lang: "en-US"
+      },
+      gemini: {
+        apiKey: "gemini_api_key",
+        model: "gemini-2.5-flash-preview-tts",
+        voiceName: "Kore",
+        baseUrl: "generativelanguage.googleapis.com"
       }
     }
   }
@@ -1555,11 +1567,18 @@ Notes:
 - `summaryModel` overrides `agents.defaults.model.primary` for auto-summary.
   - Accepts `provider/model` or an alias from `agents.defaults.models`.
 - `modelOverrides` enables model-driven overrides like `[[tts:...]]` tags (on by default).
+- `provider`: `"elevenlabs"`, `"openai"`, `"edge"`, or `"gemini"`.
+  - If `provider` is unset, Clawdbot picks OpenAI when configured, then ElevenLabs, then Edge.
+  - Gemini falls back to ElevenLabs, then OpenAI, then Edge (if enabled).
 - `/tts limit` and `/tts summary` control per-user summarization settings.
-- `apiKey` values fall back to `ELEVENLABS_API_KEY`/`XI_API_KEY` and `OPENAI_API_KEY`.
+- `apiKey` values fall back to `ELEVENLABS_API_KEY`/`XI_API_KEY`, `OPENAI_API_KEY`, and `GEMINI_API_KEY`.
 - `elevenlabs.baseUrl` overrides the ElevenLabs API base URL.
 - `elevenlabs.voiceSettings` supports `stability`/`similarityBoost`/`style` (0..1),
   `useSpeakerBoost`, and `speed` (0.5..2.0).
+- `edge.enabled` toggles Edge TTS (no API key required).
+- `edge.outputFormat` sets the Edge TTS output format; defaults to MP3 if omitted.
+- `gemini.baseUrl` adds `/v1beta` if missing.
+- Gemini TTS requires `ffmpeg` to transcode PCM into MP3/Opus.
 
 ### `talk`
 
