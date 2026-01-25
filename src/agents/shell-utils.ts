@@ -69,7 +69,9 @@ function resolveShellFromPath(name: string): string | undefined {
 
 function normalizeShellName(value: string): string {
   const trimmed = value.trim();
-  if (!trimmed) return "";
+  if (!trimmed) {
+    return "";
+  }
   return path.basename(trimmed).replace(/\.(exe|cmd|bat)$/i, "");
 }
 
@@ -77,7 +79,9 @@ export function detectRuntimeShell(): string | undefined {
   const overrideShell = process.env.CLAWDBOT_SHELL?.trim();
   if (overrideShell) {
     const name = normalizeShellName(overrideShell);
-    if (name) return name;
+    if (name) {
+      return name;
+    }
   }
 
   if (process.platform === "win32") {
@@ -90,15 +94,29 @@ export function detectRuntimeShell(): string | undefined {
   const envShell = process.env.SHELL?.trim();
   if (envShell) {
     const name = normalizeShellName(envShell);
-    if (name) return name;
+    if (name) {
+      return name;
+    }
   }
 
-  if (process.env.POWERSHELL_DISTRIBUTION_CHANNEL) return "pwsh";
-  if (process.env.BASH_VERSION) return "bash";
-  if (process.env.ZSH_VERSION) return "zsh";
-  if (process.env.FISH_VERSION) return "fish";
-  if (process.env.KSH_VERSION) return "ksh";
-  if (process.env.NU_VERSION || process.env.NUSHELL_VERSION) return "nu";
+  if (process.env.POWERSHELL_DISTRIBUTION_CHANNEL) {
+    return "pwsh";
+  }
+  if (process.env.BASH_VERSION) {
+    return "bash";
+  }
+  if (process.env.ZSH_VERSION) {
+    return "zsh";
+  }
+  if (process.env.FISH_VERSION) {
+    return "fish";
+  }
+  if (process.env.KSH_VERSION) {
+    return "ksh";
+  }
+  if (process.env.NU_VERSION || process.env.NUSHELL_VERSION) {
+    return "nu";
+  }
 
   return undefined;
 }
