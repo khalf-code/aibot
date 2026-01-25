@@ -16,8 +16,8 @@
  * normalizeTwitchChannel("MyChannel") // "mychannel"
  */
 export function normalizeTwitchChannel(channel: string): string {
-	const trimmed = channel.trim().toLowerCase();
-	return trimmed.startsWith("#") ? trimmed.slice(1) : trimmed;
+  const trimmed = channel.trim().toLowerCase();
+  return trimmed.startsWith("#") ? trimmed.slice(1) : trimmed;
 }
 
 /**
@@ -28,9 +28,7 @@ export function normalizeTwitchChannel(channel: string): string {
  * @returns Error object with descriptive message
  */
 export function missingTargetError(provider: string, hint?: string): Error {
-	return new Error(
-		`Delivering to ${provider} requires target${hint ? ` ${hint}` : ""}`,
-	);
+  return new Error(`Delivering to ${provider} requires target${hint ? ` ${hint}` : ""}`);
 }
 
 /**
@@ -42,7 +40,7 @@ export function missingTargetError(provider: string, hint?: string): Error {
  * @returns A unique message ID
  */
 export function generateMessageId(): string {
-	return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
 /**
@@ -58,7 +56,7 @@ export function generateMessageId(): string {
  * normalizeToken("abc123") // "abc123"
  */
 export function normalizeToken(token: string): string {
-	return token.startsWith("oauth:") ? token.slice(6) : token;
+  return token.startsWith("oauth:") ? token.slice(6) : token;
 }
 
 /**
@@ -68,9 +66,9 @@ export function normalizeToken(token: string): string {
  * @returns true if the account has required credentials
  */
 export function isAccountConfigured(account: {
-	username?: string;
-	token?: string;
-	clientId?: string;
+  username?: string;
+  token?: string;
+  clientId?: string;
 }): boolean {
-	return Boolean(account?.username && account?.token && account?.clientId);
+  return Boolean(account?.username && account?.token && account?.clientId);
 }

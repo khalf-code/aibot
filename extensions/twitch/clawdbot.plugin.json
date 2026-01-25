@@ -1,8 +1,6 @@
 {
   "id": "twitch",
-  "channels": [
-    "twitch"
-  ],
+  "channels": ["twitch"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

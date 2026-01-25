@@ -9,11 +9,7 @@ import type { ClawdbotConfig } from "clawdbot/plugin-sdk";
 import { buildChannelConfigSchema } from "clawdbot/plugin-sdk";
 import { twitchMessageActions } from "./actions.js";
 import { TwitchConfigSchema } from "./config-schema.js";
-import {
-  DEFAULT_ACCOUNT_ID,
-  getAccountConfig,
-  listAccountIds,
-} from "./config.js";
+import { DEFAULT_ACCOUNT_ID, getAccountConfig, listAccountIds } from "./config.js";
 import { twitchOnboardingAdapter } from "./onboarding.js";
 import { twitchOutbound } from "./outbound.js";
 import { probeTwitch } from "./probe.js";
@@ -34,9 +30,7 @@ import type {
 /**
  * Check if an account is properly configured.
  */
-function isConfigured(
-  account: TwitchAccountConfig | null | undefined,
-): boolean {
+function isConfigured(account: TwitchAccountConfig | null | undefined): boolean {
   return Boolean(account?.token && account?.username && account?.clientId);
 }
 
@@ -71,7 +65,9 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
     notifyApproval: async ({ id }) => {
       // Note: Twitch doesn't support DMs from bots, so pairing approval is limited
       // We'll log the approval instead
-      console.warn(`[twitch] Pairing approved for user ${id} (notification sent via chat if possible)`);
+      console.warn(
+        `[twitch] Pairing approved for user ${id} (notification sent via chat if possible)`,
+      );
     },
   },
 
@@ -89,10 +85,7 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
     listAccountIds: (cfg: ClawdbotConfig): string[] => listAccountIds(cfg),
 
     /** Resolve an account config by ID */
-    resolveAccount: (
-      cfg: ClawdbotConfig,
-      accountId?: string | null,
-    ): TwitchAccountConfig => {
+    resolveAccount: (cfg: ClawdbotConfig, accountId?: string | null): TwitchAccountConfig => {
       const account = getAccountConfig(cfg, accountId ?? DEFAULT_ACCOUNT_ID);
       if (!account) {
         // Return a default/empty account if not configured
@@ -116,8 +109,7 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
     },
 
     /** Check if an account is enabled */
-    isEnabled: (account: TwitchAccountConfig | undefined): boolean =>
-      account?.enabled !== false,
+    isEnabled: (account: TwitchAccountConfig | undefined): boolean => account?.enabled !== false,
 
     /** Describe account status */
     describeAccount: (account: TwitchAccountConfig | undefined) => ({
@@ -181,11 +173,7 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
     },
 
     /** Build channel summary from snapshot */
-    buildChannelSummary: ({
-      snapshot,
-    }: {
-      snapshot: ChannelAccountSnapshot;
-    }) => ({
+    buildChannelSummary: ({ snapshot }: { snapshot: ChannelAccountSnapshot }) => ({
       configured: snapshot.configured ?? false,
       running: snapshot.running ?? false,
       lastStartAt: snapshot.lastStartAt ?? null,
@@ -247,9 +235,7 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
         lastError: null,
       });
 
-      ctx.log?.info(
-        `[twitch] Starting Twitch connection for ${account.username}`,
-      );
+      ctx.log?.info(`[twitch] Starting Twitch connection for ${account.username}`);
 
       // Lazy import: the monitor pulls the reply pipeline; avoid ESM init cycles.
       const { monitorTwitchProvider } = await import("./monitor.js");
@@ -276,9 +262,7 @@ export const twitchPlugin: ChannelPlugin<TwitchAccountConfig> = {
         lastStopAt: Date.now(),
       });
 
-      ctx.log?.info(
-        `[twitch] Stopped Twitch connection for ${account.username}`,
-      );
+      ctx.log?.info(`[twitch] Stopped Twitch connection for ${account.username}`);
     },
   },
 };

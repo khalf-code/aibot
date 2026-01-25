@@ -62,7 +62,9 @@ async function processTwitchMessage(params: {
     channel: "Twitch",
     from: message.displayName ?? message.username,
     timestamp: message.timestamp?.getTime(),
-    envelope: core.channel.reply.resolveEnvelopeFormatOptions(config as Parameters<typeof core.channel.reply.resolveEnvelopeFormatOptions>[0]),
+    envelope: core.channel.reply.resolveEnvelopeFormatOptions(
+      config as Parameters<typeof core.channel.reply.resolveEnvelopeFormatOptions>[0],
+    ),
     body: rawBody,
   });
 
@@ -111,7 +113,9 @@ async function processTwitchMessage(params: {
   // Dispatch reply
   await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
     ctx: ctxPayload,
-    cfg: config as Parameters<typeof core.channel.reply.dispatchReplyWithBufferedBlockDispatcher>[0]["cfg"],
+    cfg: config as Parameters<
+      typeof core.channel.reply.dispatchReplyWithBufferedBlockDispatcher
+    >[0]["cfg"],
     dispatcherOptions: {
       deliver: async (payload) => {
         await deliverTwitchReply({
@@ -188,7 +192,11 @@ export async function monitorTwitchProvider(
 
   // Establish connection
   try {
-    await clientManager.getClient(account, config as Parameters<typeof clientManager.getClient>[1], accountId);
+    await clientManager.getClient(
+      account,
+      config as Parameters<typeof clientManager.getClient>[1],
+      accountId,
+    );
     runtime.log?.(`[twitch] Connected to Twitch as ${account.username}`);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

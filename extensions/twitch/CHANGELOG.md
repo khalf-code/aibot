@@ -3,6 +3,7 @@
 ## 2026.1.23
 
 ### Features
+
 - Initial Twitch plugin release
 - Twitch chat integration via @twurple (IRC connection)
 - Multi-account support with per-channel configuration
@@ -14,6 +15,7 @@
 - Outbound message delivery with markdown stripping
 
 ### Improvements
+
 - Added proper configuration schema with Zod validation
 - Added plugin descriptor (clawdbot.plugin.json)
 - Added comprehensive README and documentation

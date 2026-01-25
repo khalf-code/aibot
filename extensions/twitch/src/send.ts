@@ -9,22 +9,18 @@ import { DEFAULT_ACCOUNT_ID, getAccountConfig } from "./config.js";
 import { getClientManager as getRegistryClientManager } from "./client-manager-registry.js";
 import type { ClawdbotConfig } from "clawdbot/plugin-sdk";
 import { stripMarkdownForTwitch } from "./utils/markdown.js";
-import {
-	generateMessageId,
-	isAccountConfigured,
-	normalizeTwitchChannel,
-} from "./utils/twitch.js";
+import { generateMessageId, isAccountConfigured, normalizeTwitchChannel } from "./utils/twitch.js";
 
 /**
  * Result from sending a message to Twitch.
  */
 export interface SendMessageResult {
-	/** Whether the send was successful */
-	ok: boolean;
-	/** The message ID (generated for tracking) */
-	messageId: string;
-	/** Error message if the send failed */
-	error?: string;
+  /** Whether the send was successful */
+  ok: boolean;
+  /** The message ID (generated for tracking) */
+  messageId: string;
+  /** Error message if the send failed */
+  error?: string;
 }
 
 /**
@@ -52,89 +48,89 @@ export interface SendMessageResult {
  * );
  */
 export async function sendMessageTwitchInternal(
-	channel: string,
-	text: string,
-	cfg: ClawdbotConfig,
-	accountId: string = DEFAULT_ACCOUNT_ID,
-	stripMarkdown: boolean = true,
-	logger: Console = console,
+  channel: string,
+  text: string,
+  cfg: ClawdbotConfig,
+  accountId: string = DEFAULT_ACCOUNT_ID,
+  stripMarkdown: boolean = true,
+  logger: Console = console,
 ): Promise<SendMessageResult> {
-	// Resolve account
-	const account = getAccountConfig(cfg, accountId);
-	if (!account) {
-		const availableIds = Object.keys(cfg.channels?.twitch?.accounts ?? {});
-		return {
-			ok: false,
-			messageId: generateMessageId(),
-			error: `Account not found: ${accountId}. Available accounts: ${availableIds.join(", ") || "none"}`,
-		};
-	}
+  // Resolve account
+  const account = getAccountConfig(cfg, accountId);
+  if (!account) {
+    const availableIds = Object.keys(cfg.channels?.twitch?.accounts ?? {});
+    return {
+      ok: false,
+      messageId: generateMessageId(),
+      error: `Account not found: ${accountId}. Available accounts: ${availableIds.join(", ") || "none"}`,
+    };
+  }
 
-	if (!isAccountConfigured(account)) {
-		return {
-			ok: false,
-			messageId: generateMessageId(),
-			error: `Account ${accountId} is not properly configured. Required: username, token, clientId`,
-		};
-	}
+  if (!isAccountConfigured(account)) {
+    return {
+      ok: false,
+      messageId: generateMessageId(),
+      error: `Account ${accountId} is not properly configured. Required: username, token, clientId`,
+    };
+  }
 
-	// Normalize channel
-	const normalizedChannel = channel || account.channel || account.username;
-	if (!normalizedChannel) {
-		return {
-			ok: false,
-			messageId: generateMessageId(),
-			error: "No channel specified and no default channel in account config",
-		};
-	}
+  // Normalize channel
+  const normalizedChannel = channel || account.channel || account.username;
+  if (!normalizedChannel) {
+    return {
+      ok: false,
+      messageId: generateMessageId(),
+      error: "No channel specified and no default channel in account config",
+    };
+  }
 
-	// Strip markdown if enabled
-	const cleanedText = stripMarkdown ? stripMarkdownForTwitch(text) : text;
-	if (!cleanedText) {
-		return {
-			ok: true,
-			messageId: "skipped",
-		};
-	}
+  // Strip markdown if enabled
+  const cleanedText = stripMarkdown ? stripMarkdownForTwitch(text) : text;
+  if (!cleanedText) {
+    return {
+      ok: true,
+      messageId: "skipped",
+    };
+  }
 
-	// Get client manager from registry
-	const clientManager = getRegistryClientManager(accountId);
-	if (!clientManager) {
-		return {
-			ok: false,
-			messageId: generateMessageId(),
-			error: `Client manager not found for account: ${accountId}. Please start the Twitch gateway first.`,
-		};
-	}
+  // Get client manager from registry
+  const clientManager = getRegistryClientManager(accountId);
+  if (!clientManager) {
+    return {
+      ok: false,
+      messageId: generateMessageId(),
+      error: `Client manager not found for account: ${accountId}. Please start the Twitch gateway first.`,
+    };
+  }
 
-	try {
-		const result = await clientManager.sendMessage(
-			account,
-			normalizeTwitchChannel(normalizedChannel),
-			cleanedText,
-			cfg,
-			accountId,
-		);
+  try {
+    const result = await clientManager.sendMessage(
+      account,
+      normalizeTwitchChannel(normalizedChannel),
+      cleanedText,
+      cfg,
+      accountId,
+    );
 
-		if (!result.ok) {
-			return {
-				ok: false,
-				messageId: result.messageId ?? generateMessageId(),
-				error: result.error ?? "Send failed",
-			};
-		}
+    if (!result.ok) {
+      return {
+        ok: false,
+        messageId: result.messageId ?? generateMessageId(),
+        error: result.error ?? "Send failed",
+      };
+    }
 
-		return {
-			ok: true,
-			messageId: result.messageId ?? generateMessageId(),
-		};
-	} catch (error) {
-		const errorMsg = error instanceof Error ? error.message : String(error);
-		logger.error(`[twitch] Failed to send message: ${errorMsg}`);
-		return {
-			ok: false,
-			messageId: generateMessageId(),
-			error: errorMsg,
-		};
-	}
+    return {
+      ok: true,
+      messageId: result.messageId ?? generateMessageId(),
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error(`[twitch] Failed to send message: ${errorMsg}`);
+    return {
+      ok: false,
+      messageId: generateMessageId(),
+      error: errorMsg,
+    };
+  }
 }

@@ -9,10 +9,7 @@ import {
   type ChannelOnboardingDmPolicy,
   type WizardPrompter,
 } from "clawdbot/plugin-sdk";
-import {
-  DEFAULT_ACCOUNT_ID,
-  getAccountConfig,
-} from "./config.js";
+import { DEFAULT_ACCOUNT_ID, getAccountConfig } from "./config.js";
 import type { TwitchAccountConfig, TwitchRole } from "./types.js";
 import type { ClawdbotConfig } from "clawdbot/plugin-sdk";
 
@@ -60,10 +57,14 @@ function setTwitchAccount(
     channels: {
       ...cfg.channels,
       twitch: {
-        ...((cfg.channels as Record<string, unknown>)?.twitch as Record<string, unknown> | undefined),
+        ...((cfg.channels as Record<string, unknown>)?.twitch as
+          | Record<string, unknown>
+          | undefined),
         enabled: true,
         accounts: {
-          ...(((cfg.channels as Record<string, unknown>)?.twitch as Record<string, unknown> | undefined)?.accounts as Record<string, unknown> | undefined),
+          ...((
+            (cfg.channels as Record<string, unknown>)?.twitch as Record<string, unknown> | undefined
+          )?.accounts as Record<string, unknown> | undefined),
           [DEFAULT_ACCOUNT_ID]: merged,
         },
       },
@@ -191,21 +192,23 @@ async function promptRefreshTokenSetup(
     return {};
   }
 
-  const clientSecret = String(
-    await prompter.text({
-      message: "Twitch Client Secret (for token refresh)",
-      initialValue: account?.clientSecret ?? "",
-      validate: (value) => (value?.trim() ? undefined : "Required"),
-    }),
-  ).trim() || undefined;
+  const clientSecret =
+    String(
+      await prompter.text({
+        message: "Twitch Client Secret (for token refresh)",
+        initialValue: account?.clientSecret ?? "",
+        validate: (value) => (value?.trim() ? undefined : "Required"),
+      }),
+    ).trim() || undefined;
 
-  const refreshToken = String(
-    await prompter.text({
-      message: "Twitch Refresh Token",
-      initialValue: account?.refreshToken ?? "",
-      validate: (value) => (value?.trim() ? undefined : "Required"),
-    }),
-  ).trim() || undefined;
+  const refreshToken =
+    String(
+      await prompter.text({
+        message: "Twitch Refresh Token",
+        initialValue: account?.refreshToken ?? "",
+        validate: (value) => (value?.trim() ? undefined : "Required"),
+      }),
+    ).trim() || undefined;
 
   return { clientSecret, refreshToken };
 }
@@ -315,9 +318,7 @@ export const twitchOnboardingAdapter: ChannelOnboardingAdapter = {
     return {
       channel,
       configured,
-      statusLines: [
-        `Twitch: ${configured ? "configured" : "needs username, token, and clientId"}`,
-      ],
+      statusLines: [`Twitch: ${configured ? "configured" : "needs username, token, and clientId"}`],
       selectionHint: configured ? "configured" : "needs setup",
     };
   },
@@ -399,7 +400,9 @@ export const twitchOnboardingAdapter: ChannelOnboardingAdapter = {
   },
   dmPolicy,
   disable: (cfg) => {
-    const twitch = (cfg.channels as Record<string, unknown>)?.twitch as Record<string, unknown> | undefined;
+    const twitch = (cfg.channels as Record<string, unknown>)?.twitch as
+      | Record<string, unknown>
+      | undefined;
     return {
       ...cfg,
       channels: {
@@ -411,4 +414,11 @@ export const twitchOnboardingAdapter: ChannelOnboardingAdapter = {
 };
 
 // Export helper functions for testing
-export { promptToken, promptUsername, promptClientId, promptChannelName, promptRefreshTokenSetup, configureWithEnvToken };
+export {
+  promptToken,
+  promptUsername,
+  promptClientId,
+  promptChannelName,
+  promptRefreshTokenSetup,
+  configureWithEnvToken,
+};

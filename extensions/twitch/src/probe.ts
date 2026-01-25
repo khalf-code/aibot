@@ -6,12 +6,12 @@ import type { TwitchAccountConfig } from "./types.js";
  * Result of probing a Twitch account
  */
 export type ProbeTwitchResult = {
-	ok: boolean;
-	error?: string;
-	username?: string;
-	elapsedMs: number;
-	connected?: boolean;
-	channel?: string;
+  ok: boolean;
+  error?: string;
+  username?: string;
+  elapsedMs: number;
+  connected?: boolean;
+  channel?: string;
 };
 
 /**
@@ -21,108 +21,105 @@ export type ProbeTwitchResult = {
  * to the chat server and verify the bot's username.
  */
 export async function probeTwitch(
-	account: TwitchAccountConfig,
-	timeoutMs: number,
+  account: TwitchAccountConfig,
+  timeoutMs: number,
 ): Promise<ProbeTwitchResult> {
-	const started = Date.now();
+  const started = Date.now();
 
-	if (!account.token || !account.username) {
-		return {
-			ok: false,
-			error: "missing credentials (token, username)",
-			username: account.username,
-			elapsedMs: Date.now() - started,
-		};
-	}
+  if (!account.token || !account.username) {
+    return {
+      ok: false,
+      error: "missing credentials (token, username)",
+      username: account.username,
+      elapsedMs: Date.now() - started,
+    };
+  }
 
-	const rawToken = account.token.trim();
+  const rawToken = account.token.trim();
 
-	let client: ChatClient | undefined;
+  let client: ChatClient | undefined;
 
-	try {
-		// Create auth provider with the token
-		const authProvider = new StaticAuthProvider(
-			account.clientId ?? "",
-			rawToken,
-		);
+  try {
+    // Create auth provider with the token
+    const authProvider = new StaticAuthProvider(account.clientId ?? "", rawToken);
 
-		// Create chat client
-		client = new ChatClient({
-			authProvider,
-		});
+    // Create chat client
+    client = new ChatClient({
+      authProvider,
+    });
 
-		// Create a promise that resolves when connected
-		const connectionPromise = new Promise<void>((resolve, reject) => {
-			let settled = false;
-			let connectListener: ReturnType<ChatClient["onConnect"]> | undefined;
-			let disconnectListener: ReturnType<ChatClient["onDisconnect"]> | undefined;
-			let authFailListener: ReturnType<ChatClient["onAuthenticationFailure"]> | undefined;
+    // Create a promise that resolves when connected
+    const connectionPromise = new Promise<void>((resolve, reject) => {
+      let settled = false;
+      let connectListener: ReturnType<ChatClient["onConnect"]> | undefined;
+      let disconnectListener: ReturnType<ChatClient["onDisconnect"]> | undefined;
+      let authFailListener: ReturnType<ChatClient["onAuthenticationFailure"]> | undefined;
 
-			const cleanup = () => {
-				if (settled) return;
-				settled = true;
-				// Remove all listeners
-				connectListener?.unbind();
-				disconnectListener?.unbind();
-				authFailListener?.unbind();
-			};
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        // Remove all listeners
+        connectListener?.unbind();
+        disconnectListener?.unbind();
+        authFailListener?.unbind();
+      };
 
-			// Success: connection established
-			connectListener = client?.onConnect(() => {
-				cleanup();
-				resolve();
-			});
+      // Success: connection established
+      connectListener = client?.onConnect(() => {
+        cleanup();
+        resolve();
+      });
 
-			// Failure: disconnected (e.g., auth failed)
-			disconnectListener = client?.onDisconnect((_manually, reason) => {
-				cleanup();
-				reject(reason || new Error("Disconnected"));
-			});
+      // Failure: disconnected (e.g., auth failed)
+      disconnectListener = client?.onDisconnect((_manually, reason) => {
+        cleanup();
+        reject(reason || new Error("Disconnected"));
+      });
 
-			// Failure: authentication failed
-			authFailListener = client?.onAuthenticationFailure(() => {
-				cleanup();
-				reject(new Error("Authentication failed"));
-			});
-		});
+      // Failure: authentication failed
+      authFailListener = client?.onAuthenticationFailure(() => {
+        cleanup();
+        reject(new Error("Authentication failed"));
+      });
+    });
 
-		// Create timeout promise
-		const timeout = new Promise<never>((_, reject) => {
-			setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
-		});
+    // Create timeout promise
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+    });
 
-		// Set up listeners BEFORE connecting, then race against timeout
-		client.connect();
-		await Promise.race([connectionPromise, timeout]);
+    // Set up listeners BEFORE connecting, then race against timeout
+    client.connect();
+    await Promise.race([connectionPromise, timeout]);
 
-		// Clean up connection before returning
-		client.quit();
-		client = undefined;
+    // Clean up connection before returning
+    client.quit();
+    client = undefined;
 
-		// If we got here, connection was successful
-		return {
-			ok: true,
-			connected: true,
-			username: account.username,
-			channel: account.channel ?? account.username,
-			elapsedMs: Date.now() - started,
-		};
-	} catch (error) {
-		return {
-			ok: false,
-			error: error instanceof Error ? error.message : String(error),
-			username: account.username,
-			channel: account.channel ?? account.username,
-			elapsedMs: Date.now() - started,
-		};
-	} finally {
-		// Always clean up the client
-		if (client) {
-			try {
-				client.quit();
-			} catch {
-				// Ignore cleanup errors
-			}
-		}
-	}
+    // If we got here, connection was successful
+    return {
+      ok: true,
+      connected: true,
+      username: account.username,
+      channel: account.channel ?? account.username,
+      elapsedMs: Date.now() - started,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      username: account.username,
+      channel: account.channel ?? account.username,
+      elapsedMs: Date.now() - started,
+    };
+  } finally {
+    // Always clean up the client
+    if (client) {
+      try {
+        client.quit();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
 }

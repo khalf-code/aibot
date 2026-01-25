@@ -1,13 +1,8 @@
 {
   "name": "@clawdbot/twitch",
   "version": "2026.1.23",
-  "type": "module",
   "description": "Clawdbot Twitch channel plugin",
-  "clawdbot": {
-    "extensions": [
-      "./index.ts"
-    ]
-  },
+  "type": "module",
   "dependencies": {
     "@twurple/api": "^8.0.3",
     "@twurple/auth": "^8.0.3",
@@ -16,5 +11,10 @@
   },
   "devDependencies": {
     "clawdbot": "workspace:*"
+  },
+  "clawdbot": {
+    "extensions": [
+      "./index.ts"
+    ]
   }
 }

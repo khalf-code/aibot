@@ -4,10 +4,10 @@ import type { TwitchAccountConfig, TwitchChatMessage } from "./types.js";
  * Result of checking access control for a Twitch message
  */
 export type TwitchAccessControlResult = {
-	allowed: boolean;
-	reason?: string;
-	matchKey?: string;
-	matchSource?: string;
+  allowed: boolean;
+  reason?: string;
+  matchKey?: string;
+  matchSource?: string;
 };
 
 /**
@@ -32,118 +32,115 @@ export type TwitchAccessControlResult = {
  * - "all": Anyone in the chat
  */
 export function checkTwitchAccessControl(params: {
-	message: TwitchChatMessage;
-	account: TwitchAccountConfig;
-	botUsername: string;
+  message: TwitchChatMessage;
+  account: TwitchAccountConfig;
+  botUsername: string;
 }): TwitchAccessControlResult {
-	const { message, account, botUsername } = params;
+  const { message, account, botUsername } = params;
 
-	// Check mention requirement first
-	if (account.requireMention) {
-		const mentions = extractMentions(message.message);
-		if (!mentions.includes(botUsername.toLowerCase())) {
-			return {
-				allowed: false,
-				reason: "message does not mention the bot (requireMention is enabled)",
-			};
-		}
-	}
+  // Check mention requirement first
+  if (account.requireMention) {
+    const mentions = extractMentions(message.message);
+    if (!mentions.includes(botUsername.toLowerCase())) {
+      return {
+        allowed: false,
+        reason: "message does not mention the bot (requireMention is enabled)",
+      };
+    }
+  }
 
-	// Check allowlist (by user ID)
-	if (account.allowFrom && account.allowFrom.length > 0) {
-		const allowFrom = account.allowFrom;
-		const senderId = message.userId;
+  // Check allowlist (by user ID)
+  if (account.allowFrom && account.allowFrom.length > 0) {
+    const allowFrom = account.allowFrom;
+    const senderId = message.userId;
 
-		if (!senderId) {
-			return {
-				allowed: false,
-				reason: "sender user ID not available for allowlist check",
-			};
-		}
+    if (!senderId) {
+      return {
+        allowed: false,
+        reason: "sender user ID not available for allowlist check",
+      };
+    }
 
-		// Check if sender is in allowlist
-		if (!allowFrom.includes(senderId)) {
-			return {
-				allowed: false,
-				reason: "sender not in allowlist",
-			};
-		}
+    // Check if sender is in allowlist
+    if (!allowFrom.includes(senderId)) {
+      return {
+        allowed: false,
+        reason: "sender not in allowlist",
+      };
+    }
 
-		// Sender is in allowlist, no need to check role restrictions
-		return {
-			allowed: true,
-			matchKey: senderId,
-			matchSource: "allowlist",
-		};
-	}
+    // Sender is in allowlist, no need to check role restrictions
+    return {
+      allowed: true,
+      matchKey: senderId,
+      matchSource: "allowlist",
+    };
+  }
 
-	// Check role-based restrictions
-	if (account.allowedRoles && account.allowedRoles.length > 0) {
-		const allowedRoles = account.allowedRoles;
+  // Check role-based restrictions
+  if (account.allowedRoles && account.allowedRoles.length > 0) {
+    const allowedRoles = account.allowedRoles;
 
-		// "all" grants access to everyone
-		if (allowedRoles.includes("all")) {
-			return {
-				allowed: true,
-				matchKey: "all",
-				matchSource: "role",
-			};
-		}
+    // "all" grants access to everyone
+    if (allowedRoles.includes("all")) {
+      return {
+        allowed: true,
+        matchKey: "all",
+        matchSource: "role",
+      };
+    }
 
-		// Check if sender has any of the allowed roles
-		const hasAllowedRole = checkSenderRoles({
-			message,
-			allowedRoles,
-		});
+    // Check if sender has any of the allowed roles
+    const hasAllowedRole = checkSenderRoles({
+      message,
+      allowedRoles,
+    });
 
-		if (!hasAllowedRole) {
-			return {
-				allowed: false,
-				reason: `sender does not have any of the required roles: ${allowedRoles.join(", ")}`,
-			};
-		}
+    if (!hasAllowedRole) {
+      return {
+        allowed: false,
+        reason: `sender does not have any of the required roles: ${allowedRoles.join(", ")}`,
+      };
+    }
 
-		return {
-			allowed: true,
-			matchKey: allowedRoles.join(","),
-			matchSource: "role",
-		};
-	}
+    return {
+      allowed: true,
+      matchKey: allowedRoles.join(","),
+      matchSource: "role",
+    };
+  }
 
-	// No restrictions configured - allow everyone
-	return {
-		allowed: true,
-	};
+  // No restrictions configured - allow everyone
+  return {
+    allowed: true,
+  };
 }
 
 /**
  * Check if the sender has any of the allowed roles
  */
-function checkSenderRoles(params: {
-	message: TwitchChatMessage;
-	allowedRoles: string[];
-}): boolean {
-	const { message, allowedRoles } = params;
-	const { isMod, isOwner, isVip, isSub } = message;
+function checkSenderRoles(params: { message: TwitchChatMessage; allowedRoles: string[] }): boolean {
+  const { message, allowedRoles } = params;
+  const { isMod, isOwner, isVip, isSub } = message;
 
-	for (const role of allowedRoles) {
-		switch (role) {
-			case "moderator":
-				if (isMod) return true;
-				break;
-			case "owner":
-				if (isOwner) return true;
-				break;
-			case "vip":
-				if (isVip) return true;
-				break;
-			case "subscriber":
-				if (isSub) return true;
-				break;
-		}
-	}
+  for (const role of allowedRoles) {
+    switch (role) {
+      case "moderator":
+        if (isMod) return true;
+        break;
+      case "owner":
+        if (isOwner) return true;
+        break;
+      case "vip":
+        if (isVip) return true;
+        break;
+      case "subscriber":
+        if (isSub) return true;
+        break;
+    }
+  }
 
-	return false;
+  return false;
 }
 
 /**
@@ -153,17 +150,17 @@ function checkSenderRoles(params: {
  * Twitch mentions are in the format @username.
  */
 export function extractMentions(message: string): string[] {
-	const mentionRegex = /@(\w+)/g;
-	const mentions: string[] = [];
-	let match: RegExpExecArray | null;
+  const mentionRegex = /@(\w+)/g;
+  const mentions: string[] = [];
+  let match: RegExpExecArray | null;
 
-	// biome-ignore lint/suspicious/noAssignInExpressions: Standard regex iteration pattern
-	while ((match = mentionRegex.exec(message)) !== null) {
-		const username = match[1];
-		if (username) {
-			mentions.push(username.toLowerCase());
-		}
-	}
+  // biome-ignore lint/suspicious/noAssignInExpressions: Standard regex iteration pattern
+  while ((match = mentionRegex.exec(message)) !== null) {
+    const username = match[1];
+    if (username) {
+      mentions.push(username.toLowerCase());
+    }
+  }
 
-	return mentions;
+  return mentions;
 }

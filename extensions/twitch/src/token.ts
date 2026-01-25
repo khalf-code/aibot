@@ -57,9 +57,7 @@ export function resolveTwitchToken(
 
   // 2. Base config token (default account only)
   const allowEnv = accountId === DEFAULT_ACCOUNT_ID;
-  const configToken = allowEnv
-    ? normalizeTwitchToken(twitchCfg?.token ?? undefined)
-    : undefined;
+  const configToken = allowEnv ? normalizeTwitchToken(twitchCfg?.token ?? undefined) : undefined;
   if (configToken) {
     return { token: configToken, source: "config" };
   }

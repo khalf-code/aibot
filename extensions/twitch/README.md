@@ -29,11 +29,11 @@ Minimal config (default account):
         default: {
           username: "mybot",
           token: "oauth:your_token_here",
-          clientId: "your_client_id_here"
-        }
-      }
-    }
-  }
+          clientId: "your_client_id_here",
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -70,11 +70,11 @@ For long-running bots, configure automatic token refresh:
           token: "oauth:abc123...",
           clientId: "your_client_id",
           clientSecret: "your_client_secret",
-          refreshToken: "your_refresh_token"
-        }
-      }
-    }
-  }
+          refreshToken: "your_refresh_token",
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -91,11 +91,11 @@ Allowlist by user ID (recommended):
           username: "mybot",
           token: "oauth:...",
           clientId: "...",
-          allowFrom: ["123456789", "987654321"]
-        }
-      }
-    }
-  }
+          allowFrom: ["123456789", "987654321"],
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -110,11 +110,11 @@ Role-based restrictions:
           username: "mybot",
           token: "oauth:...",
           clientId: "...",
-          allowedRoles: ["moderator", "vip"]
-        }
-      }
-    }
-  }
+          allowedRoles: ["moderator", "vip"],
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -131,23 +131,24 @@ Available roles: `"moderator"`, `"owner"`, `"vip"`, `"subscriber"`, `"all"`
           username: "mybot",
           token: "oauth:...",
           clientId: "...",
-          channel: "streamer1"
+          channel: "streamer1",
         },
         secondary: {
           username: "mybot",
           token: "oauth:...",
           clientId: "...",
-          channel: "streamer2"
-        }
-      }
-    }
-  }
+          channel: "streamer2",
+        },
+      },
+    },
+  },
 }
 ```
 
 ## Environment variables
 
 For the default account:
+
 - `CLAWDBOT_TWITCH_ACCESS_TOKEN` - OAuth token (with `oauth:` prefix)
 
 Restart the gateway after config changes.
@@ -155,6 +156,7 @@ Restart the gateway after config changes.
 ## Full documentation
 
 See [https://docs.clawd.bot/channels/twitch](https://docs.clawd.bot/channels/twitch) for complete documentation including:
+
 - Token setup options
 - Access control patterns
 - Troubleshooting
