@@ -1,11 +1,45 @@
 import type { SessionManager } from "@mariozechner/pi-coding-agent";
 
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
-import { installSessionToolResultGuard } from "./session-tool-result-guard.js";
+import {
+  installSessionToolResultGuard,
+  type OverflowContext,
+  type OverflowHandlerResult,
+} from "./session-tool-result-guard.js";
 
 export type GuardedSessionManager = SessionManager & {
   /** Flush any synthetic tool results for pending tool calls. Idempotent. */
   flushPendingToolResults?: () => void;
+  /** Update overflow detection settings at runtime. */
+  setOverflowSettings?: (settings: {
+    contextWindowTokens?: number;
+    reserveTokens?: number;
+  }) => void;
+};
+
+export type GuardSessionManagerOptions = {
+  agentId?: string;
+  sessionKey?: string;
+  allowSyntheticToolResults?: boolean;
+  /**
+   * Context window size in tokens for overflow detection.
+   * If not provided, overflow detection is disabled.
+   */
+  contextWindowTokens?: number;
+  /**
+   * Reserve tokens to keep below the context window limit.
+   * Defaults to 0.
+   */
+  reserveTokens?: number;
+  /**
+   * Callback invoked when appending a message would cause context overflow.
+   * This is called BEFORE the message is appended.
+   */
+  onOverflowDetected?: (context: OverflowContext) => OverflowHandlerResult | void;
+  /**
+   * Async version of onOverflowDetected. Takes precedence over the sync version.
+   */
+  onOverflowDetectedAsync?: (context: OverflowContext) => Promise<OverflowHandlerResult | void>;
 };
 
 /**
@@ -14,11 +48,7 @@ export type GuardedSessionManager = SessionManager & {
  */
 export function guardSessionManager(
   sessionManager: SessionManager,
-  opts?: {
-    agentId?: string;
-    sessionKey?: string;
-    allowSyntheticToolResults?: boolean;
-  },
+  opts?: GuardSessionManagerOptions,
 ): GuardedSessionManager {
   if (typeof (sessionManager as GuardedSessionManager).flushPendingToolResults === "function") {
     return sessionManager as GuardedSessionManager;
@@ -48,7 +78,12 @@ export function guardSessionManager(
   const guard = installSessionToolResultGuard(sessionManager, {
     transformToolResultForPersistence: transform,
     allowSyntheticToolResults: opts?.allowSyntheticToolResults,
+    contextWindowTokens: opts?.contextWindowTokens,
+    reserveTokens: opts?.reserveTokens,
+    onOverflowDetected: opts?.onOverflowDetected,
+    onOverflowDetectedAsync: opts?.onOverflowDetectedAsync,
   });
   (sessionManager as GuardedSessionManager).flushPendingToolResults = guard.flushPendingToolResults;
+  (sessionManager as GuardedSessionManager).setOverflowSettings = guard.setOverflowSettings;
   return sessionManager as GuardedSessionManager;
 }

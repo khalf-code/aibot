@@ -399,10 +399,33 @@ export async function runEmbeddedAttempt(
       });
 
       await prewarmSessionFile(params.sessionFile);
+
+      // Resolve context window and reserve tokens for overflow detection
+      const contextWindowTokens = params.model?.contextWindow;
+      const reserveTokensFloor = resolveCompactionReserveTokensFloor(params.config);
+
       sessionManager = guardSessionManager(SessionManager.open(params.sessionFile), {
         agentId: sessionAgentId,
         sessionKey: params.sessionKey,
         allowSyntheticToolResults: transcriptPolicy.allowSyntheticToolResults,
+        // Enable pre-append overflow detection
+        contextWindowTokens,
+        reserveTokens: reserveTokensFloor,
+        onOverflowDetected: (overflowCtx) => {
+          // Log overflow detection for diagnostics
+          const toolInfo = overflowCtx.toolName ? ` tool=${overflowCtx.toolName}` : "";
+          log.warn(
+            `Pre-append overflow detected:${toolInfo} ` +
+              `messageTokens=${overflowCtx.messageTokens} ` +
+              `currentTokens=${overflowCtx.currentTokens} ` +
+              `limit=${overflowCtx.contextWindowTokens} ` +
+              `sessionKey=${params.sessionKey ?? params.sessionId}`,
+          );
+          // Note: The callback triggers logging; actual compaction is handled by
+          // the agent's built-in auto-compaction after the current turn completes.
+          // For extreme cases where a single tool result exceeds the entire context,
+          // the tool_result_persist hook can be used to truncate before persistence.
+        },
       });
       trackSessionManagerAccess(params.sessionFile);
 
