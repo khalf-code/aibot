@@ -107,10 +107,45 @@ Clawdbot ships with the pi‑ai catalog. These providers require **no**
 - Example model: `vercel-ai-gateway/anthropic/claude-opus-4.5`
 - CLI: `clawdbot onboard --auth-choice ai-gateway-api-key`
 
+### OpenRouter
+
+- Provider: `openrouter`
+- Auth: `OPENROUTER_API_KEY`
+- Example model: `openrouter/anthropic/claude-sonnet-4-5`
+- CLI: `clawdbot onboard --auth-choice openrouter-api-key`
+
+OpenRouter provides access to many third-party models through a unified API.
+Model IDs use the format `openrouter/<provider>/<model>`.
+
+```json5
+{
+  agents: { defaults: { model: { primary: "openrouter/anthropic/claude-sonnet-4-5" } } }
+}
+```
+
+### Perplexity Agentic
+
+- Provider: `perplexity-agentic`
+- Auth: `PERPLEXITY_API_KEY`
+- Example model: `perplexity-agentic/openai/gpt-5.2`
+- CLI: `clawdbot onboard --auth-choice perplexity-agentic-api-key`
+
+Perplexity Agentic provides access to third-party models (OpenAI, Anthropic, Google, xAI) via
+Perplexity's `/v1/responses` endpoint. Model IDs use the format `perplexity-agentic/<provider>/<model>`.
+Any model supported by Perplexity's Agentic API works - see [Perplexity docs](https://docs.perplexity.ai/) for available models.
+
+```json5
+{
+  agents: { defaults: { model: { primary: "perplexity-agentic/openai/gpt-5.2" } } }
+}
+```
+
+Note: This provider uses the same `PERPLEXITY_API_KEY` as Perplexity's other APIs (including the
+`web_search` tool's Sonar integration). Clawdbot handles all tool execution - Perplexity's native
+web search tools are not used.
+
 ### Other built-in providers
 
-- OpenRouter: `openrouter` (`OPENROUTER_API_KEY`)
-- Example model: `openrouter/anthropic/claude-sonnet-4-5`
 - xAI: `xai` (`XAI_API_KEY`)
 - Groq: `groq` (`GROQ_API_KEY`)
 - Cerebras: `cerebras` (`CEREBRAS_API_KEY`)

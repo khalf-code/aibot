@@ -164,3 +164,17 @@ export async function setOpencodeZenApiKey(key: string, agentDir?: string) {
     agentDir: resolveAuthAgentDir(agentDir),
   });
 }
+
+export const PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF = "perplexity-agentic/openai/gpt-5.2";
+
+export async function setPerplexityAgenticApiKey(key: string, agentDir?: string) {
+  upsertAuthProfile({
+    profileId: "perplexity-agentic:default",
+    credential: {
+      type: "api_key",
+      provider: "perplexity-agentic",
+      key,
+    },
+    agentDir: resolveAuthAgentDir(agentDir),
+  });
+}

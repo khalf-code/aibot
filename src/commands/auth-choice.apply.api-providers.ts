@@ -21,6 +21,8 @@ import {
   applyOpencodeZenProviderConfig,
   applyOpenrouterConfig,
   applyOpenrouterProviderConfig,
+  applyPerplexityAgenticConfig,
+  applyPerplexityAgenticProviderConfig,
   applySyntheticConfig,
   applySyntheticProviderConfig,
   applyVeniceConfig,
@@ -31,6 +33,7 @@ import {
   KIMI_CODE_MODEL_REF,
   MOONSHOT_DEFAULT_MODEL_REF,
   OPENROUTER_DEFAULT_MODEL_REF,
+  PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF,
   SYNTHETIC_DEFAULT_MODEL_REF,
   VENICE_DEFAULT_MODEL_REF,
   VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
@@ -39,6 +42,7 @@ import {
   setMoonshotApiKey,
   setOpencodeZenApiKey,
   setOpenrouterApiKey,
+  setPerplexityAgenticApiKey,
   setSyntheticApiKey,
   setVeniceApiKey,
   setVercelAiGatewayApiKey,
@@ -85,6 +89,8 @@ export async function applyAuthChoiceApiProviders(
       authChoice = "venice-api-key";
     } else if (params.opts.tokenProvider === "opencode") {
       authChoice = "opencode-zen";
+    } else if (params.opts.tokenProvider === "perplexity-agentic") {
+      authChoice = "perplexity-agentic-api-key";
     }
   }
 
@@ -570,6 +576,67 @@ export async function applyAuthChoiceApiProviders(
         applyDefaultConfig: applyOpencodeZenConfig,
         applyProviderConfig: applyOpencodeZenProviderConfig,
         noteDefault: OPENCODE_ZEN_DEFAULT_MODEL,
+        noteAgentModel,
+        prompter: params.prompter,
+      });
+      nextConfig = applied.config;
+      agentModelOverride = applied.agentModelOverride ?? agentModelOverride;
+    }
+    return { config: nextConfig, agentModelOverride };
+  }
+
+  if (authChoice === "perplexity-agentic-api-key") {
+    let hasCredential = false;
+    if (
+      !hasCredential &&
+      params.opts?.token &&
+      params.opts?.tokenProvider === "perplexity-agentic"
+    ) {
+      await setPerplexityAgenticApiKey(normalizeApiKeyInput(params.opts.token), params.agentDir);
+      hasCredential = true;
+    }
+
+    if (!hasCredential) {
+      await params.prompter.note(
+        [
+          "Perplexity Agentic provides access to third-party models (OpenAI, Anthropic, Google, xAI).",
+          "Get your API key at: https://www.perplexity.ai/settings/api",
+          "Uses the same API key as Perplexity's other APIs.",
+        ].join("\n"),
+        "Perplexity Agentic",
+      );
+    }
+    const envKey = resolveEnvApiKey("perplexity-agentic");
+    if (envKey) {
+      const useExisting = await params.prompter.confirm({
+        message: `Use existing PERPLEXITY_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+        initialValue: true,
+      });
+      if (useExisting) {
+        await setPerplexityAgenticApiKey(envKey.apiKey, params.agentDir);
+        hasCredential = true;
+      }
+    }
+    if (!hasCredential) {
+      const key = await params.prompter.text({
+        message: "Enter Perplexity API key",
+        validate: validateApiKeyInput,
+      });
+      await setPerplexityAgenticApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "perplexity-agentic:default",
+      provider: "perplexity-agentic",
+      mode: "api_key",
+    });
+    {
+      const applied = await applyDefaultModelChoice({
+        config: nextConfig,
+        setDefaultModel: params.setDefaultModel,
+        defaultModel: PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF,
+        applyDefaultConfig: applyPerplexityAgenticConfig,
+        applyProviderConfig: applyPerplexityAgenticProviderConfig,
+        noteDefault: PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF,
         noteAgentModel,
         prompter: params.prompter,
       });

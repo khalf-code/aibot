@@ -13,6 +13,7 @@ import {
 import type { ClawdbotConfig } from "../config/config.js";
 import {
   OPENROUTER_DEFAULT_MODEL_REF,
+  PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF,
   VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
   ZAI_DEFAULT_MODEL_REF,
 } from "./onboard-auth.credentials.js";
@@ -405,6 +406,55 @@ export function applyVeniceConfig(cfg: ClawdbotConfig): ClawdbotConfig {
               }
             : undefined),
           primary: VENICE_DEFAULT_MODEL_REF,
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Apply Perplexity Agentic provider configuration without changing the default model.
+ * Registers model alias but preserves existing model selection.
+ */
+export function applyPerplexityAgenticProviderConfig(cfg: ClawdbotConfig): ClawdbotConfig {
+  const models = { ...cfg.agents?.defaults?.models };
+  models[PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF] = {
+    ...models[PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF],
+    alias: models[PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF]?.alias ?? "Perplexity GPT-5.2",
+  };
+
+  return {
+    ...cfg,
+    agents: {
+      ...cfg.agents,
+      defaults: {
+        ...cfg.agents?.defaults,
+        models,
+      },
+    },
+  };
+}
+
+/**
+ * Apply Perplexity Agentic provider configuration AND set it as the default model.
+ * Use this when Perplexity Agentic is the primary provider choice during onboarding.
+ */
+export function applyPerplexityAgenticConfig(cfg: ClawdbotConfig): ClawdbotConfig {
+  const next = applyPerplexityAgenticProviderConfig(cfg);
+  const existingModel = next.agents?.defaults?.model;
+  return {
+    ...next,
+    agents: {
+      ...next.agents,
+      defaults: {
+        ...next.agents?.defaults,
+        model: {
+          ...(existingModel && "fallbacks" in (existingModel as Record<string, unknown>)
+            ? {
+                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks,
+              }
+            : undefined),
+          primary: PERPLEXITY_AGENTIC_DEFAULT_MODEL_REF,
         },
       },
     },

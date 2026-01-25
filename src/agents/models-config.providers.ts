@@ -418,7 +418,29 @@ export async function resolveImplicitProviders(params: {
     providers.ollama = { ...(await buildOllamaProvider()), apiKey: ollamaKey };
   }
 
+  // Perplexity Agentic provider - third-party models via Perplexity's /v1/responses
+  const perplexityAgenticKey =
+    resolveEnvApiKeyVarName("perplexity-agentic") ??
+    resolveApiKeyFromProfiles({ provider: "perplexity-agentic", store: authStore });
+  if (perplexityAgenticKey) {
+    providers["perplexity-agentic"] = {
+      ...buildPerplexityAgenticProvider(),
+      apiKey: perplexityAgenticKey,
+    };
+  }
+
   return providers;
+}
+
+// Perplexity Agentic API - third-party models via Perplexity's /v1/responses endpoint.
+const PERPLEXITY_AGENTIC_BASE_URL = "https://api.perplexity.ai";
+
+function buildPerplexityAgenticProvider(): ProviderConfig {
+  return {
+    baseUrl: PERPLEXITY_AGENTIC_BASE_URL,
+    api: "openai-responses",
+    models: [],
+  };
 }
 
 export async function resolveImplicitCopilotProvider(params: {

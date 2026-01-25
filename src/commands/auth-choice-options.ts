@@ -22,7 +22,8 @@ export type AuthChoiceGroupId =
   | "minimax"
   | "synthetic"
   | "venice"
-  | "qwen";
+  | "qwen"
+  | "perplexity-agentic";
 
 export type AuthChoiceGroup = {
   value: AuthChoiceGroupId;
@@ -114,6 +115,12 @@ const AUTH_CHOICE_GROUP_DEFS: {
     label: "OpenCode Zen",
     hint: "API key",
     choices: ["opencode-zen"],
+  },
+  {
+    value: "perplexity-agentic",
+    label: "Perplexity Agentic",
+    hint: "Third-party models (OpenAI, Anthropic, Google, xAI)",
+    choices: ["perplexity-agentic-api-key"],
   },
 ];
 
@@ -237,6 +244,11 @@ export function buildAuthChoiceOptions(params: {
     value: "minimax-api-lightning",
     label: "MiniMax M2.1 Lightning",
     hint: "Faster, higher output cost",
+  });
+  options.push({
+    value: "perplexity-agentic-api-key",
+    label: "Perplexity Agentic API key",
+    hint: "Access OpenAI, Anthropic, Google, xAI models via Perplexity",
   });
   if (params.includeSkip) {
     options.push({ value: "skip", label: "Skip for now" });
