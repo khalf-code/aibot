@@ -102,7 +102,7 @@ export async function deliverReplies(params: {
           });
           sentMessageId = editId;
         } catch (err) {
-          logVerbose(`Telegram edit failed, falling back to new message: ${String(err)}`);
+          console.warn(`Telegram edit failed, falling back to new message: ${String(err)}`);
           // Fall through to send new message
         }
       }

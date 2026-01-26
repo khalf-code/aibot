@@ -59,6 +59,7 @@ type TelegramReactionOpts = {
   retry?: RetryConfig;
 };
 
+const NOT_MODIFIED_RE = /message is not modified/i;
 const PARSE_ERR_RE = /can't parse entities|parse entities|find end of the entity/i;
 
 function resolveToken(explicit: string | undefined, params: { accountId: string; token: string }) {
@@ -525,6 +526,10 @@ export async function editMessageTelegram(
   } catch (err) {
     // If HTML parsing fails, fall back to plain text
     const errText = formatErrorMessage(err);
+    if (NOT_MODIFIED_RE.test(errText)) {
+      logVerbose(`[telegram] Edit failed with 'not modified', treating as success: ${errText}`);
+      return { ok: true };
+    }
     if (PARSE_ERR_RE.test(errText)) {
       if (opts.verbose) {
         console.warn(`telegram HTML parse failed on edit, retrying as plain text: ${errText}`);
