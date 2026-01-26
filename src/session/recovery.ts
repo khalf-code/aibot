@@ -169,7 +169,7 @@ export async function completeSession(
  * @param sessionId - セッションID
  * @param error - エラー情報
  */
-export async function failSession(sessionId: string, error: Error): Promise<void> {
+export async function failSession(sessionId: string, _error: Error): Promise<void> {
   await updateStatus(sessionId, SessionStatus.ERROR);
 
   // エラー情報を記録

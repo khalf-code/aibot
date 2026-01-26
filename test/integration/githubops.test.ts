@@ -35,7 +35,7 @@ function createTestBranch(branchName: string): void {
   try {
     execSync(`git checkout -b ${branchName}`, { encoding: "utf-8" });
   } catch (error: unknown) {
-    throw new Error(`Failed to create branch: ${error}`);
+    throw new Error(`Failed to create branch: ${String(error)}`);
   }
 }
 

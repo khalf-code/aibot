@@ -25,7 +25,6 @@ import type {
   ArtifactType,
   SaveArtifactOptions,
   DownloadUrlOptions,
-  ArtifactFilter,
 } from "./types.js";
 
 /** デフォルトTTL (24時間) */
