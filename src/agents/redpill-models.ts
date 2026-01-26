@@ -250,9 +250,9 @@ function catalogEntryToModelDefinition(entry: RedpillCatalogEntry): ModelDefinit
 }
 
 /**
- * Get cached model list or convert from catalog
+ * Discover cached model list or convert from catalog
  */
-export function getRedpillModels(): ModelDefinitionConfig[] {
+export function discoverRedpillModels(): ModelDefinitionConfig[] {
   const now = Date.now();
 
   // Return cached models if still valid

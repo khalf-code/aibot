@@ -4,7 +4,7 @@ import {
   REDPILL_DEFAULT_MODEL,
   REDPILL_DEFAULT_MODEL_REF,
   REDPILL_BASE_URL,
-  getRedpillModels,
+  discoverRedpillModels,
   resetRedpillModelCache,
   type RedpillCatalogEntry,
 } from "./redpill-models.js";
@@ -122,9 +122,9 @@ describe("Redpill Models", () => {
     });
   });
 
-  describe("getRedpillModels", () => {
+  describe("discoverRedpillModels", () => {
     it("should convert catalog to model definitions", () => {
-      const models = getRedpillModels();
+      const models = discoverRedpillModels();
       expect(models).toHaveLength(18);
 
       for (const model of models) {
@@ -146,15 +146,15 @@ describe("Redpill Models", () => {
     });
 
     it("should cache results", () => {
-      const models1 = getRedpillModels();
-      const models2 = getRedpillModels();
+      const models1 = discoverRedpillModels();
+      const models2 = discoverRedpillModels();
       expect(models1).toBe(models2); // Same reference
     });
 
     it("should return fresh data after cache reset", () => {
-      const models1 = getRedpillModels();
+      const models1 = discoverRedpillModels();
       resetRedpillModelCache();
-      const models2 = getRedpillModels();
+      const models2 = discoverRedpillModels();
       expect(models1).not.toBe(models2); // Different reference
       expect(models1).toEqual(models2); // Same content
     });
