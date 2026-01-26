@@ -93,9 +93,7 @@ export async function deliverReplies(params: {
 
       if (shouldEditLast && reply.text) {
         const editId = String(lastSent!.messageId);
-        console.error(
-          `[CRITICAL LOG] [telegram/bot/delivery.ts] Editing previous STATUS message ${editId} with: ${JSON.stringify(reply.text)}`,
-        );
+
         try {
           await editMessageTelegram(chatId, editId, reply.text, {
             token: params.token,
@@ -104,17 +102,12 @@ export async function deliverReplies(params: {
           });
           sentMessageId = editId;
         } catch (err) {
-          console.error(
-            `[CRITICAL LOG] [telegram/bot/delivery.ts] Edit failed, falling back to new message: ${String(err)}`,
-          );
+          logVerbose(`Telegram edit failed, falling back to new message: ${String(err)}`);
           // Fall through to send new message
         }
       }
 
       if (!sentMessageId && reply.isStatusMessage && reply.text) {
-        console.error(
-          `[CRITICAL LOG] [telegram/bot/delivery.ts] Sending NEW status message: ${JSON.stringify(reply.text)}`,
-        );
         const result = await sendMessageTelegram(chatId, reply.text, {
           token: params.token,
           accountId: params.accountId,
@@ -126,9 +119,6 @@ export async function deliverReplies(params: {
       } else if (!sentMessageId) {
         const chunks = chunkText(reply.text || "");
         for (const chunk of chunks) {
-          console.error(
-            `[CRITICAL LOG] [telegram/bot/delivery.ts] Sending text chunk: ${JSON.stringify(chunk.text)}`,
-          );
           const msgId = await sendTelegramText(bot, chatId, chunk.html, runtime, {
             replyToMessageId:
               replyToId && (replyToMode === "all" || !hasReplied) ? replyToId : undefined,
