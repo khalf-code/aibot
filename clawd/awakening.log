@@ -1,0 +1,887 @@
+[2026-01-25 11:25:11] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:25:11] Environment loaded
+[2026-01-25 11:25:11] Waiting for network...
+[2026-01-25 11:25:11] Network ready after 1s
+[2026-01-25 11:25:11] Starting systemd user services...
+[2026-01-25 11:25:11] Waiting for gateway to be ready...
+[2026-01-25 11:25:11] Gateway ready after 1s
+[2026-01-25 11:25:11] Running health check...
+=== Liam Health Check ===
+Date: Sun Jan 25 11:25:11 PST 2026
+
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+
+## Recent Errors (last 5)
+No errors found in journal
+
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+
+## GOG Status
+GOG: OK (Authorized)
+
+## Cron Jobs
+Active jobs: 6
+
+=== Health Check Complete (Exit: 2) ===
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n⚠️ Issues detected during awakening (Exit 2).\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 2) ===\n```' --channel last --deliver
+
+ ELIFECYCLE  Command failed with exit code 1.
+Slack send failed (attempt 1), retrying in 10s...
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n⚠️ Issues detected during awakening (Exit 2).\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 2) ===\n```' --channel last --deliver
+
+ ELIFECYCLE  Command failed with exit code 1.
+Slack send failed (attempt 2), retrying in 10s...
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n⚠️ Issues detected during awakening (Exit 2).\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 2) ===\n```' --channel last --deliver
+
+ ELIFECYCLE  Command failed with exit code 1.
+Slack send failed (attempt 3), retrying in 10s...
+Sun Jan 25 11:25:47 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+⚠️ Issues detected during awakening (Exit 2).
+
+```
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 2) ===
+```
+[2026-01-25 11:25:47] === AWAKENING SEQUENCE COMPLETE ===
+[2026-01-25 11:27:00] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:27:00] Environment loaded
+[2026-01-25 11:27:00] Waiting for network...
+[2026-01-25 11:27:00] Network ready after 1s
+[2026-01-25 11:27:00] Starting systemd user services...
+[2026-01-25 11:27:00] Waiting for gateway to be ready...
+[2026-01-25 11:27:00] Gateway ready after 1s
+[2026-01-25 11:27:00] Running health check...
+=== Liam Health Check ===
+Date: Sun Jan 25 11:27:00 PST 2026
+
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+
+## Recent Errors (last 5)
+No errors found in journal
+
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+Kroko.AI: OK (active)
+
+## GOG Status
+GOG: OK (Authorized)
+
+## Cron Jobs
+Active jobs: 6
+
+=== Health Check Complete (Exit: 0) ===
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G --deliver
+
+ ELIFECYCLE  Command failed with exit code 1.
+Slack send failed (attempt 1), retrying in 10s...
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G --deliver
+
+ ELIFECYCLE  Command failed with exit code 1.
+Slack send failed (attempt 2), retrying in 10s...
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G --deliver
+
+ ELIFECYCLE  Command failed with exit code 1.
+Slack send failed (attempt 3), retrying in 10s...
+Sun Jan 25 11:27:36 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+✅ All systems nominal.
+
+```
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 0) ===
+```
+[2026-01-25 11:27:36] === AWAKENING SEQUENCE COMPLETE ===
+[2026-01-25 11:27:51] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:27:51] Environment loaded
+[2026-01-25 11:27:51] Waiting for network...
+[2026-01-25 11:27:51] Network ready after 1s
+[2026-01-25 11:27:51] Starting systemd user services...
+[2026-01-25 11:27:52] Waiting for gateway to be ready...
+[2026-01-25 11:27:52] Gateway ready after 1s
+[2026-01-25 11:27:52] Running health check...
+=== Liam Health Check ===
+Date: Sun Jan 25 11:27:52 PST 2026
+
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+
+## Recent Errors (last 5)
+No errors found in journal
+
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+
+## GOG Status
+GOG: OK (Authorized)
+
+## Cron Jobs
+Active jobs: 6
+
+=== Health Check Complete (Exit: 2) ===
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n⚠️ Issues detected during awakening (Exit 2).\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 2) ===\n```' --channel slack --target user:U09UU9ZG49G
+
+✅ Sent via Slack. Message ID: 1769369274.918479
+Slack notification sent (attempt 1)
+Sun Jan 25 11:27:55 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+⚠️ Issues detected during awakening (Exit 2).
+
+```
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+WARNING: Kroko.AI service is activating
+not-found!
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 2) ===
+```
+[2026-01-25 11:27:55] === AWAKENING SEQUENCE COMPLETE ===
+Sun Jan 25 11:30:05 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+✅ All systems nominal.
+
+```
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 6
+=== Health Check Complete (Exit: 0) ===
+```
+Sun Jan 25 11:32:17 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+✅ All systems nominal.
+
+```
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===
+```
+[2026-01-25 11:35:15] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:35:15] Environment loaded
+[2026-01-25 11:35:15] Waiting for network...
+[2026-01-25 11:35:15] Network ready after 1s
+[2026-01-25 11:35:15] Starting systemd user services...
+[2026-01-25 11:35:15] Waiting for gateway to be ready...
+[2026-01-25 11:35:15] Gateway ready after 1s
+[2026-01-25 11:35:15] Running health check...
+=== Liam Health Check ===
+Date: Sun Jan 25 11:35:15 PST 2026
+
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+
+## Recent Errors (last 5)
+No errors found in journal
+
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+Kroko.AI: OK (active)
+
+## GOG Status
+GOG: OK (Authorized)
+
+## Cron Jobs
+Active jobs: 5
+
+=== Health Check Complete (Exit: 0) ===
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G
+
+✅ Sent via Slack. Message ID: 1769369720.086989
+Slack notification sent (attempt 1)
+Sun Jan 25 11:35:21 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+✅ All systems nominal.
+
+```
+## Gateway Status
+Runtime: running (pid 441258, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===
+```
+[2026-01-25 11:35:21] === AWAKENING SEQUENCE COMPLETE ===
+[2026-01-25 11:48:31] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:48:31] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:48:31] Environment loaded
+[2026-01-25 11:48:31] Environment loaded
+[2026-01-25 11:48:31] Waiting for network...
+[2026-01-25 11:48:31] Waiting for network...
+[2026-01-25 11:48:31] Network ready after 1s
+[2026-01-25 11:48:31] Network ready after 1s
+[2026-01-25 11:48:31] Starting systemd user services...
+[2026-01-25 11:48:31] Starting systemd user services...
+[2026-01-25 11:48:32] Waiting for gateway to be ready...
+[2026-01-25 11:48:32] Waiting for gateway to be ready...
+[2026-01-25 11:48:32] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:48:32] Environment loaded
+[2026-01-25 11:48:32] Waiting for network...
+[2026-01-25 11:48:32] Network ready after 1s
+[2026-01-25 11:48:32] Starting systemd user services...
+[2026-01-25 11:48:32] Waiting for gateway to be ready...
+[2026-01-25 11:48:49] Gateway ready after 18s
+[2026-01-25 11:48:49] Running health check...
+=== Liam Health Check ===
+Date: Sun Jan 25 11:48:49 PST 2026
+
+## Gateway Status
+[2026-01-25 11:48:50] Gateway ready after 19s
+[2026-01-25 11:48:50] Gateway ready after 19s
+[2026-01-25 11:48:50] Running health check...
+[2026-01-25 11:48:50] Running health check...
+=== Liam Health Check ===
+=== Liam Health Check ===
+Date: Sun Jan 25 11:48:50 PST 2026
+
+Date: Sun Jan 25 11:48:50 PST 2026
+
+## Gateway Status
+## Gateway Status
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+
+## Recent Errors (last 5)
+No errors found in journal
+
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+Kroko.AI: OK (active)
+
+## GOG Status
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+
+## Recent Errors (last 5)
+
+## Recent Errors (last 5)
+No errors found in journal
+
+## Email Configuration
+No errors found in journal
+
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+SOUL.md: LOCKED (read-only)
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+Kroko.AI: OK (active)
+
+## GOG Status
+Kroko.AI: OK (active)
+
+## GOG Status
+GOG: OK (Authorized)
+
+## Cron Jobs
+Active jobs: 5
+
+=== Health Check Complete (Exit: 0) ===
+GOG: OK (Authorized)
+GOG: OK (Authorized)
+
+## Cron Jobs
+
+## Cron Jobs
+Active jobs: 5
+
+=== Health Check Complete (Exit: 0) ===
+Active jobs: 5
+
+=== Health Check Complete (Exit: 0) ===
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G
+
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G
+
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G
+
+✅ Sent via Slack. Message ID: 1769370535.142899
+Slack notification sent (attempt 1)
+Sun Jan 25 11:48:55 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+✅ All systems nominal.
+
+```
+## Gateway Status
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===
+```
+[2026-01-25 11:48:55] === AWAKENING SEQUENCE COMPLETE ===
+✅ Sent via Slack. Message ID: 1769370535.226619
+✅ Sent via Slack. Message ID: 1769370535.226619
+Slack notification sent (attempt 1)
+Slack notification sent (attempt 1)
+Sun Jan 25 11:48:55 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+✅ All systems nominal.
+
+```
+## Gateway Status
+Runtime: running (pid 270, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===
+```
+[2026-01-25 11:48:55] === AWAKENING SEQUENCE COMPLETE ===
+[2026-01-25 11:48:55] === AWAKENING SEQUENCE COMPLETE ===
+[2026-01-25 11:50:09] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:50:09] === AWAKENING SEQUENCE STARTED ===
+[2026-01-25 11:50:09] Environment loaded
+[2026-01-25 11:50:09] Environment loaded
+[2026-01-25 11:50:09] Waiting for network...
+[2026-01-25 11:50:09] Waiting for network...
+[2026-01-25 11:50:09] Network ready after 1s
+[2026-01-25 11:50:09] Network ready after 1s
+[2026-01-25 11:50:09] Starting systemd user services...
+[2026-01-25 11:50:09] Starting systemd user services...
+[2026-01-25 11:50:09] Waiting for gateway to be ready...
+[2026-01-25 11:50:09] Waiting for gateway to be ready...
+[2026-01-25 11:50:29] Gateway ready after 21s
+[2026-01-25 11:50:29] Gateway ready after 21s
+[2026-01-25 11:50:29] Running health check...
+[2026-01-25 11:50:29] Running health check...
+=== Liam Health Check ===
+=== Liam Health Check ===
+Date: Sun Jan 25 11:50:29 PST 2026
+
+Date: Sun Jan 25 11:50:29 PST 2026
+
+## Gateway Status
+## Gateway Status
+Runtime: running (pid 268, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+Runtime: running (pid 268, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+
+## Recent Errors (last 5)
+
+## Recent Errors (last 5)
+No errors found in journal
+No errors found in journal
+
+## Email Configuration
+
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+Email account: OK (clawdbot@puenteworks.com)
+
+## File Permissions
+SOUL.md: LOCKED (read-only)
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+AGENTS.md: LOCKED (read-only)
+
+## Kroko Voice Status
+Kroko.AI: OK (active)
+Kroko.AI: OK (active)
+
+
+## GOG Status
+## GOG Status
+GOG: OK (Authorized)
+
+GOG: OK (Authorized)
+
+## Cron Jobs
+## Cron Jobs
+Active jobs: 5
+
+=== Health Check Complete (Exit: 0) ===
+Active jobs: 5
+
+=== Health Check Complete (Exit: 0) ===
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 268, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G
+
+
+> clawdbot@2026.1.24-0 clawdbot /home/liam/clawdbot
+> node scripts/run-node.mjs message send --message '🌅 **Liam has awakened.** System self-check results:\n\n✅ All systems nominal.\n\n```\n## Gateway Status
+Runtime: running (pid 268, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===\n```' --channel slack --target user:U09UU9ZG49G
+
+✅ Sent via Slack. Message ID: 1769370636.408029
+✅ Sent via Slack. Message ID: 1769370636.408029
+Slack notification sent (attempt 1)
+Slack notification sent (attempt 1)
+Sun Jan 25 11:50:36 PST 2026: 🌅 **Liam has awakened.** System self-check results:
+
+✅ All systems nominal.
+
+```
+## Gateway Status
+Runtime: running (pid 268, state active, sub running, last exit 0, reason 0)
+Listening: 127.0.0.1:18789
+## Recent Errors (last 5)
+No errors found in journal
+## Email Configuration
+Email account: OK (clawdbot@puenteworks.com)
+## File Permissions
+SOUL.md: LOCKED (read-only)
+IDENTITY.md: LOCKED (read-only)
+STATUS.md: LOCKED (read-only)
+AGENTS.md: LOCKED (read-only)
+## Kroko Voice Status
+Kroko.AI: OK (active)
+## GOG Status
+GOG: OK (Authorized)
+## Cron Jobs
+Active jobs: 5
+=== Health Check Complete (Exit: 0) ===
+```
+[2026-01-25 11:50:36] === AWAKENING SEQUENCE COMPLETE ===
+[2026-01-25 11:50:36] === AWAKENING SEQUENCE COMPLETE ===

@@ -1,0 +1,13 @@
+2026-01-25 09:07:47.125 [info] Creating Indexing Repo client:  https://repo42.cursor.sh
+2026-01-25 09:07:47.125 [info] Creating repo client with backend url: https://repo42.cursor.sh
+2026-01-25 09:07:47.125 [error] Error getting repo info: Failed to execute git
+2026-01-25 09:07:47.125 [error] Error: Failed to execute git
+	at v.<anonymous> (/home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/extensions/cursor-retrieval/dist/main.js:2:2453836)
+	at Generator.next (<anonymous>)
+	at i (/home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/extensions/cursor-retrieval/dist/main.js:2:2451442)
+2026-01-25 09:07:47.176 [error] Error getting repo info: Failed to execute git
+2026-01-25 09:07:47.178 [warning] Failed to get symbolic ref: Failed to execute git
+2026-01-25 09:07:47.181 [warning] Failed to read .git/HEAD: A system error occurred (ENOENT: no such file or directory, open '.git/HEAD')
+2026-01-25 09:07:47.197 [warning] Failed to get branches from remote: Failed to execute git
+2026-01-25 09:07:47.200 [warning] Failed to get default branch from git config: Failed to execute git
+2026-01-25 09:07:47.364 [error] NoWorkspaceUriError

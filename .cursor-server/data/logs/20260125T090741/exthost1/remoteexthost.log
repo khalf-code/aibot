@@ -1,0 +1,39 @@
+2026-01-25 09:07:45.993 [info] Extension host with pid 409729 started
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] Initializing terminal executor with userTerminalHint: undefined
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] Detecting sandbox support...
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] Platform: linux, Shell type: unknown
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] dirname: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/out/vs/workbench/api/node
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] Sandbox helper path: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/cursorsandbox
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] process.resourcesPath: undefined
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] process.execPath: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/node
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] ripgrep path for sandboxing: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/rg
+2026-01-25 09:07:45.993 [info] [shell-exec:sandbox] [isSandboxHelperSupported] Starting sandbox support check...
+2026-01-25 09:07:45.993 [info] [shell-exec:sandbox] [checkBinaryAvailable] Resolved binary path: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/cursorsandbox
+2026-01-25 09:07:45.993 [info] [shell-exec:sandbox] [checkBinaryAvailable] Binary path exists: true
+2026-01-25 09:07:45.993 [info] [shell-exec:sandbox] [isSandboxHelperSupported] Running preflight with binary: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/cursorsandbox
+2026-01-25 09:07:45.993 [info] [shell-exec:sandbox] [isSandboxHelperSupported] CWD: /mnt/c/Program Files/cursor
+2026-01-25 09:07:45.993 [info] [shell-exec:sandbox] [isSandboxHelperSupported] Preflight succeeded, sandbox supported!
+2026-01-25 09:07:45.993 [info] [ExtHostShellExec] Sandbox support detected: true
+2026-01-25 09:07:46.012 [info] ExtensionService#_doActivateExtension anysphere.cursor-agent, startup: true, activationEvent: '*'
+2026-01-25 09:07:46.013 [info] ExtensionService#_doActivateExtension anysphere.cursor-agent-exec, startup: true, activationEvent: '*'
+2026-01-25 09:07:46.013 [info] ExtensionService#_doActivateExtension anysphere.cursor-polyfills-remote, startup: true, activationEvent: '*'
+2026-01-25 09:07:46.013 [info] ExtensionService#_doActivateExtension vscode.git-base, startup: true, activationEvent: '*', root cause: vscode.git
+2026-01-25 09:07:46.382 [info] ExtensionService#_doActivateExtension vscode.git, startup: true, activationEvent: '*'
+2026-01-25 09:07:46.382 [info] ExtensionService#_doActivateExtension vscode.github, startup: true, activationEvent: '*'
+2026-01-25 09:07:46.537 [info] ExtensionService#_doActivateExtension anysphere.cursor-mcp, startup: false, activationEvent: 'api', root cause: anysphere.cursor-agent-exec
+2026-01-25 09:07:46.750 [info] Eager extensions activated
+2026-01-25 09:07:46.750 [info] ExtensionService#_doActivateExtension anysphere.cursor-commits, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:07:46.750 [info] ExtensionService#_doActivateExtension anysphere.cursor-retrieval, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:07:46.751 [info] ExtensionService#_doActivateExtension anysphere.cursor-shadow-workspace, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:07:46.751 [info] ExtensionService#_doActivateExtension vscode.debug-auto-launch, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:07:46.751 [info] ExtensionService#_doActivateExtension vscode.merge-conflict, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:07:55.393 [info] Extension host terminating: received terminate message from renderer
+2026-01-25 09:07:55.410 [error] Error: Channel has been closed
+	at r (file:///home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/out/vs/workbench/api/node/extensionHostProcess.js:145:3270)
+	at Object.appendLine (file:///home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/out/vs/workbench/api/node/extensionHostProcess.js:145:3409)
+	at Server.<anonymous> (/home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/extensions/cursor-agent/dist/main.js:2:13982)
+	at Object.onceWrapper (node:events:632:28)
+	at Server.emit (node:events:518:28)
+	at emitCloseNT (node:net:2344:8)
+	at process.processTicksAndRejections (node:internal/process/task_queues:81:21)
+2026-01-25 09:08:00.408 [info] Extension host with pid 409729 exiting with code 0

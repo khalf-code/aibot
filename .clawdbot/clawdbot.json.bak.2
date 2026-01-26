@@ -1,0 +1,291 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.1.25",
+    "lastTouchedAt": "2026-01-26T06:56:38.890Z"
+  },
+  "env": {
+    "ZAI_API_KEY": "cd758fc4a3ca4b0ea8f46135680704a4.LtAZJxC4YHcQspJW"
+  },
+  "wizard": {
+    "lastRunAt": "2026-01-25T08:27:02.878Z",
+    "lastRunVersion": "2026.1.24-0",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local"
+  },
+  "browser": {
+    "defaultProfile": "chrome"
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://172.26.0.1:11434/v1",
+        "apiKey": "ollama",
+        "api": "openai-responses",
+        "models": [
+          {
+            "id": "glm-4.7-flash",
+            "name": "GLM-4.7-Flash Local",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 131072,
+            "maxTokens": 8192
+          },
+          {
+            "id": "qwen3-vl:4b",
+            "name": "Qwen3-VL Vision",
+            "reasoning": false,
+            "input": [
+              "text",
+              "image"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 131072,
+            "maxTokens": 8192
+          },
+          {
+            "id": "deepseek-ocr",
+            "name": "DeepSeek OCR",
+            "reasoning": false,
+            "input": [
+              "text",
+              "image"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 8192,
+            "maxTokens": 4096
+          },
+          {
+            "id": "lfm2.5-thinking:1.2b",
+            "name": "LFM2.5 Thinking Fast",
+            "reasoning": true,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 32768,
+            "maxTokens": 4096
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "zai/glm-4.7",
+        "fallbacks": [
+          "ollama/glm-4.7-flash"
+        ]
+      },
+      "models": {
+        "ollama/lfm2.5-thinking:1.2b": {
+          "alias": "fast"
+        },
+        "ollama/glm-4.7-flash": {
+          "alias": "flash"
+        },
+        "ollama/qwen3-vl:4b": {
+          "alias": "vision"
+        },
+        "ollama/deepseek-ocr": {
+          "alias": "ocr"
+        },
+        "zai/glm-4.7": {
+          "alias": "deep"
+        }
+      },
+      "workspace": "/home/liam/clawd",
+      "memorySearch": {
+        "provider": "openai",
+        "remote": {
+          "baseUrl": "http://172.26.0.1:11434/v1",
+          "apiKey": "ollama"
+        },
+        "model": "nomic-embed-text",
+        "sync": {
+          "onSearch": true,
+          "watch": true
+        }
+      },
+      "compaction": {},
+      "blockStreamingDefault": "on",
+      "blockStreamingChunk": {
+        "minChars": 100,
+        "maxChars": 500,
+        "breakPreference": "paragraph"
+      },
+      "typingMode": "instant",
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 4,
+        "archiveAfterMinutes": 60,
+        "model": "zai/glm-4.7"
+      }
+    },
+    "list": [
+      {
+        "id": "main",
+        "default": true,
+        "name": "Liam",
+        "workspace": "/home/liam/clawd",
+        "identity": {
+          "name": "Liam"
+        },
+        "tools": {
+          "allow": [
+            "llm-task"
+          ]
+        }
+      }
+    ]
+  },
+  "tools": {
+    "media": {
+      "image": {
+        "enabled": true,
+        "maxChars": 1000,
+        "models": [
+          {
+            "provider": "ollama",
+            "model": "qwen3-vl:4b"
+          }
+        ]
+      }
+    },
+    "subagents": {
+      "tools": {
+        "deny": [
+          "cron",
+          "gateway"
+        ]
+      }
+    }
+  },
+  "messages": {
+    "ackReactionScope": "group-mentions",
+    "tts": {
+      "auto": "always",
+      "provider": "edge"
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto"
+  },
+  "session": {
+    "reset": {
+      "mode": "daily",
+      "idleMinutes": 240
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "botToken": "8221260658:AAGx0J3hGeELbqdqrpUwM-u8T-sSzM2oi9E",
+      "groupPolicy": "allowlist",
+      "streamMode": "off"
+    },
+    "slack": {
+      "mode": "socket",
+      "webhookPath": "/slack/events",
+      "enabled": false,
+      "userTokenReadOnly": true,
+      "groupPolicy": "allowlist"
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "2a0785d4a8288ac2edfdf1a4b2bf21c130b35dc3997e695a"
+    }
+  },
+  "skills": {
+    "entries": {
+      "blogwatcher": {
+        "enabled": true,
+        "config": {
+          "feeds": [
+            {
+              "url": "https://clawd.bot/showcase",
+              "name": "Clawdbot Showcase"
+            },
+            {
+              "url": "https://docs.clawd.bot/rss.xml",
+              "name": "Clawdbot Docs"
+            }
+          ],
+          "checkIntervalMinutes": 120
+        }
+      },
+      "skill-creator": {
+        "enabled": true
+      },
+      "summarize": {
+        "enabled": true
+      },
+      "weather": {
+        "enabled": true
+      },
+      "session-logs": {
+        "enabled": true
+      },
+      "model-usage": {
+        "enabled": true
+      }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "llm-task": {
+        "enabled": true,
+        "config": {
+          "defaultProvider": "ollama",
+          "defaultModel": "glm-4.7-flash",
+          "allowedModels": [
+            "ollama/glm-4.7-flash",
+            "ollama/lfm2.5-thinking:1.2b",
+            "ollama/deepseek-ocr",
+            "zai/glm-4.7"
+          ],
+          "maxTokens": 4096,
+          "timeoutMs": 60000
+        }
+      },
+      "telegram": {
+        "enabled": true
+      },
+      "slack": {
+        "enabled": false
+      },
+      "lobster": {
+        "enabled": true
+      }
+    }
+  }
+}

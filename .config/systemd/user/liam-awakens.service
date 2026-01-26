@@ -1,0 +1,22 @@
+[Unit]
+Description=Liam Self-Awakening Verification
+After=network-online.target clawdbot-gateway.service kroko-voice.service
+Wants=clawdbot-gateway.service kroko-voice.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/liam/clawd/awakening.sh
+RemainAfterExit=yes
+StandardOutput=append:/home/liam/clawd/awakening.log
+StandardError=append:/home/liam/clawd/awakening.log
+
+# Security Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/liam/clawd /home/liam/clawdbot/logs
+
+
+[Install]
+WantedBy=default.target

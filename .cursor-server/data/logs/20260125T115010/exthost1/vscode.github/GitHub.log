@@ -1,0 +1,2 @@
+2026-01-25 11:50:15.999 [info] Log level: Info
+2026-01-25 22:29:31.926 [warning] [GitHubSourceControlHistoryItemDetailsProvider][_loadAssignableUsers] Failed to load assignable user(s) for clawdbot/clawdbot: Error: No GitHub authentication session available.

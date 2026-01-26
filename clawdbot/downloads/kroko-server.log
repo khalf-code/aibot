@@ -1,0 +1,6 @@
+/slow/tod/sherpa-onnxopensource-2-python/sherpa-onnx/csrc/parse-options.cc:Read:372 ./kroko-onnx-online-websocket-server --port=6006 --model=/home/liam/clawdbot/models/Kroko-ASR/Kroko-EN-Community-128-L-Streaming-001.data --num-threads=4 
+
+/slow/tod/sherpa-onnxopensource-2-python/sherpa-onnx/csrc/online-websocket-server-impl.cc:Run:260 Warm up completed : 99 times.
+/slow/tod/sherpa-onnxopensource-2-python/sherpa-onnx/csrc/online-websocket-server.cc:main:164 Started!
+/slow/tod/sherpa-onnxopensource-2-python/sherpa-onnx/csrc/online-websocket-server.cc:main:165 Listening on: 6006
+/slow/tod/sherpa-onnxopensource-2-python/sherpa-onnx/csrc/online-websocket-server.cc:main:166 Number of work threads: 3

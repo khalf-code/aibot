@@ -1,0 +1,46 @@
+2026-01-25 09:08:01.289 [info] Extension host with pid 410068 started
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] Initializing terminal executor with userTerminalHint: undefined
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] Detecting sandbox support...
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] Platform: linux, Shell type: unknown
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] dirname: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/out/vs/workbench/api/node
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] Sandbox helper path: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/cursorsandbox
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] process.resourcesPath: undefined
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] process.execPath: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/node
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] ripgrep path for sandboxing: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/rg
+2026-01-25 09:08:01.289 [info] [shell-exec:sandbox] [isSandboxHelperSupported] Starting sandbox support check...
+2026-01-25 09:08:01.289 [info] [shell-exec:sandbox] [checkBinaryAvailable] Resolved binary path: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/cursorsandbox
+2026-01-25 09:08:01.289 [info] [shell-exec:sandbox] [checkBinaryAvailable] Binary path exists: true
+2026-01-25 09:08:01.289 [info] [shell-exec:sandbox] [isSandboxHelperSupported] Running preflight with binary: /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/resources/helpers/cursorsandbox
+2026-01-25 09:08:01.289 [info] [shell-exec:sandbox] [isSandboxHelperSupported] CWD: /mnt/c/Program Files/cursor
+2026-01-25 09:08:01.289 [info] [shell-exec:sandbox] [isSandboxHelperSupported] Preflight succeeded, sandbox supported!
+2026-01-25 09:08:01.289 [info] [ExtHostShellExec] Sandbox support detected: true
+2026-01-25 09:08:01.296 [info] ExtHostSearch [cursorIgnore] internal fileSearch start reason=cursorIgnoreCheck roots=1 include=**/.cursorignore maxResults=0 numThreads=(default) folderQueries=[{"cwd":"/home/liam","disregardIgnoreFiles":false,"disregardParentIgnoreFiles":true,"disregardGlobalIgnoreFiles":true,"ignoreSymlinks":false,"rgNoIgnore":false,"rgNoIgnoreParent":true,"rgNoIgnoreGlobal":true,"rgFollow":true}]
+2026-01-25 09:08:01.312 [info] ExtHostSearch /home/liam/.cursor-server/bin/dc8361355d709f306d5159635a677a571b277bc0/node_modules/@vscode/ripgrep/bin/rg --files --hidden --case-sensitive --no-require-git -g '**/.cursorignore' -g '!**/.git' -g '!**/.svn' -g '!**/.hg' -g '!**/.DS_Store' -g '!**/Thumbs.db' -g '!**/node_modules' -g '!**/bower_components' -g '!**/*.code-search' --no-ignore-parent --follow --threads '30' --no-config --no-ignore-global
+ - cwd: /home/liam
+ - Sibling clauses: {}
+2026-01-25 09:08:01.321 [info] ExtensionService#_doActivateExtension anysphere.cursor-agent, startup: true, activationEvent: '*'
+2026-01-25 09:08:01.322 [info] ExtensionService#_doActivateExtension anysphere.cursor-agent-exec, startup: true, activationEvent: '*'
+2026-01-25 09:08:01.322 [info] ExtensionService#_doActivateExtension anysphere.cursor-polyfills-remote, startup: true, activationEvent: '*'
+2026-01-25 09:08:01.323 [info] ExtensionService#_doActivateExtension vscode.git-base, startup: true, activationEvent: '*', root cause: vscode.git
+2026-01-25 09:08:01.718 [info] ExtHostSearch Search finished. Stats: {"cmdTime":407,"fileWalkTime":407,"directoriesWalked":0,"filesWalked":0,"cmdResultCount":0}
+2026-01-25 09:08:01.718 [info] ExtHostSearch [cursorIgnore] internal fileSearch done in 422ms limitHit=false failed=false resultCount=0 cmdTime=407 fileWalkTime=407 providerTime=(unknown)
+2026-01-25 09:08:01.744 [info] Lock '/home/liam/.cursor-server/data/User/workspaceStorage/02f14e89cbf6bbe8be60e482f07b2dfd/vscode.lock': Lock acquired.
+2026-01-25 09:08:01.761 [info] ExtensionService#_doActivateExtension vscode.git, startup: true, activationEvent: '*'
+2026-01-25 09:08:01.761 [info] ExtensionService#_doActivateExtension vscode.github, startup: true, activationEvent: '*'
+2026-01-25 09:08:01.943 [info] ExtensionService#_doActivateExtension anysphere.cursor-mcp, startup: false, activationEvent: 'api', root cause: anysphere.cursor-agent-exec
+2026-01-25 09:08:02.149 [info] Eager extensions activated
+2026-01-25 09:08:02.149 [info] ExtensionService#_doActivateExtension anysphere.cursor-commits, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:08:02.149 [info] ExtensionService#_doActivateExtension anysphere.cursor-retrieval, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:08:02.149 [info] ExtensionService#_doActivateExtension anysphere.cursor-shadow-workspace, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:08:02.150 [info] ExtensionService#_doActivateExtension vscode.debug-auto-launch, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:08:02.150 [info] ExtensionService#_doActivateExtension vscode.merge-conflict, startup: false, activationEvent: 'onStartupFinished'
+2026-01-25 09:12:16.925 [info] ExtensionService#_doActivateExtension vscode.emmet, startup: false, activationEvent: 'onLanguage'
+2026-01-25 09:12:18.268 [info] ExtensionService#_doActivateExtension vscode.extension-editing, startup: false, activationEvent: 'onLanguage:markdown'
+2026-01-25 09:12:18.268 [info] ExtensionService#_doActivateExtension vscode.markdown-language-features, startup: false, activationEvent: 'onLanguage:markdown'
+2026-01-25 09:23:02.783 [info] ExtensionService#_doActivateExtension vscode.npm, startup: false, activationEvent: 'onTerminalQuickFixRequest:ms-vscode.npm-command'
+2026-01-25 09:23:05.620 [info] ExtensionService#_doActivateExtension vscode.configuration-editing, startup: false, activationEvent: 'onLanguage:json'
+2026-01-25 09:23:05.621 [info] ExtensionService#_doActivateExtension vscode.json-language-features, startup: false, activationEvent: 'onLanguage:json'
+2026-01-25 10:25:29.593 [info] ExtensionService#_doActivateExtension vscode.typescript-language-features, startup: false, activationEvent: 'onLanguage:typescript'
+2026-01-25 11:17:01.820 [warning] [Decorations] CAPPING events from decorations provider vscode.git 336
+2026-01-25 11:17:01.840 [warning] [Decorations] CAPPING events from decorations provider vscode.git 336
+2026-01-25 11:17:01.845 [warning] [Decorations] CAPPING events from decorations provider vscode.git 336

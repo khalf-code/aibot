@@ -1,0 +1,24 @@
+[Unit]
+Description=Clawdbot Gateway (v2026.1.24-0)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart="/usr/bin/node" "/home/liam/clawdbot/dist/entry.js" gateway --port 18789
+Restart=always
+RestartSec=5
+KillMode=process
+Environment=HOME=/home/liam
+Environment="PATH=/home/liam/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="GOG_KEYRING_BACKEND=file"
+Environment="GOG_KEYRING_PASSWORD=FXCfzyDH/SbRpemXl54gV47coLO3uJBV"
+Environment="GOG_ACCOUNT=clawdbot@puenteworks.com"
+Environment=CLAWDBOT_GATEWAY_PORT=18789
+Environment=CLAWDBOT_GATEWAY_TOKEN=2a0785d4a8288ac2edfdf1a4b2bf21c130b35dc3997e695a
+Environment="CLAWDBOT_SYSTEMD_UNIT=clawdbot-gateway.service"
+Environment=CLAWDBOT_SERVICE_MARKER=clawdbot
+Environment=CLAWDBOT_SERVICE_KIND=gateway
+Environment=CLAWDBOT_SERVICE_VERSION=2026.1.24-0
+
+[Install]
+WantedBy=default.target

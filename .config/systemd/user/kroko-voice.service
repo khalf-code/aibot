@@ -1,0 +1,28 @@
+[Unit]
+Description=Kroko.AI Voice Recognition Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/liam/clawdbot/downloads
+Environment="HOME=/home/liam"
+Environment="PATH=/home/liam/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="LD_LIBRARY_PATH=/home/liam/clawdbot/downloads/onnxruntime-linux-x64-1.17.1/lib"
+ExecStart=/home/liam/clawdbot/downloads/kroko-onnx-online-websocket-server \
+  --port=6006 \
+  --model=/home/liam/clawdbot/models/Kroko-ASR/Kroko-EN-Community-128-L-Streaming-001.data \
+  --num-threads=4
+Restart=always
+RestartSec=5
+
+# Security Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadOnlyPaths=/home/liam/clawdbot/downloads /home/liam/clawdbot/models
+
+
+[Install]
+WantedBy=default.target

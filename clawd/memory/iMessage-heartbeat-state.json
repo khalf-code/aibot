@@ -1,0 +1,16 @@
+{
+  "lastChecks": {
+    "iMessage": null,
+    "gmail": null,
+    "calendar": null,
+    "github": null
+  },
+  "preferences": {
+    "monitoringEnabled": true,
+    "alertChannels": ["slack"],
+    "quietHours": {
+      "start": "23:00",
+      "end": "08:00"
+    }
+  }
+}

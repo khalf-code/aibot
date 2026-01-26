@@ -1,0 +1,14 @@
+Server bound to 127.0.0.1:45207 (IPv4)
+Extension host agent listening on 45207
+
+[11:50:10] 
+
+
+
+
+[11:50:10] Extension host agent started.
+[11:50:10] [127.0.0.1][175d6bfc][ManagementConnection] New connection established.
+[11:50:10] Getting extensions control
+[11:50:10] [CursorProclistService] Config enabled feature (subsample every 10s)
+[11:50:10] [127.0.0.1][4a348216][ExtensionHostConnection] New connection established.
+[11:50:10] [127.0.0.1][4a348216][ExtensionHostConnection] <493> Launched Extension Host Process.

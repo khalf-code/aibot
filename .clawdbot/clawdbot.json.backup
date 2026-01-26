@@ -1,0 +1,118 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.1.24-0",
+    "lastTouchedAt": "2026-01-25T08:40:06.620Z"
+  },
+  "env": {
+    "ZAI_API_KEY": "cd758fc4a3ca4b0ea8f46135680704a4.LtAZJxC4YHcQspJW"
+  },
+  "wizard": {
+    "lastRunAt": "2026-01-25T08:27:02.878Z",
+    "lastRunVersion": "2026.1.24-0",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local"
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "zai/glm-4.7",
+        "fallbacks": ["ollama/glm-4.7-flash", "ollama/lfm2.5-thinking"]
+      },
+      "models": {
+        "zai/glm-4.7": {"alias": "GLM-4.7 Cloud"},
+        "ollama/glm-4.7-flash": {"alias": "GLM-4.7-Flash Local"},
+        "ollama/qwen3-vl": {"alias": "Qwen3-VL Vision"},
+        "ollama/deepseek-ocr": {"alias": "DeepSeek OCR"},
+        "ollama/lfm2.5-thinking": {"alias": "LFM2.5 Fast"}
+      },
+      "workspace": "/home/liam/clawd",
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://127.0.0.1:11434/v1",
+        "apiKey": "ollama",
+        "api": "openai-responses",
+        "models": [
+          {
+            "id": "glm-4.7-flash",
+            "name": "GLM-4.7-Flash Local",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+            "contextWindow": 131072,
+            "maxTokens": 8192
+          },
+          {
+            "id": "qwen3-vl:4b",
+            "name": "Qwen3-VL Vision",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+            "contextWindow": 131072,
+            "maxTokens": 8192
+          },
+          {
+            "id": "deepseek-ocr",
+            "name": "DeepSeek OCR",
+            "reasoning": false,
+            "input": ["text", "image"],
+            "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+            "contextWindow": 8192,
+            "maxTokens": 4096
+          },
+          {
+            "id": "lfm2.5-thinking:1.2b",
+            "name": "LFM2.5 Thinking Fast",
+            "reasoning": true,
+            "input": ["text"],
+            "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+            "contextWindow": 32768,
+            "maxTokens": 4096
+          }
+        ]
+      }
+    }
+  },
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto"
+  },
+  "channels": {
+    "slack": {
+      "mode": "socket",
+      "webhookPath": "/slack/events",
+      "enabled": true,
+      "botToken": "xoxb-10008657736400-10366689245554-HC89YW0ZHxotEv7WjQr1rKot",
+      "appToken": "xapp-1-A0AAL968F1R-10364651467078-0a1cce9659ce407816bab69b22e0fc153ffee6c3ed415fb3204d6fd11685a1b9",
+      "userTokenReadOnly": true,
+      "groupPolicy": "allowlist"
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "2a0785d4a8288ac2edfdf1a4b2bf21c130b35dc3997e695a"
+    }
+  },
+  "plugins": {
+    "entries": {
+      "slack": {
+        "enabled": true
+      }
+    }
+  }
+}

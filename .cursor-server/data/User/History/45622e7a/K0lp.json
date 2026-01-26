@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "5b0b7dd4-8ba6-4d9f-98c9-f1ad50aaf188",
+      "name": "Blogwatcher-Check",
+      "enabled": true,
+      "deleteAfterRun": false,
+      "createdAtMs": 1769360473551,
+      "updatedAtMs": 1769364000007,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 */2 * * *",
+        "tz": "America/Los_Angeles"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Check blogwatcher for new content. Alert Simon if interesting.",
+        "model": "zai/glm-4.7",
+        "channel": "last"
+      },
+      "isolation": {
+        "postToMainPrefix": "Blogwatcher",
+        "postToMainMode": "summary",
+        "postToMainMaxChars": 8000
+      },
+      "state": {
+        "nextRunAtMs": 1769371200000
+      }
+    },
+    {
+      "id": "937b0e80-a9e2-4298-960b-a56d77a06e41",
+      "name": "Morning-Weather",
+      "enabled": true,
+      "deleteAfterRun": false,
+      "createdAtMs": 1769360481845,
+      "updatedAtMs": 1769360481845,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 7 * * *",
+        "tz": "America/Los_Angeles"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Check weather for today. If outdoor events on calendar, include weather in briefing.",
+        "model": "zai/glm-4.7",
+        "channel": "last"
+      },
+      "isolation": {
+        "postToMainPrefix": "Weather",
+        "postToMainMode": "summary",
+        "postToMainMaxChars": 8000
+      },
+      "state": {
+        "nextRunAtMs": 1769439600000
+      }
+    },
+    {
+      "id": "01eb4ebb-1076-4abb-be74-8f33e6ee77f3",
+      "name": "Weekly-Employee-Review",
+      "enabled": true,
+      "deleteAfterRun": false,
+      "createdAtMs": 1769360483495,
+      "updatedAtMs": 1769360483495,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 9 * * 1",
+        "tz": "America/Los_Angeles"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Weekly self-review. Read JOB.md, check METRICS.md, review EVOLUTION-QUEUE.md. Report: tasks done, blockers, improvements proposed.",
+        "model": "zai/glm-4.7",
+        "channel": "last"
+      },
+      "isolation": {
+        "postToMainPrefix": "Weekly-Review",
+        "postToMainMode": "summary",
+        "postToMainMaxChars": 8000
+      },
+      "state": {
+        "nextRunAtMs": 1769446800000
+      }
+    },
+    {
+      "id": "44d87c82-878b-4a3c-bf71-5431058a4b21",
+      "name": "Liam-Self-Diagnostics",
+      "enabled": true,
+      "deleteAfterRun": false,
+      "createdAtMs": 1769365897928,
+      "updatedAtMs": 1769365897928,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 8 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run daily health check: `bash ~/clawd/health-check.sh`. If any CRITICAL or WARNING messages are found, report them to Simon. If all OK, just reply DIAGNOSTICS_OK.",
+        "thinking": "medium",
+        "deliver": true,
+        "channel": "last"
+      },
+      "isolation": {
+        "postToMainPrefix": "Diagnostics",
+        "postToMainMode": "summary",
+        "postToMainMaxChars": 8000
+      },
+      "state": {
+        "nextRunAtMs": 1769443200000
+      }
+    },
+    {
+      "id": "5b9561d1-0bf4-4434-8213-dddab195bd12",
+      "name": "GitHub-Daily-Digest",
+      "enabled": true,
+      "deleteAfterRun": false,
+      "createdAtMs": 1769368577215,
+      "updatedAtMs": 1769368577215,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 9 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Check GitHub activity for Pastorsimon1798: `bash /home/liam/clawdbot/skills/github-monitor/scripts/check-activity.sh`. If new notifications or urgent PRs/Issues are found, summarize them for Simon. If nothing new, stay silent.",
+        "thinking": "medium",
+        "deliver": true,
+        "channel": "last"
+      },
+      "isolation": {
+        "postToMainPrefix": "GitHub",
+        "postToMainMode": "summary",
+        "postToMainMaxChars": 8000
+      },
+      "state": {
+        "nextRunAtMs": 1769446800000
+      }
+    }
+  ]
+}

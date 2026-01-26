@@ -1,0 +1,131 @@
+# Heartbeat Checklist
+
+> If uncertain about capabilities, read `~/clawd/STATUS.md` first - it's the source of truth.
+
+## CRITICAL: Verify Before Reporting
+
+**NEVER report issues from memory files without verification.**
+
+Memory files (everything in `memory/`) are HISTORICAL LOGS, not current state. They record what happened at a specific time, not what is true now. This includes `session-log.md`, dated files, and any other files in that folder.
+
+Before reporting any issue you read in memory:
+
+1. **Run the actual check** - Don't just quote what a memory file says
+2. **Verify current state** - Use the actual command/tool to check NOW
+3. **If fixed, note it** - Add `[RESOLVED]` marker to the memory entry
+
+**Examples:**
+- ❌ BAD: "Memory says gog is not found" → reports old issue as current
+- ✅ GOOD: Run `which gog` first → if found, gog is working now
+
+### Verification Commands (ALWAYS run before reporting)
+
+| Status Type | Verification Command |
+|-------------|---------------------|
+| GOG/Email | `which gog && gog auth list --check` |
+| Gateway | `systemctl --user status clawdbot-gateway` |
+| Models | `npx clawdbot models list` |
+| Ollama | `curl -s http://172.26.0.1:11434/api/tags \| head -5` |
+
+**NEVER report status from:**
+- Memory files (memory/*.md) - these are historical logs
+- Cached session context - may be stale
+- Previous heartbeat responses - `lastHeartbeatText` is STALE
+- "I remember that X was broken" - always verify first
+
+### Heartbeat State Freshness
+
+Before using timestamps from `memory/*-heartbeat-state.json`:
+1. Read the file fresh (don't use cached version)
+2. Check if timestamp is reasonable (not in future, not ancient)
+3. If file is missing or corrupt, treat all checks as "never done"
+
+**Stale timestamp symptoms:**
+- Duplicate alerts (timestamp not updated after check)
+- Missed checks (timestamp artificially in future)
+
+**Memory Entry Format for Issues:**
+```markdown
+## HH:MM - Issue Description
+
+**Status:** [ACTIVE|RESOLVED|INVESTIGATING]
+**Verified:** YYYY-MM-DD HH:MM
+
+[Description]
+
+### Resolution (if resolved)
+[How/when it was fixed]
+```
+
+---
+
+## Email (clawdbot@puenteworks.com ONLY)
+
+**VERIFY FIRST:** You are checking clawdbot@puenteworks.com, NOT simon@puenteworks.com
+
+- Check inbox: `gog gmail messages search "in:inbox is:unread" --account clawdbot@puenteworks.com --max 10`
+- If urgent/important emails found, summarize and alert Simon via Slack
+- Reply to acknowledge receipt and explain your plan
+- Mark as read after processing
+
+**NEVER check simon@puenteworks.com** - that is Simon's personal email, not yours.
+
+## Calendar (clawdbot@puenteworks.com)
+
+- Check events: `gog calendar events primary --from today --to "+2d" --account clawdbot@puenteworks.com`
+- **24h Alert**: If a meeting is in 24-28 hours, ping Simon with: "Meeting in 24h: [Title]. Anything I should prep?"
+- **2h Reminder**: If a meeting is in <2 hours, send: "Meeting starting soon: [Title]. Context: [Recent related notes from memory search]"
+- **Post-Meeting**: If a meeting just ended (<15m ago), ask: "How did [Title] go? Any action items for me to capture?"
+- **Conflict Detect**: Alert if any overlapping events found.
+
+## Context Cue System (ADHD Support)
+
+- Answer: "What should Simon be focusing on right now?"
+- Check: Current time, energy level (if known), active projects in `para.sqlite`, and calendar context.
+- Suggest: One single high-priority "Next Action" to combat decision paralysis.
+- **Visual Timer**: Propose a timer (e.g. "Want me to set a 25m focus timer for this?")
+
+### Context Cue Freshness
+
+When generating context cues:
+1. Query para.sqlite directly (not from memory)
+2. Check calendar with fresh gog command
+3. Never say "I remember you were working on X" - always verify current state
+
+## Proactive Monitoring
+
+- If blogwatcher has new items, summarize and alert Simon
+- Check weather if Simon has outdoor events today
+- Review any active progress files in `~/clawd/progress/`
+
+## Opportunity Monitoring (Opportunity Lifecycle Framework)
+
+- List active opportunities: `~/clawdbot/skills/opportunity-lifecycle/list.sh`
+- Check for actions due today or overdue (query: `sqlite3 ~/clawdbot/skills/opportunity-lifecycle/opportunities.sqlite "SELECT * FROM actions WHERE status != 'completed' AND (due_date <= date('now') OR due_date IS NULL) ORDER BY due_date;"`)
+- Alert Simon to urgent opportunities (deadline < 24h or stage changed recently)
+- For opportunities in "research" stage: surface any new findings
+- For opportunities in "monitor" stage: check for status updates
+- For opportunities in "document" stage: remind to capture learnings
+
+**When to alert:**
+- Action due today or overdue → "Urgent action for [Opportunity]: [Action description] (Due: [Date])"
+- Stage changed in last 24h → "[Opportunity] moved to [stage] stage"
+- Deadline in <24h → "[Opportunity] action due soon: [Action]"
+- Multiple pending actions → Batch alert with opportunity summary
+
+## Data Tracking
+
+- Weekly: Run `clawdbot memory status` to check index health
+- Update METRICS.md if significant activity occurred
+
+## Multi-Step Tasks
+
+- Check `~/clawd/progress/` for any in-progress tasks
+- If found, read the progress file and continue work
+- Update progress file after each step
+
+## General
+
+- If nothing needs attention, reply HEARTBEAT_OK
+- Do NOT repeat old tasks from prior chats
+- Do NOT message Simon just to say hello

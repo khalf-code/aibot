@@ -1,0 +1,1524 @@
+{
+  "agent:main:main:thread:1769342134.472699": {
+    "origin": {
+      "label": "Simon Gonzalez De Cruz",
+      "provider": "slack",
+      "surface": "slack",
+      "chatType": "direct",
+      "from": "slack:U09UU9ZG49G",
+      "to": "user:U09UU9ZG49G",
+      "accountId": "default",
+      "threadId": "1769342134.472699"
+    },
+    "sessionId": "a5987147-a610-4d6a-b717-308b0a3cac39",
+    "updatedAt": 1769342996952,
+    "systemSent": true,
+    "abortedLastRun": false,
+    "displayName": "Slack thread #D0AAL995ZEF: Done. I've created a comprehensive self-improvement plan and scheduled delivery",
+    "chatType": "direct",
+    "deliveryContext": {
+      "channel": "slack",
+      "to": "user:U09UU9ZG49G",
+      "accountId": "default",
+      "threadId": "1769342134.472699"
+    },
+    "lastChannel": "slack",
+    "lastTo": "user:U09UU9ZG49G",
+    "lastAccountId": "default",
+    "lastThreadId": "1769342134.472699",
+    "sessionFile": "/home/liam/.clawdbot/agents/main/sessions/a5987147-a610-4d6a-b717-308b0a3cac39-topic-1769342134.472699.jsonl",
+    "skillsSnapshot": {
+      "prompt": "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\n\n<available_skills>\n  <skill>\n    <name>bluebubbles</name>\n    <description>Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).</description>\n    <location>/home/liam/clawdbot/skills/bluebubbles/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>coding-agent</name>\n    <description>Run Codex CLI, Claude Code, OpenCode, or Pi Coding Agent via background process for programmatic control.</description>\n    <location>/home/liam/clawdbot/skills/coding-agent/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github</name>\n    <description>Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.</description>\n    <location>/home/liam/clawdbot/skills/github/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>notion</name>\n    <description>Notion API for creating and managing pages, databases, and blocks.</description>\n    <location>/home/liam/clawdbot/skills/notion/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>skill-creator</name>\n    <description>Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.</description>\n    <location>/home/liam/clawdbot/skills/skill-creator/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>slack</name>\n    <description>Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.</description>\n    <location>/home/liam/clawdbot/skills/slack/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>tmux</name>\n    <description>Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.</description>\n    <location>/home/liam/clawdbot/skills/tmux/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>weather</name>\n    <description>Get current weather and forecasts (no API key required).</description>\n    <location>/home/liam/clawdbot/skills/weather/SKILL.md</location>\n  </skill>\n</available_skills>",
+      "skills": [
+        {
+          "name": "bluebubbles"
+        },
+        {
+          "name": "coding-agent"
+        },
+        {
+          "name": "github"
+        },
+        {
+          "name": "notion"
+        },
+        {
+          "name": "skill-creator"
+        },
+        {
+          "name": "slack"
+        },
+        {
+          "name": "tmux"
+        },
+        {
+          "name": "weather"
+        }
+      ],
+      "resolvedSkills": [
+        {
+          "name": "bluebubbles",
+          "description": "Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).",
+          "filePath": "/home/liam/clawdbot/skills/bluebubbles/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/bluebubbles",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "coding-agent",
+          "description": "Run Codex CLI, Claude Code, OpenCode, or Pi Coding Agent via background process for programmatic control.",
+          "filePath": "/home/liam/clawdbot/skills/coding-agent/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/coding-agent",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github",
+          "description": "Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.",
+          "filePath": "/home/liam/clawdbot/skills/github/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "notion",
+          "description": "Notion API for creating and managing pages, databases, and blocks.",
+          "filePath": "/home/liam/clawdbot/skills/notion/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/notion",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "skill-creator",
+          "description": "Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.",
+          "filePath": "/home/liam/clawdbot/skills/skill-creator/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/skill-creator",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "slack",
+          "description": "Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.",
+          "filePath": "/home/liam/clawdbot/skills/slack/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/slack",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "tmux",
+          "description": "Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.",
+          "filePath": "/home/liam/clawdbot/skills/tmux/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/tmux",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "weather",
+          "description": "Get current weather and forecasts (no API key required).",
+          "filePath": "/home/liam/clawdbot/skills/weather/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/weather",
+          "source": "clawdbot-bundled"
+        }
+      ],
+      "version": 0
+    },
+    "modelProvider": "zai",
+    "model": "glm-4.7",
+    "contextTokens": 204800,
+    "systemPromptReport": {
+      "source": "run",
+      "generatedAt": 1769342613265,
+      "sessionId": "a5987147-a610-4d6a-b717-308b0a3cac39",
+      "sessionKey": "agent:main:main:thread:1769342134.472699",
+      "provider": "zai",
+      "model": "glm-4.7",
+      "workspaceDir": "/home/liam/clawd",
+      "bootstrapMaxChars": 20000,
+      "sandbox": {
+        "mode": "off",
+        "sandboxed": false
+      },
+      "systemPrompt": {
+        "chars": 40237,
+        "projectContextChars": 30274,
+        "nonProjectContextChars": 9963
+      },
+      "injectedWorkspaceFiles": [
+        {
+          "name": "AGENTS.md",
+          "path": "/home/liam/clawd/AGENTS.md",
+          "missing": false,
+          "rawChars": 8991,
+          "injectedChars": 8991,
+          "truncated": false
+        },
+        {
+          "name": "SOUL.md",
+          "path": "/home/liam/clawd/SOUL.md",
+          "missing": false,
+          "rawChars": 8413,
+          "injectedChars": 8413,
+          "truncated": false
+        },
+        {
+          "name": "TOOLS.md",
+          "path": "/home/liam/clawd/TOOLS.md",
+          "missing": false,
+          "rawChars": 553,
+          "injectedChars": 553,
+          "truncated": false
+        },
+        {
+          "name": "IDENTITY.md",
+          "path": "/home/liam/clawd/IDENTITY.md",
+          "missing": false,
+          "rawChars": 2815,
+          "injectedChars": 2815,
+          "truncated": false
+        },
+        {
+          "name": "USER.md",
+          "path": "/home/liam/clawd/USER.md",
+          "missing": false,
+          "rawChars": 8130,
+          "injectedChars": 8130,
+          "truncated": false
+        },
+        {
+          "name": "HEARTBEAT.md",
+          "path": "/home/liam/clawd/HEARTBEAT.md",
+          "missing": false,
+          "rawChars": 996,
+          "injectedChars": 996,
+          "truncated": false
+        },
+        {
+          "name": "BOOTSTRAP.md",
+          "path": "/home/liam/clawd/BOOTSTRAP.md",
+          "missing": true,
+          "rawChars": 0,
+          "injectedChars": 52,
+          "truncated": false
+        }
+      ],
+      "skills": {
+        "promptChars": 2240,
+        "entries": [
+          {
+            "name": "bluebubbles",
+            "blockChars": 275
+          },
+          {
+            "name": "coding-agent",
+            "blockChars": 259
+          },
+          {
+            "name": "github",
+            "blockChars": 278
+          },
+          {
+            "name": "notion",
+            "blockChars": 208
+          },
+          {
+            "name": "skill-creator",
+            "blockChars": 276
+          },
+          {
+            "name": "slack",
+            "blockChars": 292
+          },
+          {
+            "name": "tmux",
+            "blockChars": 235
+          },
+          {
+            "name": "weather",
+            "blockChars": 200
+          }
+        ]
+      },
+      "tools": {
+        "listChars": 2073,
+        "schemaChars": 14626,
+        "entries": [
+          {
+            "name": "read",
+            "summaryChars": 232,
+            "schemaChars": 398,
+            "propertiesCount": 4
+          },
+          {
+            "name": "edit",
+            "summaryChars": 129,
+            "schemaChars": 617,
+            "propertiesCount": 6
+          },
+          {
+            "name": "write",
+            "summaryChars": 127,
+            "schemaChars": 313,
+            "propertiesCount": 3
+          },
+          {
+            "name": "exec",
+            "summaryChars": 181,
+            "schemaChars": 1037,
+            "propertiesCount": 12
+          },
+          {
+            "name": "process",
+            "summaryChars": 85,
+            "schemaChars": 844,
+            "propertiesCount": 11
+          },
+          {
+            "name": "browser",
+            "summaryChars": 1343,
+            "schemaChars": 1909,
+            "propertiesCount": 29
+          },
+          {
+            "name": "canvas",
+            "summaryChars": 106,
+            "schemaChars": 661,
+            "propertiesCount": 18
+          },
+          {
+            "name": "nodes",
+            "summaryChars": 94,
+            "schemaChars": 1399,
+            "propertiesCount": 31
+          },
+          {
+            "name": "cron",
+            "summaryChars": 246,
+            "schemaChars": 530,
+            "propertiesCount": 12
+          },
+          {
+            "name": "message",
+            "summaryChars": 180,
+            "schemaChars": 3179,
+            "propertiesCount": 77
+          },
+          {
+            "name": "tts",
+            "summaryChars": 129,
+            "schemaChars": 223,
+            "propertiesCount": 2
+          },
+          {
+            "name": "gateway",
+            "summaryChars": 225,
+            "schemaChars": 465,
+            "propertiesCount": 11
+          },
+          {
+            "name": "agents_list",
+            "summaryChars": 72,
+            "schemaChars": 33,
+            "propertiesCount": 0
+          },
+          {
+            "name": "sessions_list",
+            "summaryChars": 54,
+            "schemaChars": 176,
+            "propertiesCount": 4
+          },
+          {
+            "name": "sessions_history",
+            "summaryChars": 36,
+            "schemaChars": 149,
+            "propertiesCount": 3
+          },
+          {
+            "name": "sessions_send",
+            "summaryChars": 84,
+            "schemaChars": 203,
+            "propertiesCount": 5
+          },
+          {
+            "name": "sessions_spawn",
+            "summaryChars": 107,
+            "schemaChars": 312,
+            "propertiesCount": 8
+          },
+          {
+            "name": "session_status",
+            "summaryChars": 207,
+            "schemaChars": 89,
+            "propertiesCount": 2
+          },
+          {
+            "name": "web_search",
+            "summaryChars": 175,
+            "schemaChars": 733,
+            "propertiesCount": 6
+          },
+          {
+            "name": "web_fetch",
+            "summaryChars": 129,
+            "schemaChars": 360,
+            "propertiesCount": 3
+          },
+          {
+            "name": "llm-task",
+            "summaryChars": 134,
+            "schemaChars": 729,
+            "propertiesCount": 9
+          },
+          {
+            "name": "memory_search",
+            "summaryChars": 235,
+            "schemaChars": 139,
+            "propertiesCount": 3
+          },
+          {
+            "name": "memory_get",
+            "summaryChars": 151,
+            "schemaChars": 128,
+            "propertiesCount": 3
+          }
+        ]
+      }
+    }
+  },
+  "agent:main:cron:1be8bb80-6725-4666-8e08-6a004b40bff9": {
+    "sessionId": "e0af1a0b-9926-4e7e-bf69-e9818b0766b5",
+    "updatedAt": 1769365866953,
+    "systemSent": true,
+    "model": "glm-4.7",
+    "contextTokens": 204800,
+    "skillsSnapshot": {
+      "prompt": "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\n\n<available_skills>\n  <skill>\n    <name>bluebubbles</name>\n    <description>Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).</description>\n    <location>/home/liam/clawdbot/skills/bluebubbles/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>coding-agent</name>\n    <description>Run Codex CLI, Claude Code, OpenCode, or Pi Coding Agent via background process for programmatic control.</description>\n    <location>/home/liam/clawdbot/skills/coding-agent/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github</name>\n    <description>Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.</description>\n    <location>/home/liam/clawdbot/skills/github/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>notion</name>\n    <description>Notion API for creating and managing pages, databases, and blocks.</description>\n    <location>/home/liam/clawdbot/skills/notion/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>skill-creator</name>\n    <description>Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.</description>\n    <location>/home/liam/clawdbot/skills/skill-creator/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>slack</name>\n    <description>Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.</description>\n    <location>/home/liam/clawdbot/skills/slack/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>tmux</name>\n    <description>Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.</description>\n    <location>/home/liam/clawdbot/skills/tmux/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>visual-timer</name>\n    <description>Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.</description>\n    <location>/home/liam/clawdbot/skills/visual-timer/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>weather</name>\n    <description>Get current weather and forecasts (no API key required).</description>\n    <location>/home/liam/clawdbot/skills/weather/SKILL.md</location>\n  </skill>\n</available_skills>",
+      "skills": [
+        {
+          "name": "bluebubbles"
+        },
+        {
+          "name": "coding-agent"
+        },
+        {
+          "name": "github"
+        },
+        {
+          "name": "notion"
+        },
+        {
+          "name": "skill-creator"
+        },
+        {
+          "name": "slack"
+        },
+        {
+          "name": "tmux"
+        },
+        {
+          "name": "visual-timer"
+        },
+        {
+          "name": "weather"
+        }
+      ],
+      "resolvedSkills": [
+        {
+          "name": "bluebubbles",
+          "description": "Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).",
+          "filePath": "/home/liam/clawdbot/skills/bluebubbles/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/bluebubbles",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "coding-agent",
+          "description": "Run Codex CLI, Claude Code, OpenCode, or Pi Coding Agent via background process for programmatic control.",
+          "filePath": "/home/liam/clawdbot/skills/coding-agent/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/coding-agent",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github",
+          "description": "Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.",
+          "filePath": "/home/liam/clawdbot/skills/github/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "notion",
+          "description": "Notion API for creating and managing pages, databases, and blocks.",
+          "filePath": "/home/liam/clawdbot/skills/notion/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/notion",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "skill-creator",
+          "description": "Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.",
+          "filePath": "/home/liam/clawdbot/skills/skill-creator/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/skill-creator",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "slack",
+          "description": "Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.",
+          "filePath": "/home/liam/clawdbot/skills/slack/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/slack",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "tmux",
+          "description": "Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.",
+          "filePath": "/home/liam/clawdbot/skills/tmux/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/tmux",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "visual-timer",
+          "description": "Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.",
+          "filePath": "/home/liam/clawdbot/skills/visual-timer/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/visual-timer",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "weather",
+          "description": "Get current weather and forecasts (no API key required).",
+          "filePath": "/home/liam/clawdbot/skills/weather/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/weather",
+          "source": "clawdbot-bundled"
+        }
+      ],
+      "version": 0
+    },
+    "modelProvider": "zai",
+    "inputTokens": 13810,
+    "outputTokens": 44,
+    "totalTokens": 17021
+  },
+  "agent:main:cron:5b0b7dd4-8ba6-4d9f-98c9-f1ad50aaf188": {
+    "sessionId": "26bf1f02-a7ae-413a-9d82-0d1710b80124",
+    "updatedAt": 1769407200025,
+    "systemSent": true,
+    "model": "glm-4.7",
+    "contextTokens": 204800,
+    "skillsSnapshot": {
+      "prompt": "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\n\n<available_skills>\n  <skill>\n    <name>bluebubbles</name>\n    <description>Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).</description>\n    <location>/home/liam/clawdbot/skills/bluebubbles/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>gog</name>\n    <description>Google Workspace CLI for Gmail, Calendar, Drive, Contacts, Sheets, and Docs.</description>\n    <location>/home/liam/clawdbot/skills/gog/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github</name>\n    <description>Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.</description>\n    <location>/home/liam/clawdbot/skills/github/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github-monitor</name>\n    <description>Proactively monitor GitHub activity for Pastorsimon1798, including notifications, PRs, and issues. Use when Liam needs to give Simon a daily digest or urgent alerts about his code repositories.</description>\n    <location>/home/liam/clawdbot/skills/github-monitor/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>kroko-voice</name>\n    <description>Ultra-low latency (&lt;2s) local speech-to-text using Kroko.AI. Optimized for neurodivergent quick-capture and real-time transcription on WSL2.</description>\n    <location>/home/liam/clawdbot/skills/kroko-voice/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>notion</name>\n    <description>Notion API for creating and managing pages, databases, and blocks.</description>\n    <location>/home/liam/clawdbot/skills/notion/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>para-tasks</name>\n    <description>Manage tasks and projects using the PARA method (Projects, Areas, Resources, Archives). Optimized for neurodivergent focus with micro-steps, start/due dates, and proactive surfacing.</description>\n    <location>/home/liam/clawdbot/skills/para-tasks/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>skill-creator</name>\n    <description>Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.</description>\n    <location>/home/liam/clawdbot/skills/skill-creator/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>slack</name>\n    <description>Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.</description>\n    <location>/home/liam/clawdbot/skills/slack/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>tmux</name>\n    <description>Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.</description>\n    <location>/home/liam/clawdbot/skills/tmux/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>visual-timer</name>\n    <description>Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.</description>\n    <location>/home/liam/clawdbot/skills/visual-timer/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>weather</name>\n    <description>Get current weather and forecasts (no API key required).</description>\n    <location>/home/liam/clawdbot/skills/weather/SKILL.md</location>\n  </skill>\n</available_skills>",
+      "skills": [
+        {
+          "name": "bluebubbles"
+        },
+        {
+          "name": "gog"
+        },
+        {
+          "name": "github"
+        },
+        {
+          "name": "github-monitor"
+        },
+        {
+          "name": "kroko-voice"
+        },
+        {
+          "name": "notion"
+        },
+        {
+          "name": "para-tasks"
+        },
+        {
+          "name": "skill-creator"
+        },
+        {
+          "name": "slack"
+        },
+        {
+          "name": "tmux"
+        },
+        {
+          "name": "visual-timer"
+        },
+        {
+          "name": "weather"
+        }
+      ],
+      "resolvedSkills": [
+        {
+          "name": "bluebubbles",
+          "description": "Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).",
+          "filePath": "/home/liam/clawdbot/skills/bluebubbles/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/bluebubbles",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "gog",
+          "description": "Google Workspace CLI for Gmail, Calendar, Drive, Contacts, Sheets, and Docs.",
+          "filePath": "/home/liam/clawdbot/skills/gog/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/gog",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github",
+          "description": "Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.",
+          "filePath": "/home/liam/clawdbot/skills/github/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github-monitor",
+          "description": "Proactively monitor GitHub activity for Pastorsimon1798, including notifications, PRs, and issues. Use when Liam needs to give Simon a daily digest or urgent alerts about his code repositories.",
+          "filePath": "/home/liam/clawdbot/skills/github-monitor/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github-monitor",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "kroko-voice",
+          "description": "Ultra-low latency (<2s) local speech-to-text using Kroko.AI. Optimized for neurodivergent quick-capture and real-time transcription on WSL2.",
+          "filePath": "/home/liam/clawdbot/skills/kroko-voice/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/kroko-voice",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "notion",
+          "description": "Notion API for creating and managing pages, databases, and blocks.",
+          "filePath": "/home/liam/clawdbot/skills/notion/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/notion",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "para-tasks",
+          "description": "Manage tasks and projects using the PARA method (Projects, Areas, Resources, Archives). Optimized for neurodivergent focus with micro-steps, start/due dates, and proactive surfacing.",
+          "filePath": "/home/liam/clawdbot/skills/para-tasks/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/para-tasks",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "skill-creator",
+          "description": "Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.",
+          "filePath": "/home/liam/clawdbot/skills/skill-creator/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/skill-creator",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "slack",
+          "description": "Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.",
+          "filePath": "/home/liam/clawdbot/skills/slack/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/slack",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "tmux",
+          "description": "Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.",
+          "filePath": "/home/liam/clawdbot/skills/tmux/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/tmux",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "visual-timer",
+          "description": "Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.",
+          "filePath": "/home/liam/clawdbot/skills/visual-timer/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/visual-timer",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "weather",
+          "description": "Get current weather and forecasts (no API key required).",
+          "filePath": "/home/liam/clawdbot/skills/weather/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/weather",
+          "source": "clawdbot-bundled"
+        }
+      ],
+      "version": 0
+    },
+    "modelProvider": "zai",
+    "inputTokens": 4466,
+    "outputTokens": 439,
+    "totalTokens": 26237
+  },
+  "agent:main:main": {
+    "origin": {
+      "label": "Simon id:886031571",
+      "provider": "telegram",
+      "surface": "telegram",
+      "chatType": "direct",
+      "from": "telegram:886031571",
+      "to": "telegram:886031571",
+      "accountId": "default",
+      "threadId": "1769386216.470969"
+    },
+    "sessionId": "6b316693-db94-40b2-b88f-09932e27ff26",
+    "updatedAt": 1769409664178,
+    "deliveryContext": {
+      "channel": "telegram",
+      "to": "telegram:886031571",
+      "accountId": "default"
+    },
+    "lastChannel": "telegram",
+    "lastTo": "telegram:886031571",
+    "lastAccountId": "default",
+    "systemSent": true,
+    "abortedLastRun": false,
+    "chatType": "direct",
+    "sessionFile": "/home/liam/.clawdbot/agents/main/sessions/6b316693-db94-40b2-b88f-09932e27ff26.jsonl",
+    "skillsSnapshot": {
+      "prompt": "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\n\n<available_skills>\n  <skill>\n    <name>bluebubbles</name>\n    <description>Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).</description>\n    <location>/home/liam/clawdbot/skills/bluebubbles/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>gog</name>\n    <description>Google Workspace CLI for Gmail, Calendar, Drive, Contacts, Sheets, and Docs.</description>\n    <location>/home/liam/clawdbot/skills/gog/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github</name>\n    <description>Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.</description>\n    <location>/home/liam/clawdbot/skills/github/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github-monitor</name>\n    <description>Proactively monitor GitHub activity for Pastorsimon1798, including notifications, PRs, and issues. Use when Liam needs to give Simon a daily digest or urgent alerts about his code repositories.</description>\n    <location>/home/liam/clawdbot/skills/github-monitor/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>kroko-voice</name>\n    <description>Ultra-low latency (&lt;2s) local speech-to-text using Kroko.AI. Optimized for neurodivergent quick-capture and real-time transcription on WSL2.</description>\n    <location>/home/liam/clawdbot/skills/kroko-voice/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>notion</name>\n    <description>Notion API for creating and managing pages, databases, and blocks.</description>\n    <location>/home/liam/clawdbot/skills/notion/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>para-tasks</name>\n    <description>Manage tasks and projects using the PARA method (Projects, Areas, Resources, Archives). Optimized for neurodivergent focus with micro-steps, start/due dates, and proactive surfacing.</description>\n    <location>/home/liam/clawdbot/skills/para-tasks/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>skill-creator</name>\n    <description>Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.</description>\n    <location>/home/liam/clawdbot/skills/skill-creator/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>slack</name>\n    <description>Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.</description>\n    <location>/home/liam/clawdbot/skills/slack/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>tmux</name>\n    <description>Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.</description>\n    <location>/home/liam/clawdbot/skills/tmux/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>visual-timer</name>\n    <description>Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.</description>\n    <location>/home/liam/clawdbot/skills/visual-timer/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>weather</name>\n    <description>Get current weather and forecasts (no API key required).</description>\n    <location>/home/liam/clawdbot/skills/weather/SKILL.md</location>\n  </skill>\n</available_skills>",
+      "skills": [
+        {
+          "name": "bluebubbles"
+        },
+        {
+          "name": "gog"
+        },
+        {
+          "name": "github"
+        },
+        {
+          "name": "github-monitor"
+        },
+        {
+          "name": "kroko-voice"
+        },
+        {
+          "name": "notion"
+        },
+        {
+          "name": "para-tasks"
+        },
+        {
+          "name": "skill-creator"
+        },
+        {
+          "name": "slack"
+        },
+        {
+          "name": "tmux"
+        },
+        {
+          "name": "visual-timer"
+        },
+        {
+          "name": "weather"
+        }
+      ],
+      "resolvedSkills": [
+        {
+          "name": "bluebubbles",
+          "description": "Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).",
+          "filePath": "/home/liam/clawdbot/skills/bluebubbles/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/bluebubbles",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "gog",
+          "description": "Google Workspace CLI for Gmail, Calendar, Drive, Contacts, Sheets, and Docs.",
+          "filePath": "/home/liam/clawdbot/skills/gog/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/gog",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github",
+          "description": "Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.",
+          "filePath": "/home/liam/clawdbot/skills/github/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github-monitor",
+          "description": "Proactively monitor GitHub activity for Pastorsimon1798, including notifications, PRs, and issues. Use when Liam needs to give Simon a daily digest or urgent alerts about his code repositories.",
+          "filePath": "/home/liam/clawdbot/skills/github-monitor/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github-monitor",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "kroko-voice",
+          "description": "Ultra-low latency (<2s) local speech-to-text using Kroko.AI. Optimized for neurodivergent quick-capture and real-time transcription on WSL2.",
+          "filePath": "/home/liam/clawdbot/skills/kroko-voice/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/kroko-voice",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "notion",
+          "description": "Notion API for creating and managing pages, databases, and blocks.",
+          "filePath": "/home/liam/clawdbot/skills/notion/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/notion",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "para-tasks",
+          "description": "Manage tasks and projects using the PARA method (Projects, Areas, Resources, Archives). Optimized for neurodivergent focus with micro-steps, start/due dates, and proactive surfacing.",
+          "filePath": "/home/liam/clawdbot/skills/para-tasks/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/para-tasks",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "skill-creator",
+          "description": "Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.",
+          "filePath": "/home/liam/clawdbot/skills/skill-creator/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/skill-creator",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "slack",
+          "description": "Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.",
+          "filePath": "/home/liam/clawdbot/skills/slack/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/slack",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "tmux",
+          "description": "Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.",
+          "filePath": "/home/liam/clawdbot/skills/tmux/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/tmux",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "visual-timer",
+          "description": "Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.",
+          "filePath": "/home/liam/clawdbot/skills/visual-timer/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/visual-timer",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "weather",
+          "description": "Get current weather and forecasts (no API key required).",
+          "filePath": "/home/liam/clawdbot/skills/weather/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/weather",
+          "source": "clawdbot-bundled"
+        }
+      ],
+      "version": 0
+    },
+    "inputTokens": 7,
+    "outputTokens": 315,
+    "totalTokens": 85548,
+    "modelProvider": "zai",
+    "model": "glm-4.7",
+    "contextTokens": 204800,
+    "systemPromptReport": {
+      "source": "run",
+      "generatedAt": 1769409490161,
+      "sessionId": "6b316693-db94-40b2-b88f-09932e27ff26",
+      "sessionKey": "agent:main:main",
+      "provider": "zai",
+      "model": "glm-4.7",
+      "workspaceDir": "/home/liam/clawd",
+      "bootstrapMaxChars": 20000,
+      "sandbox": {
+        "mode": "off",
+        "sandboxed": false
+      },
+      "systemPrompt": {
+        "chars": 42735,
+        "projectContextChars": 31154,
+        "nonProjectContextChars": 11581
+      },
+      "injectedWorkspaceFiles": [
+        {
+          "name": "AGENTS.md",
+          "path": "/home/liam/clawd/AGENTS.md",
+          "missing": false,
+          "rawChars": 10628,
+          "injectedChars": 10628,
+          "truncated": false
+        },
+        {
+          "name": "SOUL.md",
+          "path": "/home/liam/clawd/SOUL.md",
+          "missing": false,
+          "rawChars": 10572,
+          "injectedChars": 10572,
+          "truncated": false
+        },
+        {
+          "name": "TOOLS.md",
+          "path": "/home/liam/clawd/TOOLS.md",
+          "missing": false,
+          "rawChars": 763,
+          "injectedChars": 763,
+          "truncated": false
+        },
+        {
+          "name": "IDENTITY.md",
+          "path": "/home/liam/clawd/IDENTITY.md",
+          "missing": false,
+          "rawChars": 2958,
+          "injectedChars": 2958,
+          "truncated": false
+        },
+        {
+          "name": "USER.md",
+          "path": "/home/liam/clawd/USER.md",
+          "missing": false,
+          "rawChars": 478,
+          "injectedChars": 478,
+          "truncated": false
+        },
+        {
+          "name": "HEARTBEAT.md",
+          "path": "/home/liam/clawd/HEARTBEAT.md",
+          "missing": false,
+          "rawChars": 5379,
+          "injectedChars": 5379,
+          "truncated": false
+        },
+        {
+          "name": "BOOTSTRAP.md",
+          "path": "/home/liam/clawd/BOOTSTRAP.md",
+          "missing": true,
+          "rawChars": 0,
+          "injectedChars": 52,
+          "truncated": false
+        }
+      ],
+      "skills": {
+        "promptChars": 3521,
+        "entries": [
+          {
+            "name": "bluebubbles",
+            "blockChars": 275
+          },
+          {
+            "name": "gog",
+            "blockChars": 212
+          },
+          {
+            "name": "github",
+            "blockChars": 278
+          },
+          {
+            "name": "github-monitor",
+            "blockChars": 351
+          },
+          {
+            "name": "kroko-voice",
+            "blockChars": 295
+          },
+          {
+            "name": "notion",
+            "blockChars": 208
+          },
+          {
+            "name": "para-tasks",
+            "blockChars": 332
+          },
+          {
+            "name": "skill-creator",
+            "blockChars": 276
+          },
+          {
+            "name": "slack",
+            "blockChars": 292
+          },
+          {
+            "name": "tmux",
+            "blockChars": 235
+          },
+          {
+            "name": "visual-timer",
+            "blockChars": 338
+          },
+          {
+            "name": "weather",
+            "blockChars": 200
+          }
+        ]
+      },
+      "tools": {
+        "listChars": 2073,
+        "schemaChars": 14547,
+        "entries": [
+          {
+            "name": "read",
+            "summaryChars": 232,
+            "schemaChars": 398,
+            "propertiesCount": 4
+          },
+          {
+            "name": "edit",
+            "summaryChars": 129,
+            "schemaChars": 617,
+            "propertiesCount": 6
+          },
+          {
+            "name": "write",
+            "summaryChars": 127,
+            "schemaChars": 313,
+            "propertiesCount": 3
+          },
+          {
+            "name": "exec",
+            "summaryChars": 181,
+            "schemaChars": 1037,
+            "propertiesCount": 12
+          },
+          {
+            "name": "process",
+            "summaryChars": 85,
+            "schemaChars": 844,
+            "propertiesCount": 11
+          },
+          {
+            "name": "browser",
+            "summaryChars": 1343,
+            "schemaChars": 1909,
+            "propertiesCount": 29
+          },
+          {
+            "name": "canvas",
+            "summaryChars": 106,
+            "schemaChars": 661,
+            "propertiesCount": 18
+          },
+          {
+            "name": "nodes",
+            "summaryChars": 94,
+            "schemaChars": 1399,
+            "propertiesCount": 31
+          },
+          {
+            "name": "cron",
+            "summaryChars": 1959,
+            "schemaChars": 530,
+            "propertiesCount": 12
+          },
+          {
+            "name": "message",
+            "summaryChars": 112,
+            "schemaChars": 3100,
+            "propertiesCount": 77
+          },
+          {
+            "name": "tts",
+            "summaryChars": 129,
+            "schemaChars": 223,
+            "propertiesCount": 2
+          },
+          {
+            "name": "gateway",
+            "summaryChars": 225,
+            "schemaChars": 465,
+            "propertiesCount": 11
+          },
+          {
+            "name": "agents_list",
+            "summaryChars": 72,
+            "schemaChars": 33,
+            "propertiesCount": 0
+          },
+          {
+            "name": "sessions_list",
+            "summaryChars": 54,
+            "schemaChars": 176,
+            "propertiesCount": 4
+          },
+          {
+            "name": "sessions_history",
+            "summaryChars": 36,
+            "schemaChars": 149,
+            "propertiesCount": 3
+          },
+          {
+            "name": "sessions_send",
+            "summaryChars": 84,
+            "schemaChars": 203,
+            "propertiesCount": 5
+          },
+          {
+            "name": "sessions_spawn",
+            "summaryChars": 107,
+            "schemaChars": 312,
+            "propertiesCount": 8
+          },
+          {
+            "name": "session_status",
+            "summaryChars": 207,
+            "schemaChars": 89,
+            "propertiesCount": 2
+          },
+          {
+            "name": "web_search",
+            "summaryChars": 175,
+            "schemaChars": 733,
+            "propertiesCount": 6
+          },
+          {
+            "name": "web_fetch",
+            "summaryChars": 129,
+            "schemaChars": 360,
+            "propertiesCount": 3
+          },
+          {
+            "name": "llm-task",
+            "summaryChars": 134,
+            "schemaChars": 729,
+            "propertiesCount": 9
+          },
+          {
+            "name": "memory_search",
+            "summaryChars": 235,
+            "schemaChars": 139,
+            "propertiesCount": 3
+          },
+          {
+            "name": "memory_get",
+            "summaryChars": 151,
+            "schemaChars": 128,
+            "propertiesCount": 3
+          }
+        ]
+      }
+    },
+    "lastHeartbeatText": "- Calendar research reply (marked IMPORTANT) - from you, review when ready",
+    "lastHeartbeatSentAt": 1769389832086,
+    "compactionCount": 1
+  },
+  "agent:main:main:thread:1769386216.470969": {
+    "origin": {
+      "label": "Simon Gonzalez De Cruz",
+      "provider": "slack",
+      "surface": "slack",
+      "chatType": "direct",
+      "from": "slack:U09UU9ZG49G",
+      "to": "user:U09UU9ZG49G",
+      "accountId": "default",
+      "threadId": "1769386216.470969"
+    },
+    "sessionId": "5ff28ac9-a8f1-4a41-a6f1-62f56eda6ff0",
+    "updatedAt": 1769388031747,
+    "systemSent": true,
+    "abortedLastRun": false,
+    "displayName": "Slack thread #D0AAL995ZEF: Added to Evolution Queue: *[2026-01-25-018] Edison Learning Operations Job Oppor",
+    "chatType": "direct",
+    "deliveryContext": {
+      "channel": "slack",
+      "to": "user:U09UU9ZG49G",
+      "accountId": "default",
+      "threadId": "1769386216.470969"
+    },
+    "lastChannel": "slack",
+    "lastTo": "user:U09UU9ZG49G",
+    "lastAccountId": "default",
+    "lastThreadId": "1769386216.470969",
+    "sessionFile": "/home/liam/.clawdbot/agents/main/sessions/5ff28ac9-a8f1-4a41-a6f1-62f56eda6ff0-topic-1769386216.470969.jsonl",
+    "skillsSnapshot": {
+      "prompt": "\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\n\n<available_skills>\n  <skill>\n    <name>bluebubbles</name>\n    <description>Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).</description>\n    <location>/home/liam/clawdbot/skills/bluebubbles/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>gog</name>\n    <description>Google Workspace CLI for Gmail, Calendar, Drive, Contacts, Sheets, and Docs.</description>\n    <location>/home/liam/clawdbot/skills/gog/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github</name>\n    <description>Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.</description>\n    <location>/home/liam/clawdbot/skills/github/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>github-monitor</name>\n    <description>Proactively monitor GitHub activity for Pastorsimon1798, including notifications, PRs, and issues. Use when Liam needs to give Simon a daily digest or urgent alerts about his code repositories.</description>\n    <location>/home/liam/clawdbot/skills/github-monitor/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>kroko-voice</name>\n    <description>Ultra-low latency (&lt;2s) local speech-to-text using Kroko.AI. Optimized for neurodivergent quick-capture and real-time transcription on WSL2.</description>\n    <location>/home/liam/clawdbot/skills/kroko-voice/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>notion</name>\n    <description>Notion API for creating and managing pages, databases, and blocks.</description>\n    <location>/home/liam/clawdbot/skills/notion/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>para-tasks</name>\n    <description>Manage tasks and projects using the PARA method (Projects, Areas, Resources, Archives). Optimized for neurodivergent focus with micro-steps, start/due dates, and proactive surfacing.</description>\n    <location>/home/liam/clawdbot/skills/para-tasks/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>skill-creator</name>\n    <description>Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.</description>\n    <location>/home/liam/clawdbot/skills/skill-creator/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>slack</name>\n    <description>Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.</description>\n    <location>/home/liam/clawdbot/skills/slack/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>tmux</name>\n    <description>Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.</description>\n    <location>/home/liam/clawdbot/skills/tmux/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>visual-timer</name>\n    <description>Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.</description>\n    <location>/home/liam/clawdbot/skills/visual-timer/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>weather</name>\n    <description>Get current weather and forecasts (no API key required).</description>\n    <location>/home/liam/clawdbot/skills/weather/SKILL.md</location>\n  </skill>\n</available_skills>",
+      "skills": [
+        {
+          "name": "bluebubbles"
+        },
+        {
+          "name": "gog"
+        },
+        {
+          "name": "github"
+        },
+        {
+          "name": "github-monitor"
+        },
+        {
+          "name": "kroko-voice"
+        },
+        {
+          "name": "notion"
+        },
+        {
+          "name": "para-tasks"
+        },
+        {
+          "name": "skill-creator"
+        },
+        {
+          "name": "slack"
+        },
+        {
+          "name": "tmux"
+        },
+        {
+          "name": "visual-timer"
+        },
+        {
+          "name": "weather"
+        }
+      ],
+      "resolvedSkills": [
+        {
+          "name": "bluebubbles",
+          "description": "Build or update the BlueBubbles external channel plugin for Clawdbot (extension package, REST send/probe, webhook inbound).",
+          "filePath": "/home/liam/clawdbot/skills/bluebubbles/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/bluebubbles",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "gog",
+          "description": "Google Workspace CLI for Gmail, Calendar, Drive, Contacts, Sheets, and Docs.",
+          "filePath": "/home/liam/clawdbot/skills/gog/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/gog",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github",
+          "description": "Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.",
+          "filePath": "/home/liam/clawdbot/skills/github/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "github-monitor",
+          "description": "Proactively monitor GitHub activity for Pastorsimon1798, including notifications, PRs, and issues. Use when Liam needs to give Simon a daily digest or urgent alerts about his code repositories.",
+          "filePath": "/home/liam/clawdbot/skills/github-monitor/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/github-monitor",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "kroko-voice",
+          "description": "Ultra-low latency (<2s) local speech-to-text using Kroko.AI. Optimized for neurodivergent quick-capture and real-time transcription on WSL2.",
+          "filePath": "/home/liam/clawdbot/skills/kroko-voice/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/kroko-voice",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "notion",
+          "description": "Notion API for creating and managing pages, databases, and blocks.",
+          "filePath": "/home/liam/clawdbot/skills/notion/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/notion",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "para-tasks",
+          "description": "Manage tasks and projects using the PARA method (Projects, Areas, Resources, Archives). Optimized for neurodivergent focus with micro-steps, start/due dates, and proactive surfacing.",
+          "filePath": "/home/liam/clawdbot/skills/para-tasks/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/para-tasks",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "skill-creator",
+          "description": "Create or update AgentSkills. Use when designing, structuring, or packaging skills with scripts, references, and assets.",
+          "filePath": "/home/liam/clawdbot/skills/skill-creator/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/skill-creator",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "slack",
+          "description": "Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.",
+          "filePath": "/home/liam/clawdbot/skills/slack/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/slack",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "tmux",
+          "description": "Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.",
+          "filePath": "/home/liam/clawdbot/skills/tmux/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/tmux",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "visual-timer",
+          "description": "Set visual timers and reminders via Slack to help with time blindness and deep work. Use when Simon needs to track time for a task or wants a proactive nudge after a specific duration.",
+          "filePath": "/home/liam/clawdbot/skills/visual-timer/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/visual-timer",
+          "source": "clawdbot-bundled"
+        },
+        {
+          "name": "weather",
+          "description": "Get current weather and forecasts (no API key required).",
+          "filePath": "/home/liam/clawdbot/skills/weather/SKILL.md",
+          "baseDir": "/home/liam/clawdbot/skills/weather",
+          "source": "clawdbot-bundled"
+        }
+      ],
+      "version": 0
+    },
+    "inputTokens": 4096,
+    "outputTokens": 1951,
+    "totalTokens": 4096,
+    "modelProvider": "ollama",
+    "model": "glm-4.7-flash",
+    "contextTokens": 131072,
+    "systemPromptReport": {
+      "source": "run",
+      "generatedAt": 1769387969082,
+      "sessionId": "5ff28ac9-a8f1-4a41-a6f1-62f56eda6ff0",
+      "sessionKey": "agent:main:main:thread:1769386216.470969",
+      "provider": "ollama",
+      "model": "glm-4.7-flash",
+      "workspaceDir": "/home/liam/clawd",
+      "bootstrapMaxChars": 20000,
+      "sandbox": {
+        "mode": "off",
+        "sandboxed": false
+      },
+      "systemPrompt": {
+        "chars": 50726,
+        "projectContextChars": 38974,
+        "nonProjectContextChars": 11752
+      },
+      "injectedWorkspaceFiles": [
+        {
+          "name": "AGENTS.md",
+          "path": "/home/liam/clawd/AGENTS.md",
+          "missing": false,
+          "rawChars": 10628,
+          "injectedChars": 10628,
+          "truncated": false
+        },
+        {
+          "name": "SOUL.md",
+          "path": "/home/liam/clawd/SOUL.md",
+          "missing": false,
+          "rawChars": 10572,
+          "injectedChars": 10572,
+          "truncated": false
+        },
+        {
+          "name": "TOOLS.md",
+          "path": "/home/liam/clawd/TOOLS.md",
+          "missing": false,
+          "rawChars": 763,
+          "injectedChars": 763,
+          "truncated": false
+        },
+        {
+          "name": "IDENTITY.md",
+          "path": "/home/liam/clawd/IDENTITY.md",
+          "missing": false,
+          "rawChars": 2958,
+          "injectedChars": 2958,
+          "truncated": false
+        },
+        {
+          "name": "USER.md",
+          "path": "/home/liam/clawd/USER.md",
+          "missing": false,
+          "rawChars": 8298,
+          "injectedChars": 8298,
+          "truncated": false
+        },
+        {
+          "name": "HEARTBEAT.md",
+          "path": "/home/liam/clawd/HEARTBEAT.md",
+          "missing": false,
+          "rawChars": 5379,
+          "injectedChars": 5379,
+          "truncated": false
+        },
+        {
+          "name": "BOOTSTRAP.md",
+          "path": "/home/liam/clawd/BOOTSTRAP.md",
+          "missing": true,
+          "rawChars": 0,
+          "injectedChars": 52,
+          "truncated": false
+        }
+      ],
+      "skills": {
+        "promptChars": 3521,
+        "entries": [
+          {
+            "name": "bluebubbles",
+            "blockChars": 275
+          },
+          {
+            "name": "gog",
+            "blockChars": 212
+          },
+          {
+            "name": "github",
+            "blockChars": 278
+          },
+          {
+            "name": "github-monitor",
+            "blockChars": 351
+          },
+          {
+            "name": "kroko-voice",
+            "blockChars": 295
+          },
+          {
+            "name": "notion",
+            "blockChars": 208
+          },
+          {
+            "name": "para-tasks",
+            "blockChars": 332
+          },
+          {
+            "name": "skill-creator",
+            "blockChars": 276
+          },
+          {
+            "name": "slack",
+            "blockChars": 292
+          },
+          {
+            "name": "tmux",
+            "blockChars": 235
+          },
+          {
+            "name": "visual-timer",
+            "blockChars": 338
+          },
+          {
+            "name": "weather",
+            "blockChars": 200
+          }
+        ]
+      },
+      "tools": {
+        "listChars": 2073,
+        "schemaChars": 14626,
+        "entries": [
+          {
+            "name": "read",
+            "summaryChars": 232,
+            "schemaChars": 398,
+            "propertiesCount": 4
+          },
+          {
+            "name": "edit",
+            "summaryChars": 129,
+            "schemaChars": 617,
+            "propertiesCount": 6
+          },
+          {
+            "name": "write",
+            "summaryChars": 127,
+            "schemaChars": 313,
+            "propertiesCount": 3
+          },
+          {
+            "name": "exec",
+            "summaryChars": 181,
+            "schemaChars": 1037,
+            "propertiesCount": 12
+          },
+          {
+            "name": "process",
+            "summaryChars": 85,
+            "schemaChars": 844,
+            "propertiesCount": 11
+          },
+          {
+            "name": "browser",
+            "summaryChars": 1343,
+            "schemaChars": 1909,
+            "propertiesCount": 29
+          },
+          {
+            "name": "canvas",
+            "summaryChars": 106,
+            "schemaChars": 661,
+            "propertiesCount": 18
+          },
+          {
+            "name": "nodes",
+            "summaryChars": 94,
+            "schemaChars": 1399,
+            "propertiesCount": 31
+          },
+          {
+            "name": "cron",
+            "summaryChars": 246,
+            "schemaChars": 530,
+            "propertiesCount": 12
+          },
+          {
+            "name": "message",
+            "summaryChars": 180,
+            "schemaChars": 3179,
+            "propertiesCount": 77
+          },
+          {
+            "name": "tts",
+            "summaryChars": 129,
+            "schemaChars": 223,
+            "propertiesCount": 2
+          },
+          {
+            "name": "gateway",
+            "summaryChars": 225,
+            "schemaChars": 465,
+            "propertiesCount": 11
+          },
+          {
+            "name": "agents_list",
+            "summaryChars": 72,
+            "schemaChars": 33,
+            "propertiesCount": 0
+          },
+          {
+            "name": "sessions_list",
+            "summaryChars": 54,
+            "schemaChars": 176,
+            "propertiesCount": 4
+          },
+          {
+            "name": "sessions_history",
+            "summaryChars": 36,
+            "schemaChars": 149,
+            "propertiesCount": 3
+          },
+          {
+            "name": "sessions_send",
+            "summaryChars": 84,
+            "schemaChars": 203,
+            "propertiesCount": 5
+          },
+          {
+            "name": "sessions_spawn",
+            "summaryChars": 107,
+            "schemaChars": 312,
+            "propertiesCount": 8
+          },
+          {
+            "name": "session_status",
+            "summaryChars": 207,
+            "schemaChars": 89,
+            "propertiesCount": 2
+          },
+          {
+            "name": "web_search",
+            "summaryChars": 175,
+            "schemaChars": 733,
+            "propertiesCount": 6
+          },
+          {
+            "name": "web_fetch",
+            "summaryChars": 129,
+            "schemaChars": 360,
+            "propertiesCount": 3
+          },
+          {
+            "name": "llm-task",
+            "summaryChars": 134,
+            "schemaChars": 729,
+            "propertiesCount": 9
+          },
+          {
+            "name": "memory_search",
+            "summaryChars": 235,
+            "schemaChars": 139,
+            "propertiesCount": 3
+          },
+          {
+            "name": "memory_get",
+            "summaryChars": 151,
+            "schemaChars": 128,
+            "propertiesCount": 3
+          }
+        ]
+      }
+    }
+  },
+  "agent:main:slack:channel:d0aal995zef": {
+    "chatType": "channel",
+    "channel": "slack",
+    "groupId": "d0aal995zef",
+    "displayName": "slack:g-d0aal995zef",
+    "origin": {
+      "label": "slack:channel:D0AAL995ZEF",
+      "provider": "slack",
+      "surface": "slack",
+      "chatType": "channel",
+      "from": "slack:channel:D0AAL995ZEF",
+      "to": "channel:D0AAL995ZEF",
+      "accountId": "default"
+    },
+    "sessionId": "66cb7ded-935c-4355-bd3f-cf34279f6320",
+    "updatedAt": 1769396141640,
+    "deliveryContext": {
+      "channel": "slack"
+    },
+    "lastChannel": "slack",
+    "sessionFile": "/home/liam/.clawdbot/agents/main/sessions/66cb7ded-935c-4355-bd3f-cf34279f6320.jsonl"
+  }
+}
