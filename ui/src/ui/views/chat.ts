@@ -15,6 +15,7 @@ import {
 } from "../chat/grouped-render";
 import { renderMarkdownSidebar } from "./markdown-sidebar";
 import "../components/resizable-divider";
+import "../components/button";
 
 export type CompactionIndicatorStatus = {
   active: boolean;
@@ -218,14 +219,15 @@ export function renderChat(props: ChatProps) {
                   (item) => html`
                     <div class="chat-queue__item">
                       <div class="chat-queue__text">${item.text}</div>
-                      <button
-                        class="btn chat-queue__remove"
+                      <ui-button
+                        size="sm"
+                        variant="ghost"
                         type="button"
                         aria-label="Remove queued message"
                         @click=${() => props.onQueueRemove(item.id)}
                       >
                         ${icons.x}
-                      </button>
+                      </ui-button>
                     </div>
                   `,
                 )}
@@ -254,20 +256,20 @@ export function renderChat(props: ChatProps) {
           ></textarea>
         </label>
         <div class="chat-compose__actions">
-          <button
-            class="btn"
+          <ui-button
+            variant="secondary"
             ?disabled=${!props.connected || (!canAbort && props.sending)}
             @click=${canAbort ? props.onAbort : props.onNewSession}
           >
             ${canAbort ? "Stop" : "New session"}
-          </button>
-          <button
-            class="btn primary"
+          </ui-button>
+          <ui-button
+            variant="primary"
             ?disabled=${!props.connected}
             @click=${props.onSend}
           >
             ${isBusy ? "Queue" : "Send"}<kbd class="btn-kbd">↵</kbd>
-          </button>
+          </ui-button>
         </div>
       </div>
     </section>
