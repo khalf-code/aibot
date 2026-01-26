@@ -27,6 +27,8 @@ export {
   isRawApiErrorPayload,
   isRateLimitAssistantError,
   isRateLimitErrorMessage,
+  isRetryableUnknownAssistantError,
+  isRetryableUnknownError,
   isTimeoutErrorMessage,
   parseImageDimensionError,
 } from "./pi-embedded-helpers/errors.js";

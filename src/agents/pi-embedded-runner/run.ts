@@ -34,6 +34,7 @@ import {
   isContextOverflowError,
   isFailoverAssistantError,
   isFailoverErrorMessage,
+  isRetryableUnknownAssistantError,
   parseImageDimensionError,
   isRateLimitAssistantError,
   isTimeoutErrorMessage,
@@ -135,7 +136,9 @@ export async function runEmbeddedPiAgent(
         );
       }
 
-      const authStore = ensureAuthProfileStore(agentDir, { allowKeychainPrompt: false });
+      const authStore = ensureAuthProfileStore(agentDir, {
+        allowKeychainPrompt: false,
+      });
       const preferredProfileId = params.authProfileId?.trim();
       let lockedProfileId = params.authProfileIdSource === "user" ? preferredProfileId : undefined;
       if (lockedProfileId) {
@@ -292,6 +295,8 @@ export async function runEmbeddedPiAgent(
       }
 
       let overflowCompactionAttempted = false;
+      let unknownErrorRetries = 0;
+      const MAX_UNKNOWN_ERROR_RETRIES = 2;
       try {
         while (true) {
           attemptedThinking.add(thinkLevel);
@@ -579,6 +584,22 @@ export async function runEmbeddedPiAgent(
                 status,
               });
             }
+          }
+
+          // Retry transient "unknown error" responses from providers (e.g. OpenAI response.failed)
+          // These are often caused by temporary service issues and may succeed on retry.
+          if (
+            !aborted &&
+            isRetryableUnknownAssistantError(lastAssistant) &&
+            unknownErrorRetries < MAX_UNKNOWN_ERROR_RETRIES
+          ) {
+            unknownErrorRetries++;
+            const delayMs = 1000 * unknownErrorRetries; // 1s, 2s backoff
+            log.warn(
+              `Unknown error from ${provider}/${modelId}, retry ${unknownErrorRetries}/${MAX_UNKNOWN_ERROR_RETRIES} in ${delayMs}ms`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            continue;
           }
 
           const usage = normalizeUsage(lastAssistant?.usage as UsageLike);

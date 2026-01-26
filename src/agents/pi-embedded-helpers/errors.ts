@@ -495,3 +495,30 @@ export function isFailoverAssistantError(msg: AssistantMessage | undefined): boo
   if (!msg || msg.stopReason !== "error") return false;
   return isFailoverErrorMessage(msg.errorMessage ?? "");
 }
+
+/**
+ * Detects generic "unknown error" messages that may be transient and worth retrying.
+ * These typically come from providers that don't surface the real error message.
+ */
+export function isRetryableUnknownError(errorMessage?: string): boolean {
+  if (!errorMessage) return false;
+  const lower = errorMessage.toLowerCase().trim();
+  // Don't retry if it's a known/classified error type
+  if (classifyFailoverReason(errorMessage)) return false;
+  if (isContextOverflowError(errorMessage)) return false;
+  if (isImageDimensionErrorMessage(errorMessage)) return false;
+  // Match generic unknown error patterns from pi-mono providers
+  return (
+    lower === "unknown error" ||
+    lower === "an unknown error occurred" ||
+    lower === "an unkown error ocurred" || // typo variant
+    lower === "response failed" ||
+    lower.startsWith("unknown error") ||
+    /^an?\s+unkn?own\s+error/i.test(lower)
+  );
+}
+
+export function isRetryableUnknownAssistantError(msg: AssistantMessage | undefined): boolean {
+  if (!msg || msg.stopReason !== "error") return false;
+  return isRetryableUnknownError(msg.errorMessage);
+}
