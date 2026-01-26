@@ -6,6 +6,9 @@
 import { html, nothing } from "lit";
 import { icon, type IconName } from "../icons";
 import type { Tab } from "../navigation";
+import { filterByFuzzy } from "./fuzzy-search";
+import { getRecentCommandIds, recordCommandUsage } from "./command-history";
+import { getFavoriteIds, isFavorite, toggleFavorite } from "./command-favorites";
 
 export type Command = {
   id: string;
@@ -20,6 +23,8 @@ export type CommandPaletteState = {
   open: boolean;
   query: string;
   selectedIndex: number;
+  /** Active category filter ("All" shows everything). */
+  activeCategory: string;
 };
 
 export type CommandPaletteProps = {
@@ -28,99 +33,55 @@ export type CommandPaletteProps = {
   onClose: () => void;
   onQueryChange: (query: string) => void;
   onIndexChange: (index: number) => void;
+  onCategoryChange: (category: string) => void;
   onSelect: (command: Command) => void;
+  /** Called after a favorite is toggled so the parent can trigger re-render. */
+  onFavoritesChange?: () => void;
 };
 
-function fuzzyScorePart(query: string, text: string): number {
-  const q = query.trim().toLowerCase();
-  const t = text.trim().toLowerCase();
-
-  if (!q) return 0;
-  if (!t) return 0;
-
-  if (t === q) return 1000;
-  if (t.startsWith(q)) return 700;
-
-  const containsAt = t.indexOf(q);
-  if (containsAt !== -1) {
-    // Prefer matches closer to the beginning.
-    return 500 - Math.min(containsAt * 5, 250);
-  }
-
-  // Fuzzy character match (in-order). Scores consecutive matches higher.
-  let score = 0;
-  let qIndex = 0;
-  let consecutive = 0;
-
-  for (let i = 0; i < t.length && qIndex < q.length; i++) {
-    if (t[i] === q[qIndex]) {
-      const isWordBoundary =
-        i === 0 ||
-        t[i - 1] === " " ||
-        t[i - 1] === "-" ||
-        t[i - 1] === "_" ||
-        t[i - 1] === "/";
-
-      score += 12 + consecutive * 6 + (isWordBoundary ? 10 : 0);
-      consecutive++;
-      qIndex++;
-    } else {
-      consecutive = 0;
-    }
-  }
-
-  // Must match all query characters.
-  if (qIndex < q.length) return 0;
-
-  // Prefer shorter strings when scores are otherwise similar.
-  return score - Math.min(t.length, 100) * 0.25;
-}
-
-function scoreCommand(cmd: Command, query: string): number {
-  const parts = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (parts.length === 0) return 0;
-
-  let total = 0;
-  for (const part of parts) {
-    const labelScore = fuzzyScorePart(part, cmd.label);
-    const categoryScore = cmd.category ? fuzzyScorePart(part, cmd.category) * 0.8 : 0;
-    const idScore = fuzzyScorePart(part, cmd.id) * 0.3;
-
-    const best = Math.max(labelScore, categoryScore, idScore);
-    if (best <= 0) return 0;
-    total += best;
-  }
-
-  return total;
-}
-
 function filterCommands(commands: Command[], query: string): Command[] {
-  if (!query.trim()) return commands;
-
-  return commands
-    .map((cmd, index) => ({ cmd, index, score: scoreCommand(cmd, query) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => {
-      const scoreDiff = b.score - a.score;
-      if (scoreDiff !== 0) return scoreDiff;
-      return a.index - b.index;
-    })
-    .map((entry) => entry.cmd);
+  return filterByFuzzy(commands, query);
 }
 
 function handlePaletteKeydown(
   e: KeyboardEvent,
   state: CommandPaletteState,
   filtered: Command[],
+  categories: string[],
   onClose: () => void,
   onSelect: (cmd: Command) => void,
-  onIndexChange: (index: number) => void
+  onIndexChange: (index: number) => void,
+  onCategoryChange: (cat: string) => void,
+  onToggleFavorite?: (cmd: Command) => void
 ) {
+  // Ctrl/Cmd + D → toggle favorite on the selected item.
+  if (e.key === "d" && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    const selected = filtered[state.selectedIndex];
+    if (selected && onToggleFavorite) onToggleFavorite(selected);
+    return;
+  }
+
+  // Tab / Shift+Tab → cycle categories.
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const idx = categories.indexOf(state.activeCategory);
+    const next = e.shiftKey
+      ? (idx - 1 + categories.length) % categories.length
+      : (idx + 1) % categories.length;
+    onCategoryChange(categories[next]);
+    onIndexChange(0);
+    return;
+  }
+
+  // Backspace on empty query → reset category to "All".
+  if (e.key === "Backspace" && !state.query && state.activeCategory !== "All") {
+    e.preventDefault();
+    onCategoryChange("All");
+    onIndexChange(0);
+    return;
+  }
+
   switch (e.key) {
     case "Escape":
       e.preventDefault();
@@ -143,40 +104,120 @@ function handlePaletteKeydown(
   }
 }
 
+/** Extract unique category names from a list of commands (preserving order). */
+function extractCategories(commands: Command[]): string[] {
+  const seen = new Set<string>();
+  const cats: string[] = [];
+  for (const cmd of commands) {
+    const cat = cmd.category ?? "Actions";
+    if (!seen.has(cat)) {
+      seen.add(cat);
+      cats.push(cat);
+    }
+  }
+  return cats;
+}
+
 export function renderCommandPalette(props: CommandPaletteProps) {
-  const { state, commands, onClose, onQueryChange, onIndexChange, onSelect } = props;
+  const { state, commands, onClose, onQueryChange, onIndexChange, onCategoryChange, onSelect, onFavoritesChange } =
+    props;
 
   if (!state.open) return nothing;
 
-  const filtered = filterCommands(commands, state.query);
+  // Category filter: "All" shows every command, otherwise only the chosen category.
+  const categoryFiltered =
+    state.activeCategory === "All"
+      ? commands
+      : commands.filter((c) => (c.category ?? "Actions") === state.activeCategory);
 
-  // Group commands by category
+  const filtered = filterCommands(categoryFiltered, state.query);
+
+  // Build the category pill list: ["All", ...unique categories from commands].
+  const allCategories = ["All", ...extractCategories(commands)];
+
+  // Build "Favorites" and "Recents" groups when the query is empty and category is "All".
+  const noQuery = !state.query.trim();
+  const showSpecialGroups = noQuery && state.activeCategory === "All";
+  const favoriteIds = showSpecialGroups ? getFavoriteIds() : [];
+  const recentIds = showSpecialGroups ? getRecentCommandIds() : [];
+  const commandById = new Map(commands.map((c) => [c.id, c]));
+
+  const favoriteCommands = favoriteIds
+    .map((id) => commandById.get(id))
+    .filter((c): c is Command => c !== undefined);
+  const favoriteIdSet = new Set(favoriteCommands.map((c) => c.id));
+
+  const recentCommands = recentIds
+    .map((id) => commandById.get(id))
+    .filter((c): c is Command => c !== undefined)
+    // Don't duplicate commands already shown in Favorites.
+    .filter((c) => !favoriteIdSet.has(c.id));
+  const recentIdSet = new Set(recentCommands.map((c) => c.id));
+
+  // IDs shown in Favorites or Recents — avoid duplicating them in the main list.
+  const shownIds = new Set([...favoriteIdSet, ...recentIdSet]);
+
+  // Group remaining commands by category.
   const grouped = new Map<string, Command[]>();
   for (const cmd of filtered) {
+    if (shownIds.has(cmd.id)) continue;
     const cat = cmd.category ?? "Actions";
     if (!grouped.has(cat)) grouped.set(cat, []);
     grouped.get(cat)!.push(cmd);
   }
 
+  // Wrap onSelect to record history.
+  const handleSelect = (cmd: Command) => {
+    recordCommandUsage(cmd.id);
+    onSelect(cmd);
+  };
+
+  // Toggle favorite handler.
+  const handleToggleFavorite = (cmd: Command) => {
+    toggleFavorite(cmd.id);
+    onFavoritesChange?.();
+  };
+
+  // Total visible items = favorites + recents + remaining grouped items.
+  const totalVisible =
+    favoriteCommands.length +
+    recentCommands.length +
+    [...grouped.values()].reduce((sum, cmds) => sum + cmds.length, 0);
+
   let globalIndex = 0;
   const renderItem = (cmd: Command) => {
     const idx = globalIndex++;
     const isSelected = idx === state.selectedIndex;
+    const starred = isFavorite(cmd.id);
     return html`
       <button
         class="command-palette__item ${isSelected ? "command-palette__item--selected" : ""}"
-        @click=${() => onSelect(cmd)}
+        @click=${() => handleSelect(cmd)}
         @mouseenter=${() => onIndexChange(idx)}
         data-index=${idx}
       >
         <span class="command-palette__item-icon">${icon(cmd.icon, { size: 16 })}</span>
         <span class="command-palette__item-label">${cmd.label}</span>
+        ${starred
+          ? html`<span
+              class="command-palette__item-fav"
+              title="Favorited (${navigator.platform?.includes("Mac") ? "⌘" : "Ctrl+"}D to toggle)"
+              @click=${(e: Event) => {
+                e.stopPropagation();
+                handleToggleFavorite(cmd);
+              }}
+              >★</span
+            >`
+          : nothing}
         ${cmd.shortcut
           ? html`<kbd class="command-palette__item-shortcut">${cmd.shortcut}</kbd>`
           : nothing}
       </button>
     `;
   };
+
+  // Flat list for keyboard navigation: favorites first, then recents, then grouped.
+  const allVisible = [...favoriteCommands, ...recentCommands, ...[...grouped.values()].flat()];
 
   return html`
     <div class="command-palette-overlay" @click=${onClose}>
@@ -193,25 +234,70 @@ export function renderCommandPalette(props: CommandPaletteProps) {
               onIndexChange(0);
             }}
             @keydown=${(e: KeyboardEvent) =>
-              handlePaletteKeydown(e, state, filtered, onClose, onSelect, onIndexChange)}
+              handlePaletteKeydown(
+                e,
+                state,
+                allVisible,
+                allCategories,
+                onClose,
+                handleSelect,
+                onIndexChange,
+                onCategoryChange,
+                handleToggleFavorite
+              )}
             autofocus
           />
           <kbd class="command-palette__kbd">ESC</kbd>
         </div>
+        <div class="command-palette__categories">
+          ${allCategories.map(
+            (cat) => html`
+              <button
+                class="command-palette__category ${cat === state.activeCategory
+                  ? "command-palette__category--active"
+                  : ""}"
+                @click=${() => {
+                  onCategoryChange(cat);
+                  onIndexChange(0);
+                }}
+              >
+                ${cat}
+              </button>
+            `
+          )}
+        </div>
         <div class="command-palette__list">
-          ${filtered.length === 0
+          ${totalVisible === 0
             ? html`<div class="command-palette__empty">
                 ${icon("search", { size: 24 })}
                 <span>No commands found</span>
               </div>`
-            : [...grouped.entries()].map(
-                ([category, cmds]) => html`
-                  <div class="command-palette__group">
-                    <div class="command-palette__group-label">${category}</div>
-                    ${cmds.map(renderItem)}
-                  </div>
-                `
-              )}
+            : html`
+                ${favoriteCommands.length > 0
+                  ? html`
+                      <div class="command-palette__group">
+                        <div class="command-palette__group-label">★ Favorites</div>
+                        ${favoriteCommands.map(renderItem)}
+                      </div>
+                    `
+                  : nothing}
+                ${recentCommands.length > 0
+                  ? html`
+                      <div class="command-palette__group">
+                        <div class="command-palette__group-label">Recents</div>
+                        ${recentCommands.map(renderItem)}
+                      </div>
+                    `
+                  : nothing}
+                ${[...grouped.entries()].map(
+                  ([category, cmds]) => html`
+                    <div class="command-palette__group">
+                      <div class="command-palette__group-label">${category}</div>
+                      ${cmds.map(renderItem)}
+                    </div>
+                  `
+                )}
+              `}
         </div>
       </div>
     </div>
@@ -248,4 +334,62 @@ export function createDefaultCommands(
     { id: "action-new-session", label: "New Chat Session", icon: "plus", shortcut: `${mod}N`, category: "Actions", action: newSession },
     { id: "theme-toggle", label: "Toggle Theme", icon: "sun", shortcut: `${mod}T`, category: "Actions", action: toggleTheme },
   ];
+}
+
+/** Callbacks available for context-aware commands. Provide only what applies. */
+export type ContextActions = {
+  newSession?: () => void;
+  clearChat?: () => void;
+  abortChat?: () => void;
+  refreshSessions?: () => void;
+  refreshChannels?: () => void;
+  addCronJob?: () => void;
+  refreshCron?: () => void;
+  createGoal?: () => void;
+  refreshOverseer?: () => void;
+  saveConfig?: () => void;
+  refreshNodes?: () => void;
+  clearLogs?: () => void;
+};
+
+/**
+ * Build commands that are only relevant for the currently active tab.
+ * Returned commands use the category "Current View" so they appear grouped.
+ */
+export function createContextCommands(tab: Tab, actions: ContextActions): Command[] {
+  const cmds: Command[] = [];
+  const cat = "Current View";
+
+  switch (tab) {
+    case "chat":
+      if (actions.newSession) cmds.push({ id: "ctx-new-session", label: "New Chat Session", icon: "plus", category: cat, action: actions.newSession });
+      if (actions.clearChat) cmds.push({ id: "ctx-clear-chat", label: "Clear Chat History", icon: "trash-2", category: cat, action: actions.clearChat });
+      if (actions.abortChat) cmds.push({ id: "ctx-abort-chat", label: "Abort Current Response", icon: "square", category: cat, action: actions.abortChat });
+      break;
+    case "sessions":
+      if (actions.refreshSessions) cmds.push({ id: "ctx-refresh-sessions", label: "Refresh Sessions", icon: "refresh-cw", category: cat, action: actions.refreshSessions });
+      break;
+    case "channels":
+      if (actions.refreshChannels) cmds.push({ id: "ctx-refresh-channels", label: "Refresh Channels", icon: "refresh-cw", category: cat, action: actions.refreshChannels });
+      break;
+    case "cron":
+      if (actions.addCronJob) cmds.push({ id: "ctx-add-cron", label: "Add Cron Job", icon: "plus", category: cat, action: actions.addCronJob });
+      if (actions.refreshCron) cmds.push({ id: "ctx-refresh-cron", label: "Refresh Cron Jobs", icon: "refresh-cw", category: cat, action: actions.refreshCron });
+      break;
+    case "overseer":
+      if (actions.createGoal) cmds.push({ id: "ctx-create-goal", label: "Create New Goal", icon: "target", category: cat, action: actions.createGoal });
+      if (actions.refreshOverseer) cmds.push({ id: "ctx-refresh-overseer", label: "Refresh Overseer", icon: "refresh-cw", category: cat, action: actions.refreshOverseer });
+      break;
+    case "config":
+      if (actions.saveConfig) cmds.push({ id: "ctx-save-config", label: "Save Configuration", icon: "save", category: cat, action: actions.saveConfig });
+      break;
+    case "nodes":
+      if (actions.refreshNodes) cmds.push({ id: "ctx-refresh-nodes", label: "Refresh Nodes", icon: "refresh-cw", category: cat, action: actions.refreshNodes });
+      break;
+    case "logs":
+      if (actions.clearLogs) cmds.push({ id: "ctx-clear-logs", label: "Clear Log View", icon: "trash-2", category: cat, action: actions.clearLogs });
+      break;
+  }
+
+  return cmds;
 }

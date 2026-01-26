@@ -1,5 +1,6 @@
 import { html, nothing } from "lit";
 
+import { skeleton } from "../components/design-utils";
 import { clampText, formatAgo, formatDurationMs, formatList } from "../format";
 import { icon, type IconName } from "../icons";
 import type {
@@ -157,6 +158,11 @@ export function setupOverseerKeyboardShortcuts(props: {
 }
 
 export function renderOverseer(props: OverseerProps) {
+  // Show skeleton on initial load (no data yet)
+  if (props.loading && !props.status) {
+    return renderOverseerSkeleton();
+  }
+
   const overseerLayout = buildOverseerGraphLayout(props.goal?.goal);
   const systemLayout = buildSystemGraphLayout({
     nodes: props.nodes,
@@ -195,7 +201,10 @@ export function renderOverseer(props: OverseerProps) {
         : nothing}
       <div class="overseer-main-grid" style="display: grid; grid-template-columns: 1fr 380px; gap: 20px;">
         <div class="overseer-main-content">
-          ${props.showOverseerGraph
+          ${!props.loading && statusGoals.length === 0
+            ? renderOverseerEmptyState(props)
+            : nothing}
+          ${props.showOverseerGraph && statusGoals.length > 0
             ? renderGraphPanel({
                 title: "Overseer Plan",
                 description: props.goal?.goal?.title ?? "Select a goal to view its plan.",
@@ -232,6 +241,128 @@ export function renderOverseer(props: OverseerProps) {
       ${props.createGoalOpen ? renderCreateGoalModal(props) : nothing}
       ${renderSimulator(simulatorFullProps)}
       ${props.createGoalOpen ? renderCreateGoalModal(props) : nothing}
+    </div>
+  `;
+}
+
+function renderOverseerEmptyState(props: OverseerProps) {
+  return html`
+    <div class="overseer-empty-state" style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      text-align: center;
+      min-height: 360px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px dashed rgba(255, 255, 255, 0.08);
+    ">
+      <div style="
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        font-size: 1.75rem;
+      ">🎯</div>
+      <h3 style="
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary, #e2e8f0);
+        margin: 0 0 0.5rem;
+      ">No goals yet</h3>
+      <p style="
+        font-size: 0.875rem;
+        color: var(--text-muted, #94a3b8);
+        max-width: 420px;
+        line-height: 1.6;
+        margin: 0 0 1.5rem;
+      ">
+        Goals define what the Overseer should accomplish. Create a goal with a title,
+        constraints, and success criteria — the Overseer will break it into work nodes,
+        assign agents, and track progress.
+      </p>
+      ${props.onOpenCreateGoal
+        ? html`
+            <button
+              class="btn btn--primary"
+              @click=${props.onOpenCreateGoal}
+              style="padding: 0.75rem 1.5rem; font-size: 0.9375rem;"
+            >
+              ${icon("plus", { size: 16 })}
+              <span>Create Your First Goal</span>
+            </button>
+          `
+        : html`
+            <p style="font-size: 0.8125rem; color: var(--text-muted, #64748b);">
+              Connect to the gateway to create goals.
+            </p>
+          `}
+    </div>
+  `;
+}
+
+function renderOverseerSkeleton() {
+  return html`
+    <div class="overseer-view">
+      <!-- Header skeleton -->
+      <div class="overseer-header">
+        <div class="overseer-header__info" style="display:flex;align-items:center;gap:12px;">
+          ${skeleton({ width: "24px", height: "24px", rounded: true })}
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${skeleton({ width: "120px", height: "24px" })}
+            ${skeleton({ width: "360px", height: "14px" })}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          ${skeleton({ width: "80px", height: "28px" })}
+          ${skeleton({ width: "80px", height: "28px" })}
+        </div>
+      </div>
+
+      <!-- Stats cards skeleton -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:20px 0;">
+        ${Array.from({ length: 4 }, () => html`
+          <div style="padding:16px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              ${skeleton({ width: "100px", height: "14px" })}
+              ${skeleton({ width: "20px", height: "20px", rounded: true })}
+            </div>
+            ${skeleton({ width: "48px", height: "28px" })}
+          </div>
+        `)}
+      </div>
+
+      <!-- Controls skeleton -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;">
+        ${skeleton({ width: "140px", height: "36px" })}
+        ${skeleton({ width: "100px", height: "36px" })}
+        ${skeleton({ width: "100px", height: "36px" })}
+      </div>
+
+      <!-- Main grid skeleton -->
+      <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          ${skeleton({ width: "100%", height: "400px" })}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${skeleton({ width: "140px", height: "20px" })}
+          ${Array.from({ length: 5 }, (_, i) => html`
+            <div style="padding:12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                ${skeleton({ width: `${150 - i * 10}px`, height: "14px" })}
+                ${skeleton({ width: "60px", height: "12px" })}
+              </div>
+              ${skeleton({ width: "100%", height: "12px" })}
+            </div>
+          `)}
+        </div>
+      </div>
     </div>
   `;
 }

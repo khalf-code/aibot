@@ -270,10 +270,15 @@ export type AppViewState = {
   commandPaletteOpen: boolean;
   commandPaletteQuery: string;
   commandPaletteSelectedIndex: number;
+  /** Incremented to force re-render when favorites change. */
+  commandPaletteFavVersion: number;
+  commandPaletteCategory: string;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
   setCommandPaletteQuery: (query: string) => void;
   setCommandPaletteSelectedIndex: (index: number) => void;
+  bumpCommandPaletteFavVersion: () => void;
+  setCommandPaletteCategory: (category: string) => void;
   sidebarOpen: boolean;
   sidebarContent: string | null;
   sidebarError: string | null;

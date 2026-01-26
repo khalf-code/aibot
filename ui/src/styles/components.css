@@ -10125,6 +10125,44 @@
   opacity: 0.4;
 }
 
+.command-palette__categories {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.command-palette__categories::-webkit-scrollbar {
+  display: none;
+}
+
+.command-palette__category {
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.command-palette__category:hover {
+  color: var(--foreground);
+  border-color: var(--foreground);
+}
+
+.command-palette__category--active {
+  background: var(--accent);
+  color: var(--accent-foreground, #fff);
+  border-color: var(--accent);
+}
+
 /* =============================================================================
    GLOBAL MICRO-ANIMATIONS & POLISH
    ============================================================================= */
