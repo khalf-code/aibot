@@ -28,7 +28,7 @@ Run a persistent Clawdbot Gateway on Oracle Cloud's **Always Free** ARM tier —
 
 ## Prerequisites
 
-- Oracle Cloud account ([signup](https://www.oracle.com/cloud/free/))
+- Oracle Cloud account ([signup](https://www.oracle.com/cloud/free/)) — see [community signup guide](https://gist.github.com/rssnyder/51e3cfedd730e7dd5f4a816143b25dbd) if you hit issues
 - Tailscale account (free at [tailscale.com](https://tailscale.com))
 - ~30 minutes
 
@@ -69,7 +69,7 @@ ssh ubuntu@YOUR_PUBLIC_IP
 
 # Update system
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y build-essential unzip
+sudo apt install -y build-essential
 ```
 
 **Note:** `build-essential` is required for ARM compilation of some dependencies.

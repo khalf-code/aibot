@@ -205,7 +205,7 @@ Oracle Cloud offers **Always Free** ARM instances that are significantly more po
 - Signup can be finicky (retry if it fails)
 - ARM architecture — most things work, but some binaries need ARM builds
 
-For the full setup guide, see [Oracle Cloud](/platforms/oracle).
+For the full setup guide, see [Oracle Cloud](/platforms/oracle). For signup tips and troubleshooting the enrollment process, see this [community guide](https://gist.github.com/rssnyder/51e3cfedd730e7dd5f4a816143b25dbd).
 
 ---
 
