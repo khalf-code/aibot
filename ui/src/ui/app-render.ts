@@ -952,6 +952,7 @@ export function renderApp(state: AppViewState) {
           open: state.commandPaletteOpen,
           query: state.commandPaletteQuery,
           selectedIndex: state.commandPaletteSelectedIndex,
+          activeCategory: state.commandPaletteCategory,
         },
         commands: [
           ...createContextCommands(state.tab, {
@@ -977,6 +978,7 @@ export function renderApp(state: AppViewState) {
         onClose: () => state.closeCommandPalette(),
         onQueryChange: (query) => state.setCommandPaletteQuery(query),
         onIndexChange: (index) => state.setCommandPaletteSelectedIndex(index),
+        onCategoryChange: (category) => state.setCommandPaletteCategory(category),
         onSelect: (command: Command) => {
           command.action();
           state.closeCommandPalette();
