@@ -81,3 +81,20 @@ resource "aws_iam_role_policy" "ecs_task_s3" {
     ]
   })
 }
+
+# Task Role Policy: Secrets Manager access for Discord token
+resource "aws_iam_role_policy" "ecs_task_secrets" {
+  name = "${var.project_name}-secrets-access"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:${var.discord_token_secret_name}-??????*"
+      }
+    ]
+  })
+}

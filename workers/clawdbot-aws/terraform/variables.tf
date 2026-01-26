@@ -4,6 +4,11 @@ variable "aws_region" {
   default     = "ap-northeast-1"
 }
 
+variable "aws_account_id" {
+  description = "AWS account ID (for Secrets Manager ARN)"
+  type        = string
+}
+
 variable "environment" {
   description = "Environment name (e.g., production, staging)"
   type        = string
@@ -59,8 +64,16 @@ variable "ecs_service_desired_count" {
   default     = 1
 }
 
+variable "discord_token_secret_name" {
+  description = "AWS Secrets Manager secret name for Discord bot token"
+  type        = string
+  default     = "clawdbot/discord-token"
+}
+
+# DEPRECATED: Use discord_token_secret_name with AWS Secrets Manager instead
 variable "discord_token" {
-  description = "Discord bot token (DISCORD_BOT_TOKEN) - sensitive, do not commit to version control"
+  description = "DEPRECATED: Discord bot token (use Secrets Manager instead)"
   type        = string
   sensitive   = true
+  default     = null
 }

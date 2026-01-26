@@ -81,7 +81,7 @@ resource "aws_ecs_task_definition" "clawdbot" {
         },
         {
           name  = "DISCORD_BOT_TOKEN"
-          value = var.discord_token
+          value = data.aws_secretsmanager_secret_version.discord_token.secret_string
         },
         {
           name  = "CLAWDBOT_FORCE_BUILD"

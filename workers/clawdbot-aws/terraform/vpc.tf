@@ -3,9 +3,9 @@
  * Discord bot requires outbound internet access for WebSocket connections
  */
 
-# VPC
+# VPC (using 100.64.0.0/16 to avoid conflicts with default 10.0.0.0/8)
 resource "aws_vpc" "clawdbot" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = "100.64.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
