@@ -57,6 +57,7 @@ If you already use `gog` for Google Workspace, you can reuse its OAuth client + 
    ```bash
    gog auth credentials /path/to/client_secret.json
    gog auth add you@example.com --services gmail,calendar,drive,contacts,docs,sheets
+   gog auth list
    ```
 2) Configure Google Chat to reuse `gog`:
    ```json5
@@ -74,6 +75,11 @@ If you already use `gog` for Google Workspace, you can reuse its OAuth client + 
 3) Ensure `gog` can access its keyring on the gateway host.
    - `gog` stores refresh tokens in the system keychain by default. citeturn6view0
    - For headless systems, switch to file keyring + password (see `gog` docs). citeturn6view0
+4) Verify `gog` is visible to the gateway user:
+   ```bash
+   gog auth tokens --json
+   ```
+   If this fails, install `gog` on the gateway host and ensure the keyring is accessible.
 
 Clawdbot reads `gog` OAuth client files from:
 - `~/.config/gogcli/credentials.json`

@@ -648,7 +648,7 @@ async function processMessageWithPipeline(params: {
   let typingIndicator = account.config.typingIndicator ?? "message";
   if (typingIndicator === "reaction" && account.userCredentialSource === "none") {
     runtime.error?.(
-      `[${account.accountId}] typingIndicator="reaction" requires user OAuth (not supported with service account). Falling back to "message" mode.`,
+      `[${account.accountId}] typingIndicator="reaction" requires user OAuth. Configure OAuth (or oauthFromGog) to enable reactions; falling back to "message" mode.`,
     );
     typingIndicator = "message";
   }

@@ -167,6 +167,12 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
         ],
       }),
     isConfigured: (account) => account.credentialSource !== "none",
+    unconfiguredReason: (account) => {
+      if (account.config.oauthFromGog) {
+        return "Google Chat OAuth from gog is enabled but no gog credentials were found. Ensure gog is installed, the gateway can access its keyring, or set oauthRefreshToken/oauthClientFile.";
+      }
+      return "Google Chat credentials are missing. Configure a service account or user OAuth.";
+    },
     describeAccount: (account) => ({
       accountId: account.accountId,
       name: account.name,
