@@ -118,7 +118,7 @@ export async function setNearAiApiKey(key: string, agentDir?: string) {
     profileId: "nearai:default",
     credential: {
       type: "api_key",
-      provider: "near-ai",
+      provider: "nearai",
       key,
     },
     agentDir: resolveAuthAgentDir(agentDir),

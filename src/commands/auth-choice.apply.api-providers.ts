@@ -87,7 +87,7 @@ export async function applyAuthChoiceApiProviders(
       authChoice = "synthetic-api-key";
     } else if (params.opts.tokenProvider === "venice") {
       authChoice = "venice-api-key";
-    } else if (params.opts.tokenProvider === "near-ai") {
+    } else if (params.opts.tokenProvider === "nearai") {
       authChoice = "near-ai-api-key";
     } else if (params.opts.tokenProvider === "opencode") {
       authChoice = "opencode-zen";
@@ -531,7 +531,7 @@ export async function applyAuthChoiceApiProviders(
   if (authChoice === "near-ai-api-key") {
     let hasCredential = false;
 
-    if (!hasCredential && params.opts?.token && params.opts?.tokenProvider === "near-ai") {
+    if (!hasCredential && params.opts?.token && params.opts?.tokenProvider === "nearai") {
       await setNearAiApiKey(normalizeApiKeyInput(params.opts.token), params.agentDir);
       hasCredential = true;
     }
@@ -547,7 +547,7 @@ export async function applyAuthChoiceApiProviders(
       );
     }
 
-    const envKey = resolveEnvApiKey("near-ai");
+    const envKey = resolveEnvApiKey("nearai");
     if (envKey) {
       const useExisting = await params.prompter.confirm({
         message: `Use existing NEARAI_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
@@ -567,7 +567,7 @@ export async function applyAuthChoiceApiProviders(
     }
     nextConfig = applyAuthProfileConfig(nextConfig, {
       profileId: "nearai:default",
-      provider: "near-ai",
+      provider: "nearai",
       mode: "api_key",
     });
     {

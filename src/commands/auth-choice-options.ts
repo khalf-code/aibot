@@ -22,7 +22,7 @@ export type AuthChoiceGroupId =
   | "minimax"
   | "synthetic"
   | "venice"
-  | "near-ai"
+  | "nearai"
   | "qwen";
 
 export type AuthChoiceGroup = {
@@ -75,7 +75,7 @@ const AUTH_CHOICE_GROUP_DEFS: {
     choices: ["venice-api-key"],
   },
   {
-    value: "near-ai",
+    value: "nearai",
     label: "NEAR AI",
     hint: "Private and verifiable inference (TEE)",
     choices: ["near-ai-api-key"],

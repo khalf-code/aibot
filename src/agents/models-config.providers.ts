@@ -416,10 +416,10 @@ export async function resolveImplicitProviders(params: {
   }
 
   const nearAiKey =
-    resolveEnvApiKeyVarName("near-ai") ??
-    resolveApiKeyFromProfiles({ provider: "near-ai", store: authStore });
+    resolveEnvApiKeyVarName("nearai") ??
+    resolveApiKeyFromProfiles({ provider: "nearai", store: authStore });
   if (nearAiKey) {
-    providers["near-ai"] = { ...buildNearAiProvider(), apiKey: nearAiKey };
+    providers["nearai"] = { ...buildNearAiProvider(), apiKey: nearAiKey };
   }
 
   const qwenProfiles = listProfilesForProvider(authStore, "qwen-portal");

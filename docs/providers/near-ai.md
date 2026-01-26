@@ -71,7 +71,7 @@ clawdbot onboard --non-interactive \
 ### 3. Verify Setup
 
 ```bash
-clawdbot chat --model near-ai/zai-org/GLM-4.7 "Hello, are you working?"
+clawdbot chat --model nearai/zai-org/GLM-4.7 "Hello, are you working?"
 ```
 
 ## Model Selection
@@ -79,14 +79,14 @@ clawdbot chat --model near-ai/zai-org/GLM-4.7 "Hello, are you working?"
 After setup, you can use any available NEAR AI model:
 
 ```bash
-clawdbot models set near-ai/zai-org/GLM-4.7
-clawdbot models set near-ai/deepseek-ai/DeepSeek-V3.1
+clawdbot models set nearai/zai-org/GLM-4.7
+clawdbot models set nearai/deepseek-ai/DeepSeek-V3.1
 ```
 
 List all available models:
 
 ```bash
-clawdbot models list | grep near-ai
+clawdbot models list | grep nearai
 ```
 
 ## Available Models
@@ -110,16 +110,16 @@ clawdbot models list | grep near-ai
 
 ```bash
 # Use default model (GLM 4.7)
-clawdbot chat --model near-ai/zai-org/GLM-4.7
+clawdbot chat --model nearai/zai-org/GLM-4.7
 
 # Use DeepSeek for reasoning tasks
-clawdbot chat --model near-ai/deepseek-ai/DeepSeek-V3.1
+clawdbot chat --model nearai/deepseek-ai/DeepSeek-V3.1
 
 # Use Qwen for long context (262K!)
-clawdbot chat --model near-ai/Qwen/Qwen3-30B-A3B-Instruct-2507
+clawdbot chat --model nearai/Qwen/Qwen3-30B-A3B-Instruct-2507
 
 # Send a message
-clawdbot agent --message "Explain quantum computing" --model near-ai/zai-org/GLM-4.7
+clawdbot agent --message "Explain quantum computing" --model nearai/zai-org/GLM-4.7
 ```
 
 ## Troubleshooting
@@ -128,7 +128,7 @@ clawdbot agent --message "Explain quantum computing" --model near-ai/zai-org/GLM
 
 ```bash
 echo $NEARAI_API_KEY
-clawdbot models list | grep near-ai
+clawdbot models list | grep nearai
 ```
 
 Ensure the environment variable is set correctly.
@@ -142,11 +142,11 @@ NEAR AI API is at `https://cloud-api.near.ai/v1`. Ensure your network allows HTT
 ```json5
 {
   env: { NEARAI_API_KEY: "..." },
-  agents: { defaults: { model: { primary: "near-ai/zai-org/GLM-4.7" } } },
+  agents: { defaults: { model: { primary: "nearai/zai-org/GLM-4.7" } } },
   models: {
     mode: "merge",
     providers: {
-      "near-ai": {
+      "nearai": {
         baseUrl: "https://cloud-api.near.ai/v1",
         apiKey: "${NEARAI_API_KEY}",
         api: "openai-completions"

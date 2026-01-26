@@ -429,7 +429,7 @@ export function applyNearAiProviderConfig(cfg: ClawdbotConfig): ClawdbotConfig {
   };
 
   const providers = { ...cfg.models?.providers };
-  const existingProvider = providers["near-ai"];
+  const existingProvider = providers["nearai"];
   const existingModels = Array.isArray(existingProvider?.models) ? existingProvider.models : [];
   const nearAiModels = NEAR_AI_MODEL_CATALOG.map(buildNearAiModelDefinition);
   const mergedModels = [
@@ -442,7 +442,7 @@ export function applyNearAiProviderConfig(cfg: ClawdbotConfig): ClawdbotConfig {
   > as { apiKey?: string };
   const resolvedApiKey = typeof existingApiKey === "string" ? existingApiKey : undefined;
   const normalizedApiKey = resolvedApiKey?.trim();
-  providers["near-ai"] = {
+  providers["nearai"] = {
     ...existingProviderRest,
     baseUrl: NEAR_AI_BASE_URL,
     api: "openai-completions",
