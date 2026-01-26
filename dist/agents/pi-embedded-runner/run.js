@@ -10,6 +10,7 @@ import { FailoverError, resolveFailoverStatus } from "../failover-error.js";
 import { ensureAuthProfileStore, getApiKeyForModel, resolveAuthProfileOrder, } from "../model-auth.js";
 import { normalizeProviderId } from "../model-selection.js";
 import { ensureClawdbotModelsJson } from "../models-config.js";
+import { initProviderConcurrencyFromConfig } from "../provider-concurrency.js";
 import { classifyFailoverReason, formatAssistantErrorText, getApiErrorPayloadFingerprint, isAuthAssistantError, isCompactionFailureError, isContextOverflowError, isFailoverAssistantError, isFailoverErrorMessage, parseImageDimensionError, isRateLimitAssistantError, isTimeoutErrorMessage, pickFallbackThinkingLevel, } from "../pi-embedded-helpers.js";
 import { normalizeUsage } from "../usage.js";
 import { emitAgentEvent } from "../../infra/agent-events.js";
@@ -50,6 +51,8 @@ export async function runEmbeddedPiAgent(params) {
         const agentDir = params.agentDir ?? resolveClawdbotAgentDir();
         const fallbackConfigured = (params.config?.agents?.defaults?.model?.fallbacks?.length ?? 0) > 0;
         await ensureClawdbotModelsJson(params.config, agentDir);
+        // Initialize per-provider concurrency gates from config (idempotent).
+        initProviderConcurrencyFromConfig(params.config);
         const { model, error, authStorage, modelRegistry } = resolveModel(provider, modelId, agentDir, params.config);
         if (!model) {
             throw new Error(error ?? `Unknown model: ${provider}/${modelId}`);
