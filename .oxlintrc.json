@@ -8,5 +8,5 @@
   "categories": {
     "correctness": "error"
   },
-  "ignorePatterns": ["src/canvas-host/a2ui/a2ui.bundle.js"]
+  "ignorePatterns": ["src/canvas-host/a2ui/a2ui.bundle.js", "**/*.d.ts"]
 }

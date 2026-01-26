@@ -69,7 +69,7 @@ export async function recoverPendingSessions(
   // 期限切れチェック
   const validSessions = sessions.filter((s) => {
     if (Date.now() > s.metadata.expiresAt * 1000) {
-      deleteSession(s.metadata.sessionId);
+      void deleteSession(s.metadata.sessionId);
       result.expired++;
       return false;
     }
@@ -129,7 +129,7 @@ export async function recoverPendingSessions(
  * @param ttl - 新しいTTL (秒), デフォルト: 1時間
  */
 export async function heartbeatSession(sessionId: string, ttl: number = 3600): Promise<void> {
-  const expiresAt = Math.floor(Date.now() / 1000) + ttl;
+  const _expiresAt = Math.floor(Date.now() / 1000) + ttl;
 
   // TODO: UpdateItemでexpiresAtを更新
   // 現状のupdateStatus()はlastUpdateTimeのみ更新
@@ -169,7 +169,7 @@ export async function completeSession(
  * @param sessionId - セッションID
  * @param error - エラー情報
  */
-export async function failSession(sessionId: string, error: Error): Promise<void> {
+export async function failSession(sessionId: string, _error: Error): Promise<void> {
   await updateStatus(sessionId, SessionStatus.ERROR);
 
   // エラー情報を記録

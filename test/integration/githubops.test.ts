@@ -8,10 +8,9 @@
  * 4. PR creation/review
  */
 
-import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { execSync } from "child_process";
-import { readFileSync, unlinkSync, existsSync } from "fs";
-import { join } from "path";
+import { unlinkSync, existsSync } from "fs";
 
 // Test repository configuration
 const TEST_REPO = process.env.GITHUBOPS_TEST_REPO || "ShunsukeHayashi/dev-workspace";
@@ -27,7 +26,7 @@ function runGhCommand(args: string): string {
     });
   } catch (error: unknown) {
     const err = error as { stdout?: string; stderr?: string };
-    throw new Error(`gh command failed: ${err.stderr || err.stdout || error}`);
+    throw new Error(`gh command failed: ${err.stderr || err.stdout || String(error)}`);
   }
 }
 
@@ -35,7 +34,7 @@ function createTestBranch(branchName: string): void {
   try {
     execSync(`git checkout -b ${branchName}`, { encoding: "utf-8" });
   } catch (error: unknown) {
-    throw new Error(`Failed to create branch: ${error}`);
+    throw new Error(`Failed to create branch: ${String(error)}`);
   }
 }
 

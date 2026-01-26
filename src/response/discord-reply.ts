@@ -7,7 +7,6 @@
 import type { Message } from "@buape/carbon";
 
 import type { ReplyOptions, ReplyData, ReplyEmbed, QuoteMetadata, ReplyAuthor } from "./types.js";
-import { ResponseFormat } from "./types.js";
 
 /**
  * Discordリプライオプション拡張

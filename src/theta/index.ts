@@ -63,7 +63,10 @@ import { ThetaPhase } from "./types.js";
 /**
  * 新しいθサイクル状態を作成する
  */
-export function createThetaCycleState(runId: string, options?: ThetaCycleOptions): ThetaCycleState {
+export function createThetaCycleState(
+  runId: string,
+  _options?: ThetaCycleOptions,
+): ThetaCycleState {
   return {
     runId,
     startTime: Date.now(),
@@ -127,7 +130,7 @@ export async function runThetaCycle<T = unknown>(
   const improveState = improveResult.state;
 
   // サマリー生成
-  const summary = generateCycleSummary(improveState);
+  const _summary = generateCycleSummary(improveState);
 
   // オプションのコールバック
   if (options?.onEvent) {

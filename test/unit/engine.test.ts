@@ -11,7 +11,7 @@
  * - Auth profile resolution for model access
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // Mock dependencies
 vi.mock("../../src/agents/defaults.js", () => ({
@@ -42,7 +42,6 @@ import {
   getModelRefStatus,
   resolveAllowedModelRef,
   resolveThinkingDefault,
-  type ModelRef,
   type ThinkLevel,
 } from "../../src/agents/model-selection.js";
 
@@ -864,7 +863,7 @@ describe("Engine Unit Tests", () => {
         },
       });
 
-      const primary = resolveAgentModelPrimary(cfg, "main");
+      const _primary = resolveAgentModelPrimary(cfg, "main");
       const fallbacks = resolveAgentModelFallbacksOverride(cfg, "main");
 
       // main agent has no model override, so it inherits from defaults

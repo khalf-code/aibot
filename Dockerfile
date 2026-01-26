@@ -25,6 +25,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm build
+# Create .buildstamp to prevent runtime rebuild (portable timestamp)
+RUN mkdir -p dist && echo "$(date +%s)000000000" > dist/.buildstamp
 # Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
 ENV CLAWDBOT_PREFER_PNPM=1
 RUN pnpm ui:install

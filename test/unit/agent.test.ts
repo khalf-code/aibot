@@ -9,8 +9,8 @@
  * - Session-based agent selection
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mkdirSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomBytes } from "crypto";

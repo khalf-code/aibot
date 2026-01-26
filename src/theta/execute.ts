@@ -204,7 +204,7 @@ function withTimeout<T>(
       }, timeoutMs);
 
       // Promiseが解決したらクリアンアップ（キャンセルされても実行）
-      promise.finally?.(() => clearTimeout(timeoutId));
+      void promise.finally?.(() => clearTimeout(timeoutId));
     }),
   ]);
 }

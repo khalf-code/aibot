@@ -4,7 +4,6 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  runCodexReview,
   parseCodexOutput,
   createReviewRequest,
   evaluateReview,
