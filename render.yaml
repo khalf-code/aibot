@@ -4,8 +4,11 @@ services:
     runtime: docker
     plan: starter
     healthCheckPath: /health
+    dockerCommand: node dist/index.js gateway --bind lan --port 8080 --allow-unconfigured
     envVars:
       - key: PORT
+        value: "8080"
+      - key: CLAWDBOT_GATEWAY_PORT
         value: "8080"
       - key: SETUP_PASSWORD
         sync: false
