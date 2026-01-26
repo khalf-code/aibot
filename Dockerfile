@@ -33,5 +33,5 @@ RUN pnpm ui:build
 ENV NODE_ENV=production
 
 # Run the gateway with settings suitable for Render deployment
-# Token auth uses CLAWDBOT_GATEWAY_TOKEN env var set in render.yaml
-CMD ["node", "dist/index.js", "gateway", "--port", "8080", "--bind", "lan", "--auth", "token", "--allow-unconfigured"]
+# Password auth allows browser-based login via SETUP_PASSWORD env var
+CMD ["node", "dist/index.js", "gateway", "--port", "8080", "--bind", "lan", "--auth", "password", "--allow-unconfigured"]
