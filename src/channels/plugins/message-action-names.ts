@@ -33,6 +33,7 @@ export const CHANNEL_MESSAGE_ACTION_NAMES = [
   "role-add",
   "role-remove",
   "channel-info",
+  "mark-read",
   "channel-list",
   "channel-create",
   "channel-edit",
