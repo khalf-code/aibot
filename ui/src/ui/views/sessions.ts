@@ -8,6 +8,13 @@ import { pathForTab } from "../navigation";
 import { icon } from "../icons";
 import type { AgentsListResult, GatewayAgentRow, GatewaySessionRow, SessionsListResult } from "../types";
 
+export type SessionActiveTask = {
+  taskId: string;
+  taskName: string;
+  status: "in-progress" | "pending";
+  startedAt?: number;
+};
+
 export type SessionsProps = {
   loading: boolean;
   result: SessionsListResult | null;
@@ -18,6 +25,8 @@ export type SessionsProps = {
   includeUnknown: boolean;
   basePath: string;
   agents: AgentsListResult | null;
+  // Active tasks per session (for showing task indicators)
+  activeTasks?: Map<string, SessionActiveTask[]>;
   onSessionOpen?: (key: string) => void;
   onFiltersChange: (next: {
     activeMinutes: string;
@@ -37,6 +46,7 @@ export type SessionsProps = {
   ) => void;
   onDelete: (key: string) => void;
   onAgentSessionOpen: (agentId: string) => void;
+  onViewSessionLogs?: (key: string) => void;
 };
 
 const THINK_LEVELS = ["", "off", "minimal", "low", "medium", "high"] as const;
@@ -255,6 +265,9 @@ export function renderSessions(props: SessionsProps) {
                     props.onDelete,
                     props.onSessionOpen,
                     props.loading,
+                    props.agents?.agents ?? [],
+                    props.activeTasks?.get(row.key) ?? [],
+                    props.onViewSessionLogs,
                   ),
                 )}
         </div>
@@ -320,6 +333,11 @@ function findExistingAgentSession(
   return sessions.sessions.some((s) => s.key.toLowerCase().startsWith(prefix));
 }
 
+function extractAgentIdFromSessionKey(key: string): string | null {
+  const match = key.match(/^agent:([^:]+):/i);
+  return match ? match[1] : null;
+}
+
 function renderRow(
   row: GatewaySessionRow,
   basePath: string,
@@ -327,6 +345,9 @@ function renderRow(
   onDelete: SessionsProps["onDelete"],
   onSessionOpen: SessionsProps["onSessionOpen"],
   disabled: boolean,
+  agents: GatewayAgentRow[],
+  activeTasks: SessionActiveTask[],
+  onViewLogs?: (key: string) => void,
 ) {
   const updated = row.updatedAt ? formatAgo(row.updatedAt) : "n/a";
   const rawThinking = row.thinkingLevel ?? "";
@@ -347,10 +368,27 @@ function renderRow(
       ? "badge--accent badge--animated"
       : "badge--info badge--animated";
 
+  // Extract agent info from session key
+  const agentId = extractAgentIdFromSessionKey(row.key);
+  const agent = agentId ? agents.find((a) => a.id.toLowerCase() === agentId.toLowerCase()) : null;
+  const agentEmoji = agent?.identity?.emoji ?? null;
+  const agentName = agent?.identity?.name ?? agent?.name ?? agentId;
+
+  // Active task info
+  const hasActiveTasks = activeTasks.length > 0;
+  const inProgressCount = activeTasks.filter((t) => t.status === "in-progress").length;
+
   return html`
-    <div class="data-table__row">
+    <div class="data-table__row ${hasActiveTasks ? "data-table__row--active" : ""}">
       <div class="data-table__cell" data-label="Key">
         <div class="session-key">
+          ${agentId
+            ? html`
+                <span class="session-agent-badge" title="Agent: ${agentName}">
+                  ${agentEmoji ?? icon("user", { size: 12 })}
+                </span>
+              `
+            : nothing}
           ${canLink
             ? html`<a
                 href=${chatUrl}
@@ -373,6 +411,14 @@ function renderRow(
                 }}
               >${truncateKey(displayName)}</a>`
             : html`<span class="session-key__text" style="color: var(--muted);" title=${row.key}>${truncateKey(displayName)}</span>`}
+          ${hasActiveTasks
+            ? html`
+                <span class="session-active-indicator" title="${inProgressCount} task(s) in progress">
+                  ${icon("activity", { size: 12 })}
+                  ${inProgressCount > 0 ? html`<span class="session-active-count">${inProgressCount}</span>` : nothing}
+                </span>
+              `
+            : nothing}
           <button
             class="session-key__copy"
             title="Copy session key"
@@ -470,6 +516,19 @@ function renderRow(
                 ${icon("message-square", { size: 14 })}
               </button>
             `
+            : nothing}
+          ${onViewLogs
+            ? html`
+                <button
+                  class="row-actions__btn"
+                  title="View logs"
+                  aria-label="View logs"
+                  ?disabled=${disabled}
+                  @click=${() => onViewLogs(row.key)}
+                >
+                  ${icon("file-text", { size: 14 })}
+                </button>
+              `
             : nothing}
           <button
             class="row-actions__btn row-actions__btn--danger"
