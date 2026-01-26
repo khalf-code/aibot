@@ -7,7 +7,7 @@ import {
 } from "../format.js";
 import { chunkMarkdownTextWithMode, type ChunkMode } from "../../auto-reply/chunk.js";
 import { splitTelegramCaption } from "../caption.js";
-import { getLastSentMessage, recordSentMessage } from "../sent-message-cache.js";
+import { recordSentMessage } from "../sent-message-cache.js";
 import type { ReplyPayload } from "../../auto-reply/types.js";
 import type { ReplyToMode } from "../../config/config.js";
 import type { MarkdownTableMode } from "../../config/types.base.js";
@@ -83,26 +83,20 @@ export async function deliverReplies(params: {
         ? [reply.mediaUrl]
         : [];
     if (mediaList.length === 0) {
-      // Check if the previous message was a status message.
-      // If so, we should edit it instead of sending a new message.
-      const lastSent = getLastSentMessage(chatId);
-      const shouldEditLast =
-        lastSent?.isStatus && lastSent.messageId && Date.now() - lastSent.timestamp < 120000; // 2 min threshold
-
       let sentMessageId: string | undefined;
+      const explicitEditId = reply.editMessageId;
 
-      if (shouldEditLast && reply.text) {
-        const editId = String(lastSent!.messageId);
-
+      if (explicitEditId && reply.text) {
+        // Explicit edit requested by StatusUpdateController/agent-runner
         try {
-          await editMessageTelegram(chatId, editId, reply.text, {
+          await editMessageTelegram(chatId, explicitEditId, reply.text, {
             token: params.token,
             accountId: params.accountId,
             api: bot.api,
           });
-          sentMessageId = editId;
+          sentMessageId = explicitEditId;
         } catch (err) {
-          logVerbose(`Telegram edit failed, falling back to new message: ${String(err)}`);
+          logVerbose(`Telegram explicit edit failed, falling back to new message: ${String(err)}`);
           // Fall through to send new message
         }
       }
