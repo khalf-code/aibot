@@ -8,7 +8,7 @@ import type { ExecApprovalDecision } from "../../infra/exec-approvals.js";
 import { logDebug, logError } from "../../logger.js";
 import type { RuntimeEnv } from "../../runtime.js";
 
-const EXEC_APPROVAL_ACTION_ID = "clawdbot_execapproval";
+const EXEC_APPROVAL_ACTION_ID_PREFIX = "clawdbot_execapproval";
 const EXEC_APPROVAL_VALUE_PREFIX = "execapproval";
 
 export type ExecApprovalRequest = {
@@ -60,8 +60,12 @@ export function parseApprovalValue(
   }
 }
 
-export function getExecApprovalActionId(): string {
-  return EXEC_APPROVAL_ACTION_ID;
+export function getExecApprovalActionIdPrefix(): string {
+  return EXEC_APPROVAL_ACTION_ID_PREFIX;
+}
+
+export function matchesExecApprovalActionId(actionId: string): boolean {
+  return actionId.startsWith(EXEC_APPROVAL_ACTION_ID_PREFIX);
 }
 
 function formatApprovalBlocks(request: ExecApprovalRequest) {
@@ -121,20 +125,20 @@ function formatApprovalBlocks(request: ExecApprovalRequest) {
       {
         type: "button",
         text: { type: "plain_text", text: "✓ Allow once", emoji: true },
-        action_id: EXEC_APPROVAL_ACTION_ID,
+        action_id: `${EXEC_APPROVAL_ACTION_ID_PREFIX}_allow_once`,
         value: encodeApprovalValue(request.id, "allow-once"),
         style: "primary",
       },
       {
         type: "button",
         text: { type: "plain_text", text: "✓✓ Always allow", emoji: true },
-        action_id: EXEC_APPROVAL_ACTION_ID,
+        action_id: `${EXEC_APPROVAL_ACTION_ID_PREFIX}_allow_always`,
         value: encodeApprovalValue(request.id, "allow-always"),
       },
       {
         type: "button",
         text: { type: "plain_text", text: "✗ Deny", emoji: true },
-        action_id: EXEC_APPROVAL_ACTION_ID,
+        action_id: `${EXEC_APPROVAL_ACTION_ID_PREFIX}_deny`,
         value: encodeApprovalValue(request.id, "deny"),
         style: "danger",
       },

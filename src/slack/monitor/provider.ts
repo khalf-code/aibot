@@ -28,7 +28,8 @@ import { normalizeAllowList } from "./allow-list.js";
 import type { MonitorSlackOpts } from "./types.js";
 import {
   SlackExecApprovalHandler,
-  getExecApprovalActionId,
+  getExecApprovalActionIdPrefix,
+  matchesExecApprovalActionId,
   parseApprovalValue,
 } from "./exec-approvals.js";
 
@@ -234,43 +235,46 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
       (
         app as unknown as {
           action: (
-            id: string,
+            id: string | RegExp,
             handler: (args: {
               ack: () => Promise<void>;
               body: { user?: { id?: string } };
-              action: { value?: string };
+              action: { action_id?: string; value?: string };
               respond: (payload: { text: string; response_type?: string }) => Promise<void>;
             }) => Promise<void>,
           ) => void;
         }
-      ).action(getExecApprovalActionId(), async ({ ack, body, action, respond }) => {
-        await ack();
-        const parsed = parseApprovalValue(action?.value);
-        if (!parsed) {
+      ).action(
+        new RegExp(`^${getExecApprovalActionIdPrefix()}_`),
+        async ({ ack, body, action, respond }) => {
+          await ack();
+          const parsed = parseApprovalValue(action?.value);
+          if (!parsed) {
+            await respond({
+              text: "This approval button is no longer valid.",
+              response_type: "ephemeral",
+            });
+            return;
+          }
+          const decisionLabel =
+            parsed.action === "allow-once"
+              ? "Allowed (once)"
+              : parsed.action === "allow-always"
+                ? "Allowed (always)"
+                : "Denied";
           await respond({
-            text: "This approval button is no longer valid.",
+            text: `Submitting decision: **${decisionLabel}**...`,
             response_type: "ephemeral",
           });
-          return;
-        }
-        const decisionLabel =
-          parsed.action === "allow-once"
-            ? "Allowed (once)"
-            : parsed.action === "allow-always"
-              ? "Allowed (always)"
-              : "Denied";
-        await respond({
-          text: `Submitting decision: **${decisionLabel}**...`,
-          response_type: "ephemeral",
-        });
-        const ok = await execApprovalHandler!.resolveApproval(parsed.approvalId, parsed.action);
-        if (!ok) {
-          await respond({
-            text: "Failed to submit approval. The request may have expired or already been resolved.",
-            response_type: "ephemeral",
-          });
-        }
-      });
+          const ok = await execApprovalHandler!.resolveApproval(parsed.approvalId, parsed.action);
+          if (!ok) {
+            await respond({
+              text: "Failed to submit approval. The request may have expired or already been resolved.",
+              response_type: "ephemeral",
+            });
+          }
+        },
+      );
     }
   }
 
