@@ -1,48 +1,60 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
+import type { AgentToolResult } from '@mariozechner/pi-agent-core';
+import { resolveSessionAgentId } from '../../agents/agent-scope.js';
 import {
   readNumberParam,
   readStringArrayParam,
   readStringParam,
-} from "../../agents/tools/common.js";
-import { resolveSessionAgentId } from "../../agents/agent-scope.js";
-import { parseReplyDirectives } from "../../auto-reply/reply/reply-directives.js";
-import { dispatchChannelMessageAction } from "../../channels/plugins/message-actions.js";
+} from '../../agents/tools/common.js';
+import { parseReplyDirectives } from '../../auto-reply/reply/reply-directives.js';
+import { dispatchChannelMessageAction } from '../../channels/plugins/message-actions.js';
 import type {
   ChannelId,
   ChannelMessageActionName,
   ChannelThreadingToolContext,
-} from "../../channels/plugins/types.js";
-import type { ClawdbotConfig } from "../../config/config.js";
+} from '../../channels/plugins/types.js';
+import type { ClawdbotConfig } from '../../config/config.js';
+import { extensionForMime } from '../../media/mime.js';
+import { parseSlackTarget } from '../../slack/targets.js';
 import {
   isDeliverableMessageChannel,
   normalizeMessageChannel,
   type GatewayClientMode,
   type GatewayClientName,
-} from "../../utils/message-channel.js";
+} from '../../utils/message-channel.js';
+import { loadWebMedia } from '../../web/media.js';
 import {
   listConfiguredMessageChannels,
   resolveMessageChannelSelection,
-} from "./channel-selection.js";
-import { applyTargetToParams } from "./channel-target.js";
-import { ensureOutboundSessionEntry, resolveOutboundSessionRoute } from "./outbound-session.js";
-import type { OutboundSendDeps } from "./deliver.js";
-import type { MessagePollResult, MessageSendResult } from "./message.js";
+} from './channel-selection.js';
+import { applyTargetToParams } from './channel-target.js';
+import type { OutboundSendDeps } from './deliver.js';
+import {
+  actionHasTarget,
+  actionRequiresTarget,
+} from './message-action-spec.js';
+import type { MessagePollResult, MessageSendResult } from './message.js';
 import {
   applyCrossContextDecoration,
   buildCrossContextDecoration,
-  type CrossContextDecoration,
   enforceCrossContextPolicy,
   shouldApplyCrossContextMarker,
-} from "./outbound-policy.js";
-import { executePollAction, executeSendAction } from "./outbound-send-service.js";
-import { actionHasTarget, actionRequiresTarget } from "./message-action-spec.js";
-import { resolveChannelTarget, type ResolvedMessagingTarget } from "./target-resolver.js";
-import { loadWebMedia } from "../../web/media.js";
-import { extensionForMime } from "../../media/mime.js";
-import { parseSlackTarget } from "../../slack/targets.js";
+  type CrossContextDecoration,
+} from './outbound-policy.js';
+import {
+  executePollAction,
+  executeSendAction,
+} from './outbound-send-service.js';
+import {
+  ensureOutboundSessionEntry,
+  resolveOutboundSessionRoute,
+} from './outbound-session.js';
+import {
+  resolveChannelTarget,
+  type ResolvedMessagingTarget,
+} from './target-resolver.js';
 
 export type MessageActionRunnerGateway = {
   url?: string;
@@ -69,21 +81,21 @@ export type RunMessageActionParams = {
 
 export type MessageActionRunResult =
   | {
-      kind: "send";
+      kind: 'send';
       channel: ChannelId;
-      action: "send";
+      action: 'send';
       to: string;
-      handledBy: "plugin" | "core";
+      handledBy: 'plugin' | 'core';
       payload: unknown;
       toolResult?: AgentToolResult<unknown>;
       sendResult?: MessageSendResult;
       dryRun: boolean;
     }
   | {
-      kind: "broadcast";
+      kind: 'broadcast';
       channel: ChannelId;
-      action: "broadcast";
-      handledBy: "core" | "dry-run";
+      action: 'broadcast';
+      handledBy: 'core' | 'dry-run';
       payload: {
         results: Array<{
           channel: ChannelId;
@@ -96,30 +108,30 @@ export type MessageActionRunResult =
       dryRun: boolean;
     }
   | {
-      kind: "poll";
+      kind: 'poll';
       channel: ChannelId;
-      action: "poll";
+      action: 'poll';
       to: string;
-      handledBy: "plugin" | "core";
+      handledBy: 'plugin' | 'core';
       payload: unknown;
       toolResult?: AgentToolResult<unknown>;
       pollResult?: MessagePollResult;
       dryRun: boolean;
     }
   | {
-      kind: "action";
+      kind: 'action';
       channel: ChannelId;
-      action: Exclude<ChannelMessageActionName, "send" | "poll">;
-      handledBy: "plugin" | "dry-run";
+      action: Exclude<ChannelMessageActionName, 'send' | 'poll'>;
+      handledBy: 'plugin' | 'dry-run';
       payload: unknown;
       toolResult?: AgentToolResult<unknown>;
       dryRun: boolean;
     };
 
 export function getToolResult(
-  result: MessageActionRunResult,
+  result: MessageActionRunResult
 ): AgentToolResult<unknown> | undefined {
-  return "toolResult" in result ? result.toolResult : undefined;
+  return 'toolResult' in result ? result.toolResult : undefined;
 }
 
 function extractToolPayload(result: AgentToolResult<unknown>): unknown {
@@ -128,9 +140,9 @@ function extractToolPayload(result: AgentToolResult<unknown>): unknown {
     ? result.content.find(
         (block) =>
           block &&
-          typeof block === "object" &&
-          (block as { type?: unknown }).type === "text" &&
-          typeof (block as { text?: unknown }).text === "string",
+          typeof block === 'object' &&
+          (block as { type?: unknown }).type === 'text' &&
+          typeof (block as { text?: unknown }).text === 'string'
       )
     : undefined;
   const text = (textBlock as { text?: string } | undefined)?.text;
@@ -197,13 +209,16 @@ async function maybeApplyCrossContextMarker(params: {
   });
 }
 
-function readBooleanParam(params: Record<string, unknown>, key: string): boolean | undefined {
+function readBooleanParam(
+  params: Record<string, unknown>,
+  key: string
+): boolean | undefined {
   const raw = params[key];
-  if (typeof raw === "boolean") return raw;
-  if (typeof raw === "string") {
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'string') {
     const trimmed = raw.trim().toLowerCase();
-    if (trimmed === "true") return true;
-    if (trimmed === "false") return false;
+    if (trimmed === 'true') return true;
+    if (trimmed === 'false') return false;
   }
   return undefined;
 }
@@ -215,11 +230,14 @@ function resolveSlackAutoThreadId(params: {
   const context = params.toolContext;
   if (!context?.currentThreadTs || !context.currentChannelId) return undefined;
   // Only mirror auto-threading when Slack would reply in the active thread for this channel.
-  if (context.replyToMode !== "all" && context.replyToMode !== "first") return undefined;
-  const parsedTarget = parseSlackTarget(params.to, { defaultKind: "channel" });
-  if (!parsedTarget || parsedTarget.kind !== "channel") return undefined;
-  if (parsedTarget.id.toLowerCase() !== context.currentChannelId.toLowerCase()) return undefined;
-  if (context.replyToMode === "first" && context.hasRepliedRef?.value) return undefined;
+  if (context.replyToMode !== 'all' && context.replyToMode !== 'first')
+    return undefined;
+  const parsedTarget = parseSlackTarget(params.to, { defaultKind: 'channel' });
+  if (!parsedTarget || parsedTarget.kind !== 'channel') return undefined;
+  if (parsedTarget.id.toLowerCase() !== context.currentChannelId.toLowerCase())
+    return undefined;
+  if (context.replyToMode === 'first' && context.hasRepliedRef?.value)
+    return undefined;
   return context.currentThreadTs;
 }
 
@@ -229,31 +247,35 @@ function resolveAttachmentMaxBytes(params: {
   accountId?: string | null;
 }): number | undefined {
   const fallback = params.cfg.agents?.defaults?.mediaMaxMb;
-  if (params.channel !== "bluebubbles") {
-    return typeof fallback === "number" ? fallback * 1024 * 1024 : undefined;
+  if (params.channel !== 'bluebubbles') {
+    return typeof fallback === 'number' ? fallback * 1024 * 1024 : undefined;
   }
-  const accountId = typeof params.accountId === "string" ? params.accountId.trim() : "";
+  const accountId =
+    typeof params.accountId === 'string' ? params.accountId.trim() : '';
   const channelCfg = params.cfg.channels?.bluebubbles;
   const channelObj =
-    channelCfg && typeof channelCfg === "object"
+    channelCfg && typeof channelCfg === 'object'
       ? (channelCfg as Record<string, unknown>)
       : undefined;
   const channelMediaMax =
-    typeof channelObj?.mediaMaxMb === "number" ? channelObj.mediaMaxMb : undefined;
+    typeof channelObj?.mediaMaxMb === 'number'
+      ? channelObj.mediaMaxMb
+      : undefined;
   const accountsObj =
-    channelObj?.accounts && typeof channelObj.accounts === "object"
+    channelObj?.accounts && typeof channelObj.accounts === 'object'
       ? (channelObj.accounts as Record<string, unknown>)
       : undefined;
-  const accountCfg = accountId && accountsObj ? accountsObj[accountId] : undefined;
+  const accountCfg =
+    accountId && accountsObj ? accountsObj[accountId] : undefined;
   const accountMediaMax =
-    accountCfg && typeof accountCfg === "object"
+    accountCfg && typeof accountCfg === 'object'
       ? (accountCfg as Record<string, unknown>).mediaMaxMb
       : undefined;
   const limitMb =
-    (typeof accountMediaMax === "number" ? accountMediaMax : undefined) ??
+    (typeof accountMediaMax === 'number' ? accountMediaMax : undefined) ??
     channelMediaMax ??
     params.cfg.agents?.defaults?.mediaMaxMb;
-  return typeof limitMb === "number" ? limitMb * 1024 * 1024 : undefined;
+  return typeof limitMb === 'number' ? limitMb * 1024 * 1024 : undefined;
 }
 
 function inferAttachmentFilename(params: {
@@ -263,7 +285,7 @@ function inferAttachmentFilename(params: {
   const mediaHint = params.mediaHint?.trim();
   if (mediaHint) {
     try {
-      if (mediaHint.startsWith("file://")) {
+      if (mediaHint.startsWith('file://')) {
         const filePath = fileURLToPath(mediaHint);
         const base = path.basename(filePath);
         if (base) return base;
@@ -279,15 +301,21 @@ function inferAttachmentFilename(params: {
       // fall through to content-type based default
     }
   }
-  const ext = params.contentType ? extensionForMime(params.contentType) : undefined;
-  return ext ? `attachment${ext}` : "attachment";
+  const ext = params.contentType
+    ? extensionForMime(params.contentType)
+    : undefined;
+  return ext ? `attachment${ext}` : 'attachment';
 }
 
-function normalizeBase64Payload(params: { base64?: string; contentType?: string }): {
+function normalizeBase64Payload(params: {
+  base64?: string;
+  contentType?: string;
+}): {
   base64?: string;
   contentType?: string;
 } {
-  if (!params.base64) return { base64: params.base64, contentType: params.contentType };
+  if (!params.base64)
+    return { base64: params.base64, contentType: params.contentType };
   const match = /^data:([^;]+);base64,(.*)$/i.exec(params.base64.trim());
   if (!match) return { base64: params.base64, contentType: params.contentType };
   const [, mime, payload] = match;
@@ -305,16 +333,17 @@ async function hydrateSetGroupIconParams(params: {
   action: ChannelMessageActionName;
   dryRun?: boolean;
 }): Promise<void> {
-  if (params.action !== "setGroupIcon") return;
+  if (params.action !== 'setGroupIcon') return;
 
-  const mediaHint = readStringParam(params.args, "media", { trim: false });
+  const mediaHint = readStringParam(params.args, 'media', { trim: false });
   const fileHint =
-    readStringParam(params.args, "path", { trim: false }) ??
-    readStringParam(params.args, "filePath", { trim: false });
+    readStringParam(params.args, 'path', { trim: false }) ??
+    readStringParam(params.args, 'filePath', { trim: false });
   const contentTypeParam =
-    readStringParam(params.args, "contentType") ?? readStringParam(params.args, "mimeType");
+    readStringParam(params.args, 'contentType') ??
+    readStringParam(params.args, 'mimeType');
 
-  const rawBuffer = readStringParam(params.args, "buffer", { trim: false });
+  const rawBuffer = readStringParam(params.args, 'buffer', { trim: false });
   const normalized = normalizeBase64Payload({
     base64: rawBuffer,
     contentType: contentTypeParam ?? undefined,
@@ -326,17 +355,21 @@ async function hydrateSetGroupIconParams(params: {
     }
   }
 
-  const filename = readStringParam(params.args, "filename");
+  const filename = readStringParam(params.args, 'filename');
   const mediaSource = mediaHint ?? fileHint;
 
-  if (!params.dryRun && !readStringParam(params.args, "buffer", { trim: false }) && mediaSource) {
+  if (
+    !params.dryRun &&
+    !readStringParam(params.args, 'buffer', { trim: false }) &&
+    mediaSource
+  ) {
     const maxBytes = resolveAttachmentMaxBytes({
       cfg: params.cfg,
       channel: params.channel,
       accountId: params.accountId,
     });
     const media = await loadWebMedia(mediaSource, maxBytes);
-    params.args.buffer = media.buffer.toString("base64");
+    params.args.buffer = media.buffer.toString('base64');
     if (!contentTypeParam && media.contentType) {
       params.args.contentType = media.contentType;
     }
@@ -362,19 +395,24 @@ async function hydrateSendAttachmentParams(params: {
   action: ChannelMessageActionName;
   dryRun?: boolean;
 }): Promise<void> {
-  if (params.action !== "sendAttachment") return;
+  if (params.action !== 'sendAttachment') return;
 
-  const mediaHint = readStringParam(params.args, "media", { trim: false });
+  const mediaHint = readStringParam(params.args, 'media', { trim: false });
   const fileHint =
-    readStringParam(params.args, "path", { trim: false }) ??
-    readStringParam(params.args, "filePath", { trim: false });
+    readStringParam(params.args, 'path', { trim: false }) ??
+    readStringParam(params.args, 'filePath', { trim: false });
   const contentTypeParam =
-    readStringParam(params.args, "contentType") ?? readStringParam(params.args, "mimeType");
-  const caption = readStringParam(params.args, "caption", { allowEmpty: true })?.trim();
-  const message = readStringParam(params.args, "message", { allowEmpty: true })?.trim();
+    readStringParam(params.args, 'contentType') ??
+    readStringParam(params.args, 'mimeType');
+  const caption = readStringParam(params.args, 'caption', {
+    allowEmpty: true,
+  })?.trim();
+  const message = readStringParam(params.args, 'message', {
+    allowEmpty: true,
+  })?.trim();
   if (!caption && message) params.args.caption = message;
 
-  const rawBuffer = readStringParam(params.args, "buffer", { trim: false });
+  const rawBuffer = readStringParam(params.args, 'buffer', { trim: false });
   const normalized = normalizeBase64Payload({
     base64: rawBuffer,
     contentType: contentTypeParam ?? undefined,
@@ -386,17 +424,21 @@ async function hydrateSendAttachmentParams(params: {
     }
   }
 
-  const filename = readStringParam(params.args, "filename");
+  const filename = readStringParam(params.args, 'filename');
   const mediaSource = mediaHint ?? fileHint;
 
-  if (!params.dryRun && !readStringParam(params.args, "buffer", { trim: false }) && mediaSource) {
+  if (
+    !params.dryRun &&
+    !readStringParam(params.args, 'buffer', { trim: false }) &&
+    mediaSource
+  ) {
     const maxBytes = resolveAttachmentMaxBytes({
       cfg: params.cfg,
       channel: params.channel,
       accountId: params.accountId,
     });
     const media = await loadWebMedia(mediaSource, maxBytes);
-    params.args.buffer = media.buffer.toString("base64");
+    params.args.buffer = media.buffer.toString('base64');
     if (!contentTypeParam && media.contentType) {
       params.args.contentType = media.contentType;
     }
@@ -416,7 +458,7 @@ async function hydrateSendAttachmentParams(params: {
 
 function parseButtonsParam(params: Record<string, unknown>): void {
   const raw = params.buttons;
-  if (typeof raw !== "string") return;
+  if (typeof raw !== 'string') return;
   const trimmed = raw.trim();
   if (!trimmed) {
     delete params.buttons;
@@ -425,13 +467,13 @@ function parseButtonsParam(params: Record<string, unknown>): void {
   try {
     params.buttons = JSON.parse(trimmed) as unknown;
   } catch {
-    throw new Error("--buttons must be valid JSON");
+    throw new Error('--buttons must be valid JSON');
   }
 }
 
 function parseCardParam(params: Record<string, unknown>): void {
   const raw = params.card;
-  if (typeof raw !== "string") return;
+  if (typeof raw !== 'string') return;
   const trimmed = raw.trim();
   if (!trimmed) {
     delete params.card;
@@ -440,12 +482,15 @@ function parseCardParam(params: Record<string, unknown>): void {
   try {
     params.card = JSON.parse(trimmed) as unknown;
   } catch {
-    throw new Error("--card must be valid JSON");
+    throw new Error('--card must be valid JSON');
   }
 }
 
-async function resolveChannel(cfg: ClawdbotConfig, params: Record<string, unknown>) {
-  const channelHint = readStringParam(params, "channel");
+async function resolveChannel(
+  cfg: ClawdbotConfig,
+  params: Record<string, unknown>
+) {
+  const channelHint = readStringParam(params, 'channel');
   const selection = await resolveMessageChannelSelection({
     cfg,
     channel: channelHint,
@@ -461,7 +506,7 @@ async function resolveActionTarget(params: {
   accountId?: string | null;
 }): Promise<ResolvedMessagingTarget | undefined> {
   let resolvedTarget: ResolvedMessagingTarget | undefined;
-  const toRaw = typeof params.args.to === "string" ? params.args.to.trim() : "";
+  const toRaw = typeof params.args.to === 'string' ? params.args.to.trim() : '';
   if (toRaw) {
     const resolved = await resolveChannelTarget({
       cfg: params.cfg,
@@ -477,20 +522,27 @@ async function resolveActionTarget(params: {
     }
   }
   const channelIdRaw =
-    typeof params.args.channelId === "string" ? params.args.channelId.trim() : "";
+    typeof params.args.channelId === 'string'
+      ? params.args.channelId.trim()
+      : '';
   if (channelIdRaw) {
     const resolved = await resolveChannelTarget({
       cfg: params.cfg,
       channel: params.channel,
       input: channelIdRaw,
       accountId: params.accountId ?? undefined,
-      preferredKind: "group",
+      preferredKind: 'group',
     });
     if (resolved.ok) {
-      if (resolved.target.kind === "user") {
-        throw new Error(`Channel id "${channelIdRaw}" resolved to a user target.`);
+      if (resolved.target.kind === 'user') {
+        throw new Error(
+          `Channel id "${channelIdRaw}" resolved to a user target.`
+        );
       }
-      params.args.channelId = resolved.target.to.replace(/^(channel|group):/i, "");
+      params.args.channelId = resolved.target.to.replace(
+        /^(channel|group):/i,
+        ''
+      );
     } else {
       throw resolved.error;
     }
@@ -510,7 +562,9 @@ type ResolvedActionContext = {
   resolvedTarget?: ResolvedMessagingTarget;
   abortSignal?: AbortSignal;
 };
-function resolveGateway(input: RunMessageActionParams): MessageActionRunnerGateway | undefined {
+function resolveGateway(
+  input: RunMessageActionParams
+): MessageActionRunnerGateway | undefined {
   if (!input.gateway) return undefined;
   return {
     url: input.gateway.url,
@@ -524,24 +578,28 @@ function resolveGateway(input: RunMessageActionParams): MessageActionRunnerGatew
 
 async function handleBroadcastAction(
   input: RunMessageActionParams,
-  params: Record<string, unknown>,
+  params: Record<string, unknown>
 ): Promise<MessageActionRunResult> {
   throwIfAborted(input.abortSignal);
-  const broadcastEnabled = input.cfg.tools?.message?.broadcast?.enabled !== false;
+  const broadcastEnabled =
+    input.cfg.tools?.message?.broadcast?.enabled !== false;
   if (!broadcastEnabled) {
-    throw new Error("Broadcast is disabled. Set tools.message.broadcast.enabled to true.");
+    throw new Error(
+      'Broadcast is disabled. Set tools.message.broadcast.enabled to true.'
+    );
   }
-  const rawTargets = readStringArrayParam(params, "targets", { required: true }) ?? [];
+  const rawTargets =
+    readStringArrayParam(params, 'targets', { required: true }) ?? [];
   if (rawTargets.length === 0) {
-    throw new Error("Broadcast requires at least one target in --targets.");
+    throw new Error('Broadcast requires at least one target in --targets.');
   }
-  const channelHint = readStringParam(params, "channel");
+  const channelHint = readStringParam(params, 'channel');
   const configured = await listConfiguredMessageChannels(input.cfg);
   if (configured.length === 0) {
-    throw new Error("Broadcast requires at least one configured channel.");
+    throw new Error('Broadcast requires at least one configured channel.');
   }
   const targetChannels =
-    channelHint && channelHint.trim().toLowerCase() !== "all"
+    channelHint && channelHint.trim().toLowerCase() !== 'all'
       ? [await resolveChannel(input.cfg, { channel: channelHint })]
       : configured;
   const results: Array<{
@@ -551,7 +609,8 @@ async function handleBroadcastAction(
     error?: string;
     result?: MessageSendResult;
   }> = [];
-  const isAbortError = (err: unknown): boolean => err instanceof Error && err.name === "AbortError";
+  const isAbortError = (err: unknown): boolean =>
+    err instanceof Error && err.name === 'AbortError';
   for (const targetChannel of targetChannels) {
     throwIfAborted(input.abortSignal);
     for (const target of rawTargets) {
@@ -565,7 +624,7 @@ async function handleBroadcastAction(
         if (!resolved.ok) throw resolved.error;
         const sendResult = await runMessageAction({
           ...input,
-          action: "send",
+          action: 'send',
           params: {
             ...params,
             channel: targetChannel,
@@ -576,7 +635,8 @@ async function handleBroadcastAction(
           channel: targetChannel,
           to: resolved.target.to,
           ok: true,
-          result: sendResult.kind === "send" ? sendResult.sendResult : undefined,
+          result:
+            sendResult.kind === 'send' ? sendResult.sendResult : undefined,
         });
       } catch (err) {
         if (isAbortError(err)) throw err;
@@ -590,10 +650,10 @@ async function handleBroadcastAction(
     }
   }
   return {
-    kind: "broadcast",
-    channel: (targetChannels[0] ?? "discord") as ChannelId,
-    action: "broadcast",
-    handledBy: input.dryRun ? "dry-run" : "core",
+    kind: 'broadcast',
+    channel: (targetChannels[0] ?? 'discord') as ChannelId,
+    action: 'broadcast',
+    handledBy: input.dryRun ? 'dry-run' : 'core',
     payload: { results },
     dryRun: Boolean(input.dryRun),
   };
@@ -601,13 +661,15 @@ async function handleBroadcastAction(
 
 function throwIfAborted(abortSignal?: AbortSignal): void {
   if (abortSignal?.aborted) {
-    const err = new Error("Message send aborted");
-    err.name = "AbortError";
+    const err = new Error('Message send aborted');
+    err.name = 'AbortError';
     throw err;
   }
 }
 
-async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActionRunResult> {
+async function handleSendAction(
+  ctx: ResolvedActionContext
+): Promise<MessageActionRunResult> {
   const {
     cfg,
     params,
@@ -621,19 +683,19 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
     abortSignal,
   } = ctx;
   throwIfAborted(abortSignal);
-  const action: ChannelMessageActionName = "send";
-  const to = readStringParam(params, "to", { required: true });
+  const action: ChannelMessageActionName = 'send';
+  const to = readStringParam(params, 'to', { required: true });
   // Support media, path, and filePath parameters for attachments
   const mediaHint =
-    readStringParam(params, "media", { trim: false }) ??
-    readStringParam(params, "path", { trim: false }) ??
-    readStringParam(params, "filePath", { trim: false });
-  const hasCard = params.card != null && typeof params.card === "object";
+    readStringParam(params, 'media', { trim: false }) ??
+    readStringParam(params, 'path', { trim: false }) ??
+    readStringParam(params, 'filePath', { trim: false });
+  const hasCard = params.card != null && typeof params.card === 'object';
   let message =
-    readStringParam(params, "message", {
+    readStringParam(params, 'message', {
       required: !mediaHint && !hasCard,
       allowEmpty: true,
-    }) ?? "";
+    }) ?? '';
 
   const parsed = parseReplyDirectives(message);
   const mergedMediaUrls: string[] = [];
@@ -668,15 +730,68 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
     preferEmbeds: true,
   });
 
-  const mediaUrl = readStringParam(params, "media", { trim: false });
-  const gifPlayback = readBooleanParam(params, "gifPlayback") ?? false;
-  const bestEffort = readBooleanParam(params, "bestEffort");
+  const mediaUrl = readStringParam(params, 'media', { trim: false });
+  const gifPlayback = readBooleanParam(params, 'gifPlayback') ?? false;
+  const bestEffort = readBooleanParam(params, 'bestEffort');
 
-  const replyToId = readStringParam(params, "replyTo");
-  const threadId = readStringParam(params, "threadId");
+  // Extract location parameters
+  const latitude = readNumberParam(params, 'latitude');
+  const longitude = readNumberParam(params, 'longitude');
+  const locationName = readStringParam(params, 'locationName');
+  const locationAddress = readStringParam(params, 'locationAddress');
+  const locationAccuracy = readNumberParam(params, 'locationAccuracy');
+
+  // Validate location coordinates if provided
+  let location:
+    | {
+        latitude: number;
+        longitude: number;
+        name?: string;
+        address?: string;
+        accuracy?: number;
+      }
+    | undefined;
+  if (latitude != null && longitude != null) {
+    // Validate latitude range: -90 to 90
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      throw new Error(
+        `Invalid latitude: ${latitude}. Must be between -90 and 90.`
+      );
+    }
+    // Validate longitude range: -180 to 180
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw new Error(
+        `Invalid longitude: ${longitude}. Must be between -180 and 180.`
+      );
+    }
+    // Validate accuracy if provided (must be positive)
+    if (
+      locationAccuracy != null &&
+      (!Number.isFinite(locationAccuracy) || locationAccuracy < 0)
+    ) {
+      throw new Error(
+        `Invalid location accuracy: ${locationAccuracy}. Must be a positive number.`
+      );
+    }
+    location = {
+      latitude,
+      longitude,
+      name: locationName ?? undefined,
+      address: locationAddress ?? undefined,
+      accuracy: locationAccuracy ?? undefined,
+    };
+  } else if (latitude != null || longitude != null) {
+    // If only one coordinate is provided, that's an error
+    throw new Error(
+      'Both latitude and longitude are required for location messages.'
+    );
+  }
+
+  const replyToId = readStringParam(params, 'replyTo');
+  const threadId = readStringParam(params, 'threadId');
   // Slack auto-threading can inject threadTs without explicit params; mirror to that session key.
   const slackAutoThreadId =
-    channel === "slack" && !replyToId && !threadId
+    channel === 'slack' && !replyToId && !threadId
       ? resolveSlackAutoThreadId({ to, toolContext: input.toolContext })
       : undefined;
   const outboundRoute =
@@ -702,7 +817,11 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
     });
   }
   const mirrorMediaUrls =
-    mergedMediaUrls.length > 0 ? mergedMediaUrls : mediaUrl ? [mediaUrl] : undefined;
+    mergedMediaUrls.length > 0
+      ? mergedMediaUrls
+      : mediaUrl
+        ? [mediaUrl]
+        : undefined;
   throwIfAborted(abortSignal);
   const send = await executeSendAction({
     ctx: {
@@ -731,10 +850,11 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
     mediaUrls: mergedMediaUrls.length ? mergedMediaUrls : undefined,
     gifPlayback,
     bestEffort: bestEffort ?? undefined,
+    location,
   });
 
   return {
-    kind: "send",
+    kind: 'send',
     channel,
     action,
     to,
@@ -746,24 +866,36 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
   };
 }
 
-async function handlePollAction(ctx: ResolvedActionContext): Promise<MessageActionRunResult> {
-  const { cfg, params, channel, accountId, dryRun, gateway, input, abortSignal } = ctx;
+async function handlePollAction(
+  ctx: ResolvedActionContext
+): Promise<MessageActionRunResult> {
+  const {
+    cfg,
+    params,
+    channel,
+    accountId,
+    dryRun,
+    gateway,
+    input,
+    abortSignal,
+  } = ctx;
   throwIfAborted(abortSignal);
-  const action: ChannelMessageActionName = "poll";
-  const to = readStringParam(params, "to", { required: true });
-  const question = readStringParam(params, "pollQuestion", {
+  const action: ChannelMessageActionName = 'poll';
+  const to = readStringParam(params, 'to', { required: true });
+  const question = readStringParam(params, 'pollQuestion', {
     required: true,
   });
-  const options = readStringArrayParam(params, "pollOption", { required: true }) ?? [];
+  const options =
+    readStringArrayParam(params, 'pollOption', { required: true }) ?? [];
   if (options.length < 2) {
-    throw new Error("pollOption requires at least two values");
+    throw new Error('pollOption requires at least two values');
   }
-  const allowMultiselect = readBooleanParam(params, "pollMulti") ?? false;
-  const durationHours = readNumberParam(params, "pollDurationHours", {
+  const allowMultiselect = readBooleanParam(params, 'pollMulti') ?? false;
+  const durationHours = readNumberParam(params, 'pollDurationHours', {
     integer: true,
   });
   const maxSelections = allowMultiselect ? Math.max(2, options.length) : 1;
-  const base = typeof params.message === "string" ? params.message : "";
+  const base = typeof params.message === 'string' ? params.message : '';
   await maybeApplyCrossContextMarker({
     cfg,
     channel,
@@ -794,7 +926,7 @@ async function handlePollAction(ctx: ResolvedActionContext): Promise<MessageActi
   });
 
   return {
-    kind: "poll",
+    kind: 'poll',
     channel,
     action,
     to,
@@ -806,16 +938,30 @@ async function handlePollAction(ctx: ResolvedActionContext): Promise<MessageActi
   };
 }
 
-async function handlePluginAction(ctx: ResolvedActionContext): Promise<MessageActionRunResult> {
-  const { cfg, params, channel, accountId, dryRun, gateway, input, abortSignal } = ctx;
+async function handlePluginAction(
+  ctx: ResolvedActionContext
+): Promise<MessageActionRunResult> {
+  const {
+    cfg,
+    params,
+    channel,
+    accountId,
+    dryRun,
+    gateway,
+    input,
+    abortSignal,
+  } = ctx;
   throwIfAborted(abortSignal);
-  const action = input.action as Exclude<ChannelMessageActionName, "send" | "poll" | "broadcast">;
+  const action = input.action as Exclude<
+    ChannelMessageActionName,
+    'send' | 'poll' | 'broadcast'
+  >;
   if (dryRun) {
     return {
-      kind: "action",
+      kind: 'action',
       channel,
       action,
-      handledBy: "dry-run",
+      handledBy: 'dry-run',
       payload: { ok: true, dryRun: true, channel, action },
       dryRun: true,
     };
@@ -832,13 +978,15 @@ async function handlePluginAction(ctx: ResolvedActionContext): Promise<MessageAc
     dryRun,
   });
   if (!handled) {
-    throw new Error(`Message action ${action} not supported for channel ${channel}.`);
+    throw new Error(
+      `Message action ${action} not supported for channel ${channel}.`
+    );
   }
   return {
-    kind: "action",
+    kind: 'action',
     channel,
     action,
-    handledBy: "plugin",
+    handledBy: 'plugin',
     payload: extractToolPayload(handled),
     toolResult: handled,
     dryRun,
@@ -846,7 +994,7 @@ async function handlePluginAction(ctx: ResolvedActionContext): Promise<MessageAc
 }
 
 export async function runMessageAction(
-  input: RunMessageActionParams,
+  input: RunMessageActionParams
 ): Promise<MessageActionRunResult> {
   const cfg = input.cfg;
   const params = { ...input.params };
@@ -859,14 +1007,16 @@ export async function runMessageAction(
   parseCardParam(params);
 
   const action = input.action;
-  if (action === "broadcast") {
+  if (action === 'broadcast') {
     return handleBroadcastAction(input, params);
   }
 
-  const explicitTarget = typeof params.target === "string" ? params.target.trim() : "";
+  const explicitTarget =
+    typeof params.target === 'string' ? params.target.trim() : '';
   const hasLegacyTarget =
-    (typeof params.to === "string" && params.to.trim().length > 0) ||
-    (typeof params.channelId === "string" && params.channelId.trim().length > 0);
+    (typeof params.to === 'string' && params.to.trim().length > 0) ||
+    (typeof params.channelId === 'string' &&
+      params.channelId.trim().length > 0);
   if (explicitTarget && hasLegacyTarget) {
     delete params.to;
     delete params.channelId;
@@ -883,8 +1033,9 @@ export async function runMessageAction(
     }
   }
   if (!explicitTarget && actionRequiresTarget(action) && hasLegacyTarget) {
-    const legacyTo = typeof params.to === "string" ? params.to.trim() : "";
-    const legacyChannelId = typeof params.channelId === "string" ? params.channelId.trim() : "";
+    const legacyTo = typeof params.to === 'string' ? params.to.trim() : '';
+    const legacyChannelId =
+      typeof params.channelId === 'string' ? params.channelId.trim() : '';
     const legacyTarget = legacyTo || legacyChannelId;
     if (legacyTarget) {
       params.target = legacyTarget;
@@ -892,9 +1043,12 @@ export async function runMessageAction(
       delete params.channelId;
     }
   }
-  const explicitChannel = typeof params.channel === "string" ? params.channel.trim() : "";
+  const explicitChannel =
+    typeof params.channel === 'string' ? params.channel.trim() : '';
   if (!explicitChannel) {
-    const inferredChannel = normalizeMessageChannel(input.toolContext?.currentChannelProvider);
+    const inferredChannel = normalizeMessageChannel(
+      input.toolContext?.currentChannelProvider
+    );
     if (inferredChannel && isDeliverableMessageChannel(inferredChannel)) {
       params.channel = inferredChannel;
     }
@@ -908,11 +1062,12 @@ export async function runMessageAction(
   }
 
   const channel = await resolveChannel(cfg, params);
-  const accountId = readStringParam(params, "accountId") ?? input.defaultAccountId;
+  const accountId =
+    readStringParam(params, 'accountId') ?? input.defaultAccountId;
   if (accountId) {
     params.accountId = accountId;
   }
-  const dryRun = Boolean(input.dryRun ?? readBooleanParam(params, "dryRun"));
+  const dryRun = Boolean(input.dryRun ?? readBooleanParam(params, 'dryRun'));
 
   await hydrateSendAttachmentParams({
     cfg,
@@ -950,7 +1105,7 @@ export async function runMessageAction(
 
   const gateway = resolveGateway(input);
 
-  if (action === "send") {
+  if (action === 'send') {
     return handleSendAction({
       cfg,
       params,
@@ -965,7 +1120,7 @@ export async function runMessageAction(
     });
   }
 
-  if (action === "poll") {
+  if (action === 'poll') {
     return handlePollAction({
       cfg,
       params,

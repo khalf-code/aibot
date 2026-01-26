@@ -1,25 +1,28 @@
-import { getChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
-import type { ChannelId } from "../../channels/plugins/types.js";
-import type { ClawdbotConfig } from "../../config/config.js";
-import { loadConfig } from "../../config/config.js";
-import { callGateway, randomIdempotencyKey } from "../../gateway/call.js";
-import type { PollInput } from "../../polls.js";
-import { normalizePollInput } from "../../polls.js";
+import {
+  getChannelPlugin,
+  normalizeChannelId,
+} from '../../channels/plugins/index.js';
+import type { ChannelId } from '../../channels/plugins/types.js';
+import type { ClawdbotConfig } from '../../config/config.js';
+import { loadConfig } from '../../config/config.js';
+import { callGateway, randomIdempotencyKey } from '../../gateway/call.js';
+import type { PollInput } from '../../polls.js';
+import { normalizePollInput } from '../../polls.js';
 import {
   GATEWAY_CLIENT_MODES,
   GATEWAY_CLIENT_NAMES,
   type GatewayClientMode,
   type GatewayClientName,
-} from "../../utils/message-channel.js";
-import { resolveMessageChannelSelection } from "./channel-selection.js";
+} from '../../utils/message-channel.js';
+import { resolveMessageChannelSelection } from './channel-selection.js';
 import {
   deliverOutboundPayloads,
   type OutboundDeliveryResult,
   type OutboundSendDeps,
-} from "./deliver.js";
-import { normalizeReplyPayloadsForDelivery } from "./payloads.js";
-import type { OutboundChannel } from "./targets.js";
-import { resolveOutboundTarget } from "./targets.js";
+} from './deliver.js';
+import { normalizeReplyPayloadsForDelivery } from './payloads.js';
+import type { OutboundChannel } from './targets.js';
+import { resolveOutboundTarget } from './targets.js';
 
 export type MessageGatewayOptions = {
   url?: string;
@@ -40,6 +43,13 @@ type MessageSendParams = {
   accountId?: string;
   dryRun?: boolean;
   bestEffort?: boolean;
+  location?: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+    accuracy?: number;
+  };
   deps?: OutboundSendDeps;
   cfg?: ClawdbotConfig;
   gateway?: MessageGatewayOptions;
@@ -56,7 +66,7 @@ type MessageSendParams = {
 export type MessageSendResult = {
   channel: string;
   to: string;
-  via: "direct" | "gateway";
+  via: 'direct' | 'gateway';
   mediaUrl: string | null;
   mediaUrls?: string[];
   result?: OutboundDeliveryResult | { messageId: string };
@@ -83,7 +93,7 @@ export type MessagePollResult = {
   options: string[];
   maxSelections: number;
   durationHours: number | null;
-  via: "gateway";
+  via: 'gateway';
   result?: {
     messageId: string;
     toJid?: string;
@@ -99,7 +109,7 @@ function resolveGatewayOptions(opts?: MessageGatewayOptions) {
     url: opts?.url,
     token: opts?.token,
     timeoutMs:
-      typeof opts?.timeoutMs === "number" && Number.isFinite(opts.timeoutMs)
+      typeof opts?.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs)
         ? Math.max(1, Math.floor(opts.timeoutMs))
         : 10_000,
     clientName: opts?.clientName ?? GATEWAY_CLIENT_NAMES.CLI,
@@ -108,7 +118,9 @@ function resolveGatewayOptions(opts?: MessageGatewayOptions) {
   };
 }
 
-export async function sendMessage(params: MessageSendParams): Promise<MessageSendResult> {
+export async function sendMessage(
+  params: MessageSendParams
+): Promise<MessageSendResult> {
   const cfg = params.cfg ?? loadConfig();
   const channel = params.channel?.trim()
     ? normalizeChannelId(params.channel)
@@ -120,7 +132,7 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
   if (!plugin) {
     throw new Error(`Unknown channel: ${channel}`);
   }
-  const deliveryMode = plugin.outbound?.deliveryMode ?? "direct";
+  const deliveryMode = plugin.outbound?.deliveryMode ?? 'direct';
   const normalizedPayloads = normalizeReplyPayloadsForDelivery([
     {
       text: params.content,
@@ -131,9 +143,10 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
   const mirrorText = normalizedPayloads
     .map((payload) => payload.text)
     .filter(Boolean)
-    .join("\n");
+    .join('\n');
   const mirrorMediaUrls = normalizedPayloads.flatMap(
-    (payload) => payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []),
+    (payload) =>
+      payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : [])
   );
   const primaryMediaUrl = mirrorMediaUrls[0] ?? params.mediaUrl ?? null;
 
@@ -141,21 +154,21 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
     return {
       channel,
       to: params.to,
-      via: deliveryMode === "gateway" ? "gateway" : "direct",
+      via: deliveryMode === 'gateway' ? 'gateway' : 'direct',
       mediaUrl: primaryMediaUrl,
       mediaUrls: mirrorMediaUrls.length ? mirrorMediaUrls : undefined,
       dryRun: true,
     };
   }
 
-  if (deliveryMode !== "gateway") {
-    const outboundChannel = channel as Exclude<OutboundChannel, "none">;
+  if (deliveryMode !== 'gateway') {
+    const outboundChannel = channel as Exclude<OutboundChannel, 'none'>;
     const resolvedTarget = resolveOutboundTarget({
       channel: outboundChannel,
       to: params.to,
       cfg,
       accountId: params.accountId,
-      mode: "explicit",
+      mode: 'explicit',
     });
     if (!resolvedTarget.ok) throw resolvedTarget.error;
 
@@ -169,6 +182,7 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
       deps: params.deps,
       bestEffort: params.bestEffort,
       abortSignal: params.abortSignal,
+      location: params.location,
       mirror: params.mirror
         ? {
             ...params.mirror,
@@ -181,7 +195,7 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
     return {
       channel,
       to: params.to,
-      via: "direct",
+      via: 'direct',
       mediaUrl: primaryMediaUrl,
       mediaUrls: mirrorMediaUrls.length ? mirrorMediaUrls : undefined,
       result: results.at(-1),
@@ -192,7 +206,7 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
   const result = await callGateway<{ messageId: string }>({
     url: gateway.url,
     token: gateway.token,
-    method: "send",
+    method: 'send',
     params: {
       to: params.to,
       message: params.content,
@@ -213,14 +227,16 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
   return {
     channel,
     to: params.to,
-    via: "gateway",
+    via: 'gateway',
     mediaUrl: primaryMediaUrl,
     mediaUrls: mirrorMediaUrls.length ? mirrorMediaUrls : undefined,
     result,
   };
 }
 
-export async function sendPoll(params: MessagePollParams): Promise<MessagePollResult> {
+export async function sendPoll(
+  params: MessagePollParams
+): Promise<MessagePollResult> {
   const cfg = params.cfg ?? loadConfig();
   const channel = params.channel?.trim()
     ? normalizeChannelId(params.channel)
@@ -252,7 +268,7 @@ export async function sendPoll(params: MessagePollParams): Promise<MessagePollRe
       options: normalized.options,
       maxSelections: normalized.maxSelections,
       durationHours: normalized.durationHours ?? null,
-      via: "gateway",
+      via: 'gateway',
       dryRun: true,
     };
   }
@@ -267,7 +283,7 @@ export async function sendPoll(params: MessagePollParams): Promise<MessagePollRe
   }>({
     url: gateway.url,
     token: gateway.token,
-    method: "poll",
+    method: 'poll',
     params: {
       to: params.to,
       question: normalized.question,
@@ -290,7 +306,7 @@ export async function sendPoll(params: MessagePollParams): Promise<MessagePollRe
     options: normalized.options,
     maxSelections: normalized.maxSelections,
     durationHours: normalized.durationHours ?? null,
-    via: "gateway",
+    via: 'gateway',
     result,
   };
 }
