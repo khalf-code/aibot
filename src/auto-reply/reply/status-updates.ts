@@ -202,10 +202,9 @@ export class StatusUpdateController {
 
     // If we have a final text and config says to mark with checkmark
     if (finalText && this.config.markFinalWithCheckmark) {
-      this.state.elapsedSeconds = Math.floor((Date.now() - this.state.startedAt) / 1000);
       // NOTE: We rely on Telegram delivery to do the edit/replacement, so we just format
-      // the string correctly for the final response.
-      const marked = `${finalText.trimEnd()} _(${formatElapsedTime(this.state.elapsedSeconds)})_`;
+
+      const marked = `${finalText.trimEnd()} ✅`;
 
       return marked;
     }
@@ -289,24 +288,6 @@ export function createStatusUpdateController(
   callbacks: StatusUpdateCallbacks,
 ): StatusUpdateController {
   return new StatusUpdateController(config, callbacks);
-}
-
-/**
- * Mark a text response with the completion checkmark if enabled.
- */
-export function markResponseComplete(
-  text: string | undefined,
-  config?: StatusUpdateConfig,
-): string | undefined {
-  if (!text) return text;
-
-  const resolved = resolveStatusUpdateConfig(config);
-  if (!resolved.enabled || !resolved.markFinalWithCheckmark) return text;
-
-  // Don't double-mark
-  if (text.trimEnd().endsWith("✅")) return text;
-
-  return `${text.trimEnd()} ✅`;
 }
 
 /**

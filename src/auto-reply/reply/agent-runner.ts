@@ -324,7 +324,7 @@ export async function runReplyAgent(params: {
   // NOTE: Edit mode requires channel-specific edit APIs which aren't available
   // at the agent-runner level. Use mode="inline" in config for now.
   // Telegram/Discord support editing but need integration at dispatch level.
-  let lastStatusMessageId: string | undefined;
+
   const statusCallbacks = optsWithRunId?.onBlockReply
     ? {
         sendStatus: async (text: string, _messageId?: string) => {
@@ -335,13 +335,12 @@ export async function runReplyAgent(params: {
             { timeoutMs: 3000 },
           );
           if (typeof res === "string") {
-            lastStatusMessageId = res;
             return res;
           }
           return undefined;
         },
         editFinal: async (text: string, messageId: string) => {
-          log.debug(`Editing final status update: ${messageId} (tracked: ${lastStatusMessageId})`);
+          log.debug(`Editing final status update: ${messageId}`);
           await optsWithRunId.onBlockReply?.(
             { text, isStatusMessage: true, editMessageId: messageId },
             { timeoutMs: 3000 },
