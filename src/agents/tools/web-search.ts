@@ -109,6 +109,8 @@ type TavilyConfig = {
   apiKey?: string;
 };
 
+type TavilyApiKeySource = "config" | "tavily_env" | "none";
+
 type TavilySearchResult = {
   title?: string;
   url?: string;
@@ -254,12 +256,21 @@ function resolveTavilyConfig(search?: WebSearchConfig): TavilyConfig {
   return tavily as TavilyConfig;
 }
 
-function resolveTavilyApiKey(tavily?: TavilyConfig): string | undefined {
+function resolveTavilyApiKey(tavily?: TavilyConfig): {
+  apiKey?: string;
+  source: TavilyApiKeySource;
+} {
   const fromConfig = normalizeApiKey(tavily?.apiKey);
-  if (fromConfig) return fromConfig;
+  if (fromConfig) {
+    return { apiKey: fromConfig, source: "config" };
+  }
+
   const fromEnv = normalizeApiKey(process.env.TAVILY_API_KEY);
-  if (fromEnv) return fromEnv;
-  return undefined;
+  if (fromEnv) {
+    return { apiKey: fromEnv, source: "tavily_env" };
+  }
+
+  return { apiKey: undefined, source: "none" };
 }
 
 function resolveSearchCount(value: unknown, fallback: number): number {
@@ -374,12 +385,14 @@ async function runTavilySearch(params: {
 
   const data = (await res.json()) as TavilySearchResponse;
   const results = Array.isArray(data.results) ? data.results : [];
-  return results.map((entry) => ({
-    title: entry.title ?? "",
-    url: entry.url ?? "",
-    description: entry.content ?? "",
-    siteName: resolveSiteName(entry.url ?? ""),
-  }));
+  return results
+    .filter((entry) => entry.url && entry.url.trim() !== "")
+    .map((entry) => ({
+      title: entry.title ?? "",
+      url: entry.url ?? "",
+      description: entry.content ?? "",
+      siteName: resolveSiteName(entry.url ?? ""),
+    }));
 }
 
 async function runWebSearch(params: {
@@ -527,11 +540,12 @@ export function createWebSearchTool(options?: {
     execute: async (_toolCallId, args) => {
       const perplexityAuth =
         provider === "perplexity" ? resolvePerplexityApiKey(perplexityConfig) : undefined;
+      const tavilyAuth = provider === "tavily" ? resolveTavilyApiKey(tavilyConfig) : undefined;
       const apiKey =
         provider === "perplexity"
           ? perplexityAuth?.apiKey
           : provider === "tavily"
-            ? resolveTavilyApiKey(tavilyConfig)
+            ? tavilyAuth?.apiKey
             : resolveSearchApiKey(search);
 
       if (!apiKey) {
@@ -588,4 +602,6 @@ export const __testing = {
   inferPerplexityBaseUrlFromApiKey,
   resolvePerplexityBaseUrl,
   normalizeFreshness,
+  resolveTavilyConfig,
+  resolveTavilyApiKey,
 } as const;
