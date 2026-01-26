@@ -17,6 +17,7 @@ export type AuthChoiceGroupId =
   | "openrouter"
   | "ai-gateway"
   | "moonshot"
+  | "pollinations"
   | "zai"
   | "opencode-zen"
   | "minimax"
@@ -102,6 +103,12 @@ const AUTH_CHOICE_GROUP_DEFS: {
     label: "Moonshot AI",
     hint: "Kimi K2 + Kimi Code",
     choices: ["moonshot-api-key", "kimi-code-api-key"],
+  },
+  {
+    value: "pollinations",
+    label: "Pollinations",
+    hint: "API key (enter.pollinations.ai)",
+    choices: ["pollinations-api-key"],
   },
   {
     value: "zai",
@@ -219,6 +226,7 @@ export function buildAuthChoiceOptions(params: {
     hint: "Uses the bundled Gemini CLI auth plugin",
   });
   options.push({ value: "zai-api-key", label: "Z.AI (GLM 4.7) API key" });
+  options.push({ value: "pollinations-api-key", label: "Pollinations API key" });
   options.push({ value: "qwen-portal", label: "Qwen OAuth" });
   options.push({
     value: "copilot-proxy",
