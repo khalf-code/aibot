@@ -49,7 +49,10 @@ echo "=== Listing ${HOME_CONFIG_DIR}/ ==="
 ls -la "${HOME_CONFIG_DIR}/"
 
 # Start the gateway with token from env var
+# Explicitly set CLAWDBOT_CONFIG_PATH to ensure config is loaded from the file we wrote
 echo "=== Starting gateway with CLAWDBOT_STATE_DIR=${CLAWDBOT_STATE_DIR} ==="
+echo "=== Setting CLAWDBOT_CONFIG_PATH=${CONFIG_FILE} ==="
+export CLAWDBOT_CONFIG_PATH="${CONFIG_FILE}"
 exec node dist/index.js gateway \
   --port 8080 \
   --bind lan \
