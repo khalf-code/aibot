@@ -78,8 +78,13 @@
     "entries": {
       "checkins": {
         "enabled": true
+      },
+      "memory-core": {
+        "enabled": true
       }
     },
-    "slots": {}
+    "slots": {
+      "memory": "memory-core"
+    }
   }
 }
