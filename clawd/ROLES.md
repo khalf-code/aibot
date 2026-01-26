@@ -546,4 +546,21 @@ Common multi-role scenarios:
 
 ---
 
+## Trigger Disambiguation
+
+When triggers overlap, use this guide:
+
+| Trigger | Primary Role | Why |
+|---------|--------------|-----|
+| "Prioritize..." (new features) | Product Manager | Scoping what to build |
+| "Prioritize..." (existing work) | CoS Strategist | Allocating time/energy |
+| "I'm overwhelmed" (emotional) | EF Coach | Needs support, not decisions |
+| "I'm overwhelmed with options" | CoS Strategist | Needs decision framework |
+| "Find..." (past info/notes) | Librarian | Recalling stored knowledge |
+| "Find..." (new research) | Research Scientist | Discovering new information |
+
+**Quick test:** Is the need emotional or decisional? Past or future? New feature or existing work?
+
+---
+
 *Role Portfolio v1.0 — Based on APEX 4.4.1 and 2026 industry standards.*

@@ -112,6 +112,17 @@ export function isTimeoutError(err: unknown): boolean {
   return hasTimeoutHint(cause) || hasTimeoutHint(reason);
 }
 
+/**
+ * Detect Node.js undici's "TypeError: fetch failed" which wraps network errors.
+ * This error occurs when fetch() fails due to network issues (DNS, connection refused, etc.)
+ */
+function isFetchFailedError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = getErrorName(err);
+  const message = getErrorMessage(err);
+  return name === "TypeError" && message.toLowerCase().includes("fetch failed");
+}
+
 export function resolveFailoverReasonFromError(err: unknown): FailoverReason | null {
   if (isFailoverError(err)) return err.reason;
 
@@ -122,10 +133,25 @@ export function resolveFailoverReasonFromError(err: unknown): FailoverReason | n
   if (status === 408) return "timeout";
 
   const code = (getErrorCode(err) ?? "").toUpperCase();
-  if (["ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNRESET", "ECONNABORTED"].includes(code)) {
+  // Network error codes that should trigger fallback (classified as timeout for retry)
+  if (
+    [
+      "ETIMEDOUT",
+      "ESOCKETTIMEDOUT",
+      "ECONNRESET",
+      "ECONNABORTED",
+      "ECONNREFUSED",
+      "ENOTFOUND",
+      "EHOSTUNREACH",
+      "ENETUNREACH",
+    ].includes(code)
+  ) {
     return "timeout";
   }
   if (isTimeoutError(err)) return "timeout";
+
+  // Detect undici's "TypeError: fetch failed" which wraps network errors
+  if (isFetchFailedError(err)) return "timeout";
 
   const message = getErrorMessage(err);
   if (!message) return null;

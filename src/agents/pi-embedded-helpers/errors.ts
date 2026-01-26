@@ -476,6 +476,14 @@ export function isAuthAssistantError(msg: AssistantMessage | undefined): boolean
   return isAuthErrorMessage(msg.errorMessage ?? "");
 }
 
+// Network error patterns that should trigger failover (DNS, connection refused, etc.)
+const NETWORK_ERROR_RE =
+  /fetch failed|ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ENETUNREACH|connection refused|dns lookup failed|getaddrinfo|network error/i;
+
+export function isNetworkErrorMessage(raw: string): boolean {
+  return NETWORK_ERROR_RE.test(raw);
+}
+
 export function classifyFailoverReason(raw: string): FailoverReason | null {
   if (isImageDimensionErrorMessage(raw)) return null;
   if (isRateLimitErrorMessage(raw)) return "rate_limit";
@@ -484,6 +492,8 @@ export function classifyFailoverReason(raw: string): FailoverReason | null {
   if (isBillingErrorMessage(raw)) return "billing";
   if (isTimeoutErrorMessage(raw)) return "timeout";
   if (isAuthErrorMessage(raw)) return "auth";
+  // Network errors (fetch failed, connection refused, DNS) should trigger fallback
+  if (isNetworkErrorMessage(raw)) return "timeout";
   return null;
 }
 

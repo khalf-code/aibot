@@ -18,6 +18,96 @@ Add items under "## Pending" using this format:
 
 ## Pending
 
+### [2026-01-26-024] GOG Authentication Blocker - Email/Calendar Access Broken
+- **Proposed by:** Liam (auto-escalated per bug comorbidity pattern)
+- **Date:** 2026-01-26
+- **Category:** tools
+- **Target file:** `~/.config/gogcli/`, `~/.config/gogcli/keyring-password` (missing)
+- **Description:**
+  - **Problem:** GOG (Google Workspace CLI) authentication is blocked, preventing Gmail and Calendar monitoring for clawdbot@puenteworks.com
+  - **Impact:** CRITICAL - Heartbeat checks for email and calendar cannot run; proactive monitoring of clawdbot@puenteworks.com inbox is blocked
+  - **Error:** `read token for clawdbot@puenteworks.com: read token: no TTY available for keyring file backend password prompt; set GOG_KEYRING_PASSWORD`
+  - **Investigation attempts:**
+    1. **Attempt 1 (04:05 PST):** Checked if keyring-password file exists → **File missing**
+    2. **Attempt 2 (07:23 PST):** Tried `--no-input` flag → **Failed** (still prompts for password)
+    3. **Attempt 3 (07:23 PST):** Switched keyring backend from `file` to `auto` via `gog auth keyring auto --force` → **Successful write, but still blocked**
+    4. **Attempt 4 (07:23 PST):** Tried `gog gmail messages search` and `gog auth list` with auto backend → **Failed** (encrypted file still requires password)
+
+  - **Root Cause Analysis:**
+    - Original GOG auth was performed interactively (with TTY) on 2026-01-25
+    - Keyring backend was set to `file` (password-encrypted)
+    - Encrypted tokens exist in `~/.config/gogcli/keyring/` (verified: two token files present)
+    - The password used for encryption was NOT stored in `~/.config/gogcli/keyring-password`
+    - Without the password file, the encrypted tokens cannot be unlocked in non-interactive mode (cron/heartbeat)
+    - Switching to `auto` backend did NOT help - the encrypted files still require a password
+
+  - **Files Verified:**
+    - `~/.config/gogcli/config.json` → exists, contains `{"keyring_backend": "auto"}`
+    - `~/.config/gogcli/credentials.json` → exists, contains OAuth client_id and client_secret
+    - `~/.config/gogcli/keyring/token:clawdbot@puenteworks.com` → exists, encrypted (3612 bytes)
+    - `~/.config/gogcli/keyring/token:default:clawdbot@puenteworks.com` → exists, encrypted (3622 bytes)
+    - `~/.config/gogcli/keyring-password` → **MISSING** (this is the blocker)
+
+  - **Bug Comorbidity Pattern:** This matches the "authentication state corrupted by environment change" pattern. The auth worked in interactive mode but fails in non-interactive mode. Similar to [2026-01-26-022] ZAI endpoint issue - configuration was incomplete for the target environment.
+
+  - **Affected Systems:**
+    - Gmail polling cron (every 1 minute) - cannot poll clawdbot@puenteworks.com
+    - Calendar checks - cannot see meetings/events
+    - Heartbeat email monitoring - blocked
+    - HEARTBEAT.md schedule - cannot execute email/calendar checks
+    - STATUS.md shows "Gmail: OK" but this is **stale info** - actual status is BLOCKED
+
+  - **Possible Solutions:**
+    1. **Re-authenticate:** Run `gog auth add clawdbot@puenteworks.com --services gmail,calendar` interactively in Cursor (TTY available), then store keyring password to file for non-interactive use
+    2. **Store keyring password:** If original password is known, create `~/.config/gogcli/keyring-password` with the password (chmod 600)
+    3. **Delete and re-auth:** Remove encrypted tokens and start fresh with non-interactive-friendly setup
+    4. **Alternative backend:** Test if `keychain` backend works in WSL2 (likely not)
+
+  - **Recommended Approach:**
+    1. In Cursor (TTY available), re-authenticate GOG: `gog auth add clawdbot@puenteworks.com --services gmail,calendar`
+    2. Immediately test: `gog gmail messages search "in:inbox" --max 1 --account clawdbot@puenteworks.com`
+    3. Document the keyring password in a secure location or switch to a password-less backend
+    4. Update TOOLS.md with GOG auth troubleshooting steps
+    5. Test heartbeat checks after re-auth
+
+- **Status:** pending - requires Cursor (interactive TTY) to re-authenticate; cannot be fixed by Liam (non-interactive environment)
+
+### [2026-01-26-022] ZAI API Endpoint Configuration Fix [RESOLVED]
+- **Proposed by:** Claude (Cursor) via bug-comorbidity analysis
+- **Date:** 2026-01-26
+- **Category:** tools
+- **Target file:** `~/.clawdbot/clawdbot.json`, `~/clawd/TOOLS.md`
+- **Description:** Gateway was crashing with `TypeError: fetch failed` when calling ZAI API. Root cause: ZAI provider was NOT explicitly configured in clawdbot.json, relying on defaults. The correct endpoint is `https://api.z.ai/api/coding/paas/v4` (not `/v1`).
+- **Resolution:**
+  1. Added explicit `zai` provider config with correct `baseUrl` to clawdbot.json
+  2. Added ZAI documentation to TOOLS.md with troubleshooting steps
+- **Prevention:** ZAI config is now explicit; TOOLS.md documents the correct endpoint
+- **Reference:** https://docs.z.ai/devpack/tool/others
+- **Status:** RESOLVED - Claude (Cursor) fixed on 2026-01-26
+
+### [2026-01-26-023] Improve Fallback Logic for Network Errors
+- **Proposed by:** Claude (Cursor) via bug-comorbidity analysis
+- **Date:** 2026-01-26
+- **Category:** tools
+- **Target file:** `src/agents/model-fallback.ts`, `src/agents/failover-error.ts`
+- **Description:** The model fallback logic doesn't recognize `TypeError: fetch failed` as a failover-worthy error. When ZAI API fails with network errors, it crashes instead of trying the Ollama fallback. The `coerceToFailoverError` function only handles: rate limit, auth, billing, timeout, format errors — but NOT generic network failures.
+- **Impact:** Medium - Gateway crashes instead of gracefully falling back
+- **Suggested fix:** Add network error patterns (`fetch failed`, `ECONNREFUSED`, `ENOTFOUND`) to the failover classification
+- **Status:** pending - needs code change in Clawdbot core
+
+### [2026-01-26-021] Image Generation Capability for Self-Portrait [RESOLVED]
+- **Proposed by:** Simon (via Telegram, urgent)
+- **Date:** 2026-01-26
+- **Category:** tools
+- **Target file:** ~/clawd/TOOLS.md
+- **Description:** Simon requested a self-portrait. Liam thought nano-banana-pro was vision-only, but it DOES generate images.
+- **Resolution:** nano-banana-pro works! The issue was:
+  1. Skill is at `/home/liam/skills/nano-banana-pro/` (not `/home/liam/clawdbot/skills/`)
+  2. Uses `exec` with Python script (not `llm-task`)
+  3. Added instructions to TOOLS.md
+- **Tested:** Successfully generated test image at `/tmp/test-nano-banana.png` (1.2MB, 1408x768 PNG)
+- **Status:** RESOLVED - Claude (Cursor) fixed on 2026-01-26
+
 ### [2026-01-25-019] Digital Download Business Research & Strategy
 - **Proposed by:** Simon (via Slack)
 - **Date:** 2026-01-25

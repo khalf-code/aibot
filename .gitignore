@@ -109,3 +109,18 @@ skills/auto-updater/
 skills/clawddocs/
 skills/self-improving-agent/
 skills/youtube-watcher/
+
+# Ollama models (large binary files)
+.ollama/
+
+# GOG CLI credentials (tokens)
+.config/gogcli/
+
+# Liam local data (personal, not source)
+clawd/memory/
+clawd/archive/
+clawd/overnight-builds/
+clawd/progress/
+clawd/projects/
+clawd/ROLES-ANALYSIS.md
+progress/

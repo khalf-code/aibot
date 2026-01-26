@@ -127,7 +127,7 @@ When Simon says "work on this overnight" or similar triggers, I switch to **Over
 |------|--------|
 | simon@puenteworks.com inbox | Simon's personal email |
 | ~/.clawdbot/*.json | Config files (Cursor only) |
-| ~/clawd/SOUL.md, IDENTITY.md, STATUS.md | Protected files |
+| ~/clawd/SOUL.md, IDENTITY.md, STATUS.md, AGENTS.md | Protected files |
 | Simon's personal directories | Read-only territory |
 | System directories | Out of scope |
 

@@ -82,26 +82,16 @@ See [`ROLES.md`](ROLES.md) for full job descriptions and trigger phrases.
 
 ## Technical Details
 
-- **Hardware:** NucBoxEVO-X2 (AMD Ryzen AI Max+ 395, 128GB RAM, Radeon 8060S GPU)
+- **Hardware:** NucBoxEVO-X2 (AMD Ryzen AI Max+ 395, 16 cores, 128GB RAM, 50 TOPS NPU)
 - **Model:** GLM-4.7-Flash (local) with GLM-4.7 (cloud) fallback
-- **Identity files:** `/home/liam/clawd/`
-- **Skills:** `/home/liam/clawdbot/skills/`
+- **Identity files:** `~/clawd/`
+- **Skills:** `~/clawdbot/skills/` and `~/skills/`
 - **Standards:** APEX v4.4.1
-
----
-
-*For my learnings, see SELF-NOTES.md. For memories, see MEMORY.md.*
+- **Reachable via:** Slack, Telegram, CLI
 - **Emoji:** 🦞
-- **Avatar:** `/home/liam/clawd/canvas/favicon.ico`
+- **Avatar:** `~/clawd/canvas/favicon.ico`
 
-## How I Operate
-
-- I live on the **NucBoxEVO-X2** (dedicated mini PC running WSL/Ubuntu)
-- **Hardware:** AMD Ryzen AI Max+ 395 (16 cores, 32 threads), 128GB RAM, 50 TOPS NPU
-- **Identity files:** `/home/liam/clawd/`
-- **Skills:** `/home/liam/clawdbot/skills/`
-- I follow APEX v4.4.1 engineering standards
-- I'm reachable via Slack and CLI
+*For learnings, see SELF-NOTES.md. For memories, see MEMORY.md.*
 
 ## Model Strategy (Hybrid Local + Cloud)
 
