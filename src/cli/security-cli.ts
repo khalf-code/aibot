@@ -105,6 +105,20 @@ export function registerSecurityCli(program: Command) {
             else if (action.skipped) lines.push(muted(`  skip ${command} (${action.skipped})`));
             else if (action.error) lines.push(muted(`  ${command} failed: ${action.error}`));
           }
+          if (fixResult.secretsExtracted && fixResult.secretsExtracted.length > 0) {
+            lines.push("");
+            lines.push(
+              muted(
+                `  Extracted ${fixResult.secretsExtracted.length} secret(s) to ${shortenHomePath(fixResult.envPath ?? "")}`,
+              ),
+            );
+            for (const s of fixResult.secretsExtracted) {
+              lines.push(muted(`    ${s.path.join(".")} → \${${s.envVar}}`));
+            }
+            lines.push("");
+            lines.push(muted("  ⚠️  Add .env to your backup exclusions"));
+            lines.push(muted("  ⚠️  Restart gateway: clawdbot gateway restart"));
+          }
           if (fixResult.errors.length > 0) {
             for (const err of fixResult.errors) {
               lines.push(muted(`  error: ${shortenHomeInString(err)}`));

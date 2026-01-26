@@ -12,6 +12,7 @@ import { normalizeAgentId } from "../routing/session-key.js";
 import { readChannelAllowFromStore } from "../pairing/pairing-store.js";
 import { runExec } from "../process/exec.js";
 import { createIcaclsResetCommand, formatIcaclsResetCommand, type ExecFn } from "./windows-acl.js";
+import { getDefaultRedactPatterns } from "../logging/redact.js";
 
 export type SecurityFixChmodAction = {
   kind: "chmod";
@@ -33,6 +34,12 @@ export type SecurityFixIcaclsAction = {
 
 export type SecurityFixAction = SecurityFixChmodAction | SecurityFixIcaclsAction;
 
+export type ExtractedSecret = {
+  path: string[];
+  value: string;
+  envVar: string;
+};
+
 export type SecurityFixResult = {
   ok: boolean;
   stateDir: string;
@@ -41,6 +48,8 @@ export type SecurityFixResult = {
   changes: string[];
   actions: SecurityFixAction[];
   errors: string[];
+  secretsExtracted?: ExtractedSecret[];
+  envPath?: string;
 };
 
 async function safeChmod(params: {
@@ -281,6 +290,165 @@ function applyConfigFixes(params: { cfg: ClawdbotConfig; env: NodeJS.ProcessEnv 
   return { cfg: next, changes, policyFlips };
 }
 
+// Secret extraction helpers
+function looksLikeEnvRef(value: string): boolean {
+  const v = value.trim();
+  return v.startsWith("${") && v.endsWith("}");
+}
+
+function looksLikeSecret(value: string): boolean {
+  if (typeof value !== "string" || value.length < 16) return false;
+  if (looksLikeEnvRef(value)) return false;
+
+  // Compile redact patterns and test against value
+  const patterns = getDefaultRedactPatterns();
+  for (const p of patterns) {
+    try {
+      const re = new RegExp(p, "i");
+      if (re.test(value)) return true;
+    } catch {
+      continue;
+    }
+  }
+
+  // High-entropy fallback for unknown formats
+  if (value.length >= 32 && /^[A-Za-z0-9_-]+$/.test(value)) {
+    const entropy = new Set(value).size / value.length;
+    if (entropy > 0.4) return true;
+  }
+
+  return false;
+}
+
+function pathToEnvVarName(configPath: string[]): string {
+  const parts: string[] = [];
+
+  for (const segment of configPath) {
+    // Skip generic container names
+    if (
+      ["channels", "accounts", "providers", "entries", "list", "env", "docker", "sandbox"].includes(
+        segment,
+      )
+    ) {
+      continue;
+    }
+    // Normalize known field names
+    if (segment === "token") parts.push("TOKEN");
+    else if (segment === "botToken") parts.push("BOT_TOKEN");
+    else if (segment === "apiKey") parts.push("API_KEY");
+    else if (segment === "password") parts.push("PASSWORD");
+    else if (segment === "controlToken") parts.push("CONTROL_TOKEN");
+    else parts.push(segment.toUpperCase().replace(/-/g, "_"));
+  }
+
+  const name = parts.join("_");
+  return name.startsWith("CLAWDBOT_") ? name : `CLAWDBOT_${name}`;
+}
+
+function findSecrets(obj: unknown, currentPath: string[] = []): ExtractedSecret[] {
+  const secrets: ExtractedSecret[] = [];
+
+  if (typeof obj === "string") {
+    if (looksLikeSecret(obj)) {
+      secrets.push({
+        path: currentPath,
+        value: obj,
+        envVar: pathToEnvVarName(currentPath),
+      });
+    }
+  } else if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      secrets.push(...findSecrets(obj[i], [...currentPath, String(i)]));
+    }
+  } else if (obj && typeof obj === "object") {
+    for (const [key, value] of Object.entries(obj)) {
+      secrets.push(...findSecrets(value, [...currentPath, key]));
+    }
+  }
+
+  return secrets;
+}
+
+function setValueAtPath(
+  obj: Record<string, unknown>,
+  configPath: string[],
+  newValue: string,
+): void {
+  let current: unknown = obj;
+  for (let i = 0; i < configPath.length - 1; i++) {
+    const key = configPath[i];
+    if (Array.isArray(current)) {
+      current = current[Number(key)];
+    } else if (current && typeof current === "object") {
+      current = (current as Record<string, unknown>)[key];
+    } else {
+      return;
+    }
+  }
+
+  const finalKey = configPath[configPath.length - 1];
+  if (Array.isArray(current)) {
+    current[Number(finalKey)] = newValue;
+  } else if (current && typeof current === "object") {
+    (current as Record<string, unknown>)[finalKey] = newValue;
+  }
+}
+
+export function extractSecretsFromConfig(cfg: ClawdbotConfig): {
+  updatedConfig: ClawdbotConfig;
+  secrets: ExtractedSecret[];
+} {
+  const secrets = findSecrets(cfg);
+
+  // Deduplicate env var names (add suffix if needed)
+  const usedNames = new Set<string>();
+  for (const secret of secrets) {
+    let name = secret.envVar;
+    let counter = 1;
+    while (usedNames.has(name)) {
+      name = `${secret.envVar}_${counter}`;
+      counter++;
+    }
+    secret.envVar = name;
+    usedNames.add(name);
+  }
+
+  // Clone config and replace values with env var references
+  const updatedConfig = structuredClone(cfg);
+  for (const secret of secrets) {
+    setValueAtPath(updatedConfig as Record<string, unknown>, secret.path, `\${${secret.envVar}}`);
+  }
+
+  return { updatedConfig, secrets };
+}
+
+export async function writeEnvFile(params: {
+  envPath: string;
+  secrets: ExtractedSecret[];
+  append?: boolean;
+}): Promise<void> {
+  const lines = [
+    "# Clawdbot Secrets - DO NOT COMMIT",
+    `# Generated by clawdbot security audit --fix`,
+    "",
+  ];
+
+  for (const secret of params.secrets) {
+    lines.push(`${secret.envVar}=${secret.value}`);
+  }
+
+  const content = lines.join("\n") + "\n";
+
+  if (params.append) {
+    await fs.appendFile(params.envPath, "\n" + content);
+  } else {
+    await fs.writeFile(params.envPath, content);
+  }
+
+  // Secure permissions
+  await fs.chmod(params.envPath, 0o600);
+}
+
 function listDirectIncludes(parsed: unknown): string[] {
   const out: string[] = [];
   const visit = (value: unknown) => {
@@ -429,6 +597,9 @@ export async function fixSecurityFootguns(opts?: {
 
   let configWritten = false;
   let changes: string[] = [];
+  let secretsExtracted: ExtractedSecret[] | undefined;
+  let envPath: string | undefined;
+
   if (snap.valid) {
     const fixed = applyConfigFixes({ cfg: snap.config, env });
     changes = fixed.changes;
@@ -441,6 +612,23 @@ export async function fixSecurityFootguns(opts?: {
         changes,
         policyFlips: fixed.policyFlips,
       });
+    }
+
+    // Extract secrets to .env
+    const extraction = extractSecretsFromConfig(fixed.cfg);
+    if (extraction.secrets.length > 0) {
+      secretsExtracted = extraction.secrets;
+      envPath = path.join(stateDir, ".env");
+
+      try {
+        await writeEnvFile({ envPath, secrets: extraction.secrets });
+        changes.push(`extracted ${extraction.secrets.length} secret(s) to ${envPath}`);
+
+        // Use the updated config with env var references
+        Object.assign(fixed.cfg, extraction.updatedConfig);
+      } catch (err) {
+        errors.push(`writeEnvFile failed: ${String(err)}`);
+      }
     }
 
     if (changes.length > 0) {
@@ -490,5 +678,7 @@ export async function fixSecurityFootguns(opts?: {
     changes,
     actions,
     errors,
+    secretsExtracted,
+    envPath,
   };
 }
