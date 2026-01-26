@@ -25,15 +25,21 @@ aws secretsmanager get-secret-value --secret-id clawdbot/discord-token
 
 ### 2. Terraform変数の設定
 
-`.env.example`をコピーして`terraform.tfvars`を作成:
+`terraform.tfvars.example`をコピーして`terraform.tfvars`を作成:
 
 ```bash
-cp .env.example terraform.tfvars
+cp terraform.tfvars.example terraform.tfvars
 ```
 
 `terraform.tfvars`を編集して以下の値を設定:
-- `aws_account_id`: AWSアカウントID
+- `aws_account_id`: AWSアカウントID（13桁の数字）
 - `discord_token_secret_name`: Secrets Managerのシークレット名（デフォルト: `clawdbot/discord-token`）
+
+**重要**: `aws_account_id`は必須です。AWSコンソールまたは以下のコマンドで確認できます:
+
+```bash
+aws sts get-caller-identity --query Account --output text
+```
 
 ### 3. Terraformの実行
 
