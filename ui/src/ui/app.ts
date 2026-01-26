@@ -512,6 +512,7 @@ export class ClawdbotApp extends LitElement {
   @state() commandPaletteQuery = "";
   @state() commandPaletteSelectedIndex = 0;
   @state() commandPaletteFavVersion = 0;
+  @state() commandPaletteCategory = "All";
 
   client: GatewayBrowserClient | null = null;
   private chatScrollFrame: number | null = null;
@@ -1600,12 +1601,14 @@ export class ClawdbotApp extends LitElement {
     this.commandPaletteOpen = true;
     this.commandPaletteQuery = "";
     this.commandPaletteSelectedIndex = 0;
+    this.commandPaletteCategory = "All";
   }
 
   closeCommandPalette() {
     this.commandPaletteOpen = false;
     this.commandPaletteQuery = "";
     this.commandPaletteSelectedIndex = 0;
+    this.commandPaletteCategory = "All";
   }
 
   setCommandPaletteQuery(query: string) {
@@ -1618,6 +1621,10 @@ export class ClawdbotApp extends LitElement {
 
   bumpCommandPaletteFavVersion() {
     this.commandPaletteFavVersion++;
+  }
+
+  setCommandPaletteCategory(category: string) {
+    this.commandPaletteCategory = category;
   }
 
   render() {

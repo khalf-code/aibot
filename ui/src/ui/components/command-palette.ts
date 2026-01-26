@@ -23,6 +23,8 @@ export type CommandPaletteState = {
   open: boolean;
   query: string;
   selectedIndex: number;
+  /** Active category filter ("All" shows everything). */
+  activeCategory: string;
 };
 
 export type CommandPaletteProps = {
@@ -31,6 +33,7 @@ export type CommandPaletteProps = {
   onClose: () => void;
   onQueryChange: (query: string) => void;
   onIndexChange: (index: number) => void;
+  onCategoryChange: (category: string) => void;
   onSelect: (command: Command) => void;
   /** Called after a favorite is toggled so the parent can trigger re-render. */
   onFavoritesChange?: () => void;
@@ -44,9 +47,11 @@ function handlePaletteKeydown(
   e: KeyboardEvent,
   state: CommandPaletteState,
   filtered: Command[],
+  categories: string[],
   onClose: () => void,
   onSelect: (cmd: Command) => void,
   onIndexChange: (index: number) => void,
+  onCategoryChange: (cat: string) => void,
   onToggleFavorite?: (cmd: Command) => void
 ) {
   // Ctrl/Cmd + D → toggle favorite on the selected item.
@@ -54,6 +59,26 @@ function handlePaletteKeydown(
     e.preventDefault();
     const selected = filtered[state.selectedIndex];
     if (selected && onToggleFavorite) onToggleFavorite(selected);
+    return;
+  }
+
+  // Tab / Shift+Tab → cycle categories.
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const idx = categories.indexOf(state.activeCategory);
+    const next = e.shiftKey
+      ? (idx - 1 + categories.length) % categories.length
+      : (idx + 1) % categories.length;
+    onCategoryChange(categories[next]);
+    onIndexChange(0);
+    return;
+  }
+
+  // Backspace on empty query → reset category to "All".
+  if (e.key === "Backspace" && !state.query && state.activeCategory !== "All") {
+    e.preventDefault();
+    onCategoryChange("All");
+    onIndexChange(0);
     return;
   }
 
@@ -79,18 +104,42 @@ function handlePaletteKeydown(
   }
 }
 
+/** Extract unique category names from a list of commands (preserving order). */
+function extractCategories(commands: Command[]): string[] {
+  const seen = new Set<string>();
+  const cats: string[] = [];
+  for (const cmd of commands) {
+    const cat = cmd.category ?? "Actions";
+    if (!seen.has(cat)) {
+      seen.add(cat);
+      cats.push(cat);
+    }
+  }
+  return cats;
+}
+
 export function renderCommandPalette(props: CommandPaletteProps) {
-  const { state, commands, onClose, onQueryChange, onIndexChange, onSelect, onFavoritesChange } =
+  const { state, commands, onClose, onQueryChange, onIndexChange, onCategoryChange, onSelect, onFavoritesChange } =
     props;
 
   if (!state.open) return nothing;
 
-  const filtered = filterCommands(commands, state.query);
+  // Category filter: "All" shows every command, otherwise only the chosen category.
+  const categoryFiltered =
+    state.activeCategory === "All"
+      ? commands
+      : commands.filter((c) => (c.category ?? "Actions") === state.activeCategory);
 
-  // Build "Favorites" and "Recents" groups when the query is empty.
+  const filtered = filterCommands(categoryFiltered, state.query);
+
+  // Build the category pill list: ["All", ...unique categories from commands].
+  const allCategories = ["All", ...extractCategories(commands)];
+
+  // Build "Favorites" and "Recents" groups when the query is empty and category is "All".
   const noQuery = !state.query.trim();
-  const favoriteIds = noQuery ? getFavoriteIds() : [];
-  const recentIds = noQuery ? getRecentCommandIds() : [];
+  const showSpecialGroups = noQuery && state.activeCategory === "All";
+  const favoriteIds = showSpecialGroups ? getFavoriteIds() : [];
+  const recentIds = showSpecialGroups ? getRecentCommandIds() : [];
   const commandById = new Map(commands.map((c) => [c.id, c]));
 
   const favoriteCommands = favoriteIds
@@ -189,14 +238,33 @@ export function renderCommandPalette(props: CommandPaletteProps) {
                 e,
                 state,
                 allVisible,
+                allCategories,
                 onClose,
                 handleSelect,
                 onIndexChange,
+                onCategoryChange,
                 handleToggleFavorite
               )}
             autofocus
           />
           <kbd class="command-palette__kbd">ESC</kbd>
+        </div>
+        <div class="command-palette__categories">
+          ${allCategories.map(
+            (cat) => html`
+              <button
+                class="command-palette__category ${cat === state.activeCategory
+                  ? "command-palette__category--active"
+                  : ""}"
+                @click=${() => {
+                  onCategoryChange(cat);
+                  onIndexChange(0);
+                }}
+              >
+                ${cat}
+              </button>
+            `
+          )}
         </div>
         <div class="command-palette__list">
           ${totalVisible === 0
