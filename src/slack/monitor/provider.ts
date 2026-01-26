@@ -29,7 +29,6 @@ import type { MonitorSlackOpts } from "./types.js";
 import {
   SlackExecApprovalHandler,
   getExecApprovalActionIdPrefix,
-  matchesExecApprovalActionId,
   parseApprovalValue,
 } from "./exec-approvals.js";
 
@@ -238,7 +237,6 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
             id: string | RegExp,
             handler: (args: {
               ack: () => Promise<void>;
-              body: { user?: { id?: string } };
               action: { action_id?: string; value?: string };
               respond: (payload: { text: string; response_type?: string }) => Promise<void>;
             }) => Promise<void>,
@@ -246,7 +244,7 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
         }
       ).action(
         new RegExp(`^${getExecApprovalActionIdPrefix()}_`),
-        async ({ ack, body, action, respond }) => {
+        async ({ ack, action, respond }) => {
           await ack();
           const parsed = parseApprovalValue(action?.value);
           if (!parsed) {
