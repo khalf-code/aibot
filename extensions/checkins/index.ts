@@ -20,6 +20,8 @@ import { createMemberRemoveTool } from "./src/tools/member-remove.js";
 import { createMemberListTool } from "./src/tools/member-list.js";
 import { createMemberTimezoneTool } from "./src/tools/member-timezone.js";
 import { createVacationTool } from "./src/tools/vacation.js";
+import { createTriggerTool } from "./src/tools/trigger.js";
+import { createHelpTool } from "./src/tools/help.js";
 
 // DM handler import
 import { handleDmResponse, triggerCheckIn } from "./src/dm-handler.js";
@@ -178,6 +180,8 @@ const checkinsPlugin = {
           createMemberListTool(storage, getDiscordConfig),
           createMemberTimezoneTool(storage, getDiscordConfig),
           createVacationTool(storage, getDiscordConfig),
+          createTriggerTool(storage),
+          createHelpTool(),
         ];
       },
       {
@@ -190,6 +194,8 @@ const checkinsPlugin = {
           "checkins_member_list",
           "checkins_member_timezone",
           "checkins_vacation",
+          "checkins_trigger",
+          "checkins_help",
         ],
       },
     );

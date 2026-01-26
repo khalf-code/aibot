@@ -32,6 +32,17 @@ export function getCheckInJobId(memberId: string): string {
  * @returns CronJobCreate configuration
  */
 export function buildCheckInCronJob(member: Member, team: Team): CronJobCreate {
+  // Build a clear instruction for the agent to call the trigger tool
+  const triggerMessage = [
+    "SCHEDULED CHECK-IN TRIGGER",
+    "",
+    "You must call the checkins_trigger tool with these exact parameters:",
+    `  memberId: "${member.id}"`,
+    `  teamId: "${team.id}"`,
+    "",
+    "Do not respond with any other message. Just call the tool.",
+  ].join("\n");
+
   return {
     name: `Check-in: ${member.displayName ?? member.discordUserId}`,
     description: `Daily check-in for team ${team.name}`,
@@ -45,7 +56,7 @@ export function buildCheckInCronJob(member: Member, team: Team): CronJobCreate {
     wakeMode: "now",
     payload: {
       kind: "agentTurn",
-      message: `[system] checkins:trigger:${member.id}:${team.id}`,
+      message: triggerMessage,
       deliver: false,
     },
   };
