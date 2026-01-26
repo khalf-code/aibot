@@ -51,8 +51,10 @@ enum GatewayLaunchAgentManager {
 
     static func set(enabled: Bool, bundlePath: String, port: Int) async -> String? {
         _ = bundlePath
-        guard !CommandResolver.connectionModeIsRemote() else {
-            self.logger.info("launchd change skipped (remote mode)")
+        // In remote mode, never enable the local gateway, but still allow disabling it
+        // so switching from local→remote properly unloads the launchd job.
+        if enabled, CommandResolver.connectionModeIsRemote() {
+            self.logger.info("launchd enable skipped (remote mode)")
             return nil
         }
         if enabled, self.isLaunchAgentWriteDisabled() {
