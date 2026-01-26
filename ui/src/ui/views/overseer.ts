@@ -16,6 +16,7 @@ import type {
   OverseerGoalStatusResult,
   OverseerStatusResult,
 } from "../types/overseer";
+import type { SimulatorState } from "../types/overseer-simulator";
 import {
   buildOverseerGraphLayout,
   buildSystemGraphLayout,
@@ -24,6 +25,7 @@ import {
   type GraphLayout,
   type GraphNode,
 } from "./overseer.graph";
+import { renderSimulator, type SimulatorProps } from "./overseer-simulator";
 
 export type OverseerProps = {
   loading: boolean;
@@ -75,7 +77,10 @@ export type OverseerProps = {
   // Activity feed enhancements
   activityFilterStatus?: string | null;
   activityLimit?: number;
-  // Event handlers
+  connected: boolean;
+  // Simulator state
+  simulatorState: SimulatorState;
+  simulatorProps: Omit<SimulatorProps, "state" | "overseerStatus" | "connected">;
   onRefresh: () => void;
   onTick: () => void;
   onSelectGoal: (goalId: string | null) => void;
@@ -150,6 +155,14 @@ export function renderOverseer(props: OverseerProps) {
   const stalledAssignments = props.status?.stalledAssignments ?? [];
   const activityEvents = buildActivityEvents(props);
 
+  // Build simulator props
+  const simulatorFullProps: SimulatorProps = {
+    state: props.simulatorState,
+    overseerStatus: props.status,
+    connected: props.connected,
+    ...props.simulatorProps,
+  };
+
   return html`
     <div class="overseer-view">
       ${renderHeader(props, statusGoals.length, stalledAssignments.length)}
@@ -201,6 +214,7 @@ export function renderOverseer(props: OverseerProps) {
       </div>
       ${props.drawerOpen ? renderDrawer(props) : nothing}
       ${props.createGoalOpen ? renderCreateGoalModal(props) : nothing}
+      ${renderSimulator(simulatorFullProps)}
     </div>
   `;
 }

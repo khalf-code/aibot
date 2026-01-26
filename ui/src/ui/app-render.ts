@@ -369,6 +369,11 @@ export function renderApp(state: AppViewState) {
               includeUnknown: state.sessionsIncludeUnknown,
               basePath: state.basePath,
               agents: state.agentsList,
+              search: state.sessionsSearch,
+              sort: state.sessionsSort,
+              sortDir: state.sessionsSortDir,
+              kindFilter: state.sessionsKindFilter,
+              statusFilter: state.sessionsStatusFilter,
               onSessionOpen: (sessionKey) => {
                 applySessionSelection(state, sessionKey);
                 state.setTab("chat");
@@ -378,6 +383,23 @@ export function renderApp(state: AppViewState) {
                 state.sessionsFilterLimit = next.limit;
                 state.sessionsIncludeGlobal = next.includeGlobal;
                 state.sessionsIncludeUnknown = next.includeUnknown;
+              },
+              onSearchChange: (search) => {
+                state.sessionsSearch = search;
+              },
+              onSortChange: (column) => {
+                if (state.sessionsSort === column) {
+                  state.sessionsSortDir = state.sessionsSortDir === "asc" ? "desc" : "asc";
+                } else {
+                  state.sessionsSort = column;
+                  state.sessionsSortDir = column === "updated" ? "desc" : "asc";
+                }
+              },
+              onKindFilterChange: (kind) => {
+                state.sessionsKindFilter = kind;
+              },
+              onStatusFilterChange: (status) => {
+                state.sessionsStatusFilter = status;
               },
               onRefresh: () => loadSessions(state),
               onPatch: (key, patch) => patchSession(state, key, patch),
@@ -463,6 +485,57 @@ export function renderApp(state: AppViewState) {
               agents: state.agentsList,
               sessions: state.sessionsResult,
               channels: state.channelsSnapshot,
+              // Goal management state
+              goalActionPending: state.overseerGoalActionPending,
+              goalActionError: state.overseerGoalActionError,
+              createGoalOpen: state.overseerCreateGoalOpen,
+              createGoalForm: state.overseerCreateGoalForm,
+              activityFilterStatus: state.overseerActivityFilterStatus,
+              activityLimit: state.overseerActivityLimit,
+              connected: state.connected,
+              // Simulator state
+              simulatorState: state.simulator,
+              simulatorProps: {
+                onTogglePanel: () => {},
+                onSectionChange: () => {},
+                onModeChange: () => {},
+                onAddRule: () => {},
+                onAddRuleFromTemplate: () => {},
+                onUpdateRule: () => {},
+                onDeleteRule: () => {},
+                onToggleRuleEnabled: () => {},
+                onSelectRule: () => {},
+                onCloseRuleEditor: () => {},
+                onSaveDraftRule: () => {},
+                onAddCondition: () => {},
+                onUpdateCondition: () => {},
+                onDeleteCondition: () => {},
+                onAddAction: () => {},
+                onUpdateAction: () => {},
+                onDeleteAction: () => {},
+                onUpdateFilters: () => {},
+                onClearFilters: () => {},
+                onQueueEvent: () => {},
+                onRemoveQueuedEvent: () => {},
+                onClearEventQueue: () => {},
+                onExecuteEvent: () => {},
+                onAddScenario: () => {},
+                onAddScenarioFromTemplate: () => {},
+                onUpdateScenario: () => {},
+                onDeleteScenario: () => {},
+                onSelectScenario: () => {},
+                onCloseScenarioEditor: () => {},
+                onSaveDraftScenario: () => {},
+                onStartRun: () => {},
+                onPauseRun: () => {},
+                onResumeRun: () => {},
+                onStopRun: () => {},
+                onResetSimulator: () => {},
+                onClearActivityLog: () => {},
+                onUpdateSettings: () => {},
+                onSaveState: () => {},
+                onLoadState: () => {},
+              },
               onRefresh: () => state.handleOverseerRefresh(),
               onTick: () => state.handleOverseerTick(),
               onSelectGoal: (goalId) => state.handleOverseerSelectGoal(goalId),
@@ -477,6 +550,21 @@ export function renderApp(state: AppViewState) {
               onDragChange: (kind, next) => state.handleOverseerDragChange(kind, next),
               onDrawerClose: () => state.handleOverseerDrawerClose(),
               onLoadCronRuns: (jobId) => state.handleOverseerLoadCronRuns(jobId),
+              // Goal management handlers
+              onPauseGoal: (goalId) => state.handleOverseerPauseGoal(goalId),
+              onResumeGoal: (goalId) => state.handleOverseerResumeGoal(goalId),
+              onOpenCreateGoal: () => state.handleOverseerOpenCreateGoal(),
+              onCloseCreateGoal: () => state.handleOverseerCloseCreateGoal(),
+              onCreateGoal: (params) => state.handleOverseerCreateGoal(params),
+              onUpdateCreateGoalForm: (updates) => state.handleOverseerUpdateCreateGoalForm(updates),
+              onMarkWorkDone: (goalId, workNodeId, summary) =>
+                state.handleOverseerMarkWorkDone(goalId, workNodeId, summary),
+              onBlockWork: (goalId, workNodeId, reason) =>
+                state.handleOverseerBlockWork(goalId, workNodeId, reason),
+              onRetryAssignment: (goalId, workNodeId) =>
+                state.handleOverseerRetryAssignment(goalId, workNodeId),
+              onActivityFilterChange: (status) => state.handleOverseerActivityFilterChange(status),
+              onActivityLimitChange: (limit) => state.handleOverseerActivityLimitChange(limit),
             })
           : nothing}
 
