@@ -31,6 +31,8 @@ export type SignalAccountConfig = {
   httpPort?: number;
   /** signal-cli binary path (default: signal-cli). */
   cliPath?: string;
+  /** Custom config/data directory for signal-cli (default: ~/.local/share/signal-cli). */
+  configDir?: string;
   /** Auto-start signal-cli daemon (default: true if httpUrl not set). */
   autoStart?: boolean;
   /** Max time to wait for signal-cli daemon startup (ms, cap 120000). */

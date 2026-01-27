@@ -45,6 +45,8 @@ export type MonitorSignalOpts = {
   autoStart?: boolean;
   startupTimeoutMs?: number;
   cliPath?: string;
+  /** Custom config/data directory for signal-cli. */
+  configDir?: string;
   httpHost?: string;
   httpPort?: number;
   receiveMode?: "on-start" | "manual";
@@ -295,10 +297,12 @@ export async function monitorSignalProvider(opts: MonitorSignalOpts = {}): Promi
 
   if (autoStart) {
     const cliPath = opts.cliPath ?? accountInfo.config.cliPath ?? "signal-cli";
+    const configDir = opts.configDir ?? accountInfo.config.configDir;
     const httpHost = opts.httpHost ?? accountInfo.config.httpHost ?? "127.0.0.1";
     const httpPort = opts.httpPort ?? accountInfo.config.httpPort ?? 8080;
     daemonHandle = spawnSignalDaemon({
       cliPath,
+      configDir,
       account,
       httpHost,
       httpPort,

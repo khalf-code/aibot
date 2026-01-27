@@ -10,6 +10,8 @@ export type SignalDaemonOpts = {
   ignoreAttachments?: boolean;
   ignoreStories?: boolean;
   sendReadReceipts?: boolean;
+  /** Custom config/data directory for signal-cli. */
+  configDir?: string;
   runtime?: RuntimeEnv;
 };
 
@@ -30,6 +32,9 @@ export function classifySignalCliLogLine(line: string): "log" | "error" | null {
 
 function buildDaemonArgs(opts: SignalDaemonOpts): string[] {
   const args: string[] = [];
+  if (opts.configDir) {
+    args.push("-c", opts.configDir);
+  }
   if (opts.account) {
     args.push("-a", opts.account);
   }
