@@ -14,11 +14,8 @@ export function matchesList(senderEmail: string, list: string[]): boolean {
 
   return list.some((entry) => {
     const normalizedEntry = entry.toLowerCase().trim();
-    return (
-      normalizedEntry === normalizedSender || // exact email match
-      normalizedEntry === domain || // exact domain match
-      normalizedSender.endsWith(`@${normalizedEntry}`) // domain suffix match
-    );
+    // Match exact email or domain
+    return normalizedEntry === normalizedSender || normalizedEntry === domain;
   });
 }
 

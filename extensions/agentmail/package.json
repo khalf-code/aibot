@@ -13,8 +13,7 @@
       "selectionLabel": "AgentMail (Email Inbox API)",
       "docsPath": "/channels/agentmail",
       "docsLabel": "agentmail",
-      "blurb": "Email channel via AgentMail; configure API key and inbox.",
-      "order": 0,
+      "blurb": "email channel via AgentMail; dedicated agent inbox API.",
       "quickstartAllowFrom": true
     },
     "install": {

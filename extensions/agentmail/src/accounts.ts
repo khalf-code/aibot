@@ -16,11 +16,10 @@ export function listAgentMailAccountIds(_cfg: CoreConfig): string[] {
 
 /**
  * Returns the default AgentMail account ID.
+ * Currently only supports a single default account.
  */
-export function resolveDefaultAgentMailAccountId(cfg: CoreConfig): string {
-  const ids = listAgentMailAccountIds(cfg);
-  if (ids.includes(DEFAULT_ACCOUNT_ID)) return DEFAULT_ACCOUNT_ID;
-  return ids[0] ?? DEFAULT_ACCOUNT_ID;
+export function resolveDefaultAgentMailAccountId(_cfg: CoreConfig): string {
+  return DEFAULT_ACCOUNT_ID;
 }
 
 /** Resolved AgentMail credentials and paths. */

@@ -94,8 +94,8 @@ export async function fetchFormattedThread(
     const messages = thread.messages.map(formatMessage).join("\n\n");
 
     return `${header}\n\n${messages}`;
-  } catch (err) {
-    console.error(`Failed to fetch thread: ${String(err)}`);
+  } catch {
+    // Caller handles fallback to webhook payload
     return "";
   }
 }

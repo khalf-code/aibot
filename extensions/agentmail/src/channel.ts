@@ -23,12 +23,13 @@ import type { CoreConfig, ResolvedAgentMailAccount } from "./utils.js";
 
 const meta = {
   id: "agentmail",
-  label: "AgentMail (Email Inbox API)",
+  label: "AgentMail",
   selectionLabel: "AgentMail (Email Inbox API)",
+  detailLabel: "AgentMail",
   docsPath: "/channels/agentmail",
   docsLabel: "agentmail",
-  blurb: "Email channel via AgentMail; configure token and email address.",
-  order: 80,
+  blurb: "email channel via AgentMail; dedicated agent inbox API.",
+  systemImage: "envelope",
   quickstartAllowFrom: true,
 };
 

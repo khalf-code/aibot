@@ -44,6 +44,7 @@ function recordState(
   });
 }
 
+/** Returns runtime state for status checks. */
 export function getAgentMailRuntimeState(accountId: string) {
   return runtimeState.get(`agentmail:${accountId}`);
 }
@@ -158,8 +159,12 @@ export async function monitorAgentMailProvider(
         return sendJson(res, 200, { ok: true, filtered: true });
       }
 
-      // Label message as allowed
-      await labelMessageAllowed(client, inboxId, message.messageId);
+      // Label message as allowed (best effort - don't fail if labeling fails)
+      try {
+        await labelMessageAllowed(client, inboxId, message.messageId);
+      } catch (labelErr) {
+        logVerbose(`agentmail: failed to label message: ${String(labelErr)}`);
+      }
 
       recordState(accountId, { lastInboundAt: Date.now() });
 

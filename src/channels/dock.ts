@@ -213,6 +213,30 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
       }),
     },
   },
+  agentmail: {
+    id: "agentmail",
+    capabilities: {
+      chatTypes: ["direct"],
+      media: true,
+      threads: true,
+    },
+    outbound: { textChunkLimit: 4000 },
+    config: {
+      resolveAllowFrom: ({ cfg }) =>
+        ((cfg.channels?.agentmail as { allowFrom?: string[] } | undefined)?.allowFrom ?? []).map(
+          (entry) => String(entry),
+        ),
+      formatAllowFrom: ({ allowFrom }) => formatLower(allowFrom),
+    },
+    threading: {
+      buildToolContext: ({ context, hasRepliedRef }) => ({
+        currentChannelId: context.To?.trim() || undefined,
+        currentThreadTs:
+          context.MessageThreadId != null ? String(context.MessageThreadId) : undefined,
+        hasRepliedRef,
+      }),
+    },
+  },
   googlechat: {
     id: "googlechat",
     capabilities: {
