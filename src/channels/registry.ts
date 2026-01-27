@@ -66,7 +66,7 @@ const CHAT_CHANNEL_META: Record<ChatChannelId, ChannelMeta> = {
     detailLabel: "AgentMail",
     docsPath: "/channels/agentmail",
     docsLabel: "agentmail",
-    blurb: "email channel via AgentMail; configure API key and inbox.",
+    blurb: "email channel via AgentMail; dedicated agent inbox API.",
     systemImage: "envelope",
     quickstartAllowFrom: true,
   },
