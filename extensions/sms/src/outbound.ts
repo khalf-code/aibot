@@ -1,11 +1,10 @@
 /**
- * Plivo Outbound Message Adapter
+ * SMS Outbound Message Adapter
  * Handles sending SMS and MMS messages
  */
 
-import * as Plivo from "plivo";
 import { getAccountState } from "./runtime.js";
-import type { PlivoResolvedAccount } from "./types.js";
+import type { SMSResolvedAccount } from "./types.js";
 
 export type OutboundContext = {
   to: string;
@@ -13,7 +12,7 @@ export type OutboundContext = {
   mediaUrl?: string;
   mediaUrls?: string[];
   accountId: string;
-  account: PlivoResolvedAccount;
+  account: SMSResolvedAccount;
 };
 
 export type OutboundResult = {
@@ -21,14 +20,6 @@ export type OutboundResult = {
   externalId?: string;
   error?: string;
 };
-
-/**
- * Get Plivo client for account
- */
-function getClient(accountId: string): Plivo.Client | undefined {
-  const state = getAccountState(accountId);
-  return state?.client as Plivo.Client | undefined;
-}
 
 /**
  * Normalize phone number to E.164 format
@@ -54,9 +45,9 @@ function normalizePhoneNumber(phoneNumber: string): string {
  * Send SMS text message
  */
 export async function sendText(ctx: OutboundContext): Promise<OutboundResult> {
-  const client = getClient(ctx.accountId);
-  if (!client) {
-    return { ok: false, error: "Plivo client not initialized" };
+  const state = getAccountState(ctx.accountId);
+  if (!state?.provider) {
+    return { ok: false, error: "SMS provider not initialized" };
   }
 
   if (!ctx.text) {
@@ -66,26 +57,22 @@ export async function sendText(ctx: OutboundContext): Promise<OutboundResult> {
   const to = normalizePhoneNumber(ctx.to);
   const from = ctx.account.phoneNumber;
 
-  try {
-    const response = await client.messages.create(from, to, ctx.text);
-    const messageId = Array.isArray(response.messageUuid)
-      ? response.messageUuid[0]
-      : response.messageUuid;
+  const result = await state.provider.sendText({ from, to, text: ctx.text });
 
-    return { ok: true, externalId: messageId };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return { ok: false, error: errorMessage };
-  }
+  return {
+    ok: result.ok,
+    externalId: result.messageId,
+    error: result.error,
+  };
 }
 
 /**
  * Send MMS with media attachments
  */
 export async function sendMedia(ctx: OutboundContext): Promise<OutboundResult> {
-  const client = getClient(ctx.accountId);
-  if (!client) {
-    return { ok: false, error: "Plivo client not initialized" };
+  const state = getAccountState(ctx.accountId);
+  if (!state?.provider) {
+    return { ok: false, error: "SMS provider not initialized" };
   }
 
   const mediaUrls = ctx.mediaUrls || (ctx.mediaUrl ? [ctx.mediaUrl] : []);
@@ -95,23 +82,19 @@ export async function sendMedia(ctx: OutboundContext): Promise<OutboundResult> {
 
   const to = normalizePhoneNumber(ctx.to);
   const from = ctx.account.phoneNumber;
-  const text = ctx.text || "";
 
-  try {
-    const response = await client.messages.create(from, to, text, {
-      type: "mms",
-      media_urls: mediaUrls,
-    });
+  const result = await state.provider.sendMedia({
+    from,
+    to,
+    text: ctx.text,
+    mediaUrls,
+  });
 
-    const messageId = Array.isArray(response.messageUuid)
-      ? response.messageUuid[0]
-      : response.messageUuid;
-
-    return { ok: true, externalId: messageId };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return { ok: false, error: errorMessage };
-  }
+  return {
+    ok: result.ok,
+    externalId: result.messageId,
+    error: result.error,
+  };
 }
 
 /**

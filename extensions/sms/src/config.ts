@@ -1,24 +1,20 @@
 /**
- * Plivo Configuration Adapter
+ * SMS Configuration Adapter
  * Handles account configuration, credential resolution, and DM policies
  */
 
 import { readFileSync, existsSync } from "node:fs";
-import type {
-  PlivoConfig,
-  PlivoAccountConfig,
-  PlivoResolvedAccount,
-} from "./types.js";
+import type { SMSConfig, SMSAccountConfig, SMSResolvedAccount } from "./types.js";
 import { DEFAULT_QUICK_COMMANDS } from "./types.js";
 
-const CHANNEL_ID = "plivo";
-const DEFAULT_WEBHOOK_PATH = "/plivo";
+const CHANNEL_ID = "sms";
+const DEFAULT_WEBHOOK_PATH = "/sms";
 
 /**
- * Get Plivo config from Clawdbot config
+ * Get SMS config from Clawdbot config
  */
-function getPlivoConfig(cfg: { channels?: Record<string, unknown> }): PlivoConfig | undefined {
-  return cfg?.channels?.[CHANNEL_ID] as PlivoConfig | undefined;
+function getSMSConfig(cfg: { channels?: Record<string, unknown> }): SMSConfig | undefined {
+  return cfg?.channels?.[CHANNEL_ID] as SMSConfig | undefined;
 }
 
 /**
@@ -34,16 +30,16 @@ function readCredentialFile(filePath: string | undefined): string | undefined {
  * List all configured account IDs
  */
 export function listAccountIds(cfg: { channels?: Record<string, unknown> }): string[] {
-  const plivoConfig = getPlivoConfig(cfg);
-  if (!plivoConfig) return [];
+  const smsConfig = getSMSConfig(cfg);
+  if (!smsConfig) return [];
 
   // Check for multi-account setup
-  if (plivoConfig.accounts) {
-    return Object.keys(plivoConfig.accounts);
+  if (smsConfig.accounts) {
+    return Object.keys(smsConfig.accounts);
   }
 
   // Single account (default)
-  if (plivoConfig.authId || plivoConfig.authIdFile || plivoConfig.phoneNumber) {
+  if (smsConfig.phoneNumber || smsConfig.plivo || smsConfig.twilio) {
     return ["default"];
   }
 
@@ -56,20 +52,20 @@ export function listAccountIds(cfg: { channels?: Record<string, unknown> }): str
 function getAccountConfig(
   cfg: { channels?: Record<string, unknown> },
   accountId?: string
-): PlivoAccountConfig | undefined {
-  const plivoConfig = getPlivoConfig(cfg);
-  if (!plivoConfig) return undefined;
+): SMSAccountConfig | undefined {
+  const smsConfig = getSMSConfig(cfg);
+  if (!smsConfig) return undefined;
 
   const id = accountId || "default";
 
   // Multi-account lookup
-  if (plivoConfig.accounts?.[id]) {
-    return { ...plivoConfig, ...plivoConfig.accounts[id] };
+  if (smsConfig.accounts?.[id]) {
+    return { ...smsConfig, ...smsConfig.accounts[id] };
   }
 
   // Single account (only for "default")
   if (id === "default") {
-    return plivoConfig;
+    return smsConfig;
   }
 
   return undefined;
@@ -81,23 +77,39 @@ function getAccountConfig(
 export function resolveAccount(
   cfg: { channels?: Record<string, unknown> },
   accountId?: string
-): PlivoResolvedAccount | undefined {
+): SMSResolvedAccount | undefined {
   const accountConfig = getAccountConfig(cfg, accountId);
   if (!accountConfig) return undefined;
 
-  // Resolve credentials (direct or from file)
-  const authId = accountConfig.authId || readCredentialFile(accountConfig.authIdFile);
-  const authToken = accountConfig.authToken || readCredentialFile(accountConfig.authTokenFile);
   const phoneNumber = accountConfig.phoneNumber;
+  if (!phoneNumber) return undefined;
 
-  // Require essential credentials
-  if (!authId || !authToken || !phoneNumber) {
-    return undefined;
+  // Determine provider
+  const provider = accountConfig.provider || "plivo";
+
+  // Resolve provider-specific config
+  let providerConfig: SMSResolvedAccount["providerConfig"];
+
+  if (provider === "plivo") {
+    const plivoConfig = accountConfig.plivo || {};
+    const authId = plivoConfig.authId || readCredentialFile(plivoConfig.authIdFile);
+    const authToken = plivoConfig.authToken || readCredentialFile(plivoConfig.authTokenFile);
+
+    if (!authId || !authToken) return undefined;
+
+    providerConfig = { authId, authToken };
+  } else if (provider === "twilio") {
+    const twilioConfig = accountConfig.twilio || {};
+    if (!twilioConfig.accountSid || !twilioConfig.authToken) return undefined;
+
+    providerConfig = twilioConfig;
+  } else {
+    // Mock or unknown provider
+    providerConfig = {};
   }
 
   return {
-    authId,
-    authToken,
+    provider,
     phoneNumber,
     webhookUrl: accountConfig.webhookUrl,
     webhookPath: accountConfig.webhookPath || DEFAULT_WEBHOOK_PATH,
@@ -106,6 +118,7 @@ export function resolveAccount(
     allowFrom: accountConfig.allowFrom || [],
     enableQuickCommands: accountConfig.enableQuickCommands ?? true,
     quickCommands: accountConfig.quickCommands || DEFAULT_QUICK_COMMANDS,
+    providerConfig,
   };
 }
 
@@ -150,6 +163,7 @@ export function describeAccount(
 ): {
   configured: boolean;
   enabled: boolean;
+  provider?: string;
   phoneNumber?: string;
   dmPolicy?: string;
 } {
@@ -159,6 +173,7 @@ export function describeAccount(
   return {
     configured: resolved !== undefined,
     enabled: accountConfig?.enabled !== false,
+    provider: resolved?.provider,
     phoneNumber: resolved?.phoneNumber,
     dmPolicy: resolved?.dmPolicy,
   };

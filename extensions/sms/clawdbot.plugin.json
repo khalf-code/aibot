@@ -1,0 +1,148 @@
+{
+  "id": "sms",
+  "uiHints": {
+    "provider": {
+      "label": "Provider",
+      "help": "Use plivo, twilio, or mock for dev/no-network."
+    },
+    "phoneNumber": {
+      "label": "Phone Number",
+      "placeholder": "+15550001234"
+    },
+    "webhookPath": {
+      "label": "Webhook Path"
+    },
+    "webhookUrl": {
+      "label": "Public Webhook URL"
+    },
+    "webhookSecret": {
+      "label": "Webhook Secret",
+      "sensitive": true
+    },
+    "dmPolicy": {
+      "label": "DM Policy"
+    },
+    "allowFrom": {
+      "label": "Allowlist"
+    },
+    "enableQuickCommands": {
+      "label": "Enable Quick Commands"
+    },
+    "plivo.authId": {
+      "label": "Plivo Auth ID",
+      "sensitive": true
+    },
+    "plivo.authToken": {
+      "label": "Plivo Auth Token",
+      "sensitive": true
+    },
+    "twilio.accountSid": {
+      "label": "Twilio Account SID"
+    },
+    "twilio.authToken": {
+      "label": "Twilio Auth Token",
+      "sensitive": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "provider": {
+        "type": "string",
+        "enum": ["plivo", "twilio", "mock"]
+      },
+      "phoneNumber": {
+        "type": "string",
+        "pattern": "^\\+[1-9]\\d{1,14}$"
+      },
+      "webhookPath": {
+        "type": "string"
+      },
+      "webhookUrl": {
+        "type": "string"
+      },
+      "webhookSecret": {
+        "type": "string"
+      },
+      "dmPolicy": {
+        "type": "string",
+        "enum": ["pairing", "allowlist", "open", "disabled"]
+      },
+      "allowFrom": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{1,14}$"
+        }
+      },
+      "enableQuickCommands": {
+        "type": "boolean"
+      },
+      "quickCommands": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "trigger": { "type": "string" },
+            "fullCommand": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        }
+      },
+      "plivo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "authId": {
+            "type": "string"
+          },
+          "authToken": {
+            "type": "string"
+          },
+          "authIdFile": {
+            "type": "string"
+          },
+          "authTokenFile": {
+            "type": "string"
+          }
+        }
+      },
+      "twilio": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "accountSid": {
+            "type": "string"
+          },
+          "authToken": {
+            "type": "string"
+          }
+        }
+      },
+      "accounts": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "provider": { "type": "string" },
+            "phoneNumber": { "type": "string" },
+            "webhookPath": { "type": "string" },
+            "webhookUrl": { "type": "string" },
+            "webhookSecret": { "type": "string" },
+            "dmPolicy": { "type": "string" },
+            "allowFrom": { "type": "array" },
+            "enableQuickCommands": { "type": "boolean" },
+            "plivo": { "type": "object" },
+            "twilio": { "type": "object" }
+          }
+        }
+      }
+    }
+  }
+}

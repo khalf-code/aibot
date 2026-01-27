@@ -1,25 +1,25 @@
 /**
- * Plivo SMS Channel Plugin
+ * SMS Channel Plugin
  * Main channel implementation for Clawdbot
  */
 
 import { configAdapter } from "./config.js";
 import { gatewayAdapter } from "./gateway.js";
 import { outboundAdapter } from "./outbound.js";
-import type { PlivoResolvedAccount } from "./types.js";
+import type { SMSResolvedAccount } from "./types.js";
 
-const CHANNEL_ID = "plivo";
+const CHANNEL_ID = "sms";
 
 /**
  * Channel metadata for UI/docs
  */
 const meta = {
   id: CHANNEL_ID,
-  label: "Plivo",
-  selectionLabel: "Plivo SMS",
-  docsPath: "/channels/plivo",
-  docsLabel: "plivo",
-  blurb: "SMS/MMS via Plivo; universal phone access to your AI assistant.",
+  label: "SMS",
+  selectionLabel: "SMS (Plivo/Twilio)",
+  docsPath: "/channels/sms",
+  docsLabel: "sms",
+  blurb: "SMS/MMS messaging; universal phone access to your AI assistant.",
 };
 
 /**
@@ -44,9 +44,9 @@ const capabilities = {
 };
 
 /**
- * Plivo channel plugin definition
+ * SMS channel plugin definition
  */
-export const plivoPlugin = {
+export const smsPlugin = {
   id: CHANNEL_ID,
   meta,
   capabilities,
@@ -83,7 +83,7 @@ export const plivoPlugin = {
       to: string;
       text: string;
       accountId: string;
-      account: PlivoResolvedAccount;
+      account: SMSResolvedAccount;
     }) => {
       const result = await outboundAdapter.sendText({
         to: ctx.to,
@@ -100,7 +100,7 @@ export const plivoPlugin = {
       mediaUrl?: string;
       mediaUrls?: string[];
       accountId: string;
-      account: PlivoResolvedAccount;
+      account: SMSResolvedAccount;
     }) => {
       const result = await outboundAdapter.sendMedia({
         to: ctx.to,
@@ -118,14 +118,14 @@ export const plivoPlugin = {
 
   // Status adapter for health checks
   status: {
-    probeAccount: async (ctx: { accountId: string }) => {
-      // Basic connectivity check
-      return { ok: true, message: "Plivo account is running" };
+    probeAccount: async (_ctx: { accountId: string }) => {
+      return { ok: true, message: "SMS account is running" };
     },
 
-    buildAccountSnapshot: (ctx: { accountId: string; account: PlivoResolvedAccount }) => {
+    buildAccountSnapshot: (ctx: { accountId: string; account: SMSResolvedAccount }) => {
       return {
         accountId: ctx.accountId,
+        provider: ctx.account.provider,
         phoneNumber: ctx.account.phoneNumber,
         dmPolicy: ctx.account.dmPolicy,
       };
@@ -134,8 +134,8 @@ export const plivoPlugin = {
 
   // Heartbeat adapter
   heartbeat: {
-    checkReady: async (params: { accountId: string }) => {
-      return { ok: true, reason: "Plivo ready" };
+    checkReady: async (_params: { accountId: string }) => {
+      return { ok: true, reason: "SMS ready" };
     },
 
     resolveRecipients: (params: { accountId: string; allowFrom: string[] }) => {

@@ -1,0 +1,29 @@
+{
+  "name": "@clawdbot/sms",
+  "version": "2026.1.25",
+  "type": "module",
+  "description": "Clawdbot SMS/MMS channel plugin with multi-provider support (Plivo, Twilio)",
+  "clawdbot": {
+    "extensions": ["./index.ts"],
+    "channel": {
+      "id": "sms",
+      "label": "SMS",
+      "selectionLabel": "SMS (Plivo/Twilio)",
+      "docsPath": "/channels/sms",
+      "docsLabel": "sms",
+      "blurb": "SMS/MMS messaging; universal phone access to your AI assistant.",
+      "order": 45
+    },
+    "install": {
+      "npmSpec": "@clawdbot/sms",
+      "localPath": "extensions/sms",
+      "defaultChoice": "local"
+    }
+  },
+  "dependencies": {
+    "plivo": "^4.58.0"
+  },
+  "devDependencies": {
+    "clawdbot": "workspace:*"
+  }
+}
