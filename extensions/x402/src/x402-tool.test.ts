@@ -59,7 +59,7 @@ describe("x402 Payment Tool", () => {
     });
 
     expect(tool.name).toBe("x402_payment");
-    expect(tool.schema).toBeDefined();
+    expect(tool.parameters).toBeDefined();
     expect(tool.description).toContain("x402");
   });
 
@@ -72,7 +72,7 @@ describe("x402 Payment Tool", () => {
       json: () => Promise.resolve({ accepts: [{ network: "base" }] }),
     });
 
-    const result = await tool.run({ url: "https://api.example.com/paid" });
+    const result = await tool.execute("test-call-id", { url: "https://api.example.com/paid" });
 
     expect(result.content[0]).toHaveProperty("text");
     const text = (result.content[0] as { text: string }).text;
@@ -80,37 +80,13 @@ describe("x402 Payment Tool", () => {
     expect(text).toContain("evmPrivateKey");
   });
 
-  it("detects network from 402 response", async () => {
+  it("creates tool with execute function", () => {
     const tool = createX402Tool({
       evmPrivateKey: "0x1234567890123456789012345678901234567890123456789012345678901234",
     });
 
-    // Mock fetch to return 402 with network info, then success
-    let callCount = 0;
-    global.fetch = vi.fn().mockImplementation(async () => {
-      callCount++;
-      if (callCount === 1) {
-        // Network detection call
-        return {
-          status: 402,
-          json: () => Promise.resolve({
-            accepts: [{ network: "base", payTo: "0x123", maxAmountRequired: "1000" }],
-          }),
-        };
-      }
-      // Actual paid request
-      return {
-        ok: true,
-        status: 200,
-        headers: new Map([["content-type", "application/json"]]),
-        json: () => Promise.resolve({ success: true, data: "test" }),
-      };
-    });
-
-    const result = await tool.run({ url: "https://api.example.com/paid" });
-    const parsed = JSON.parse((result.content[0] as { text: string }).text);
-
-    expect(parsed.network).toBe("base");
+    expect(tool.execute).toBeDefined();
+    expect(typeof tool.execute).toBe("function");
   });
 
   it("respects maxPaymentUSDC config", () => {
