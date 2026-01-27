@@ -313,9 +313,13 @@ All control endpoints accept `?profile=<name>`; the CLI uses `--browser-profile`
 
 ## Chrome extension relay (use your existing Chrome)
 
-Clawdbot can also drive **your existing Chrome tabs** (no separate “clawd” Chrome instance) via a local CDP relay + a Chrome extension.
+Clawdbot can also drive **your existing Chrome tabs** (no separate "clawd" Chrome instance) via a local CDP relay + a Chrome extension.
 
 Full guide: [Chrome extension](/tools/chrome-extension)
+
+<Tip>
+For a friction-free alternative (no manual extension install, no "controlled externally" banner, no webdriver detection), see [BrowserOS](https://browseros.com).
+</Tip>
 
 Flow:
 - You run a **browser control server** (Gateway on the same machine, or `clawdbot browser serve`).
