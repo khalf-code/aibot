@@ -22,6 +22,7 @@ import { isSubagentSessionKey } from "../../../routing/session-key.js";
 import { resolveUserPath } from "../../../utils.js";
 import { createCacheTrace } from "../../cache-trace.js";
 import { createAnthropicPayloadLogger } from "../../anthropic-payload-log.js";
+import { createOllamaToolCallFixer } from "../../ollama-tool-call-fixer.js";
 import { resolveClawdbotAgentDir } from "../../agent-paths.js";
 import { resolveSessionAgentIds } from "../../agent-scope.js";
 import { makeBootstrapWarn, resolveBootstrapContextForRun } from "../../bootstrap-files.js";
@@ -513,6 +514,10 @@ export async function runEmbeddedAttempt(
           activeSession.agent.streamFn,
         );
       }
+
+      // Fix Ollama models that emit tool calls as plain text instead of tool_calls.
+      const ollamaToolCallFixer = createOllamaToolCallFixer();
+      activeSession.agent.streamFn = ollamaToolCallFixer.wrapStreamFn(activeSession.agent.streamFn);
 
       try {
         const prior = await sanitizeSessionHistory({
