@@ -10,8 +10,27 @@ function stripThreadSuffix(value: string): string {
 }
 
 /**
+ * Check if a user message is purely a tool result (not a new user turn).
+ */
+function isToolResultMessage(msg: AgentMessage): boolean {
+  if (msg.role !== "user") return false;
+  const content = msg.content;
+  if (!Array.isArray(content)) return false;
+  // A tool result message contains only tool_result blocks
+  return (
+    content.length > 0 &&
+    content.every((block) => {
+      if (!block || typeof block !== "object") return false;
+      const type = (block as { type?: unknown }).type;
+      return type === "tool_result";
+    })
+  );
+}
+
+/**
  * Limits conversation history to the last N user turns (and their associated
  * assistant responses). This reduces token usage for long-running DM sessions.
+ * Tool result messages are not counted as new user turns.
  */
 export function limitHistoryTurns(
   messages: AgentMessage[],
@@ -23,7 +42,9 @@ export function limitHistoryTurns(
   let lastUserIndex = messages.length;
 
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") {
+    const msg = messages[i];
+    // Only count genuine user messages, not tool results
+    if (msg.role === "user" && !isToolResultMessage(msg)) {
       userCount++;
       if (userCount > limit) {
         return messages.slice(lastUserIndex);
