@@ -56,6 +56,13 @@ export type ClawdbotConfig = {
     lastRunCommit?: string;
     lastRunCommand?: string;
     lastRunMode?: "local" | "remote";
+    onboarding?: {
+      startedAt: string;
+      currentPhase: string;
+      completedPhases: string[];
+      phaseData: Record<string, Record<string, unknown>>;
+      lastSavedAt: string;
+    };
   };
   diagnostics?: DiagnosticsConfig;
   logging?: LoggingConfig;
