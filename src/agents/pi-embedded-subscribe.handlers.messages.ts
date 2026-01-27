@@ -107,10 +107,12 @@ export function handleMessageUpdate(
       inlineCode: createInlineCodeState(),
     })
     .trim();
+
   if (next && next !== ctx.state.lastStreamedAssistant) {
     const previousText = ctx.state.lastStreamedAssistant ?? "";
     const { text: cleanedText, mediaUrls } = parseReplyDirectives(next);
     const { text: previousCleanedText } = parseReplyDirectives(previousText);
+
     if (cleanedText.startsWith(previousCleanedText)) {
       const deltaText = cleanedText.slice(previousCleanedText.length);
       ctx.state.lastStreamedAssistant = next;

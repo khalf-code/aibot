@@ -265,6 +265,7 @@ export function subscribeEmbeddedPiSession(params: SubscribeEmbeddedPiSessionPar
 
     // 1. Handle <think> blocks (stateful, strip content inside)
     let processed = "";
+    let everInThinking = state.thinking;
     THINKING_TAG_SCAN_RE.lastIndex = 0;
     let lastIndex = 0;
     let inThinking = state.thinking;
@@ -276,6 +277,7 @@ export function subscribeEmbeddedPiSession(params: SubscribeEmbeddedPiSessionPar
       }
       const isClose = match[1] === "/";
       inThinking = !isClose;
+      if (inThinking) everInThinking = true;
       lastIndex = idx + match[0].length;
     }
     if (!inThinking) {
@@ -300,10 +302,12 @@ export function subscribeEmbeddedPiSession(params: SubscribeEmbeddedPiSessionPar
     let lastFinalIndex = 0;
     let inFinal = state.final;
     let everInFinal = state.final;
+    let everSawAnyFinalTag = state.final;
 
     for (const match of processed.matchAll(FINAL_TAG_SCAN_RE)) {
       const idx = match.index ?? 0;
       if (finalCodeSpans.isInside(idx)) continue;
+      everSawAnyFinalTag = true;
       const isClose = match[1] === "/";
 
       if (!inFinal && !isClose) {
@@ -327,7 +331,17 @@ export function subscribeEmbeddedPiSession(params: SubscribeEmbeddedPiSessionPar
     // Strict Mode: If enforcing final tags, we MUST NOT return content unless
     // we have seen a <final> tag. Otherwise, we leak "thinking out loud" text
     // (e.g. "**Locating Manulife**...") that the model emitted without <think> tags.
+    //
+    // Fallback: If the model never used ANY reasoning tags (<think>/<final>,
+    // open or close), it likely doesn't support the tag format at all (e.g.
+    // small Ollama models). In that case, return the processed text as-is
+    // rather than silently dropping the entire response.
     if (!everInFinal) {
+      if (!everInThinking && !everSawAnyFinalTag) {
+        // Model doesn't use reasoning tags at all — pass through.
+        state.inlineCode = finalCodeSpans.inlineState;
+        return stripTagsOutsideCodeSpans(processed, FINAL_TAG_SCAN_RE, finalCodeSpans.isInside);
+      }
       return "";
     }
 
