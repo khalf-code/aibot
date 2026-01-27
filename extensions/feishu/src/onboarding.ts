@@ -44,7 +44,7 @@ async function noteFeishuCredentialsHelp(prompter: WizardPrompter): Promise<void
       "2) Create an enterprise self-built application",
       "3) Add bot capability and configure permissions",
       "4) Get App ID and App Secret from Credentials page",
-      "5) Configure event subscription with your webhook URL",
+      "5) Set event subscription to 'Long Connection' (WebSocket)",
       "Tip: you can also set FEISHU_APP_ID and FEISHU_APP_SECRET in your env.",
       "Docs: https://docs.clawd.bot/channels/feishu",
     ].join("\n"),
@@ -264,6 +264,7 @@ export const feishuOnboardingAdapter: ChannelOnboardingAdapter = {
               enabled: true,
               appId,
               appSecret,
+              dmPolicy: "pairing",
             },
           },
         } as ClawdbotConfig;
@@ -282,6 +283,7 @@ export const feishuOnboardingAdapter: ChannelOnboardingAdapter = {
                   enabled: true,
                   appId,
                   appSecret,
+                  dmPolicy: "pairing",
                 },
               },
             },
@@ -290,65 +292,7 @@ export const feishuOnboardingAdapter: ChannelOnboardingAdapter = {
       }
     }
 
-    // Prompt for webhook configuration
-    const wantsWebhook = await prompter.confirm({
-      message: "Configure webhook settings? (needed for receiving messages)",
-      initialValue: true,
-    });
-    if (wantsWebhook) {
-      const encryptKey = String(
-        await prompter.text({
-          message: "Encrypt Key (from Events and Callbacks page, optional)",
-          placeholder: "Leave empty if not using encryption",
-        }),
-      ).trim();
-      const verificationToken = String(
-        await prompter.text({
-          message: "Verification Token (from Events and Callbacks page)",
-          validate: (value) => (value?.trim() ? undefined : "Required for webhook verification"),
-        }),
-      ).trim();
-      const webhookPath = String(
-        await prompter.text({
-          message: "Webhook path on gateway",
-          initialValue: "/feishu/callback",
-        }),
-      ).trim();
-
-      if (feishuAccountId === DEFAULT_ACCOUNT_ID) {
-        next = {
-          ...next,
-          channels: {
-            ...next.channels,
-            feishu: {
-              ...next.channels?.feishu,
-              ...(encryptKey ? { encryptKey } : {}),
-              ...(verificationToken ? { verificationToken } : {}),
-              ...(webhookPath ? { webhookPath } : {}),
-            },
-          },
-        } as ClawdbotConfig;
-      } else {
-        next = {
-          ...next,
-          channels: {
-            ...next.channels,
-            feishu: {
-              ...next.channels?.feishu,
-              accounts: {
-                ...(next.channels?.feishu?.accounts ?? {}),
-                [feishuAccountId]: {
-                  ...(next.channels?.feishu?.accounts?.[feishuAccountId] ?? {}),
-                  ...(encryptKey ? { encryptKey } : {}),
-                  ...(verificationToken ? { verificationToken } : {}),
-                  ...(webhookPath ? { webhookPath } : {}),
-                },
-              },
-            },
-          },
-        } as ClawdbotConfig;
-      }
-    }
+    // WebSocket mode - no webhook configuration needed
 
     if (forceAllowFrom) {
       next = await promptFeishuAllowFrom({
