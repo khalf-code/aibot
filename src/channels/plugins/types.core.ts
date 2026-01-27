@@ -25,7 +25,7 @@ export type ChannelSetupInput = {
   signalNumber?: string;
   cliPath?: string;
   dbPath?: string;
-  service?: "imessage" | "sms" | "auto";
+  service?: "imessage" | "sms" | "email" | "auto";
   region?: string;
   authDir?: string;
   httpUrl?: string;
@@ -48,6 +48,7 @@ export type ChannelSetupInput = {
   groupChannels?: string[];
   dmAllowlist?: string[];
   autoDiscoverChannels?: boolean;
+  emailAddress?: string;
 };
 
 export type ChannelStatusIssue = {
@@ -139,6 +140,7 @@ export type ChannelAccountSnapshot = {
   audit?: unknown;
   application?: unknown;
   bot?: unknown;
+  emailAddress?: string | null;
 };
 
 export type ChannelLogSink = {

@@ -1,0 +1,33 @@
+{
+  "name": "@clawdbot/agentmail",
+  "version": "2026.1.26",
+  "type": "module",
+  "description": "Clawdbot AgentMail email channel plugin",
+  "clawdbot": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "agentmail",
+      "label": "AgentMail (Email Inbox API)",
+      "selectionLabel": "AgentMail (Email Inbox API)",
+      "docsPath": "/channels/agentmail",
+      "docsLabel": "agentmail",
+      "blurb": "Email channel via AgentMail; configure API key and inbox.",
+      "order": 80,
+      "quickstartAllowFrom": true
+    },
+    "install": {
+      "npmSpec": "@clawdbot/agentmail",
+      "localPath": "extensions/agentmail",
+      "defaultChoice": "npm"
+    }
+  },
+  "dependencies": {
+    "agentmail": "^0.2.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "clawdbot": "workspace:*"
+  }
+}
