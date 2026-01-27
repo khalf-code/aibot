@@ -183,13 +183,15 @@ export class MemoryIndexManager {
     const key = `${agentId}:${workspaceDir}:${JSON.stringify(settings)}`;
     const existing = INDEX_CACHE.get(key);
     if (existing) return existing;
+    const provider = settings.provider === "cognee" ? "auto" : settings.provider;
+    const fallback = settings.fallback === "cognee" ? "none" : settings.fallback;
     const providerResult = await createEmbeddingProvider({
       config: cfg,
       agentDir: resolveAgentDir(cfg, agentId),
-      provider: settings.provider,
+      provider,
       remote: settings.remote,
       model: settings.model,
-      fallback: settings.fallback,
+      fallback,
       local: settings.local,
     });
     const manager = new MemoryIndexManager({
@@ -197,7 +199,7 @@ export class MemoryIndexManager {
       cfg,
       agentId,
       workspaceDir,
-      settings,
+      settings: { ...settings, provider, fallback },
       providerResult,
     });
     INDEX_CACHE.set(key, manager);
@@ -1261,7 +1263,7 @@ export class MemoryIndexManager {
   }
 
   private async activateFallbackProvider(reason: string): Promise<boolean> {
-    const fallback = this.settings.fallback;
+    const fallback = this.settings.fallback === "cognee" ? "none" : this.settings.fallback;
     if (!fallback || fallback === "none" || fallback === this.provider.id) return false;
     if (this.fallbackFrom) return false;
     const fallbackFrom = this.provider.id as "openai" | "gemini" | "local";

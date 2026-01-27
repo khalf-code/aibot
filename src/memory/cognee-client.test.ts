@@ -2,21 +2,21 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { CogneeClient } from "./cognee-client.js";
 import { request } from "undici";
 
-vi.mock("undici", () =&gt; ({
+vi.mock("undici", () => ({
   request: vi.fn(),
 }));
 
-describe("CogneeClient", () =&gt; {
-  beforeEach(() =&gt; {
+describe("CogneeClient", () => {
+  beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  afterEach(() =&gt; {
+  afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe("add", () =&gt; {
-    it("should add data successfully", async () =&gt; {
+  describe("add", () => {
+    it("should add data successfully", async () => {
       const mockResponse = {
         statusCode: 200,
         body: {
@@ -46,18 +46,18 @@ describe("CogneeClient", () =&gt; {
         message: "Data added successfully",
       });
       expect(request).toHaveBeenCalledWith(
-        "http://localhost:8000/add",
+        "http://localhost:8000/api/v1/add",
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
-            "Content-Type": "application/json",
+            Authorization: "Bearer test-key",
             "X-Api-Key": "test-key",
           }),
         }),
       );
     });
 
-    it("should handle errors", async () =&gt; {
+    it("should handle errors", async () => {
       const mockResponse = {
         statusCode: 500,
         body: {
@@ -77,8 +77,8 @@ describe("CogneeClient", () =&gt; {
     });
   });
 
-  describe("cognify", () =&gt; {
-    it("should run cognify successfully", async () =&gt; {
+  describe("cognify", () => {
+    it("should run cognify successfully", async () => {
       const mockResponse = {
         statusCode: 200,
         body: {
@@ -106,8 +106,8 @@ describe("CogneeClient", () =&gt; {
     });
   });
 
-  describe("search", () =&gt; {
-    it("should search successfully", async () =&gt; {
+  describe("search", () => {
+    it("should search successfully", async () => {
       const mockResponse = {
         statusCode: 200,
         body: {
@@ -121,7 +121,7 @@ describe("CogneeClient", () =&gt; {
               },
             ],
             query: "test query",
-            search_type: "insights",
+            search_type: "GRAPH_COMPLETION",
           }),
           text: vi.fn(),
         },
@@ -132,7 +132,7 @@ describe("CogneeClient", () =&gt; {
 
       const result = await client.search({
         queryText: "test query",
-        searchType: "insights",
+        searchType: "GRAPH_COMPLETION",
       });
 
       expect(result.results).toHaveLength(1);
@@ -145,14 +145,14 @@ describe("CogneeClient", () =&gt; {
       expect(result.query).toBe("test query");
     });
 
-    it("should use default search type", async () =&gt; {
+    it("should use default search type", async () => {
       const mockResponse = {
         statusCode: 200,
         body: {
           json: vi.fn().mockResolvedValue({
             results: [],
             query: "test",
-            search_type: "insights",
+            search_type: "GRAPH_COMPLETION",
           }),
           text: vi.fn(),
         },
@@ -165,28 +165,18 @@ describe("CogneeClient", () =&gt; {
       expect(request).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: expect.stringContaining('"search_type":"insights"'),
+          body: expect.stringContaining('"searchType":"GRAPH_COMPLETION"'),
         }),
       );
     });
   });
 
-  describe("status", () =&gt; {
-    it("should get status successfully", async () =&gt; {
+  describe("status", () => {
+    it("should get status successfully", async () => {
       const mockResponse = {
         statusCode: 200,
         body: {
-          json: vi.fn().mockResolvedValue({
-            status: "healthy",
-            version: "1.0.0",
-            datasets: [
-              {
-                id: "dataset-1",
-                name: "test-dataset",
-                document_count: 10,
-              },
-            ],
-          }),
+          json: vi.fn().mockResolvedValue({ status: "healthy" }),
           text: vi.fn(),
         },
       };
@@ -198,20 +188,12 @@ describe("CogneeClient", () =&gt; {
 
       expect(result).toEqual({
         status: "healthy",
-        version: "1.0.0",
-        datasets: [
-          {
-            id: "dataset-1",
-            name: "test-dataset",
-            documentCount: 10,
-          },
-        ],
       });
     });
   });
 
-  describe("healthCheck", () =&gt; {
-    it("should return true when status is successful", async () =&gt; {
+  describe("healthCheck", () => {
+    it("should return true when status is successful", async () => {
       const mockResponse = {
         statusCode: 200,
         body: {
@@ -227,7 +209,7 @@ describe("CogneeClient", () =&gt; {
       expect(result).toBe(true);
     });
 
-    it("should return false when status fails", async () =&gt; {
+    it("should return false when status fails", async () => {
       vi.mocked(request).mockRejectedValue(new Error("Connection failed"));
 
       const client = new CogneeClient();

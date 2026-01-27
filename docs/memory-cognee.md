@@ -16,7 +16,7 @@ Cognee is an AI memory framework that:
 - Extracts entities (people, places, concepts) from documents
 - Builds a knowledge graph of relationships
 - Enables semantic search with LLM-powered reasoning
-- Supports multiple search modes (insights, chunks, summaries)
+- Supports multiple search modes (GRAPH_COMPLETION, chunks, summaries)
 
 Learn more at [docs.cognee.ai](https://docs.cognee.ai/).
 
@@ -24,57 +24,18 @@ Learn more at [docs.cognee.ai](https://docs.cognee.ai/).
 
 ### Option 1: Local Docker (Recommended)
 
-Run Cognee locally using Docker Compose:
-
-**Step 1: Create docker-compose.yml**
-
-```yaml
-version: '3.8'
-
-services:
-  cognee:
-    image: topoteretes/cognee:latest
-    container_name: cognee
-    ports:
-      - "8000:8000"
-    environment:
-      # Optional: Set API key for authentication
-      - COGNEE_API_KEY=your-local-api-key
-      # Database configuration
-      - DATABASE_URL=postgresql://cognee:cognee@postgres:5432/cognee
-    volumes:
-      - cognee_data:/app/data
-    depends_on:
-      - postgres
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:15-alpine
-    container_name: cognee-postgres
-    environment:
-      - POSTGRES_USER=cognee
-      - POSTGRES_PASSWORD=cognee
-      - POSTGRES_DB=cognee
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
-volumes:
-  cognee_data:
-  postgres_data:
-```
-
-**Step 2: Start Cognee**
+Use the repo example compose file:
 
 ```bash
-docker-compose up -d
+docker compose -f examples/cognee-docker-compose.yaml up -d
 ```
 
-**Step 3: Verify**
+This binds to `127.0.0.1:8000`, so Cognee is only reachable from your machine.
+
+**Verify:**
 
 ```bash
-curl http://localhost:8000/status
-# Should return: {"status":"healthy"}
+curl http://localhost:8000/health
 ```
 
 ### Option 2: Cognee Cloud
@@ -87,26 +48,49 @@ Use the hosted Cognee service:
 
 ## Configuration
 
-Add Cognee memory configuration to your `~/.clawdbot/config.yaml`:
+Clawdbot reads `~/.clawdbot/clawdbot.json` (JSON5). For local + secure setup, use an env var for the Cognee token and reference it in config.
 
-### Basic Configuration (Docker Local)
+### Step 1: Put tokens in `examples/.env`
 
-```yaml
-agents:
-  defaults:
-    memorySearch:
-      enabled: true
-      provider: cognee
-      sources: [memory]  # or [memory, sessions]
-      cognee:
-        baseUrl: http://localhost:8000
-        datasetName: clawdbot
-        searchType: insights  # or "chunks", "summaries"
-        maxResults: 6
-        autoCognify: true
+```bash
+LLM_API_KEY="your-llm-api-key"
+COGNEE_API_KEY="your-cognee-access-token"
+CLAWDBOT_GATEWAY_TOKEN="your-random-gateway-token"
 ```
 
-### Cloud Configuration
+### Step 2: Configure Cognee in `~/.clawdbot/clawdbot.json`
+
+```json5
+{
+  agents: {
+    defaults: {
+      memorySearch: {
+        enabled: true,
+        provider: "cognee",
+        sources: ["memory", "sessions"],
+        experimental: { sessionMemory: true },
+        cognee: {
+          baseUrl: "http://localhost:8000",
+          apiKey: "${COGNEE_API_KEY}",
+          datasetName: "clawdbot",
+          searchType: "GRAPH_COMPLETION",
+          maxResults: 6,
+          autoCognify: true,
+          timeoutSeconds: 180
+        }
+      }
+    }
+  }
+}
+```
+
+### Step 3: Start the gateway with env loaded
+
+```zsh
+set -a; source "examples/.env"; set +a; pnpm clawdbot gateway --port 18789 --token "$CLAWDBOT_GATEWAY_TOKEN" --verbose
+```
+
+### Cloud Configuration (tbt)
 
 ```yaml
 agents:
@@ -119,7 +103,7 @@ agents:
         baseUrl: https://cognee--cognee-saas-backend-serve.modal.run
         apiKey: your-api-key-here  # Required for cloud
         datasetName: clawdbot
-        searchType: insights
+        searchType: GRAPH_COMPLETION
         maxResults: 8
         autoCognify: true
         timeoutSeconds: 60
@@ -130,22 +114,21 @@ agents:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `baseUrl` | string | `http://localhost:8000` | Cognee API endpoint |
-| `apiKey` | string | - | API key (required for cloud, optional for local) |
+| `apiKey` | string | - | Access token (required if Cognee auth is enabled) |
 | `datasetName` | string | `"clawdbot"` | Dataset name for organizing memories |
-| `searchType` | string | `"insights"` | Search mode: `insights`, `chunks`, or `summaries` |
+| `searchType` | string | `"GRAPH_COMPLETION"` | Search mode: `GRAPH_COMPLETION`, `chunks`, or `summaries` |
 | `maxResults` | number | `6` | Maximum search results returned |
 | `autoCognify` | boolean | `true` | Auto-process documents after adding |
 | `cognifyBatchSize` | number | `100` | Batch size for processing |
-| `timeoutSeconds` | number | `30` | Request timeout in seconds |
+| `timeoutSeconds` | number | `180` | Request timeout in seconds |
 
 ## Search Types
 
-Cognee offers three search modes:
+Cognee offers these modes:
 
-### Insights (Recommended)
+### GRAPH_COMPLETION
 Best for: **High-level understanding and reasoning**
-- Returns AI-generated insights from knowledge graph
-- Combines multiple related facts
+- Returns graph-completion outputs over the knowledge graph
 - Good for: "What projects am I working on?" or "Summarize my notes about X"
 
 ### Chunks
@@ -181,20 +164,11 @@ agents:
         sessionMemory: true
 ```
 
-### Manual Sync
-
-Force a memory sync:
+### Manual Sync and Status
 
 ```bash
-# Not yet implemented - coming soon
-clawdbot memory sync --provider cognee
-```
-
-### Check Status
-
-```bash
-# Not yet implemented - coming soon
-clawdbot memory status --provider cognee
+# Force sync + cognify for the current agent
+clawdbot memory status --index --json
 ```
 
 ## How It Works
@@ -231,7 +205,7 @@ clawdbot memory status --provider cognee
 **Solutions**:
 1. Verify Docker is running: `docker ps | grep cognee`
 2. Check Cognee logs: `docker logs cognee`
-3. Test manually: `curl http://localhost:8000/status`
+3. Test manually: `curl http://localhost:8000/health`
 4. Ensure port 8000 is not blocked
 
 ### Slow Performance
@@ -250,6 +224,15 @@ clawdbot memory status --provider cognee
 3. Process fewer files at once
 4. Clear old datasets via Cognee API
 
+### 401 Unauthorized (Cognee auth)
+
+**Cause**: Cognee auth is enabled, but Clawdbot is missing/using an invalid `COGNEE_API_KEY`.
+
+**Fix**:
+1. Log in to Cognee and get a fresh access token.
+2. Update `COGNEE_API_KEY` in `examples/.env`.
+3. Restart the gateway with env loaded (see Step 3 above).
+
 ## Advanced Configuration
 
 ### Per-Agent Override
@@ -265,7 +248,7 @@ agents:
       memorySearch:
         provider: cognee  # Override for this agent
         cognee:
-          searchType: insights
+          searchType: GRAPH_COMPLETION
           maxResults: 10
 ```
 
@@ -285,7 +268,7 @@ Add health checks to docker-compose.yml:
 services:
   cognee:
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -313,15 +296,13 @@ Mount volumes for persistence:
 
 ```yaml
 volumes:
-  - ./cognee_data:/app/data
+  - ./cognee_data:/app/cognee/.cognee_system
   - ./cognee_logs:/app/logs
 ```
 
 ## Roadmap
 
 Planned features:
-- [ ] `clawdbot memory status --provider cognee` command
-- [ ] `clawdbot memory sync --provider cognee` command
 - [ ] Hybrid mode (Cognee + SQLite)
 - [ ] Graph visualization export
 - [ ] Manual entity management

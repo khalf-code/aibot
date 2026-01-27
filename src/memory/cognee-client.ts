@@ -1,10 +1,12 @@
-import { request } from "undici";
+import { Blob } from "buffer";
+import { FormData, request } from "undici";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 
 const log = createSubsystemLogger("cognee");
 
 const DEFAULT_BASE_URL = "http://localhost:8000";
 const DEFAULT_TIMEOUT_MS = 30_000;
+const API_PREFIX = "/api/v1";
 
 export type CogneeClientConfig = {
   baseUrl?: string;
@@ -35,7 +37,7 @@ export type CogneeCognifyResponse = {
 
 export type CogneeSearchRequest = {
   queryText: string;
-  searchType?: "insights" | "chunks" | "summaries";
+  searchType?: "GRAPH_COMPLETION" | "chunks" | "summaries";
   datasetIds?: string[];
 };
 
@@ -43,7 +45,7 @@ export type CogneeSearchResult = {
   id: string;
   text: string;
   score: number;
-  metadata?: Record&lt;string, unknown&gt;;
+  metadata?: Record<string, unknown>;
 };
 
 export type CogneeSearchResponse = {
@@ -55,12 +57,14 @@ export type CogneeSearchResponse = {
 export type CogneeStatusResponse = {
   status: string;
   version?: string;
-  datasets?: Array&lt;{
+  datasets?: Array<{
     id: string;
     name: string;
     documentCount?: number;
-  }&gt;;
+  }>;
 };
+
+type CogneeSearchApiType = "SUMMARIES" | "CHUNKS" | "GRAPH_COMPLETION";
 
 export class CogneeClient {
   private readonly baseUrl: string;
@@ -73,12 +77,11 @@ export class CogneeClient {
     this.timeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
   }
 
-  async add(req: CogneeAddRequest): Promise&lt;CogneeAddResponse&gt; {
-    const url = `${this.baseUrl}/add`;
-    const headers: Record&lt;string, string&gt; = {
-      "Content-Type": "application/json",
-    };
+  async add(req: CogneeAddRequest): Promise<CogneeAddResponse> {
+    const url = `${this.baseUrl}${API_PREFIX}/add`;
+    const headers: Record<string, string> = {};
     if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
       headers["X-Api-Key"] = this.apiKey;
     }
 
@@ -89,23 +92,27 @@ export class CogneeClient {
     });
 
     try {
+      const formData = new FormData();
+      const blob = new Blob([req.data], { type: "text/plain" });
+      formData.append("data", blob, "clawdbot-memory.txt");
+      if (req.datasetName) {
+        formData.append("datasetName", req.datasetName);
+      }
+      if (req.datasetId) {
+        formData.append("datasetId", req.datasetId);
+      }
+
       const response = await request(url, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          data: req.data,
-          dataset_name: req.datasetName,
-          dataset_id: req.datasetId,
-        }),
+        body: formData,
         bodyTimeout: this.timeoutMs,
         headersTimeout: this.timeoutMs,
       });
 
       if (response.statusCode !== 200) {
         const errorText = await response.body.text();
-        throw new Error(
-          `Cognee add failed with status ${response.statusCode}: ${errorText}`,
-        );
+        throw new Error(`Cognee add failed with status ${response.statusCode}: ${errorText}`);
       }
 
       const data = (await response.body.json()) as {
@@ -127,12 +134,13 @@ export class CogneeClient {
     }
   }
 
-  async cognify(req: CogneeCognifyRequest = {}): Promise&lt;CogneeCognifyResponse&gt; {
-    const url = `${this.baseUrl}/cognify`;
-    const headers: Record&lt;string, string&gt; = {
+  async cognify(req: CogneeCognifyRequest = {}): Promise<CogneeCognifyResponse> {
+    const url = `${this.baseUrl}${API_PREFIX}/cognify`;
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
     if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
       headers["X-Api-Key"] = this.apiKey;
     }
 
@@ -143,7 +151,7 @@ export class CogneeClient {
         method: "POST",
         headers,
         body: JSON.stringify({
-          dataset_ids: req.datasetIds,
+          datasetIds: req.datasetIds,
         }),
         bodyTimeout: this.timeoutMs,
         headersTimeout: this.timeoutMs,
@@ -151,9 +159,7 @@ export class CogneeClient {
 
       if (response.statusCode !== 200) {
         const errorText = await response.body.text();
-        throw new Error(
-          `Cognee cognify failed with status ${response.statusCode}: ${errorText}`,
-        );
+        throw new Error(`Cognee cognify failed with status ${response.statusCode}: ${errorText}`);
       }
 
       const data = (await response.body.json()) as {
@@ -173,12 +179,13 @@ export class CogneeClient {
     }
   }
 
-  async search(req: CogneeSearchRequest): Promise&lt;CogneeSearchResponse&gt; {
-    const url = `${this.baseUrl}/search`;
-    const headers: Record&lt;string, string&gt; = {
+  async search(req: CogneeSearchRequest): Promise<CogneeSearchResponse> {
+    const url = `${this.baseUrl}${API_PREFIX}/search`;
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
     if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
       headers["X-Api-Key"] = this.apiKey;
     }
 
@@ -193,9 +200,9 @@ export class CogneeClient {
         method: "POST",
         headers,
         body: JSON.stringify({
-          query_text: req.queryText,
-          search_type: req.searchType || "insights",
-          dataset_ids: req.datasetIds,
+          query: req.queryText,
+          searchType: this.mapSearchType(req.searchType),
+          datasetIds: req.datasetIds,
         }),
         bodyTimeout: this.timeoutMs,
         headersTimeout: this.timeoutMs,
@@ -203,31 +210,16 @@ export class CogneeClient {
 
       if (response.statusCode !== 200) {
         const errorText = await response.body.text();
-        throw new Error(
-          `Cognee search failed with status ${response.statusCode}: ${errorText}`,
-        );
+        throw new Error(`Cognee search failed with status ${response.statusCode}: ${errorText}`);
       }
 
-      const data = (await response.body.json()) as {
-        results: Array&lt;{
-          id: string;
-          text: string;
-          score: number;
-          metadata?: Record&lt;string, unknown&gt;;
-        }&gt;;
-        query: string;
-        search_type: string;
-      };
+      const data = (await response.body.json()) as unknown;
+      const results = this.normalizeSearchResults(data);
 
       return {
-        results: data.results.map((r) =&gt; ({
-          id: r.id,
-          text: r.text,
-          score: r.score,
-          metadata: r.metadata,
-        })),
-        query: data.query,
-        searchType: data.search_type,
+        results,
+        query: req.queryText,
+        searchType: req.searchType || "GRAPH_COMPLETION",
       };
     } catch (error) {
       log.error("Failed to search Cognee", { error });
@@ -237,10 +229,11 @@ export class CogneeClient {
     }
   }
 
-  async status(): Promise&lt;CogneeStatusResponse&gt; {
-    const url = `${this.baseUrl}/status`;
-    const headers: Record&lt;string, string&gt; = {};
+  async status(): Promise<CogneeStatusResponse> {
+    const url = `${this.baseUrl}/health`;
+    const headers: Record<string, string> = {};
     if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
       headers["X-Api-Key"] = this.apiKey;
     }
 
@@ -256,29 +249,13 @@ export class CogneeClient {
 
       if (response.statusCode !== 200) {
         const errorText = await response.body.text();
-        throw new Error(
-          `Cognee status failed with status ${response.statusCode}: ${errorText}`,
-        );
+        throw new Error(`Cognee status failed with status ${response.statusCode}: ${errorText}`);
       }
 
-      const data = (await response.body.json()) as {
-        status: string;
-        version?: string;
-        datasets?: Array&lt;{
-          id: string;
-          name: string;
-          document_count?: number;
-        }&gt;;
-      };
+      const data = (await response.body.json()) as { status?: string };
 
       return {
-        status: data.status,
-        version: data.version,
-        datasets: data.datasets?.map((d) =&gt; ({
-          id: d.id,
-          name: d.name,
-          documentCount: d.document_count,
-        })),
+        status: data.status || "healthy",
       };
     } catch (error) {
       log.error("Failed to get Cognee status", { error });
@@ -288,12 +265,64 @@ export class CogneeClient {
     }
   }
 
-  async healthCheck(): Promise&lt;boolean&gt; {
+  async healthCheck(): Promise<boolean> {
     try {
       await this.status();
       return true;
     } catch {
       return false;
     }
+  }
+
+  private mapSearchType(type?: CogneeSearchRequest["searchType"]): CogneeSearchApiType {
+    switch (type) {
+      case "chunks":
+        return "CHUNKS";
+      case "summaries":
+        return "SUMMARIES";
+      case "GRAPH_COMPLETION":
+      default:
+        return "GRAPH_COMPLETION";
+    }
+  }
+
+  private normalizeSearchResults(data: unknown): CogneeSearchResult[] {
+    if (Array.isArray(data)) {
+      return data.map((item, index) => {
+        if (typeof item === "string") {
+          return { id: `result-${index}`, text: item, score: 0 };
+        }
+
+        if (item && typeof item === "object") {
+          const record = item as Record<string, unknown>;
+          const raw =
+            record.search_result ?? record.result ?? record.context ?? record.text ?? record;
+          const text = typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
+          const metadata =
+            record.dataset_name || record.dataset_id
+              ? {
+                  datasetName: record.dataset_name,
+                  datasetId: record.dataset_id,
+                }
+              : undefined;
+          return { id: `result-${index}`, text, score: 0, metadata };
+        }
+
+        return {
+          id: `result-${index}`,
+          text: String(item),
+          score: 0,
+        };
+      });
+    }
+
+    if (data && typeof data === "object" && "results" in data) {
+      const results = (data as { results?: unknown }).results;
+      if (Array.isArray(results)) {
+        return this.normalizeSearchResults(results);
+      }
+    }
+
+    return [];
   }
 }

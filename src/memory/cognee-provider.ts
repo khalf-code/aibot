@@ -5,22 +5,20 @@ import { resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
 import { resolveSessionTranscriptsDirForAgent } from "../config/sessions/paths.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import type { MemorySearchResult } from "./index.js";
-import {
-  CogneeClient,
-  type CogneeClientConfig,
-  type CogneeSearchResult,
-} from "./cognee-client.js";
+import { CogneeClient, type CogneeClientConfig, type CogneeSearchResult } from "./cognee-client.js";
 import {
   buildFileEntry,
   hashText,
   listMemoryFiles,
+  isMemoryPath,
+  normalizeRelPath,
   type MemoryFileEntry,
 } from "./internal.js";
 
 const log = createSubsystemLogger("cognee-provider");
 
 const DEFAULT_DATASET_NAME = "clawdbot";
-const DEFAULT_SEARCH_TYPE = "insights";
+const DEFAULT_SEARCH_TYPE = "GRAPH_COMPLETION";
 const DEFAULT_MAX_RESULTS = 6;
 const DEFAULT_TIMEOUT_SECONDS = 30;
 const DEFAULT_AUTO_COGNIFY = true;
@@ -31,7 +29,7 @@ export type CogneeProviderConfig = {
   baseUrl?: string;
   apiKey?: string;
   datasetName?: string;
-  searchType?: "insights" | "chunks" | "summaries";
+  searchType?: "GRAPH_COMPLETION" | "chunks" | "summaries";
   maxResults?: number;
   timeoutSeconds?: number;
   autoCognify?: boolean;
@@ -46,18 +44,18 @@ export class CogneeMemoryProvider {
   private readonly agentId: string;
   private readonly workspaceDir: string;
   private readonly datasetName: string;
-  private readonly searchType: "insights" | "chunks" | "summaries";
+  private readonly searchType: "GRAPH_COMPLETION" | "chunks" | "summaries";
   private readonly maxResults: number;
   private readonly autoCognify: boolean;
   private readonly cognifyBatchSize: number;
-  private readonly sources: Set&lt;CogneeMemorySource&gt;;
+  private readonly sources: Set<CogneeMemorySource>;
   private datasetId?: string;
-  private syncedFiles = new Map&lt;string, string&gt;(); // path -&gt; hash
+  private syncedFiles = new Map<string, string>(); // path -> hash
 
   constructor(
     cfg: ClawdbotConfig,
     agentId: string,
-    sources: Array&lt;CogneeMemorySource&gt;,
+    sources: Array<CogneeMemorySource>,
     config: CogneeProviderConfig = {},
   ) {
     const timeoutMs = (config.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS) * 1000;
@@ -86,11 +84,15 @@ export class CogneeMemoryProvider {
     });
   }
 
-  async healthCheck(): Promise&lt;boolean&gt; {
+  async healthCheck(): Promise<boolean> {
     return await this.client.healthCheck();
   }
 
-  async sync(): Promise&lt;void&gt; {
+  async sync(params?: {
+    reason?: string;
+    force?: boolean;
+    progress?: (update: { completed: number; total: number; label?: string }) => void;
+  }): Promise<void> {
     log.info("Starting Cognee memory sync", { agentId: this.agentId });
 
     let addedCount = 0;
@@ -108,7 +110,7 @@ export class CogneeMemoryProvider {
     }
 
     // Run cognify if auto-enabled and files were added
-    if (this.autoCognify &amp;&amp; addedCount &gt; 0) {
+    if (this.autoCognify && addedCount > 0) {
       log.info("Running cognify after sync", { addedCount });
       await this.cognify();
     }
@@ -117,9 +119,20 @@ export class CogneeMemoryProvider {
       agentId: this.agentId,
       addedCount,
     });
+
+    if (params?.progress) {
+      params.progress({
+        completed: addedCount,
+        total: addedCount,
+        label: params.reason ? `Synced (${params.reason})` : "Synced",
+      });
+    }
   }
 
-  async search(query: string): Promise&lt;MemorySearchResult[]&gt; {
+  async search(
+    query: string,
+    opts?: { maxResults?: number; minScore?: number; sessionKey?: string },
+  ): Promise<MemorySearchResult[]> {
     log.debug("Searching Cognee memory", { query, searchType: this.searchType });
 
     try {
@@ -129,9 +142,12 @@ export class CogneeMemoryProvider {
         datasetIds: this.datasetId ? [this.datasetId] : undefined,
       });
 
+      const maxResults = opts?.maxResults ?? this.maxResults;
+      const minScore = opts?.minScore ?? 0;
       const results: MemorySearchResult[] = response.results
-        .slice(0, this.maxResults)
-        .map((r) =&gt; this.transformResult(r));
+        .map((r) => this.transformResult(r))
+        .filter((r) => r.score >= minScore)
+        .slice(0, maxResults);
 
       log.debug("Cognee search completed", { query, resultCount: results.length });
       return results;
@@ -141,7 +157,7 @@ export class CogneeMemoryProvider {
     }
   }
 
-  async cognify(): Promise&lt;void&gt; {
+  async cognify(): Promise<void> {
     try {
       const response = await this.client.cognify({
         datasetIds: this.datasetId ? [this.datasetId] : undefined,
@@ -153,16 +169,16 @@ export class CogneeMemoryProvider {
     }
   }
 
-  async getStatus(): Promise&lt;{
+  async getStatus(): Promise<{
     connected: boolean;
     datasetId?: string;
     datasetName: string;
     syncedFileCount: number;
     version?: string;
-  }&gt; {
+  }> {
     try {
       const status = await this.client.status();
-      const dataset = status.datasets?.find((d) =&gt; d.name === this.datasetName);
+      const dataset = status.datasets?.find((d) => d.name === this.datasetName);
 
       return {
         connected: true,
@@ -181,7 +197,98 @@ export class CogneeMemoryProvider {
     }
   }
 
-  private async collectMemoryFiles(): Promise&lt;MemoryFileEntry[]&gt; {
+  status(): {
+    files: number;
+    chunks: number;
+    dirty: boolean;
+    workspaceDir: string;
+    dbPath: string;
+    provider: string;
+    model: string;
+    requestedProvider: string;
+    sources: Array<CogneeMemorySource>;
+    sourceCounts: Array<{ source: CogneeMemorySource; files: number; chunks: number }>;
+    cache?: { enabled: boolean; entries?: number; maxEntries?: number };
+    fts?: { enabled: boolean; available: boolean; error?: string };
+    fallback?: { from: string; reason?: string };
+    vector?: {
+      enabled: boolean;
+      available?: boolean;
+      extensionPath?: string;
+      loadError?: string;
+      dims?: number;
+    };
+    batch?: {
+      enabled: boolean;
+      failures: number;
+      limit: number;
+      wait: boolean;
+      concurrency: number;
+      pollIntervalMs: number;
+      timeoutMs: number;
+      lastError?: string;
+      lastProvider?: string;
+    };
+  } {
+    const sources = Array.from(this.sources);
+    const files = this.syncedFiles.size;
+    return {
+      files,
+      chunks: 0,
+      dirty: false,
+      workspaceDir: this.workspaceDir,
+      dbPath: "cognee",
+      provider: "cognee",
+      model: this.searchType,
+      requestedProvider: "cognee",
+      sources,
+      sourceCounts: sources.map((source) => ({ source, files, chunks: 0 })),
+      vector: {
+        enabled: false,
+        available: false,
+      },
+      fts: {
+        enabled: false,
+        available: false,
+      },
+    };
+  }
+
+  async readFile(params: {
+    relPath: string;
+    from?: number;
+    lines?: number;
+  }): Promise<{ text: string; path: string }> {
+    const relPath = normalizeRelPath(params.relPath);
+    if (!relPath || !isMemoryPath(relPath)) {
+      throw new Error("path required");
+    }
+    const absPath = path.resolve(this.workspaceDir, relPath);
+    if (!absPath.startsWith(this.workspaceDir)) {
+      throw new Error("path escapes workspace");
+    }
+    const content = await fs.readFile(absPath, "utf-8");
+    if (!params.from && !params.lines) {
+      return { text: content, path: relPath };
+    }
+    const lines = content.split("\n");
+    const start = Math.max(1, params.from ?? 1);
+    const count = Math.max(1, params.lines ?? lines.length);
+    const slice = lines.slice(start - 1, start - 1 + count);
+    return { text: slice.join("\n"), path: relPath };
+  }
+
+  async probeEmbeddingAvailability(): Promise<{ ok: boolean; error?: string }> {
+    return { ok: false, error: "Cognee provider does not use embeddings." };
+  }
+
+  async probeVectorAvailability(): Promise<boolean> {
+    return false;
+  }
+
+  async close(): Promise<void> {}
+
+  private async collectMemoryFiles(): Promise<MemoryFileEntry[]> {
     const files: MemoryFileEntry[] = [];
     const memoryPaths = await listMemoryFiles(this.workspaceDir);
 
@@ -197,12 +304,9 @@ export class CogneeMemoryProvider {
     return files;
   }
 
-  private async collectSessionFiles(): Promise&lt;MemoryFileEntry[]&gt; {
+  private async collectSessionFiles(): Promise<MemoryFileEntry[]> {
     const files: MemoryFileEntry[] = [];
-    const transcriptsDir = resolveSessionTranscriptsDirForAgent(
-      this.cfg,
-      this.agentId,
-    );
+    const transcriptsDir = resolveSessionTranscriptsDirForAgent(this.agentId);
 
     try {
       const entries = await fs.readdir(transcriptsDir, { withFileTypes: true });
@@ -227,20 +331,17 @@ export class CogneeMemoryProvider {
         }
       }
     } catch (error) {
-      log.debug("No session transcripts directory", { transcriptsDir });
+      log.debug("No session transcripts directory", { transcriptsDir, error });
     }
 
     return files;
   }
 
-  private async syncFiles(
-    files: MemoryFileEntry[],
-    source: CogneeMemorySource,
-  ): Promise&lt;number&gt; {
+  private async syncFiles(files: MemoryFileEntry[], source: CogneeMemorySource): Promise<number> {
     let addedCount = 0;
     const batchSize = this.cognifyBatchSize;
 
-    for (let i = 0; i &lt; files.length; i += batchSize) {
+    for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
 
       for (const file of batch) {
@@ -295,7 +396,7 @@ export class CogneeMemoryProvider {
 
     // Truncate snippet to max chars
     let snippet = result.text;
-    if (snippet.length &gt; SNIPPET_MAX_CHARS) {
+    if (snippet.length > SNIPPET_MAX_CHARS) {
       snippet = snippet.slice(0, SNIPPET_MAX_CHARS) + "...";
     }
 
@@ -313,9 +414,9 @@ export class CogneeMemoryProvider {
 export async function createCogneeProvider(
   cfg: ClawdbotConfig,
   agentId: string,
-  sources: Array&lt;CogneeMemorySource&gt;,
+  sources: Array<CogneeMemorySource>,
   config: CogneeProviderConfig = {},
-): Promise&lt;CogneeMemoryProvider&gt; {
+): Promise<CogneeMemoryProvider> {
   const provider = new CogneeMemoryProvider(cfg, agentId, sources, config);
 
   // Verify connection

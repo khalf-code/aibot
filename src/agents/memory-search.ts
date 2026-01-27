@@ -35,7 +35,7 @@ export type ResolvedMemorySearchConfig = {
     baseUrl?: string;
     apiKey?: string;
     datasetName?: string;
-    searchType?: "insights" | "chunks" | "summaries";
+    searchType?: "GRAPH_COMPLETION" | "chunks" | "summaries";
     maxResults?: number;
     timeoutSeconds?: number;
     autoCognify?: boolean;

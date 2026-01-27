@@ -21,8 +21,8 @@ agents:
         # Dataset name for organizing memories
         datasetName: clawdbot
 
-        # Search mode: "insights" (recommended), "chunks", or "summaries"
-        searchType: insights
+        # Search mode: "GRAPH_COMPLETION" (recommended), "chunks", or "summaries"
+        searchType: GRAPH_COMPLETION
 
         # Maximum search results to return
         maxResults: 6
