@@ -1,10 +1,11 @@
 import * as clack from "@clack/prompts";
 
 import { discoverLMStudioModels } from "../../agents/models-config.providers.js";
-import { readConfig, writeConfig } from "../../config/config.js";
 import type { ModelDefinitionConfig } from "../../config/types.models.js";
-import type { Runtime } from "../../runtime.js";
+import { logConfigUpdated } from "../../config/logging.js";
+import type { RuntimeEnv } from "../../runtime.js";
 import { theme } from "../../terminal/theme.js";
+import { updateConfig } from "./shared.js";
 
 const DEFAULT_LMSTUDIO_URL = "http://127.0.0.1:1234/v1";
 
@@ -16,10 +17,8 @@ export interface LMStudioSetupOptions {
 
 export async function modelsLMStudioSetupCommand(
   opts: LMStudioSetupOptions,
-  runtime: Runtime,
+  runtime: RuntimeEnv,
 ): Promise<void> {
-  const config = readConfig(runtime.configPath);
-
   let baseUrl = opts.url ?? process.env.LMSTUDIO_BASE_URL ?? DEFAULT_LMSTUDIO_URL;
 
   // If no URL provided and not --yes, prompt for it
@@ -52,23 +51,23 @@ export async function modelsLMStudioSetupCommand(
 
   if (models.length === 0) {
     spinner.stop(`${theme.error("No models found")} at ${baseUrl}`);
-    console.log(theme.muted("\nMake sure LM Studio is running and has a model loaded."));
-    console.log(theme.muted(`Test with: curl ${baseUrl}/models`));
+    runtime.log(theme.muted("\nMake sure LM Studio is running and has a model loaded."));
+    runtime.log(theme.muted(`Test with: curl ${baseUrl}/models`));
     return;
   }
 
   spinner.stop(`Found ${models.length} model(s)`);
 
   // Display discovered models
-  console.log();
+  runtime.log("");
   for (const model of models) {
     const tags: string[] = [];
     if (model.reasoning) tags.push("reasoning");
     if (model.input?.includes("image")) tags.push("vision");
     const tagStr = tags.length > 0 ? ` ${theme.muted(`(${tags.join(", ")})`)}` : "";
-    console.log(`  ${theme.success("+")} ${model.id}${tagStr}`);
+    runtime.log(`  ${theme.success("+")} ${model.id}${tagStr}`);
   }
-  console.log();
+  runtime.log("");
 
   // Select default model
   let selectedModel: ModelDefinitionConfig | undefined;
@@ -103,73 +102,81 @@ export async function modelsLMStudioSetupCommand(
   };
 
   // Update config
-  const nextConfig = {
-    ...config,
-    models: {
-      ...config.models,
-      mode: config.models?.mode ?? "merge",
-      providers: {
-        ...config.models?.providers,
-        lmstudio: providerConfig,
-      },
-    },
-  };
-
-  // Set as default if requested
-  if (opts.setDefault && selectedModel) {
-    const modelId = `lmstudio/${selectedModel.id}`;
-    nextConfig.agents = {
-      ...nextConfig.agents,
-      defaults: {
-        ...nextConfig.agents?.defaults,
-        model: {
-          ...nextConfig.agents?.defaults?.model,
-          primary: modelId,
+  const updated = await updateConfig((cfg) => {
+    const nextConfig = {
+      ...cfg,
+      models: {
+        ...cfg.models,
+        mode: cfg.models?.mode ?? "merge",
+        providers: {
+          ...cfg.models?.providers,
+          lmstudio: providerConfig,
         },
       },
     };
-  }
 
-  writeConfig(runtime.configPath, nextConfig);
+    // Set as default if requested
+    if (opts.setDefault && selectedModel) {
+      const modelId = `lmstudio/${selectedModel.id}`;
+      const existingModel = cfg.agents?.defaults?.model as
+        | { primary?: string; fallbacks?: string[] }
+        | undefined;
+      nextConfig.agents = {
+        ...nextConfig.agents,
+        defaults: {
+          ...nextConfig.agents?.defaults,
+          model: {
+            ...(existingModel?.fallbacks ? { fallbacks: existingModel.fallbacks } : undefined),
+            primary: modelId,
+          },
+        },
+      };
+    }
 
-  console.log(theme.success(`Updated ${runtime.configPath}`));
+    return nextConfig;
+  });
+
+  logConfigUpdated(runtime);
 
   if (selectedModel) {
     const modelId = `lmstudio/${selectedModel.id}`;
     if (opts.setDefault) {
-      console.log(`Default model: ${theme.highlight(modelId)}`);
+      runtime.log(`Default model: ${theme.accent(modelId)}`);
     } else {
-      console.log(
-        theme.muted(`\nTo set as default: clawdbot models set ${modelId}`),
-      );
+      runtime.log(theme.muted(`\nTo set as default: clawdbot models set ${modelId}`));
     }
   }
+
+  // Show discovered models summary
+  runtime.log(
+    theme.muted(`\nConfigured ${models.length} model(s) from ${baseUrl}`),
+  );
 }
 
 export async function modelsLMStudioDiscoverCommand(
   opts: { url?: string; json?: boolean },
-  _runtime: Runtime,
+  runtime: RuntimeEnv,
 ): Promise<void> {
   const baseUrl = opts.url ?? process.env.LMSTUDIO_BASE_URL ?? DEFAULT_LMSTUDIO_URL;
   const models = await discoverLMStudioModels(baseUrl);
 
   if (opts.json) {
-    console.log(JSON.stringify({ baseUrl, models }, null, 2));
+    runtime.log(JSON.stringify({ baseUrl, models }, null, 2));
     return;
   }
 
   if (models.length === 0) {
-    console.log(theme.error(`No models found at ${baseUrl}`));
-    console.log(theme.muted(`\nMake sure LM Studio is running and has a model loaded.`));
+    runtime.log(theme.error(`No models found at ${baseUrl}`));
+    runtime.log(theme.muted(`\nMake sure LM Studio is running and has a model loaded.`));
     return;
   }
 
-  console.log(`Models at ${theme.highlight(baseUrl)}:\n`);
+  runtime.log(`Models at ${theme.accent(baseUrl)}:\n`);
   for (const model of models) {
     const tags: string[] = [];
     if (model.reasoning) tags.push("reasoning");
     if (model.input?.includes("image")) tags.push("vision");
     const tagStr = tags.length > 0 ? ` ${theme.muted(`(${tags.join(", ")})`)}` : "";
-    console.log(`  ${model.id}${tagStr}`);
+    runtime.log(`  ${model.id}${tagStr}`);
   }
 }
