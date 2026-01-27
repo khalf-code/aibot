@@ -67,8 +67,8 @@ const WebSearchSchema = Type.Object({
 
 type WebSearchConfig = NonNullable<MoltbotConfig["tools"]>["web"] extends infer Web
   ? Web extends { search?: infer Search }
-    ? Search
-    : undefined
+  ? Search
+  : undefined
   : undefined;
 
 type BraveSearchResult = {
@@ -375,6 +375,7 @@ async function runWebSearch(params: {
     method: "GET",
     headers: {
       Accept: "application/json",
+      "Cache-Control": "no-cache",
       "X-Subscription-Token": params.apiKey,
     },
     signal: withTimeout(undefined, params.timeoutSeconds * 1000),
