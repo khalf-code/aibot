@@ -33,7 +33,7 @@ function decrypt(encrypt: string, key: string): string {
 }
 
 function normalizeAllowEntry(entry: string): string {
-  return entry.trim().replace(/^lark:/i, "").replace(/^feishu:/i, "").toLowerCase();
+  return entry.trim().replace(/^lark:/i, "").replace(/^feishu:/i, "");
 }
 
 function isAllowed(senderId: string, allowFrom: string[], dmPolicy: string): boolean {
