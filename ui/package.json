@@ -19,13 +19,9 @@
     "@vitest/browser-playwright": "4.0.18",
     "playwright": "^1.58.0",
     "typescript": "^5.9.3",
-<<<<<<< HEAD
-    "vitest": "4.0.17"
+    "vitest": "4.0.18"
   },
   "pnpm": {
     "minimumReleaseAge": 2880
-=======
-    "vitest": "4.0.18"
->>>>>>> upstream/main
   }
 }
