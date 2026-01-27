@@ -258,11 +258,6 @@ Fetch a URL and extract readable content.
         maxRedirects: 3,
         userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         readability: true,
-        exa: {
-          enabled: true,
-          apiKey: "EXA_API_KEY_HERE", // optional if EXA_API_KEY is set
-          timeoutSeconds: 30
-        },
         firecrawl: {
           enabled: true,
           apiKey: "FIRECRAWL_API_KEY_HERE", // optional if FIRECRAWL_API_KEY is set
@@ -284,7 +279,7 @@ Fetch a URL and extract readable content.
 - `maxChars` (truncate long pages)
 
 Notes:
-- `web_fetch` tries Exa content extraction first (if enabled), then Readability (main-content extraction), then Firecrawl (if configured). If all fail, the tool returns an error.
+- `web_fetch` uses Readability (main-content extraction) first, then Firecrawl (if configured). If both fail, the tool returns an error.
 - Firecrawl requests use bot-circumvention mode and cache results by default.
 - `web_fetch` sends a Chrome-like User-Agent and `Accept-Language` by default; override `userAgent` if needed.
 - `web_fetch` blocks private/internal hostnames and re-checks redirects (limit with `maxRedirects`).
