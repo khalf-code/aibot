@@ -121,7 +121,9 @@ function mergeConfig(
   const overrideRemote = overrides?.remote;
   const hasRemote = Boolean(defaultRemote || overrideRemote);
   const includeRemote =
-    hasRemote || provider === "openai" || provider === "gemini" || provider === "auto";
+    Boolean(overrideRemote?.baseUrl || overrideRemote?.apiKey || overrideRemote?.headers ||
+            defaultRemote?.baseUrl || defaultRemote?.apiKey || defaultRemote?.headers) ||
+    provider === "openai" || provider === "gemini" || provider === "auto";
   const batch = {
     enabled: overrideRemote?.batch?.enabled ?? defaultRemote?.batch?.enabled ?? true,
     wait: overrideRemote?.batch?.wait ?? defaultRemote?.batch?.wait ?? true,
@@ -146,7 +148,7 @@ function mergeConfig(
   const modelDefault =
     provider === "gemini"
       ? DEFAULT_GEMINI_MODEL
-      : provider === "openai"
+      : provider === "openai" || provider === "auto"
         ? DEFAULT_OPENAI_MODEL
         : undefined;
   const model = overrides?.model ?? defaults?.model ?? modelDefault ?? "";
