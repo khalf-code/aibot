@@ -63,6 +63,7 @@ import {
   resetChatScroll as resetChatScrollInternal,
 } from "./app-scroll";
 import { connectGateway as connectGatewayInternal } from "./app-gateway";
+import { loadConfig } from "./controllers/config";
 import {
   handleConnected,
   handleDisconnected,
@@ -96,6 +97,7 @@ import {
   handleWhatsAppWait as handleWhatsAppWaitInternal,
 } from "./app-channels";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form";
+import { createSessionNavigatorState, type SessionNavigatorState } from "./components/session-navigator";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity";
 import { loadCronRuns } from "./controllers/cron";
 import {
@@ -352,6 +354,8 @@ export class ClawdbrainApp extends LitElement {
   @state() chatTasks: ChatTask[] = [];
   @state() chatActivityLog: ChatActivityLog[] = [];
   @state() taskSidebarExpandedIds: Set<string> = new Set();
+  // Voice dropdown state (compose toolbar)
+  @state() voiceDropdownOpen = false;
   private taskSidebarKeyboardCleanup: (() => void) | null = null;
 
   @state() nodesLoading = false;
@@ -505,6 +509,7 @@ export class ClawdbrainApp extends LitElement {
   );
   @state() sessionsDrawerKey: string | null = null;
   @state() sessionsDrawerExpanded = false;
+  @state() sessionNavigator: SessionNavigatorState = createSessionNavigatorState();
   @state() sessionsPreviewLoading = false;
   @state() sessionsPreviewError: string | null = null;
   @state() sessionsPreviewEntry: SessionsPreviewEntry | null = null;
@@ -753,20 +758,24 @@ export class ClawdbrainApp extends LitElement {
     super.disconnectedCallback();
   }
 
+  protected willUpdate(changed: Map<PropertyKey, unknown>) {
+    if (changed.has("connected")) {
+      this.syncReadAloudSupport();
+      if (!this.connected) {
+        this.ttsProvidersLoaded = false;
+      }
+    }
+  }
+
   protected updated(changed: Map<PropertyKey, unknown>) {
     handleUpdated(
       this as unknown as Parameters<typeof handleUpdated>[0],
       changed,
     );
-    if (changed.has("connected")) {
-      this.syncReadAloudSupport();
-      if (this.connected) {
-        void this.loadTtsProviders({ quiet: true });
-        // Check if onboarding is needed after connection
-        void this.checkOnboardingStatus();
-      } else {
-        this.ttsProvidersLoaded = false;
-      }
+    if (changed.has("connected") && this.connected) {
+      void this.loadTtsProviders({ quiet: true });
+      // Check if onboarding is needed after connection
+      void this.checkOnboardingStatus();
     }
   }
 
@@ -779,7 +788,7 @@ export class ClawdbrainApp extends LitElement {
 
     // Trigger config load if not already loaded
     if (!this.configSnapshot) {
-      await this.loadConfig();
+      await loadConfig(this);
     }
 
     // Check if onboarding is needed
@@ -1616,7 +1625,7 @@ export class ClawdbrainApp extends LitElement {
       await this.client.request("config.patch", { raw, baseHash });
 
       // Reload config to get updated hash
-      await this.loadConfig();
+      await loadConfig(this);
     } catch (err) {
       console.error("Failed to save onboarding progress:", err);
     }
@@ -1792,7 +1801,7 @@ export class ClawdbrainApp extends LitElement {
       await this.client.request("config.patch", { raw, baseHash });
 
       // Reload config and refresh cards
-      await this.loadConfig();
+      await loadConfig(this);
       await this.refreshOnboardingCards();
     } catch (err) {
       console.error("Failed to remove channel:", err);
@@ -1832,7 +1841,7 @@ export class ClawdbrainApp extends LitElement {
       await this.client.request("config.set", { raw: serialized, baseHash });
 
       // Reload config to get updated hash and refresh card states
-      await this.loadConfig();
+      await loadConfig(this);
 
       // Refresh the affected card (will be re-rendered with new config)
       await this.refreshOnboardingCards();
