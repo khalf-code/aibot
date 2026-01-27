@@ -16,7 +16,7 @@
 
 ### Technical
 
-- Uses AgentMail SDK v0.2.4
+- Uses AgentMail SDK v0.2.5
 - Extracted text/HTML preference for cleaner message bodies
 - Zod-based configuration schema
 - Comprehensive test coverage for pure functions

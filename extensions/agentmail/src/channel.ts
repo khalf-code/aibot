@@ -69,6 +69,7 @@ export const agentmailPlugin: ChannelPlugin<ResolvedAgentMailAccount> = {
           "name",
           "token",
           "emailAddress",
+          "webhookUrl",
           "webhookPath",
           "allowFrom",
         ],
