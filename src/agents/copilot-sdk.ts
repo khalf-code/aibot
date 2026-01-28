@@ -18,13 +18,7 @@ import { isCopilotCliInstalled, readCopilotAuthStatusCached } from "./copilot-cr
 const log = createSubsystemLogger("agents/copilot-sdk");
 
 // Re-export SDK types that consumers may need.
-export type {
-  CopilotClient,
-  CopilotClientOptions,
-  CopilotSession,
-  SessionConfig,
-  SessionEvent,
-};
+export type { CopilotClient, CopilotClientOptions, CopilotSession, SessionConfig, SessionEvent };
 
 /**
  * Options for creating a Moltbot-configured Copilot client.
@@ -149,10 +143,12 @@ export type CopilotAgentResult = {
  * Creates a client, starts a session, sends the prompt, waits for completion,
  * and cleans up. For multi-turn conversations, pass the returned `sessionId`
  * back in subsequent calls.
+ *
+ * Note: When resuming a session, model and system prompt settings from the
+ * original session are preserved. New configuration values are not applied
+ * during resumption.
  */
-export async function runCopilotAgent(
-  params: RunCopilotAgentParams,
-): Promise<CopilotAgentResult> {
+export async function runCopilotAgent(params: RunCopilotAgentParams): Promise<CopilotAgentResult> {
   const started = Date.now();
   const events: SessionEvent[] = [];
   let finalText = "";
@@ -163,17 +159,20 @@ export async function runCopilotAgent(
     env: params.env,
   });
 
+  let session: CopilotSession | null = null;
+  let unsubscribe: (() => void) | null = null;
+
   try {
     // Start the client
     await client.start();
 
-    // Configure session
+    // Configure session for new sessions
     const sessionConfig: SessionConfig = {
       model: params.model,
       sessionId: params.sessionId,
     };
 
-    // Add system message if provided
+    // Add system message if provided (only applies to new sessions)
     if (params.systemPrompt) {
       sessionConfig.systemMessage = {
         mode: "append",
@@ -182,7 +181,9 @@ export async function runCopilotAgent(
     }
 
     // Create or resume session
-    let session: CopilotSession;
+    // Note: When resuming, the SDK preserves the original session's model/prompt.
+    // The ResumeSessionConfig type only supports tools, provider, streaming,
+    // onPermissionRequest, mcpServers, customAgents, skillDirectories, disabledSkills.
     if (params.sessionId) {
       session = await client.resumeSession(params.sessionId, {
         streaming: true,
@@ -194,7 +195,7 @@ export async function runCopilotAgent(
     const sessionId = session.sessionId;
 
     // Set up event handler
-    const unsubscribe = session.on((event: SessionEvent) => {
+    unsubscribe = session.on((event: SessionEvent) => {
       events.push(event);
       params.onEvent?.(event);
 
@@ -207,34 +208,33 @@ export async function runCopilotAgent(
       }
     });
 
-    try {
-      // Send the message and wait for completion
-      const result = await session.sendAndWait(
-        { prompt: params.prompt },
-        params.timeoutMs ?? 120000,
-      );
+    // Send the message and wait for completion
+    const result = await session.sendAndWait({ prompt: params.prompt }, params.timeoutMs ?? 120000);
 
-      // Extract text from result if available
-      if (result?.data?.content && typeof result.data.content === "string") {
-        finalText = result.data.content;
-      }
-
-      return {
-        text: finalText,
-        sessionId,
-        events,
-        durationMs: Date.now() - started,
-      };
-    } finally {
-      unsubscribe();
-      // Note: We don't destroy the session if sessionId was provided for resumption
-      if (!params.sessionId) {
-        await session.destroy().catch(() => {
-          // Ignore cleanup errors
-        });
-      }
+    // Extract text from result if available
+    if (result?.data?.content && typeof result.data.content === "string") {
+      finalText = result.data.content;
     }
+
+    return {
+      text: finalText,
+      sessionId,
+      events,
+      durationMs: Date.now() - started,
+    };
   } finally {
+    // Clean up in reverse order: unsubscribe, destroy session (if new), stop client
+    if (unsubscribe) {
+      unsubscribe();
+    }
+
+    // Only destroy session if we created a new one (not resuming)
+    if (session && !params.sessionId) {
+      await session.destroy().catch(() => {
+        // Ignore cleanup errors
+      });
+    }
+
     // Always stop the client
     await client.stop().catch(() => {
       // Ignore cleanup errors

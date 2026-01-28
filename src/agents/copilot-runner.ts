@@ -141,12 +141,18 @@ export async function runCopilotCliAgent(params: {
     const text = result.text?.trim();
     const payloads = text ? [{ text }] : undefined;
 
+    // When resuming a session, the SDK's sessionId should be authoritative.
+    // For new sessions, fall back to params.sessionId if SDK doesn't return one.
+    const resolvedSessionId = params.cliSessionId
+      ? result.sessionId // Resuming: use SDK's session ID
+      : (result.sessionId ?? params.sessionId ?? ""); // New: SDK or fallback
+
     return {
       payloads,
       meta: {
         durationMs: Date.now() - started,
         agentMeta: {
-          sessionId: result.sessionId ?? params.sessionId ?? "",
+          sessionId: resolvedSessionId,
           provider,
           model: modelId,
         },
