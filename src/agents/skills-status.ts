@@ -40,6 +40,8 @@ export type SkillStatusEntry = {
   primaryEnv?: string;
   emoji?: string;
   homepage?: string;
+  /** URL to the source repository (e.g., GitHub) for transparency and auditability. */
+  repository?: string;
   always: boolean;
   disabled: boolean;
   blockedByAllowlist: boolean;
@@ -164,6 +166,11 @@ function buildSkillStatus(
     entry.frontmatter.website ??
     entry.frontmatter.url;
   const homepage = homepageRaw?.trim() ? homepageRaw.trim() : undefined;
+  const repositoryRaw =
+    entry.metadata?.repository ??
+    entry.frontmatter.repository ??
+    entry.frontmatter.repo;
+  const repository = repositoryRaw?.trim() ? repositoryRaw.trim() : undefined;
 
   const requiredBins = entry.metadata?.requires?.bins ?? [];
   const requiredAnyBins = entry.metadata?.requires?.anyBins ?? [];
@@ -237,6 +244,7 @@ function buildSkillStatus(
     primaryEnv: entry.metadata?.primaryEnv,
     emoji,
     homepage,
+    repository,
     always,
     disabled,
     blockedByAllowlist,
