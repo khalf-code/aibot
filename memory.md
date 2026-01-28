@@ -52,6 +52,19 @@ Note: Some references to "clawdbot" remain in older code/docs during transition.
   - db@lovemolly.app (work Google - Molly) ✅
   - dhurley@onepoint-partners.com (M365 - One Point) ⏳ Azure setup
 
+## DBH Ventures Project Tracking (Vikunja)
+
+- **URL**: https://projects.timespent.xyz
+- **Droplet**: dbh-ventures (DO ID: 547817710, nyc1, $6/mo)
+- **Your login**: dbhurley / DBHVentures2026!
+- **My login**: steve / SteveAgent2026!
+- **Projects**:
+  - ID 3: 🚀 DBH Ventures - Incubation Template (standard playbook)
+  - ID 4: 🛡️ MeshGuard (launched)
+  - ID 5: 💾 SaveState (launched Jan 27, 2026)
+- **Incubation phases**: Idea → Foundation → MVP → Launch → Growth
+- **Usage**: Clone template project for each new venture
+
 ## SaveState — LAUNCHED Jan 27, 2026 🚀
 
 - **What**: Encrypted backup/restore for AI agents ("Time Machine for AI")
