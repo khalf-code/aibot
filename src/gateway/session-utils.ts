@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
+import { getSessionStateByKey } from "../logging/diagnostic.js";
 import { lookupContextTokens } from "../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL, DEFAULT_PROVIDER } from "../agents/defaults.js";
 import { resolveConfiguredModelRef } from "../agents/model-selection.js";
@@ -628,7 +629,8 @@ export function listSessionsFromStore(params: {
         if (lastMsg) lastMessagePreview = lastMsg;
       }
     }
-    return { ...rest, derivedTitle, lastMessagePreview } satisfies GatewaySessionRow;
+    const state = getSessionStateByKey(s.key);
+    return { ...rest, state, derivedTitle, lastMessagePreview } satisfies GatewaySessionRow;
   });
 
   return {

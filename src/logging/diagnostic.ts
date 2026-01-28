@@ -351,4 +351,8 @@ export function stopDiagnosticHeartbeat() {
   }
 }
 
+export function getSessionStateByKey(key: string): SessionStateValue | undefined {
+  return sessionStates.get(key)?.state;
+}
+
 export { diag as diagnosticLogger };
