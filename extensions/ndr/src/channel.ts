@@ -184,6 +184,14 @@ export const ndrPlugin: ChannelPlugin<ResolvedNdrAccount> = {
       });
       ctx.log?.info(`[${account.accountId}] starting NDR provider`);
 
+      // Close existing bus if any (prevents duplicate listeners on restart)
+      const existingBus = activeBuses.get(account.accountId);
+      if (existingBus) {
+        ctx.log?.info(`[${account.accountId}] closing existing NDR bus before restart`);
+        existingBus.close();
+        activeBuses.delete(account.accountId);
+      }
+
       const runtime = getNdrRuntime();
 
       const bus = await startNdrBus({
