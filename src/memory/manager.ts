@@ -1156,7 +1156,7 @@ export class MemoryIndexManager {
     return /embedding|embeddings|batch/i.test(message);
   }
 
-  private createEmbeddingService(): EmbeddingService {
+  private createEmbeddingService(preserveBatchState = true): EmbeddingService {
     const batch = this.settings.remote?.batch;
     const enabled = Boolean(
       batch?.enabled &&
@@ -1178,7 +1178,12 @@ export class MemoryIndexManager {
       },
       agentId: this.agentId,
     };
-    return new EmbeddingService(this.db, config);
+    const service = new EmbeddingService(this.db, config);
+    // Preserve batch failure state across service recreations (e.g., during reindex)
+    if (preserveBatchState && this.embeddingService) {
+      service.transferBatchState(this.embeddingService);
+    }
+    return service;
   }
 
   private async activateFallbackProvider(reason: string): Promise<boolean> {
@@ -1210,7 +1215,8 @@ export class MemoryIndexManager {
     this.openAi = fallbackResult.openAi;
     this.gemini = fallbackResult.gemini;
     this.providerKey = this.computeProviderKey();
-    this.embeddingService = this.createEmbeddingService();
+    // Don't preserve batch state when switching providers - start fresh with new provider
+    this.embeddingService = this.createEmbeddingService(false);
     log.warn(`memory embeddings: switched to fallback provider (${fallback})`, { reason });
     return true;
   }

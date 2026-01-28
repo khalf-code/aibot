@@ -45,6 +45,11 @@ vi.mock("../../config/sessions.js", async () => {
 const makeContext = (): GatewayRequestContext =>
   ({
     dedupe: new Map(),
+    rateLimiter: {
+      checkChannelMessage: () => ({ allowed: true }),
+      checkRequest: () => ({ allowed: true }),
+      recordAuthFailure: () => {},
+    },
   }) as unknown as GatewayRequestContext;
 
 describe("gateway send mirroring", () => {

@@ -123,6 +123,20 @@ export class EmbeddingService {
   }
 
   /**
+   * Transfer batch failure state from another EmbeddingService instance.
+   * Used when recreating the service to preserve failure tracking across reindexes.
+   */
+  transferBatchState(from: EmbeddingService): void {
+    this.batchFailureCount = from.batchFailureCount;
+    this.batchFailureLastError = from.batchFailureLastError;
+    this.batchFailureLastProvider = from.batchFailureLastProvider;
+    // Also transfer disabled state if the source had batch disabled due to failures
+    if (!from.batch.enabled && from.batchFailureCount >= BATCH_FAILURE_LIMIT) {
+      this.batch.enabled = false;
+    }
+  }
+
+  /**
    * Get cache entry count.
    */
   getCacheEntryCount(): number {

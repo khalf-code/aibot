@@ -110,14 +110,23 @@ function getArchivePath(basePath: string, date: Date): string {
 async function appendAuditEntry(entry: AuditLogEntry, baseDir?: string): Promise<void> {
   const { dir, currentPath } = resolveAuditPaths(baseDir);
 
-  // Ensure directory exists
-  await fs.mkdir(dir, { recursive: true });
+  try {
+    // Ensure directory exists
+    await fs.mkdir(dir, { recursive: true });
 
-  // Serialize entry
-  const line = JSON.stringify(entry) + "\n";
+    // Serialize entry
+    const line = JSON.stringify(entry) + "\n";
 
-  // Append to file (create if doesn't exist)
-  await fs.appendFile(currentPath, line, { encoding: "utf8", mode: 0o600 });
+    // Append to file (create if doesn't exist)
+    await fs.appendFile(currentPath, line, { encoding: "utf8", mode: 0o600 });
+  } catch (err) {
+    // Silently ignore errors if the directory was removed (e.g., during test cleanup)
+    // This prevents unhandled rejections when the audit log is disabled or the path is invalid
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT" && code !== "ENOTDIR") {
+      throw err;
+    }
+  }
 }
 
 /**
