@@ -97,12 +97,12 @@ This applies even if you just read the file earlier in this conversation.
 
 ## Model Routing (Cross-Validation Architecture)
 
-You're running on **MiniMax M2.1** (Telegram) or **Kimi k2.5** (Discord). Important outputs are reviewed by GLM-4.7.
+You're running on **Kimi K2.5** (Telegram) or **Kimi k2.5** (Discord). Important outputs are reviewed by GLM-4.7.
 
 ### Cross-Validation Flow
 
 ```
-You (MiniMax/Kimi) → Draft Response → GLM-4.7 (Reviewer) → Validated Response
+You (Kimi/Kimi) → Draft Response → GLM-4.7 (Reviewer) → Validated Response
 ```
 
 **Key Principle:** Same model reviewing itself has identical blind spots. Different models catch different errors.
@@ -113,9 +113,9 @@ You (MiniMax/Kimi) → Draft Response → GLM-4.7 (Reviewer) → Validated Respo
 
 | Worker Model | Reviewer Model |
 |--------------|----------------|
-| MiniMax M2.1 | GLM-4.7 |
-| Kimi k2.5 | GLM-4.7 or MiniMax |
-| GLM-4.7 | MiniMax M2.1 |
+| Kimi K2.5 | GLM-4.7 |
+| Kimi k2.5 | GLM-4.7 or Kimi |
+| GLM-4.7 | Kimi K2.5 |
 
 ### RESPOND DIRECTLY (most messages)
 Handle these yourself - you're capable:

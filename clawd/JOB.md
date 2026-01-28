@@ -162,11 +162,11 @@ I can spawn subagents for:
 | `deep` | zai/glm-4.7 | Quality gate, code review, coding, complex reasoning |
 | `vision` | ollama/qwen3-vl:4b | Image analysis |
 | `ocr` | ollama/deepseek-ocr | Text extraction from images/PDFs |
-| `audit` | ollama/minimax-m2.1:cloud | Primary worker (Telegram), overnight builds |
+| `audit` | ollama/deepseek-v3.1:cloud | Primary worker (Telegram), overnight builds |
 | `beta` | ollama/kimi-k2.5:cloud | Testing new models (explicit request only) |
 
 **Cross-Validation Architecture:**
-- **Primary Worker (Telegram):** MiniMax M2.1 (`audit`) - best finish-rate
+- **Primary Worker (Telegram):** Kimi K2.5 (`audit`) - tools + thinking support
 - **Quality Gate / Reviewer:** GLM-4.7 (`deep`) - different model catches different blind spots
 - **Subagents:** GLM-4.7 (`deep`) by default for high capability
 

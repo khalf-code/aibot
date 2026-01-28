@@ -49,6 +49,17 @@ Items with these statuses must be moved to `EVOLUTION-QUEUE-ARCHIVE.md`:
 
 ## Pending
 
+### [2026-01-28-049] Telegram Liam Identity/Tool Access Failure
+- **Proposed by:** Liam (Discord)
+- **Date:** 2026-01-28
+- **Category:** behavior
+- **Target file:** ~/.clawdbot/moltbot.json (agent configuration)
+- **Verified:** [YES - session log analysis]
+- **Evidence:** Session `3aef7051` shows Telegram Liam has no tool access and no identity; full diagnostic at `~/clawd/diagnostics/telegram-identity-failure-2026-01-28.md`
+- **Description:** Telegram Liam operates as generic AI with no file access, no tools, and no knowledge of identity. Does not read SOUL.md/IDENTITY.md/MEMORY.md. When asked to read a file, responds "I don't have access to read files from your local system." Discord Liam works correctly. Likely missing tool permissions or session initialization for Telegram channel.
+- **Impact:** CRITICAL - Telegram users get generic AI instead of Liam
+- **Status:** NEW
+
 ### [2026-02-10-042] Debug Mode Frequency Reversion (SCHEDULED)
 - **Proposed by:** Cursor
 - **Date:** 2026-01-28
@@ -117,7 +128,8 @@ Items with these statuses must be moved to `EVOLUTION-QUEUE-ARCHIVE.md`:
 ### [2026-01-25-019] Digital Download Business Research
 - **Date:** 2026-01-25
 - **Description:** Research digital download business ideas as secondary income. Full analysis delivered with 7+ ideas.
-- **Status:** PAUSED per Simon
+- **Status:** [RESOLVED] Merged into sticker business — strategic elements (pricing benchmarks, GTM strategy, validation experiments) integrated into `progress/sticker-business.txt`. Raw research archived to `plans/archive/`.
+- **Resolution Date:** 2026-01-28
 
 ### [2026-01-25-018] Edison Learning Operations Job
 - **Date:** 2026-01-25

@@ -100,14 +100,14 @@ See [`ROLES.md`](ROLES.md) for full mode descriptions and capabilities.
 
 | Model | Role | Tasks |
 |-------|------|-------|
-| **MiniMax M2.1** (cloud) | Primary Worker | Day-to-day conversation, task execution (Telegram) |
+| **Kimi K2.5** (cloud) | Primary Worker | Day-to-day conversation, task execution (Telegram) |
 | **GLM-4.7** (cloud) | Reviewer / Quality Gate | Code review, validation, complex reasoning |
 | **GLM-4.7-Flash** (local) | Pre-flight / Routine | Fast checks, summaries, cron jobs |
 | **Kimi k2.5** (cloud) | Beta Testing | Experimental tasks (Discord) |
 | **Qwen3-VL 4B** (local) | Vision | Image analysis, UI understanding |
-| **DeepSeek OCR** (local) | OCR | Text extraction from images/PDFs |
+| **Kimi OCR** (local) | OCR | Text extraction from images/PDFs |
 
-**Cross-Validation Flow:** MiniMax drafts → GLM-4.7 reviews → Validated response
+**Cross-Validation Flow:** Kimi drafts → GLM-4.7 reviews → Validated response
 
 ## My Values
 

@@ -27,9 +27,9 @@ Full reference (if needed): `~/clawd/apex-vault/apex/APEX_CORE.md`
 **Three-Tier System:**
 - **Tier 1 (Pre-flight):** `flash` model (GLM-4.7-flash) - Context freshness, task classification, goal drift
 - **Tier 2 (Quality Gate):** `deep` model (GLM-4.7) - Anti-hallucination, security scan, regression guard
-- **Tier 3 (Periodic Audit):** `audit` model (MiniMax M2.1) - Cron-based session quality, error patterns
+- **Tier 3 (Periodic Audit):** `audit` model (Kimi K2.5) - Cron-based session quality, error patterns
 
-**Cross-Validation:** Primary worker (MiniMax) is reviewed by different model (GLM) to catch blind spots.
+**Cross-Validation:** Primary worker (Kimi) is reviewed by different model (GLM) to catch blind spots.
 
 **The Loop (internal, invisible):** Draft → Pre-flight → Quality Gate (if important) → Fix silently → Deliver
 

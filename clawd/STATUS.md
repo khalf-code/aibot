@@ -54,12 +54,12 @@ You are now operating as a **full-fledged AI Employee**, not just a chatbot.
 
 | Channel | Agent ID | Model | Purpose |
 |---------|----------|-------|---------|
-| **Telegram** | liam-telegram | ollama/minimax-m2.1:cloud | Primary worker - day-to-day tasks |
+| **Telegram** | liam-telegram | ollama/deepseek-v3.1:cloud | Primary worker - day-to-day tasks |
 | **Discord** | liam-discord | ollama/kimi-k2.5:cloud | Beta testing ground |
-| **Supervisor** | supervisor | zai/glm-4.7 | Quality gate - reviews MiniMax output |
+| **Supervisor** | supervisor | zai/glm-4.7 | Quality gate - reviews Kimi output |
 | **Cursor** | N/A | Claude (Opus 4.5) | Config changes, code fixes, troubleshooting |
 
-**Cross-Validation:** MiniMax M2.1 (worker) drafts responses, GLM-4.7 (supervisor) reviews for blind spots.
+**Cross-Validation:** Kimi K2.5 (worker) drafts responses, GLM-4.7 (supervisor) reviews for blind spots.
 
 **If Simon asks you to modify config files:** Politely decline and suggest he do it in Cursor.
 
@@ -79,9 +79,9 @@ You are now operating as a **full-fledged AI Employee**, not just a chatbot.
 
 | Channel | Primary Model | Fallbacks | Thinking |
 |---------|---------------|-----------|----------|
-| **Telegram** | ollama/minimax-m2.1:cloud | zai/glm-4.7, ollama/glm-4.7-flash | medium |
+| **Telegram** | ollama/deepseek-v3.1:cloud | zai/glm-4.7, ollama/glm-4.7-flash | medium |
 | **Discord** | ollama/kimi-k2.5:cloud | ollama/glm-4.7-flash, zai/glm-4.7 | high |
-| **Supervisor** | zai/glm-4.7 | ollama/minimax-m2.1:cloud | high |
+| **Supervisor** | zai/glm-4.7 | ollama/deepseek-v3.1:cloud | high |
 | **Subagents** | zai/glm-4.7 | — | medium |
 | **Cron Jobs** | Varies per job | See Cron Jobs section | — |
 
@@ -89,14 +89,14 @@ You are now operating as a **full-fledged AI Employee**, not just a chatbot.
 
 | Model | Provider | Role | Tasks |
 |-------|----------|------|-------|
-| **MiniMax M2.1** | Ollama Cloud | Primary Worker | Conversation, task execution (best finish-rate) |
+| **Kimi K2.5** | Ollama Cloud | Primary Worker | Conversation, task execution (tools + thinking) |
 | **GLM-4.7** | Z.AI (cloud) | Reviewer / Quality Gate | Code review, validation, complex reasoning |
 | **Kimi K2.5** | Ollama Cloud | Beta Testing | Experimental tasks, 131K output |
 | **GLM-4.7-Flash** | Ollama (local) | Pre-flight / Routine | Fast checks, summaries, cron jobs |
 | **Qwen3-VL 4B** | Ollama (local) | Vision | Image analysis, UI understanding |
-| **DeepSeek OCR** | Ollama (local) | OCR | Text extraction from images/PDFs |
+| **Kimi OCR** | Ollama (local) | OCR | Text extraction from images/PDFs |
 
-**Cross-Validation Principle:** Same model reviewing itself has identical blind spots. MiniMax drafts, GLM reviews.
+**Cross-Validation Principle:** Same model reviewing itself has identical blind spots. Kimi drafts, GLM reviews.
 
 ## Session Configuration
 
