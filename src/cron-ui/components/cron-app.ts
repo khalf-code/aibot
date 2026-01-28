@@ -130,7 +130,7 @@ export class CronApp extends LitElement {
       await this.client.connect();
       this.connected = true;
       await this.refresh();
-    } catch (e) {
+    } catch {
       this.error = "Failed to connect to gateway";
       this.connected = false;
     }
@@ -171,7 +171,7 @@ export class CronApp extends LitElement {
         }
       } catch {
         // Fallback to full refresh
-        this.refresh();
+        void this.refresh();
       }
       return;
     }
@@ -202,32 +202,32 @@ export class CronApp extends LitElement {
     this.selectedJobId = jobId || null;
   }
 
-  private async handleRunJob(e: CustomEvent<{ id: string }>) {
+  private handleRunJob = async (e: CustomEvent<{ id: string }>) => {
     try {
       await this.client.run(e.detail.id, "force");
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to run job";
     }
-  }
+  };
 
-  private async handleToggleJob(e: CustomEvent<{ id: string; enabled: boolean }>) {
+  private handleToggleJob = async (e: CustomEvent<{ id: string; enabled: boolean }>) => {
     try {
       await this.client.update(e.detail.id, { enabled: e.detail.enabled });
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to update job";
     }
-  }
+  };
 
-  private async handleDeleteJob(e: CustomEvent<{ id: string }>) {
+  private handleDeleteJob = async (e: CustomEvent<{ id: string }>) => {
     if (!confirm("Delete this job?")) return;
     try {
       await this.client.remove(e.detail.id);
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to delete job";
     }
-  }
+  };
 
-  private async handleJobUpdated(e: CustomEvent<{ id: string }>) {
+  private handleJobUpdated = async (e: CustomEvent<{ id: string }>) => {
     // Refresh the specific job after an update
     try {
       const jobs = await this.client.list({ includeDisabled: true });
@@ -241,7 +241,7 @@ export class CronApp extends LitElement {
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Failed to refresh job";
     }
-  }
+  };
 
   render() {
     return html`

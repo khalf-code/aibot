@@ -621,7 +621,7 @@ export class CronJobDetail extends LitElement {
     super.connectedCallback();
     if (this.job && this.client) {
       this.currentJobId = this.job.id;
-      this.loadRuns();
+      void this.loadRuns();
     }
   }
 
@@ -631,7 +631,7 @@ export class CronJobDetail extends LitElement {
       this.expandedRuns.clear();
       this.isEditingPayload = false;
       this.isEditingSchedule = false;
-      this.loadRuns();
+      void this.loadRuns();
     }
   }
 
@@ -1328,7 +1328,7 @@ export class CronJobDetail extends LitElement {
     `;
   }
 
-  private renderLogEntry(run: CronRunEntry, index: number) {
+  private renderLogEntry(run: CronRunEntry) {
     const runKey = `${run.ts}`;
     const isExpanded = this.expandedRuns.has(runKey);
     const output = run.outputText || run.summary || "";

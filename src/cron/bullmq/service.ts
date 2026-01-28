@@ -7,13 +7,12 @@
 
 import { CronQueue } from "./queue.js";
 import type { CronJob, CronJobCreate, CronJobPatch, CronStoreFile } from "../types.js";
-import type { CronEvent, CronServiceDeps, Logger } from "../service/state.js";
+import type { CronEvent, CronServiceDeps } from "../service/state.js";
 import {
   applyJobPatch,
   computeJobNextRunAtMs,
   createJob,
   findJobOrThrow,
-  resolveJobPayloadTextForMain,
 } from "../service/jobs.js";
 import type { HeartbeatRunResult } from "../../infra/heartbeat-wake.js";
 import { locked } from "../service/locked.js";
@@ -21,12 +20,7 @@ import { ensureLoaded, persist, warnIfDisabled } from "../service/store.js";
 
 import type { CronQueueConfig } from "./queue.js";
 
-import {
-  appendCronRunLog,
-  readCronRunLogEntries,
-  resolveCronRunLogPath,
-  type CronRunLogEntry,
-} from "../run-log.js";
+import { readCronRunLogEntries, resolveCronRunLogPath, type CronRunLogEntry } from "../run-log.js";
 
 export type BullMQCronServiceDeps = CronServiceDeps & {
   redisUrl?: string;
@@ -357,7 +351,6 @@ export class BullMQCronService {
 
       const shouldDelete =
         job.schedule.kind === "at" && execResult.status === "ok" && job.deleteAfterRun === true;
-      let deleted = false;
 
       if (!shouldDelete) {
         if (job.schedule.kind === "at" && execResult.status === "ok") {
@@ -387,7 +380,6 @@ export class BullMQCronService {
 
       if (shouldDelete && this.state.store) {
         this.state.store.jobs = this.state.store.jobs.filter((j) => j.id !== job.id);
-        deleted = true;
         if (this.state.queue) {
           await this.state.queue.removeJobScheduler(job.id);
         }

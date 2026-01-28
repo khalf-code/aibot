@@ -124,7 +124,7 @@ export class CronQueue {
         username: url.username || undefined,
       };
     } catch (err) {
-      throw new Error(`Invalid Redis URL: ${redisUrl} (${err})`);
+      throw new Error(`Invalid Redis URL: ${redisUrl} (${String(err)})`);
     }
 
     this.queue = new Queue<CronJobData>(CRON_QUEUE_NAME, {
