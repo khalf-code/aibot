@@ -1,0 +1,205 @@
+{
+  "app": {
+    "title": "Clawdbot Control",
+    "loading": "Loading…",
+    "error": "Error",
+    "version": "Version"
+  },
+  "nav": {
+    "groups": {
+      "chat": "Chat",
+      "control": "Control",
+      "agent": "Agent",
+      "settings": "Settings"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "channels": "Channels",
+      "instances": "Instances",
+      "sessions": "Sessions",
+      "cron": "Cron Jobs",
+      "skills": "Skills",
+      "nodes": "Nodes",
+      "chat": "Chat",
+      "config": "Config",
+      "debug": "Debug",
+      "logs": "Logs"
+    },
+    "subtitles": {
+      "overview": "Gateway status, entry points, and a fast health read.",
+      "channels": "Manage channels and settings.",
+      "instances": "Presence beacons from connected clients and nodes.",
+      "sessions": "Inspect active sessions and adjust per-session defaults.",
+      "cron": "Schedule wakeups and recurring agent runs.",
+      "skills": "Manage skill availability and API key injection.",
+      "nodes": "Paired devices, capabilities, and command exposure.",
+      "chat": "Direct gateway chat session for quick interventions.",
+      "config": "Edit ~/.clawdbot/clawdbot.json safely.",
+      "debug": "Gateway snapshots, events, and manual RPC calls.",
+      "logs": "Live tail of the gateway file logs."
+    }
+  },
+  "sidebar": {
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "close": "Close sidebar",
+    "exitFocus": "Exit focus mode"
+  },
+  "chat": {
+    "placeholder": "Message (↩ to send, Shift+↩ for line breaks)",
+    "connect": "Connect to the gateway to start chatting…",
+    "agentMessage": "Agent message",
+    "agentMessageRequired": "Agent message required.",
+    "assistant": "Assistant",
+    "agent": "Agent",
+    "copyMarkdown": "Copy as markdown",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "attach": "Attach",
+    "send": "Send"
+  },
+  "status": {
+    "health": "Health",
+    "ok": "OK",
+    "offline": "Offline",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "disconnectedGateway": "Disconnected from gateway.",
+    "active": "Active",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "installed": "Installed",
+    "loading": "Loading…",
+    "applying": "Applying…",
+    "installing": "Installing…",
+    "importing": "Importing..."
+  },
+  "actions": {
+    "apply": "Apply",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add",
+    "addJob": "Add job",
+    "enable": "Enable",
+    "disable": "Disable",
+    "copy": "Copy",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "loadConfig": "Load config",
+    "loadApprovals": "Load approvals",
+    "importRelays": "Import from Relays",
+    "editProfile": "Edit Profile"
+  },
+  "config": {
+    "categories": {
+      "gateway": "Gateway",
+      "agents": "Agents",
+      "authentication": "Authentication",
+      "models": "Models",
+      "tools": "Tools",
+      "channels": "Channels",
+      "messages": "Messages",
+      "commands": "Commands",
+      "browser": "Browser",
+      "audio": "Audio",
+      "broadcast": "Broadcast",
+      "hooks": "Hooks",
+      "logging": "Logging",
+      "skills": "Skills",
+      "plugins": "Plugins",
+      "discovery": "Discovery",
+      "bindings": "Bindings",
+      "environment": "Environment",
+      "canvasHost": "Canvas Host",
+      "cron": "Cron"
+    },
+    "descriptions": {
+      "gateway": "Gateway server settings (port, auth, binding)",
+      "agents": "Agent configurations, models, and identities",
+      "authentication": "API keys and authentication profiles",
+      "models": "AI model configurations and providers",
+      "audio": "Audio input/output settings",
+      "browser": "Browser automation settings",
+      "broadcast": "Broadcast and notification settings",
+      "update": "Auto-update settings and release channel",
+      "messages": "Message handling and routing settings",
+      "logging": "Log levels and output configuration",
+      "canvasHost": "Canvas rendering and display",
+      "environment": "Environment variables passed to the gateway process"
+    },
+    "noSettings": "No settings in this section",
+    "hideAdvanced": "Hide Advanced",
+    "showAdvanced": "Show Advanced",
+    "hashMissing": "Config hash missing; reload and retry.",
+    "approvalHashMissing": "Exec approvals hash missing; reload and retry."
+  },
+  "channels": {
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "slack": "Slack",
+    "signal": "Signal",
+    "imessage": "iMessage",
+    "bluebubbles": "BlueBubbles",
+    "msteams": "MS Teams",
+    "mattermost": "Mattermost"
+  },
+  "security": {
+    "host": "Host",
+    "full": "Full",
+    "allowlist": "Allowlist",
+    "deny": "Deny",
+    "ask": "Ask",
+    "always": "Always",
+    "defaultSecurityMode": "Default security mode.",
+    "defaultPromptPolicy": "Default prompt policy.",
+    "allowSkillExecutables": "Allow skill executables listed by the Gateway."
+  },
+  "cron": {
+    "cronRequired": "Cron expression required.",
+    "invalidInterval": "Invalid interval amount.",
+    "invalidRunTime": "Invalid run time."
+  },
+  "profile": {
+    "displayName": "Display Name",
+    "avatarUrl": "Avatar URL",
+    "bannerUrl": "Banner URL",
+    "bio": "Bio",
+    "bioPlaceholder": "A brief bio or description",
+    "avatarPlaceholder": "HTTPS URL to your profile picture",
+    "bannerPlaceholder": "HTTPS URL to a banner image",
+    "lightningAddress": "Lightning Address",
+    "lightningPlaceholder": "Lightning address for tips (LUD-16)",
+    "picture": "Profile picture",
+    "picturePreview": "Profile picture preview",
+    "importedRelays": "Profile imported from relays. Review and publish.",
+    "imported": "Profile imported. Review and publish.",
+    "publishFailed": "Profile publish failed on all relays."
+  },
+  "theme": {
+    "dark": "Dark",
+    "light": "Light",
+    "darkTheme": "Dark theme",
+    "lightTheme": "Light theme"
+  },
+  "common": {
+    "key": "Key",
+    "value": "JSON value",
+    "enter": "Enter",
+    "apiKeySaved": "API key saved",
+    "loggedOut": "Logged out.",
+    "disabledOnboarding": "Disabled during onboarding",
+    "newDeviceToken": "New device token (copy and store securely):",
+    "environmentVariables": "Environment Variables",
+    "docsNewTab": "Docs (opens in new tab)",
+    "authDocsNewTab": "Control UI auth docs (opens in new tab)",
+    "insecureDocsNewTab": "Insecure HTTP docs (opens in new tab)"
+  },
+  "language": {
+    "select": "Language",
+    "en": "English",
+    "zh": "中文"
+  }
+}

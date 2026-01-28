@@ -9,8 +9,11 @@ import {
   pathForTab,
   subtitleForTab,
   titleForTab,
+  localizedGroupLabel,
   type Tab,
 } from "./navigation";
+import { t } from "../i18n/index.js";
+import "./components/language-switcher.js";
 import { icons } from "./icons";
 import type { UiSettings } from "./storage";
 import type { ThemeMode } from "./theme";
@@ -140,10 +143,11 @@ export function renderApp(state: AppViewState) {
         <div class="topbar-status">
           <div class="pill">
             <span class="statusDot ${state.connected ? "ok" : ""}"></span>
-            <span>Health</span>
-            <span class="mono">${state.connected ? "OK" : "Offline"}</span>
+            <span>${t("status.health", "Health")}</span>
+            <span class="mono">${state.connected ? t("status.ok", "OK") : t("status.offline", "Offline")}</span>
           </div>
           ${renderThemeToggle(state)}
+          <language-switcher></language-switcher>
         </div>
       </header>
       <aside class="nav ${state.settings.navCollapsed ? "nav--collapsed" : ""}">
@@ -164,7 +168,7 @@ export function renderApp(state: AppViewState) {
                 }}
                 aria-expanded=${!isGroupCollapsed}
               >
-                <span class="nav-label__text">${group.label}</span>
+                <span class="nav-label__text">${localizedGroupLabel(group.label)}</span>
                 <span class="nav-label__chevron">${isGroupCollapsed ? "+" : "−"}</span>
               </button>
               <div class="nav-group__items">

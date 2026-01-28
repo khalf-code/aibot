@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
+import { subscribeLocale, type Locale, getLocale } from "../i18n/index.js";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway";
 import { resolveInjectedAssistantIdentity } from "./assistant-identity";
 import { loadSettings, type UiSettings } from "./storage";
@@ -108,9 +109,11 @@ export class MoltbotApp extends LitElement {
   @state() hello: GatewayHelloOk | null = null;
   @state() lastError: string | null = null;
   @state() eventLog: EventLogEntry[] = [];
+  @state() locale: Locale = getLocale();
   private eventLogBuffer: EventLogEntry[] = [];
   private toolStreamSyncTimer: number | null = null;
   private sidebarCloseTimer: number | null = null;
+  private unsubscribeLocale?: () => void;
 
   @state() assistantName = injectedAssistantIdentity.name;
   @state() assistantAvatar = injectedAssistantIdentity.avatar;
@@ -273,6 +276,10 @@ export class MoltbotApp extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     handleConnected(this as unknown as Parameters<typeof handleConnected>[0]);
+    // Subscribe to locale changes for i18n
+    this.unsubscribeLocale = subscribeLocale(() => {
+      this.locale = getLocale();
+    });
   }
 
   protected firstUpdated() {
@@ -281,6 +288,7 @@ export class MoltbotApp extends LitElement {
 
   disconnectedCallback() {
     handleDisconnected(this as unknown as Parameters<typeof handleDisconnected>[0]);
+    this.unsubscribeLocale?.();
     super.disconnectedCallback();
   }
 

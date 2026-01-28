@@ -1,4 +1,13 @@
 import type { IconName } from "./icons.js";
+import { t } from "../i18n/index.js";
+
+// Tab group labels (used as keys for i18n)
+const TAB_GROUP_LABELS = {
+  Chat: "nav.groups.chat",
+  Control: "nav.groups.control",
+  Agent: "nav.groups.agent",
+  Settings: "nav.groups.settings",
+} as const;
 
 export const TAB_GROUPS = [
   { label: "Chat", tabs: ["chat"] },
@@ -9,6 +18,12 @@ export const TAB_GROUPS = [
   { label: "Agent", tabs: ["skills", "nodes"] },
   { label: "Settings", tabs: ["config", "debug", "logs"] },
 ] as const;
+
+/** Get localized label for a tab group */
+export function localizedGroupLabel(label: string): string {
+  const key = TAB_GROUP_LABELS[label as keyof typeof TAB_GROUP_LABELS];
+  return key ? t(key) : label;
+}
 
 export type Tab =
   | "overview"
@@ -129,60 +144,10 @@ export function iconForTab(tab: Tab): IconName {
   }
 }
 
-export function titleForTab(tab: Tab) {
-  switch (tab) {
-    case "overview":
-      return "Overview";
-    case "channels":
-      return "Channels";
-    case "instances":
-      return "Instances";
-    case "sessions":
-      return "Sessions";
-    case "cron":
-      return "Cron Jobs";
-    case "skills":
-      return "Skills";
-    case "nodes":
-      return "Nodes";
-    case "chat":
-      return "Chat";
-    case "config":
-      return "Config";
-    case "debug":
-      return "Debug";
-    case "logs":
-      return "Logs";
-    default:
-      return "Control";
-  }
+export function titleForTab(tab: Tab): string {
+  return t(`nav.tabs.${tab}`);
 }
 
-export function subtitleForTab(tab: Tab) {
-  switch (tab) {
-    case "overview":
-      return "Gateway status, entry points, and a fast health read.";
-    case "channels":
-      return "Manage channels and settings.";
-    case "instances":
-      return "Presence beacons from connected clients and nodes.";
-    case "sessions":
-      return "Inspect active sessions and adjust per-session defaults.";
-    case "cron":
-      return "Schedule wakeups and recurring agent runs.";
-    case "skills":
-      return "Manage skill availability and API key injection.";
-    case "nodes":
-      return "Paired devices, capabilities, and command exposure.";
-    case "chat":
-      return "Direct gateway chat session for quick interventions.";
-    case "config":
-      return "Edit ~/.clawdbot/moltbot.json safely.";
-    case "debug":
-      return "Gateway snapshots, events, and manual RPC calls.";
-    case "logs":
-      return "Live tail of the gateway file logs.";
-    default:
-      return "";
-  }
+export function subtitleForTab(tab: Tab): string {
+  return t(`nav.subtitles.${tab}`);
 }

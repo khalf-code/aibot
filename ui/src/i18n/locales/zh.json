@@ -1,0 +1,205 @@
+{
+  "app": {
+    "title": "Clawdbot 控制台",
+    "loading": "加载中…",
+    "error": "错误",
+    "version": "版本"
+  },
+  "nav": {
+    "groups": {
+      "chat": "聊天",
+      "control": "控制",
+      "agent": "智能体",
+      "settings": "设置"
+    },
+    "tabs": {
+      "overview": "概览",
+      "channels": "渠道",
+      "instances": "实例",
+      "sessions": "会话",
+      "cron": "定时任务",
+      "skills": "技能",
+      "nodes": "节点",
+      "chat": "聊天",
+      "config": "配置",
+      "debug": "调试",
+      "logs": "日志"
+    },
+    "subtitles": {
+      "overview": "网关状态、入口点和快速健康检查。",
+      "channels": "管理渠道和设置。",
+      "instances": "来自已连接客户端和节点的在线状态。",
+      "sessions": "检查活动会话并调整每个会话的默认设置。",
+      "cron": "安排唤醒和定期运行智能体任务。",
+      "skills": "管理技能可用性和 API 密钥注入。",
+      "nodes": "配对设备、功能和命令暴露。",
+      "chat": "用于快速操作的直接网关聊天会话。",
+      "config": "安全编辑 ~/.clawdbot/clawdbot.json",
+      "debug": "网关快照、事件和手动 RPC 调用。",
+      "logs": "实时查看网关日志文件。"
+    }
+  },
+  "sidebar": {
+    "collapse": "折叠侧边栏",
+    "expand": "展开侧边栏",
+    "close": "关闭侧边栏",
+    "exitFocus": "退出专注模式"
+  },
+  "chat": {
+    "placeholder": "消息（↩ 发送，Shift+↩ 换行）",
+    "connect": "连接到网关开始聊天…",
+    "agentMessage": "智能体消息",
+    "agentMessageRequired": "需要智能体消息。",
+    "assistant": "助手",
+    "agent": "智能体",
+    "copyMarkdown": "复制为 Markdown",
+    "copied": "已复制",
+    "copyFailed": "复制失败",
+    "attach": "附加文件",
+    "send": "发送"
+  },
+  "status": {
+    "health": "状态",
+    "ok": "正常",
+    "offline": "离线",
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "disconnectedGateway": "已从网关断开。",
+    "active": "活跃",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "installed": "已安装",
+    "loading": "加载中…",
+    "applying": "应用中…",
+    "installing": "安装中…",
+    "importing": "导入中..."
+  },
+  "actions": {
+    "apply": "应用",
+    "save": "保存",
+    "cancel": "取消",
+    "edit": "编辑",
+    "delete": "删除",
+    "add": "添加",
+    "addJob": "添加任务",
+    "enable": "启用",
+    "disable": "禁用",
+    "copy": "复制",
+    "retry": "重试",
+    "refresh": "刷新",
+    "loadConfig": "加载配置",
+    "loadApprovals": "加载审批",
+    "importRelays": "从中继导入",
+    "editProfile": "编辑资料"
+  },
+  "config": {
+    "categories": {
+      "gateway": "网关",
+      "agents": "智能体",
+      "authentication": "认证",
+      "models": "模型",
+      "tools": "工具",
+      "channels": "渠道",
+      "messages": "消息",
+      "commands": "命令",
+      "browser": "浏览器",
+      "audio": "音频",
+      "broadcast": "广播",
+      "hooks": "钩子",
+      "logging": "日志记录",
+      "skills": "技能",
+      "plugins": "插件",
+      "discovery": "发现",
+      "bindings": "绑定",
+      "environment": "环境变量",
+      "canvasHost": "画布主机",
+      "cron": "定时任务"
+    },
+    "descriptions": {
+      "gateway": "网关服务器设置（端口、认证、绑定）",
+      "agents": "智能体配置、模型和身份",
+      "authentication": "API 密钥和认证配置",
+      "models": "AI 模型配置和提供商",
+      "audio": "音频输入/输出设置",
+      "browser": "浏览器自动化设置",
+      "broadcast": "广播和通知设置",
+      "update": "自动更新设置和发布渠道",
+      "messages": "消息处理和路由设置",
+      "logging": "日志级别和输出配置",
+      "canvasHost": "画布渲染和显示",
+      "environment": "传递给网关进程的环境变量"
+    },
+    "noSettings": "此部分没有设置",
+    "hideAdvanced": "隐藏高级选项",
+    "showAdvanced": "显示高级选项",
+    "hashMissing": "配置哈希缺失；请重新加载并重试。",
+    "approvalHashMissing": "执行审批哈希缺失；请重新加载并重试。"
+  },
+  "channels": {
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "slack": "Slack",
+    "signal": "Signal",
+    "imessage": "iMessage",
+    "bluebubbles": "BlueBubbles",
+    "msteams": "微软 Teams",
+    "mattermost": "Mattermost"
+  },
+  "security": {
+    "host": "主机",
+    "full": "完全",
+    "allowlist": "白名单",
+    "deny": "拒绝",
+    "ask": "询问",
+    "always": "始终",
+    "defaultSecurityMode": "默认安全模式。",
+    "defaultPromptPolicy": "默认提示策略。",
+    "allowSkillExecutables": "允许网关列出的技能可执行文件。"
+  },
+  "cron": {
+    "cronRequired": "需要 Cron 表达式。",
+    "invalidInterval": "无效的间隔数量。",
+    "invalidRunTime": "无效的运行时间。"
+  },
+  "profile": {
+    "displayName": "显示名称",
+    "avatarUrl": "头像 URL",
+    "bannerUrl": "横幅 URL",
+    "bio": "简介",
+    "bioPlaceholder": "简短的个人介绍或描述",
+    "avatarPlaceholder": "您头像的 HTTPS URL",
+    "bannerPlaceholder": "横幅图片的 HTTPS URL",
+    "lightningAddress": "闪电网络地址",
+    "lightningPlaceholder": "用于打赏的闪电网络地址 (LUD-16)",
+    "picture": "头像",
+    "picturePreview": "头像预览",
+    "importedRelays": "已从中继导入资料。请检查并发布。",
+    "imported": "资料已导入。请检查并发布。",
+    "publishFailed": "资料在所有中继上发布失败。"
+  },
+  "theme": {
+    "dark": "深色",
+    "light": "浅色",
+    "darkTheme": "深色主题",
+    "lightTheme": "浅色主题"
+  },
+  "common": {
+    "key": "键",
+    "value": "JSON 值",
+    "enter": "输入",
+    "apiKeySaved": "API 密钥已保存",
+    "loggedOut": "已登出。",
+    "disabledOnboarding": "引导期间禁用",
+    "newDeviceToken": "新设备令牌（请复制并安全存储）：",
+    "environmentVariables": "环境变量",
+    "docsNewTab": "文档（在新标签页打开）",
+    "authDocsNewTab": "控制台认证文档（在新标签页打开）",
+    "insecureDocsNewTab": "不安全 HTTP 文档（在新标签页打开）"
+  },
+  "language": {
+    "select": "语言",
+    "en": "English",
+    "zh": "中文"
+  }
+}
