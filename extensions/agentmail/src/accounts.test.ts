@@ -16,7 +16,6 @@ describe("resolveCredentials", () => {
     const result = resolveCredentials(cfg, {});
     expect(result.apiKey).toBe("am_config_token");
     expect(result.inboxId).toBe("inbox@agentmail.to");
-    expect(result.webhookPath).toBe("/webhooks/agentmail");
   });
 
   it("falls back to environment variables", () => {
@@ -48,92 +47,11 @@ describe("resolveCredentials", () => {
     expect(result.inboxId).toBe("config@agentmail.to");
   });
 
-  it("resolves custom webhookPath from config", () => {
-    const cfg: CoreConfig = {
-      channels: {
-        agentmail: {
-          webhookPath: "/custom/path",
-        },
-      },
-    };
-    const result = resolveCredentials(cfg, {});
-    expect(result.webhookPath).toBe("/custom/path");
-  });
-
-  it("resolves webhookPath from env", () => {
-    const cfg: CoreConfig = {};
-    const env = {
-      AGENTMAIL_WEBHOOK_PATH: "/env/webhook",
-    };
-    const result = resolveCredentials(cfg, env);
-    expect(result.webhookPath).toBe("/env/webhook");
-  });
-
   it("returns undefined for missing credentials", () => {
     const cfg: CoreConfig = {};
     const result = resolveCredentials(cfg, {});
     expect(result.apiKey).toBeUndefined();
     expect(result.inboxId).toBeUndefined();
-  });
-
-  it("resolves webhookUrl from config", () => {
-    const cfg: CoreConfig = {
-      channels: {
-        agentmail: {
-          webhookUrl: "https://my-gateway.ngrok.io",
-        },
-      },
-    };
-    const result = resolveCredentials(cfg, {});
-    expect(result.webhookUrl).toBe("https://my-gateway.ngrok.io");
-  });
-
-  it("resolves webhookUrl from env", () => {
-    const cfg: CoreConfig = {};
-    const env = {
-      AGENTMAIL_WEBHOOK_URL: "https://env-gateway.example.com/hooks/email",
-    };
-    const result = resolveCredentials(cfg, env);
-    expect(result.webhookUrl).toBe(
-      "https://env-gateway.example.com/hooks/email"
-    );
-  });
-
-  it("derives webhookPath from webhookUrl", () => {
-    const cfg: CoreConfig = {
-      channels: {
-        agentmail: {
-          webhookUrl: "https://my-gateway.ngrok.io/custom/path",
-        },
-      },
-    };
-    const result = resolveCredentials(cfg, {});
-    expect(result.webhookPath).toBe("/custom/path");
-  });
-
-  it("uses default webhookPath when URL has no path", () => {
-    const cfg: CoreConfig = {
-      channels: {
-        agentmail: {
-          webhookUrl: "https://my-gateway.ngrok.io",
-        },
-      },
-    };
-    const result = resolveCredentials(cfg, {});
-    expect(result.webhookPath).toBe("/webhooks/agentmail");
-  });
-
-  it("explicit webhookPath takes precedence over URL-derived path", () => {
-    const cfg: CoreConfig = {
-      channels: {
-        agentmail: {
-          webhookUrl: "https://my-gateway.ngrok.io/url-path",
-          webhookPath: "/explicit-path",
-        },
-      },
-    };
-    const result = resolveCredentials(cfg, {});
-    expect(result.webhookPath).toBe("/explicit-path");
   });
 });
 

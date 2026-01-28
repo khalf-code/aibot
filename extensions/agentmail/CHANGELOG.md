@@ -6,7 +6,7 @@
 
 - Initial AgentMail plugin release
 - Email channel integration via AgentMail API
-- Webhook-based inbound message handling
+- WebSocket-based real-time message handling (no public URL required)
 - Full thread context fetching for conversation history
 - Sender allowFrom filtering (consistent with other channels)
 - Attachment metadata in thread context

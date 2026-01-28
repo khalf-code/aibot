@@ -87,34 +87,4 @@ describe("updateAgentMailConfig", () => {
       "example.org",
     ]);
   });
-
-  it("sets webhookPath", () => {
-    const cfg = {} as never;
-    const result: AnyConfig = updateAgentMailConfig(cfg, {
-      webhookPath: "/custom/webhook",
-    });
-    expect(result.channels?.agentmail?.webhookPath).toBe("/custom/webhook");
-  });
-
-  it("sets webhookUrl", () => {
-    const cfg = {} as never;
-    const result: AnyConfig = updateAgentMailConfig(cfg, {
-      webhookUrl: "https://my-gateway.ngrok.io",
-    });
-    expect(result.channels?.agentmail?.webhookUrl).toBe(
-      "https://my-gateway.ngrok.io"
-    );
-  });
-
-  it("sets both webhookUrl and webhookPath", () => {
-    const cfg = {} as never;
-    const result: AnyConfig = updateAgentMailConfig(cfg, {
-      webhookUrl: "https://gateway.example.com",
-      webhookPath: "/hooks/email",
-    });
-    expect(result.channels?.agentmail?.webhookUrl).toBe(
-      "https://gateway.example.com"
-    );
-    expect(result.channels?.agentmail?.webhookPath).toBe("/hooks/email");
-  });
 });

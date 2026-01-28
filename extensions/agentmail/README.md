@@ -39,16 +39,9 @@ Or via config:
 }
 ```
 
-## Webhook Setup
-
-Register a webhook in the AgentMail dashboard:
-
-- **URL:** `https://your-gateway-host:port/webhooks/agentmail`
-- **Event:** `message.received`
-
 ## Features
 
-- Webhook-based inbound email handling
+- WebSocket-based real-time email handling (no public URL required)
 - Full thread context for conversation history
 - Sender allowFrom filtering
 - Attachment metadata with on-demand download URLs

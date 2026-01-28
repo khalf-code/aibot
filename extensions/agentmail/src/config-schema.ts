@@ -13,10 +13,6 @@ export const AgentMailConfigSchema = z.object({
   token: z.string().optional(),
   /** AgentMail inbox email address to monitor (required). */
   emailAddress: z.string().optional(),
-  /** Full public webhook URL (e.g., https://my-gateway.ngrok.io/webhooks/agentmail). */
-  webhookUrl: z.string().optional(),
-  /** Local webhook path (default: /webhooks/agentmail). Derived from webhookUrl if not set. */
-  webhookPath: z.string().optional(),
   /** Allowed sender emails/domains. Empty = allow all. */
   allowFrom: z.array(z.string()).optional(),
 });

@@ -72,7 +72,7 @@ export async function fetchFormattedThread(
 
     return `${header}\n\n${messages}`;
   } catch {
-    // Caller handles fallback to webhook payload
+    // Caller handles fallback to event message
     return "";
   }
 }

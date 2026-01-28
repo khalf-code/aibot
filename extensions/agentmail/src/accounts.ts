@@ -6,54 +6,24 @@ import type {
   ResolvedAgentMailAccount,
 } from "./utils.js";
 
-/** Resolved AgentMail credentials and paths. */
+/** Resolved AgentMail credentials. */
 export type ResolvedAgentMailCredentials = {
   apiKey?: string;
   inboxId?: string;
-  webhookUrl?: string;
-  webhookPath: string;
 };
-
-export const DEFAULT_WEBHOOK_PATH = "/webhooks/agentmail";
-
-/** Extracts the path from a URL string. Returns undefined if just root "/". */
-export function extractPathFromUrl(url: string): string | undefined {
-  try {
-    const parsed = new URL(url);
-    // Return undefined if just root path "/" - use default instead
-    if (!parsed.pathname || parsed.pathname === "/") {
-      return undefined;
-    }
-    return parsed.pathname;
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * Resolves AgentMail credentials from config and environment.
  * Maps user-facing keys (token, emailAddress) to SDK names (apiKey, inboxId).
- * Derives webhookPath from webhookUrl if not explicitly set.
  */
 export function resolveCredentials(
   cfg: CoreConfig,
   env: Record<string, string | undefined> = process.env
 ): ResolvedAgentMailCredentials {
   const base = cfg.channels?.agentmail ?? {};
-  const webhookUrl = base.webhookUrl || env.AGENTMAIL_WEBHOOK_URL;
-
-  // Derive path from URL if not explicitly set
-  let webhookPath = base.webhookPath || env.AGENTMAIL_WEBHOOK_PATH;
-  if (!webhookPath && webhookUrl) {
-    webhookPath = extractPathFromUrl(webhookUrl);
-  }
-  webhookPath = webhookPath || DEFAULT_WEBHOOK_PATH;
-
   return {
     apiKey: base.token || env.AGENTMAIL_TOKEN,
     inboxId: base.emailAddress || env.AGENTMAIL_EMAIL_ADDRESS,
-    webhookUrl,
-    webhookPath,
   };
 }
 

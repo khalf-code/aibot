@@ -1,6 +1,4 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-
-import { registerPluginHttpRoute } from "clawdbot/plugin-sdk";
+import type { AgentMail } from "agentmail";
 
 import { resolveCredentials } from "./accounts.js";
 import { getAgentMailClient } from "./client.js";
@@ -8,7 +6,7 @@ import { getAgentMailRuntime } from "./runtime.js";
 import { checkSenderAllowed, labelMessageAllowed } from "./filtering.js";
 import { extractMessageBody, fetchFormattedThread } from "./thread.js";
 import { parseEmailFromAddress, parseNameFromAddress } from "./utils.js";
-import type { CoreConfig, MessageReceivedEvent } from "./utils.js";
+import type { CoreConfig } from "./utils.js";
 
 export type MonitorAgentMailOptions = {
   accountId?: string | null;
@@ -16,28 +14,13 @@ export type MonitorAgentMailOptions = {
 };
 
 // Runtime state tracking
-type RuntimeState = {
-  running: boolean;
-  lastStartAt: number | null;
-  lastStopAt: number | null;
-  lastError: string | null;
-  lastInboundAt?: number | null;
-  lastOutboundAt?: number | null;
-};
+type RuntimeState = { running: boolean; lastStartAt: number | null; lastStopAt: number | null; lastError: string | null; lastInboundAt?: number | null; lastOutboundAt?: number | null };
 const runtimeState = new Map<string, RuntimeState>();
-const defaultState: RuntimeState = {
-  running: false,
-  lastStartAt: null,
-  lastStopAt: null,
-  lastError: null,
-};
+const defaultState: RuntimeState = { running: false, lastStartAt: null, lastStopAt: null, lastError: null };
 
 function recordState(accountId: string, state: Partial<RuntimeState>) {
   const key = `agentmail:${accountId}`;
-  runtimeState.set(key, {
-    ...(runtimeState.get(key) ?? defaultState),
-    ...state,
-  });
+  runtimeState.set(key, { ...(runtimeState.get(key) ?? defaultState), ...state });
 }
 
 /** Returns runtime state for status checks. */
@@ -45,28 +28,14 @@ export function getAgentMailRuntimeState(accountId: string) {
   return runtimeState.get(`agentmail:${accountId}`);
 }
 
-// HTTP helpers
-async function readBody(req: IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk);
-  return Buffer.concat(chunks).toString("utf-8");
-}
-
-function sendJson(res: ServerResponse, status: number, data: unknown) {
-  res.writeHead(status, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(data));
-}
-
-/** Builds message body from webhook payload as fallback when API fetch fails. */
-function buildFallbackBody(
-  message: NonNullable<MessageReceivedEvent["message"]>
-): string {
+/** Builds message body from event as fallback when thread fetch fails. */
+function buildFallbackBody(message: AgentMail.messages.Message): string {
   const subject = message.subject ? `Subject: ${message.subject}\n\n` : "";
   return `${subject}${extractMessageBody(message)}`;
 }
 
 /**
- * Main monitor function that sets up webhook handling for AgentMail.
+ * Main monitor function that sets up WebSocket connection to AgentMail.
  */
 export async function monitorAgentMailProvider(
   opts: MonitorAgentMailOptions = {}
@@ -79,15 +48,13 @@ export async function monitorAgentMailProvider(
     return;
   }
 
-  const logger = core.logging.getChildLogger({
-    module: "agentmail-auto-reply",
-  });
+  const logger = core.logging.getChildLogger({ module: "agentmail-monitor" });
   const logVerbose = (msg: string) => {
     if (core.logging.shouldLogVerbose()) (logger.debug ?? logger.info)(msg);
   };
 
   const accountId = opts.accountId ?? "default";
-  const { apiKey, inboxId, webhookPath } = resolveCredentials(cfg);
+  const { apiKey, inboxId } = resolveCredentials(cfg);
   if (!apiKey || !inboxId) {
     logger.warn("AgentMail not configured (missing token or email address)");
     return;
@@ -96,52 +63,58 @@ export async function monitorAgentMailProvider(
   const client = getAgentMailClient(apiKey);
   const allowFrom = agentmailConfig?.allowFrom ?? [];
 
-  recordState(accountId, {
-    running: true,
-    lastStartAt: Date.now(),
-    lastError: null,
-  });
-  logger.info(`AgentMail: starting monitor for ${inboxId}`);
+  recordState(accountId, { running: true, lastStartAt: Date.now(), lastError: null });
+  logger.info(`AgentMail: connecting WebSocket for ${inboxId}`);
 
-  /**
-   * Handles incoming webhook requests from AgentMail.
-   */
-  const handleWebhook = async (req: IncomingMessage, res: ServerResponse) => {
-    try {
-      if (req.method !== "POST") {
-        res.writeHead(405, { "Content-Type": "text/plain" });
-        res.end("Method Not Allowed");
+  let socket: Awaited<ReturnType<typeof client.websockets.connect>> | null = null;
+  let connectionCount = 0;
+
+  const subscribe = () => {
+    socket?.sendSubscribe({
+      type: "subscribe",
+      inboxIds: [inboxId],
+      eventTypes: ["message.received"],
+    });
+  };
+
+  try {
+    socket = await client.websockets.connect();
+
+    socket.on("open", () => {
+      connectionCount++;
+      const isReconnect = connectionCount > 1;
+      logger.info(`AgentMail: WebSocket ${isReconnect ? "reconnected" : "connected"}, subscribing to ${inboxId}`);
+      subscribe();
+      if (isReconnect) {
+        recordState(accountId, { lastError: null }); // Clear error on successful reconnect
+      }
+    });
+
+    socket.on("message", async (event) => {
+      if (event.type === "subscribed") {
+        const sub = event as AgentMail.Subscribed;
+        logger.info(`AgentMail: subscribed to ${sub.inboxIds?.join(", ") ?? "inbox"}`);
         return;
       }
 
-      const body = await readBody(req);
-      const payload = JSON.parse(body) as { eventType?: string };
-
       // Only handle message.received events
-      if (payload.eventType !== "message.received") {
-        return sendJson(res, 200, { ok: true, ignored: true });
-      }
+      if (event.type !== "event") return;
+      const msgEvent = event as AgentMail.MessageReceivedEvent;
+      if (msgEvent.eventType !== "message.received") return;
 
-      const event = payload as MessageReceivedEvent;
-      const message = event.message;
-      if (!message) {
-        return sendJson(res, 200, { ok: true, ignored: true });
-      }
+      const message = msgEvent.message;
+      if (!message) return;
 
-      // Parse sender email from "from" string (format: "Display Name <email>" or "email")
       const senderEmail = parseEmailFromAddress(message.from);
-
       logVerbose(`agentmail: received message from ${senderEmail}`);
 
       // Apply sender filtering
-      const allowed = checkSenderAllowed(senderEmail, { allowFrom });
-
-      if (!allowed) {
+      if (!checkSenderAllowed(senderEmail, { allowFrom })) {
         logVerbose(`agentmail: sender ${senderEmail} not in allowFrom`);
-        return sendJson(res, 200, { ok: true, filtered: true });
+        return;
       }
 
-      // Label message as allowed (best effort - don't fail if labeling fails)
+      // Label message as allowed (best effort)
       try {
         await labelMessageAllowed(client, inboxId, message.messageId);
       } catch (labelErr) {
@@ -150,45 +123,25 @@ export async function monitorAgentMailProvider(
 
       recordState(accountId, { lastInboundAt: Date.now() });
 
-      // Fetch the full thread from API (handles webhook size limits for large messages)
-      const threadBody = await fetchFormattedThread(
-        client,
-        inboxId,
-        message.threadId
-      );
-
-      // Extract current message text for RawBody/CommandBody
+      // Fetch the full thread from API
+      const threadBody = await fetchFormattedThread(client, inboxId, message.threadId);
       const messageBody = extractMessageBody(message);
-
-      // Fall back to webhook payload if thread fetch fails
       const fullBody = threadBody || buildFallbackBody(message);
 
       // Resolve routing
       const route = core.channel.routing.resolveAgentRoute({
         cfg,
         channel: "agentmail",
-        peer: {
-          kind: "dm",
-          id: senderEmail,
-        },
+        peer: { kind: "dm", id: senderEmail },
       });
 
       const senderName = parseNameFromAddress(message.from);
       const timestamp = new Date(message.timestamp).getTime();
 
       // Format envelope
-      const storePath = core.channel.session.resolveStorePath(
-        cfg.session?.store,
-        {
-          agentId: route.agentId,
-        }
-      );
-      const envelopeOptions =
-        core.channel.reply.resolveEnvelopeFormatOptions(cfg);
-      const previousTimestamp = core.channel.session.readSessionUpdatedAt({
-        storePath,
-        sessionKey: route.sessionKey,
-      });
+      const storePath = core.channel.session.resolveStorePath(cfg.session?.store, { agentId: route.agentId });
+      const envelopeOptions = core.channel.reply.resolveEnvelopeFormatOptions(cfg);
+      const previousTimestamp = core.channel.session.readSessionUpdatedAt({ storePath, sessionKey: route.sessionKey });
       const formattedBody = core.channel.reply.formatAgentEnvelope({
         channel: "Email",
         from: senderName,
@@ -234,9 +187,7 @@ export async function monitorAgentMailProvider(
           to: inboxId,
           accountId: route.accountId,
         },
-        onRecordError: (err) => {
-          logger.warn(`Failed updating session meta: ${String(err)}`);
-        },
+        onRecordError: (err) => logger.warn(`Failed updating session meta: ${String(err)}`),
       });
 
       const preview = messageBody.slice(0, 200).replace(/\n/g, "\\n");
@@ -244,80 +195,64 @@ export async function monitorAgentMailProvider(
 
       const { dispatcher, replyOptions, markDispatchIdle } =
         core.channel.reply.createReplyDispatcherWithTyping({
-          humanDelay: core.channel.reply.resolveHumanDelayConfig(
-            cfg,
-            route.agentId
-          ),
+          humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, route.agentId),
           deliver: async (payload) => {
-            // Import outbound dynamically to avoid circular deps
             const { sendAgentMailReply } = await import("./outbound.js");
             const text = payload.text ?? "";
-            if (!text) return; // Skip empty replies
-            await sendAgentMailReply({
-              client,
-              inboxId,
-              messageId: message.messageId,
-              text,
-            });
+            if (!text) return;
+            await sendAgentMailReply({ client, inboxId, messageId: message.messageId, text });
             recordState(accountId, { lastOutboundAt: Date.now() });
           },
-          onError: (err, info) => {
-            logger.error(`agentmail ${info.kind} reply failed: ${String(err)}`);
-          },
+          onError: (err, info) => logger.error(`agentmail ${info.kind} reply failed: ${String(err)}`),
         });
 
-      const { queuedFinal, counts } =
-        await core.channel.reply.dispatchReplyFromConfig({
-          ctx: ctxPayload,
-          cfg,
-          dispatcher,
-          replyOptions,
-        });
+      const { queuedFinal, counts } = await core.channel.reply.dispatchReplyFromConfig({
+        ctx: ctxPayload,
+        cfg,
+        dispatcher,
+        replyOptions,
+      });
 
       markDispatchIdle();
 
       if (queuedFinal) {
-        logVerbose(
-          `agentmail: delivered ${counts.final} reply(ies) to ${senderEmail}`
-        );
+        logVerbose(`agentmail: delivered ${counts.final} reply(ies) to ${senderEmail}`);
         core.system.enqueueSystemEvent(`Email from ${senderName}: ${preview}`, {
           sessionKey: route.sessionKey,
           contextKey: `agentmail:message:${message.messageId}`,
         });
       }
+    });
 
-      sendJson(res, 200, { ok: true });
-    } catch (err) {
-      logger.error(`agentmail webhook handler failed: ${String(err)}`);
-      sendJson(res, 500, { ok: false, error: String(err) });
-    }
-  };
+    socket.on("error", (error) => {
+      logger.error(`AgentMail WebSocket error: ${String(error)}`);
+      recordState(accountId, { lastError: String(error) });
+    });
 
-  // Register the webhook route
-  const unregisterHttp = registerPluginHttpRoute({
-    path: webhookPath,
-    pluginId: "agentmail",
-    accountId,
-    log: logVerbose,
-    handler: handleWebhook,
-  });
+    socket.on("close", (event) => {
+      // SDK's ReconnectingWebSocket will auto-reconnect (default 30 attempts)
+      // On reconnect, "open" fires again and we resubscribe
+      logger.warn(`AgentMail: WebSocket closed (code: ${event.code}), will attempt reconnect`);
+    });
 
-  logger.info(`AgentMail: webhook registered at ${webhookPath}`);
+    // Wait for abort signal
+    await new Promise<void>((resolve) => {
+      const onAbort = () => {
+        logVerbose("agentmail: stopping monitor");
+        socket?.close();
+        recordState(accountId, { running: false, lastStopAt: Date.now() });
+        resolve();
+      };
 
-  // Wait for abort signal
-  await new Promise<void>((resolve) => {
-    const onAbort = () => {
-      logVerbose("agentmail: stopping monitor");
-      unregisterHttp();
-      recordState(accountId, { running: false, lastStopAt: Date.now() });
-      resolve();
-    };
+      if (opts.abortSignal?.aborted) {
+        onAbort();
+        return;
+      }
 
-    if (opts.abortSignal?.aborted) {
-      onAbort();
-      return;
-    }
-
-    opts.abortSignal?.addEventListener("abort", onAbort, { once: true });
-  });
+      opts.abortSignal?.addEventListener("abort", onAbort, { once: true });
+    });
+  } catch (err) {
+    logger.error(`AgentMail WebSocket connection failed: ${String(err)}`);
+    recordState(accountId, { running: false, lastError: String(err), lastStopAt: Date.now() });
+  }
 }

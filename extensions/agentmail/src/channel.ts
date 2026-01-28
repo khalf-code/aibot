@@ -59,14 +59,7 @@ export const agentmailPlugin: ChannelPlugin<ResolvedAgentMailAccount> = {
         cfg: cfg as CoreConfig,
         sectionKey: "agentmail",
         accountId,
-        clearBaseFields: [
-          "name",
-          "token",
-          "emailAddress",
-          "webhookUrl",
-          "webhookPath",
-          "allowFrom",
-        ],
+        clearBaseFields: ["name", "token", "emailAddress", "allowFrom"],
       }),
     isConfigured: (account) => account.configured,
     describeAccount: (account) => ({
@@ -136,18 +129,9 @@ export const agentmailPlugin: ChannelPlugin<ResolvedAgentMailAccount> = {
       const updates: Record<string, unknown> = { enabled: true };
       if (!input.useEnv) {
         if (input.token?.trim()) updates.token = input.token.trim();
-        if (input.emailAddress?.trim())
-          updates.emailAddress = input.emailAddress.trim();
-        if (input.webhookPath?.trim())
-          updates.webhookPath = input.webhookPath.trim();
+        if (input.emailAddress?.trim()) updates.emailAddress = input.emailAddress.trim();
       }
-      return {
-        ...cfg,
-        channels: {
-          ...(cfg as CoreConfig).channels,
-          agentmail: { ...existing, ...updates },
-        },
-      };
+      return { ...cfg, channels: { ...(cfg as CoreConfig).channels, agentmail: { ...existing, ...updates } } };
     },
   },
 

@@ -31,9 +31,6 @@ export type ResolvedAgentMailAccount = {
 /** SDK Message type alias. */
 export type Message = AgentMail.messages.Message;
 
-/** Re-export SDK webhook event type. */
-export type MessageReceivedEvent = AgentMail.events.MessageReceivedEvent;
-
 /** Formats a date as a UTC string. */
 export function formatUtcDate(date: Date | string | number): string {
   return new Date(date).toUTCString().replace("GMT", "UTC");
