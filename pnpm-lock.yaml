@@ -475,6 +475,8 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/zoom: {}
+
   packages/clawdbot:
     dependencies:
       moltbot:
