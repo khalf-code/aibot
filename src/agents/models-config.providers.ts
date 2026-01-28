@@ -4,7 +4,10 @@ import {
   DEFAULT_COPILOT_API_BASE_URL,
   resolveCopilotApiToken,
 } from "../providers/github-copilot-token.js";
-import { ensureAuthProfileStore, listProfilesForProvider } from "./auth-profiles.js";
+import {
+  ensureAuthProfileStore,
+  listProfilesForProvider,
+} from "./auth-profiles.js";
 import { resolveAwsSdkEnvVarName, resolveEnvApiKey } from "./model-auth.js";
 import { discoverBedrockModels } from "./bedrock-discovery.js";
 import {
@@ -17,7 +20,7 @@ import { discoverVeniceModels, VENICE_BASE_URL } from "./venice-models.js";
 type ModelsConfig = NonNullable<MoltbotConfig["models"]>;
 export type ProviderConfig = NonNullable<ModelsConfig["providers"]>[string];
 
-const MINIMAX_API_BASE_URL = "https://api.minimax.chat/v1";
+const MINIMAX_API_BASE_URL = "https://api.minimax.io/v1";
 const MINIMAX_DEFAULT_MODEL_ID = "MiniMax-M2.1";
 const MINIMAX_DEFAULT_VISION_MODEL_ID = "MiniMax-VL-01";
 const MINIMAX_DEFAULT_CONTEXT_WINDOW = 200000;
@@ -111,7 +114,8 @@ async function discoverOllamaModels(): Promise<ModelDefinitionConfig[]> {
     return data.models.map((model) => {
       const modelId = model.name;
       const isReasoning =
-        modelId.toLowerCase().includes("r1") || modelId.toLowerCase().includes("reasoning");
+        modelId.toLowerCase().includes("r1") ||
+        modelId.toLowerCase().includes("reasoning");
       return {
         id: modelId,
         name: modelId,
@@ -195,7 +199,8 @@ export function normalizeProviders(params: {
     // Fix common misconfig: apiKey set to "${ENV_VAR}" instead of "ENV_VAR".
     if (
       normalizedProvider.apiKey &&
-      normalizeApiKeyConfig(normalizedProvider.apiKey) !== normalizedProvider.apiKey
+      normalizeApiKeyConfig(normalizedProvider.apiKey) !==
+        normalizedProvider.apiKey
     ) {
       mutated = true;
       normalizedProvider = {
@@ -207,10 +212,12 @@ export function normalizeProviders(params: {
     // If a provider defines models, pi's ModelRegistry requires apiKey to be set.
     // Fill it from the environment or auth profiles when possible.
     const hasModels =
-      Array.isArray(normalizedProvider.models) && normalizedProvider.models.length > 0;
+      Array.isArray(normalizedProvider.models) &&
+      normalizedProvider.models.length > 0;
     if (hasModels && !normalizedProvider.apiKey?.trim()) {
       const authMode =
-        normalizedProvider.auth ?? (normalizedKey === "amazon-bedrock" ? "aws-sdk" : undefined);
+        normalizedProvider.auth ??
+        (normalizedKey === "amazon-bedrock" ? "aws-sdk" : undefined);
       if (authMode === "aws-sdk") {
         const apiKey = resolveAwsSdkApiKeyVarName();
         mutated = true;
@@ -385,7 +392,10 @@ export async function resolveImplicitProviders(params: {
     resolveEnvApiKeyVarName("kimi-code") ??
     resolveApiKeyFromProfiles({ provider: "kimi-code", store: authStore });
   if (kimiCodeKey) {
-    providers["kimi-code"] = { ...buildKimiCodeProvider(), apiKey: kimiCodeKey };
+    providers["kimi-code"] = {
+      ...buildKimiCodeProvider(),
+      apiKey: kimiCodeKey,
+    };
   }
 
   const syntheticKey =
@@ -426,8 +436,11 @@ export async function resolveImplicitCopilotProvider(params: {
   env?: NodeJS.ProcessEnv;
 }): Promise<ProviderConfig | null> {
   const env = params.env ?? process.env;
-  const authStore = ensureAuthProfileStore(params.agentDir, { allowKeychainPrompt: false });
-  const hasProfile = listProfilesForProvider(authStore, "github-copilot").length > 0;
+  const authStore = ensureAuthProfileStore(params.agentDir, {
+    allowKeychainPrompt: false,
+  });
+  const hasProfile =
+    listProfilesForProvider(authStore, "github-copilot").length > 0;
   const envToken = env.COPILOT_GITHUB_TOKEN ?? env.GH_TOKEN ?? env.GITHUB_TOKEN;
   const githubToken = (envToken ?? "").trim();
 
@@ -490,8 +503,15 @@ export async function resolveImplicitBedrockProvider(params: {
   if (enabled === false) return null;
   if (enabled !== true && !hasAwsCreds) return null;
 
-  const region = discoveryConfig?.region ?? env.AWS_REGION ?? env.AWS_DEFAULT_REGION ?? "us-east-1";
-  const models = await discoverBedrockModels({ region, config: discoveryConfig });
+  const region =
+    discoveryConfig?.region ??
+    env.AWS_REGION ??
+    env.AWS_DEFAULT_REGION ??
+    "us-east-1";
+  const models = await discoverBedrockModels({
+    region,
+    config: discoveryConfig,
+  });
   if (models.length === 0) return null;
 
   return {
