@@ -31,6 +31,7 @@ import type {
 } from "../config/types.telegram.js";
 import type { RuntimeEnv } from "../runtime.js";
 import type { ChannelGroupPolicy } from "../config/group-policy.js";
+import { Logger } from "tslog";
 
 type TelegramHandlersParams = {
   cfg: MoltbotConfig;
@@ -57,7 +58,7 @@ type TelegramHandlersParams = {
     storeAllowFrom: string[],
     options?: { forceWasMentioned?: boolean; messageIdOverride?: string },
   ) => Promise<void>;
-  logger: { info: (obj: Record<string, unknown>, msg: string) => void };
+  logger: Logger<Record<string, unknown>>;
 };
 
 export const registerTelegramHandlers = ({
