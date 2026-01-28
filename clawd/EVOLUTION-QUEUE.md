@@ -4,7 +4,7 @@
 
 ## How to Submit
 
-Add items under "## Pending" using this format:
+**REQUIRED: Verify before submitting.** Run verification command, paste output as evidence.
 
 ```
 ### [YYYY-MM-DD-NNN] Short title
@@ -12,9 +12,18 @@ Add items under "## Pending" using this format:
 - **Date:** YYYY-MM-DD
 - **Category:** behavior | identity | rules | tools | memory | showcase-idea
 - **Target file:** (which file would change, or "new skill")
+- **Verified:** [YES - ran grep/command] or [N/A - new feature]
+- **Evidence:** `[paste command output showing issue exists]`
 - **Description:** What to change and why
 - **Status:** pending
 ```
+
+**Verification commands:**
+- "Missing from file X": `grep -n "[feature]" ~/clawd/[file].md`
+- "Tool broken": `which [tool] && [tool] --help`
+- "Cron failing": `clawdbot cron list | grep [job]`
+
+**RULE:** If grep FINDS the feature, DO NOT create the entry (it's a ghost bug).
 
 ## Pending
 
@@ -656,6 +665,50 @@ Add items under "## Pending" using this format:
     - Ask or caveat assumptions ("Assuming [X], here's the answer...")
   - **Rationale:** "Better to ask once than to be wrong and require correction"
   - **Related fix:** Gmail-Poll cron confusion (entry 033) also resolved via sessionTarget fix
+
+### [2026-01-27-035] Add test.sh Template to Overnight Build Process
+- **Proposed by:** Liam (self-audit)
+- **Date:** 2026-01-27
+- **Category:** behavior | tools
+- **Target file:** Overnight build template/process (new skill template or OVERNIGHT-BUILDS.md)
+- **Description:**
+  - **Problem:** Self-audit found regression guard gap — not consistently running tests before/after code changes
+  - **APEX violation:** Point One requires "Test before/after delivery" but this isn't systematic in overnight builds
+  - **Impact:** Medium - Risk of delivering broken code, requires manual fixes after Simon discovers issues
+  - **Root cause:** EF Coaching at Scale was built without tests (later fixed per ticket 027), but other projects don't have test.sh
+  - **Proposed solution:**
+    1. Create test.sh template for skill builds (file structure, syntax, basic functionality)
+    2. Add automated test requirement to overnight build process
+    3. Test results must pass before announcing "complete"
+    4. Cover: structure validation, syntax checks, DB initialization, module imports
+  - **Rationale:** APEX v6.2.0 Quality Gate — prevent regression, ensure quality before delivery
+- **Status:** pending
+
+### [2026-01-27-036] Integrate Session Health Check into HEARTBEAT.md [RESOLVED]
+- **Proposed by:** Liam (self-audit)
+- **Date:** 2026-01-27
+- **Category:** behavior
+- **Target file:** HEARTBEAT.md
+- **Status:** RESOLVED (2026-01-28) - GHOST BUG
+- **Resolution:** Feature already exists in HEARTBEAT.md lines 36-56. Session Health Check section includes:
+  - Command: `clawdbot sessions list --active 60`
+  - Context thresholds (40%, 60%)
+  - Self-diagnosis checklist
+  - Auto-clear rule for 24h sessions
+- **Root cause:** Liam created entry without Read-First verification of target file
+- **Prevention:** Self-audit script now detects ghost bugs; queue template requires verification
+
+### [2026-01-27-037] Document find/ls Pattern in APEX_COMPACT.md as Explicit Checkpoint [RESOLVED]
+- **Proposed by:** Liam (self-audit)
+- **Date:** 2026-01-27
+- **Category:** rules
+- **Target file:** ~/clawd/apex-vault/APEX_COMPACT.md
+- **Status:** RESOLVED (2026-01-28) - GHOST BUG
+- **Resolution:** Features already exist in APEX_COMPACT.md:
+  - Instincts (line 49): `ANY create file/dir | Run find/ls to discover existing structure`
+  - Anti-Patterns (line 70): `Create without discovering | Duplicates, waste | Architecture-First`
+- **Root cause:** Liam created entry without Read-First verification of target file
+- **Prevention:** Self-audit script now detects ghost bugs; queue template requires verification
 
 ## Approved
 

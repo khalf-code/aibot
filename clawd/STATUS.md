@@ -14,7 +14,8 @@ You are now operating as a **full-fledged AI Employee**, not just a chatbot.
 | Subagent Delegation | OK | Max 4 concurrent, use `sessions_spawn` |
 | Progress Tracking | OK | `~/clawd/progress/` for multi-step tasks |
 | Memory Search | OK | Local embeddings via Ollama (nomic-embed-text) |
-| Weekly Self-Assessment | OK | Cron job: Weekly-Employee-Review (Mon 9 AM) |
+| Daily Self-Assessment | OK | Cron job: Daily-Employee-Review (9 AM) |
+| Daily Self-Audit | OK | Cron job: Daily-Self-Audit (8 AM) |
 
 **Key file:** Read `~/clawd/JOB.md` to understand your responsibilities and scope.
 
@@ -128,19 +129,21 @@ You are now operating as a **full-fledged AI Employee**, not just a chatbot.
 
 ## Cron Jobs
 
-**Verified Active (as of 2026-01-27):**
+**Verified Active (as of 2026-01-28):**
 
 | Job | Schedule | Model | Status |
 |-----|----------|-------|--------|
-| Gmail-Poll | Every 5 min | ollama/glm-4.7-flash | ACTIVE |
 | Heartbeat-Check | Every 30 min | ollama/glm-4.7-flash | ACTIVE |
 | Blogwatcher-Check | Every 2 hours | zai/glm-4.7 | ACTIVE |
 | Morning-Weather | 7 AM PST | zai/glm-4.7 | ACTIVE |
 | Calendar-Check | 8 AM PST | ollama/glm-4.7-flash | ACTIVE |
 | Daily-Health-Check | 9 AM PST | ollama/glm-4.7-flash | ACTIVE |
-| Weekly-Employee-Review | Mon 9 AM PST | zai/glm-4.7 | ACTIVE |
+| Daily-Employee-Review | 9 AM PST | zai/glm-4.7 | ACTIVE |
+| self-evaluation | Sun 3 AM | zai/glm-4.7 | ACTIVE |
 
-**Verify with:** `node /home/liam/dist/entry.js cron list`
+*Gmail-Poll removed - email checks handled by Heartbeat-Check.*
+
+**Verify with:** `clawdbot cron list`
 
 ## Google Workspace Access
 

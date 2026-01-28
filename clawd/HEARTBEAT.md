@@ -182,6 +182,14 @@ grep -n "^### \[" ~/clawd/EVOLUTION-QUEUE.md | grep -v RESOLVED
 - If found, read the progress file and continue work
 - Update progress file after each step
 
+## Self-Audit (Daily)
+
+Run daily at 8 AM or after major changes: `~/clawd/scripts/self-audit.sh`
+
+Quick check at heartbeat: `~/clawd/scripts/self-audit.sh --quick`
+
+If CRITICAL issues found, alert Simon immediately.
+
 ## General
 
 - If nothing needs attention, reply HEARTBEAT_OK
