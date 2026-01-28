@@ -1,0 +1,12 @@
+{
+    "id": "wps",
+    "channels": [
+      "wps"
+    ],
+    "configSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    }
+  }
+  
