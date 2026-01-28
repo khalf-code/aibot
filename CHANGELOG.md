@@ -22,6 +22,7 @@ Status: unreleased.
 - Gateway: warn on hook tokens via query params; document header auth preference. (#2200) Thanks @YuriNachos.
 - Gateway: add dangerous Control UI device auth bypass flag + audit warnings. (#2248)
 - Doctor: warn on gateway exposure without auth. (#2016) Thanks @Alex-Alaniz.
+- Config: auto-migrate legacy state/config paths and keep config resolution consistent across legacy filenames.
 - Discord: add configurable privileged gateway intents for presences/members. (#2266) Thanks @kentaro.
 - Docs: add Vercel AI Gateway to providers sidebar. (#1901) Thanks @jerilynzheng.
 - Agents: expand cron tool description with full schema docs. (#1988) Thanks @tomascupr.
@@ -68,12 +69,14 @@ Status: unreleased.
 ### Breaking
 - **BREAKING:** Gateway auth mode "none" is removed; gateway now requires token/password (Tailscale Serve identity still allowed).
 
+<<<<<<< HEAD
 ### Fixes
 - Agents: prevent retries on oversized image errors and surface size limits. (#2871) Thanks @Suksham-sharma.
 - Agents: inherit provider baseUrl/api for inline models. (#2740) Thanks @lploc94.
 - Memory Search: keep auto provider model defaults and only include remote when configured. (#2576) Thanks @papago2355.
 - macOS: auto-scroll to bottom when sending a new message while scrolled up. (#2471) Thanks @kennyklee.
 - Web UI: auto-expand the chat compose textarea while typing (with sensible max height). (#2950) Thanks @shivamraut101.
+- Gateway: prevent crashes on transient network errors (fetch failures, timeouts, DNS). Added fatal error detection to only exit on truly critical errors. Fixes #2895, #2879, #2873. (#2980) Thanks @elliotsecops.
 - Gateway: suppress AbortError and transient network errors in unhandled rejections. (#2451) Thanks @Glucksberg.
 - TTS: keep /tts status replies on text-only commands and avoid duplicate block-stream audio. (#2451) Thanks @Glucksberg.
 - Security: pin npm overrides to keep tar@7.5.4 for install toolchains.
