@@ -46,31 +46,22 @@ export function loadSettings(): UiSettings {
           ? parsed.gatewayUrl.trim()
           : defaults.gatewayUrl,
       token: typeof parsed.token === "string" ? parsed.token : defaults.token,
-      password:
-        typeof parsed.password === "string"
-          ? parsed.password
-          : defaults.password,
+      password: typeof parsed.password === "string" ? parsed.password : defaults.password,
       sessionKey:
         typeof parsed.sessionKey === "string" && parsed.sessionKey.trim()
           ? parsed.sessionKey.trim()
           : defaults.sessionKey,
       lastActiveSessionKey:
-        typeof parsed.lastActiveSessionKey === "string" &&
-        parsed.lastActiveSessionKey.trim()
+        typeof parsed.lastActiveSessionKey === "string" && parsed.lastActiveSessionKey.trim()
           ? parsed.lastActiveSessionKey.trim()
-          : (typeof parsed.sessionKey === "string" &&
-              parsed.sessionKey.trim()) ||
+          : (typeof parsed.sessionKey === "string" && parsed.sessionKey.trim()) ||
             defaults.lastActiveSessionKey,
       theme:
-        parsed.theme === "light" ||
-        parsed.theme === "dark" ||
-        parsed.theme === "system"
+        parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system"
           ? parsed.theme
           : defaults.theme,
       chatFocusMode:
-        typeof parsed.chatFocusMode === "boolean"
-          ? parsed.chatFocusMode
-          : defaults.chatFocusMode,
+        typeof parsed.chatFocusMode === "boolean" ? parsed.chatFocusMode : defaults.chatFocusMode,
       chatShowThinking:
         typeof parsed.chatShowThinking === "boolean"
           ? parsed.chatShowThinking
@@ -82,12 +73,9 @@ export function loadSettings(): UiSettings {
           ? parsed.splitRatio
           : defaults.splitRatio,
       navCollapsed:
-        typeof parsed.navCollapsed === "boolean"
-          ? parsed.navCollapsed
-          : defaults.navCollapsed,
+        typeof parsed.navCollapsed === "boolean" ? parsed.navCollapsed : defaults.navCollapsed,
       navGroupsCollapsed:
-        typeof parsed.navGroupsCollapsed === "object" &&
-        parsed.navGroupsCollapsed !== null
+        typeof parsed.navGroupsCollapsed === "object" && parsed.navGroupsCollapsed !== null
           ? parsed.navGroupsCollapsed
           : defaults.navGroupsCollapsed,
     };
@@ -98,4 +86,20 @@ export function loadSettings(): UiSettings {
 
 export function saveSettings(next: UiSettings) {
   localStorage.setItem(KEY, JSON.stringify(next));
+}
+
+/**
+ * Clears authentication credentials (token and password) from localStorage.
+ * Used for security logout - allows user to explicitly revoke stored auth.
+ * Preserves other UI settings like theme, session key, etc.
+ */
+export function clearCredentials(): UiSettings {
+  const current = loadSettings();
+  const cleared: UiSettings = {
+    ...current,
+    token: "",
+    password: "",
+  };
+  saveSettings(cleared);
+  return cleared;
 }

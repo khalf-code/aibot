@@ -427,6 +427,14 @@ export function createCommandHandlers(context: CommandHandlerContext) {
       case "settings":
         openSettings();
         break;
+      case "logout":
+        chatLog.addSystem("Logging out... Disconnecting from gateway.");
+        tui.requestRender();
+        client.stop();
+        tui.stop();
+        console.log("\nLogged out successfully.");
+        process.exit(0);
+        break;
       case "exit":
       case "quit":
         client.stop();
