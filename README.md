@@ -84,6 +84,19 @@ clawdbot message send --to +1234567890 --message "Hello from Clawdbot"
 clawdbot agent --message "Ship checklist" --thinking high
 ```
 
+### Quick install (TL;DR)
+
+```bash
+# default install (latest release, hostname domain)
+curl -fsSL https://raw.githubusercontent.com/cloud-neutral-toolkit/clawdbot.svc.plus/main/scripts/init_vhost.sh | bash
+
+# specify domain
+curl -fsSL https://raw.githubusercontent.com/cloud-neutral-toolkit/clawdbot.svc.plus/main/scripts/init_vhost.sh \
+  | bash -s -- clawdbot.svc.plus
+```
+
+Set `PROXY=nginx`, `INSTALL_METHOD=git`, `CERTBOT_EMAIL=<you@example.com>`, or `CLAWDBOT_VERSION=<version>` as needed.
+
 Upgrading? [Updating guide](https://docs.clawd.bot/install/updating) (and run `clawdbot doctor`).
 
 ## Development channels
