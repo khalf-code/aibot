@@ -30,6 +30,17 @@ export function normalizeRelPath(value: string): string {
   return trimmed.replace(/\\/g, "/");
 }
 
+export function normalizeExtraMemoryPaths(workspaceDir: string, extraPaths?: string[]): string[] {
+  if (!extraPaths?.length) return [];
+  const resolved = extraPaths
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) =>
+      path.isAbsolute(value) ? path.resolve(value) : path.resolve(workspaceDir, value),
+    );
+  return Array.from(new Set(resolved));
+}
+
 export function isMemoryPath(relPath: string): boolean {
   const normalized = normalizeRelPath(relPath);
   if (!normalized) return false;
@@ -59,6 +70,7 @@ async function walkDir(
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
+    if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
       await walkDir(full, files, workspaceDir, logger);
       continue;
@@ -185,6 +197,7 @@ export async function migrateMemoryFile(
 
 export async function listMemoryFiles(
   workspaceDir: string,
+  extraPaths?: string[],
   logger?: {
     info: (msg: string) => void;
     warn: (msg: string) => void;
@@ -194,12 +207,43 @@ export async function listMemoryFiles(
   const result: string[] = [];
   const memoryFile = path.join(workspaceDir, "MEMORY.md");
   const altMemoryFile = path.join(workspaceDir, "memory.md");
-  if (await exists(memoryFile)) result.push(memoryFile);
-  if (await exists(altMemoryFile)) result.push(altMemoryFile);
   const memoryDir = path.join(workspaceDir, "memory");
-  if (await exists(memoryDir)) {
-    await walkDir(memoryDir, result, workspaceDir, logger);
+
+  const addMarkdownFile = async (absPath: string) => {
+    try {
+      const stat = await fs.lstat(absPath);
+      if (stat.isSymbolicLink() || !stat.isFile()) return;
+      if (!absPath.endsWith(".md")) return;
+      result.push(absPath);
+    } catch {}
+  };
+
+  await addMarkdownFile(memoryFile);
+  await addMarkdownFile(altMemoryFile);
+  try {
+    const dirStat = await fs.lstat(memoryDir);
+    if (!dirStat.isSymbolicLink() && dirStat.isDirectory()) {
+      await walkDir(memoryDir, result, workspaceDir, logger);
+    }
+  } catch {}
+
+  const normalizedExtraPaths = normalizeExtraMemoryPaths(workspaceDir, extraPaths);
+  if (normalizedExtraPaths.length > 0) {
+    for (const inputPath of normalizedExtraPaths) {
+      try {
+        const stat = await fs.lstat(inputPath);
+        if (stat.isSymbolicLink()) continue;
+        if (stat.isDirectory()) {
+          await walkDir(inputPath, result, workspaceDir, logger);
+          continue;
+        }
+        if (stat.isFile() && inputPath.endsWith(".md")) {
+          result.push(inputPath);
+        }
+      } catch {}
+    }
   }
+
   if (result.length <= 1) return result;
   const seen = new Set<string>();
   const deduped: string[] = [];
