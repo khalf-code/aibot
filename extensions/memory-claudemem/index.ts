@@ -6,7 +6,7 @@
  * to ensure proper UI broadcasts and consistency with Claude Code.
  */
 
-import type { ClawdbotPluginApi } from "clawdbot/plugin-sdk";
+import type { MoltbotPluginApi } from "clawdbot/plugin-sdk";
 import { writeFile, readdir, stat, mkdir } from "fs/promises";
 import { join, basename } from "path";
 import { homedir, tmpdir } from "os";
@@ -170,7 +170,7 @@ function callHookFireAndForget(hookName: string, data: Record<string, unknown>):
   }
 }
 
-export default function (api: ClawdbotPluginApi) {
+export default function (api: MoltbotPluginApi) {
   const userConfig = api.pluginConfig as Partial<ClaudeMemConfig>;
   
   // Check for custom worker path first (for manual installs)

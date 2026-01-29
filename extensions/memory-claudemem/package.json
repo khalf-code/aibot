@@ -1,13 +1,17 @@
 {
-  "name": "@clawdbot/memory-claudemem",
-  "version": "0.0.1",
+  "name": "@moltbot/memory-claudemem",
+  "version": "2026.1.28-beta.1",
   "type": "module",
-  "main": "index.ts",
-  "dependencies": {},
-  "devDependencies": {
-    "clawdbot": "workspace:*"
+  "description": "Moltbot claude-mem memory integration plugin",
+  "moltbot": {
+    "extensions": [
+      "./index.ts"
+    ]
   },
   "peerDependencies": {
-    "clawdbot": "*"
+    "moltbot": ">=2026.1.26"
+  },
+  "devDependencies": {
+    "moltbot": "workspace:*"
   }
 }
