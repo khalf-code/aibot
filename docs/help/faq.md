@@ -405,7 +405,7 @@ Related: [Migrating](/install/migrating), [Where things live on disk](/help/faq#
 [Agent workspace](/concepts/agent-workspace), [Doctor](/gateway/doctor),
 [Remote mode](/gateway/remote).
 
-### Where do I see whats new in the latest version
+### Where do I see what’s new in the latest version?
 
 Check the GitHub changelog:  
 https://github.com/moltbot/moltbot/blob/main/CHANGELOG.md
@@ -414,7 +414,7 @@ Newest entries are at the top. If the top section is marked **Unreleased**, the 
 section is the latest shipped version. Entries are grouped by **Highlights**, **Changes**, and
 **Fixes** (plus docs/other sections when needed).
 
-### I cant access docsmoltbot SSL error What now
+### I can’t access docs.molt.bot (SSL error). What now?
 
 Some Comcast/Xfinity connections incorrectly block `docs.molt.bot` via Xfinity
 Advanced Security. Disable it or allowlist `docs.molt.bot`, then retry. More
@@ -424,7 +424,7 @@ Please help us unblock it by reporting here: https://spa.xfinity.com/check_url_s
 If you still can't reach the site, the docs are mirrored on GitHub:
 https://github.com/moltbot/moltbot/tree/main/docs
 
-### Whats the difference between stable and beta
+### What’s the difference between stable and beta?
 
 **Stable** and **beta** are **npm dist‑tags**, not separate code lines:
 - `latest` = stable
