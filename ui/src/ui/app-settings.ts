@@ -10,7 +10,7 @@ import { loadPresence } from "./controllers/presence";
 import { loadSessions } from "./controllers/sessions";
 import { loadSkills } from "./controllers/skills";
 import { inferBasePathFromPathname, normalizeBasePath, normalizePath, pathForTab, tabFromPath, type Tab } from "./navigation";
-import { saveSettings, type UiSettings } from "./storage";
+import { saveSettings, CHAT_FONT_SIZE_PX, type UiSettings, type ChatFontSize } from "./storage";
 import { resolveTheme, type ResolvedTheme, type ThemeMode } from "./theme";
 import { startThemeTransition, type ThemeTransitionContext } from "./theme-transition";
 import { scheduleChatScroll, scheduleLogsScroll } from "./app-scroll";
@@ -47,6 +47,7 @@ export function applySettings(host: SettingsHost, next: UiSettings) {
     host.theme = next.theme;
     applyResolvedTheme(host, resolveTheme(next.theme));
   }
+  applyChatFontSize(normalized.chatFontSize);
   host.applySessionKey = host.settings.lastActiveSessionKey;
 }
 
@@ -192,6 +193,7 @@ export function inferBasePath() {
 export function syncThemeWithSettings(host: SettingsHost) {
   host.theme = host.settings.theme ?? "system";
   applyResolvedTheme(host, resolveTheme(host.theme));
+  applyChatFontSize(host.settings.chatFontSize ?? "medium");
 }
 
 export function applyResolvedTheme(host: SettingsHost, resolved: ResolvedTheme) {
@@ -200,6 +202,12 @@ export function applyResolvedTheme(host: SettingsHost, resolved: ResolvedTheme) 
   const root = document.documentElement;
   root.dataset.theme = resolved;
   root.style.colorScheme = resolved;
+}
+
+export function applyChatFontSize(size: ChatFontSize) {
+  if (typeof document === "undefined") return;
+  const px = CHAT_FONT_SIZE_PX[size] ?? CHAT_FONT_SIZE_PX.medium;
+  document.documentElement.style.setProperty("--font-size-chat", `${px}px`);
 }
 
 export function attachThemeListener(host: SettingsHost) {
