@@ -167,9 +167,7 @@ function buildSkillStatus(
     entry.frontmatter.url;
   const homepage = homepageRaw?.trim() ? homepageRaw.trim() : undefined;
   const repositoryRaw =
-    entry.metadata?.repository ??
-    entry.frontmatter.repository ??
-    entry.frontmatter.repo;
+    entry.metadata?.repository ?? entry.frontmatter.repository ?? entry.frontmatter.repo;
   const repository = repositoryRaw?.trim() ? repositoryRaw.trim() : undefined;
 
   const requiredBins = entry.metadata?.requires?.bins ?? [];
