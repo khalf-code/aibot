@@ -547,7 +547,7 @@ describe("applyMediaUnderstanding", () => {
     expect(ctx.Body).toContain("a\tb\tc");
   });
 
-  it("escapes XML special characters in filenames to prevent injection", async () => {
+  it.skipIf(process.platform === "win32")("escapes XML special characters in filenames to prevent injection", async () => {
     const { applyMediaUnderstanding } = await loadApply();
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "moltbot-media-"));
     // Create file with XML special characters in the name (what filesystem allows)
