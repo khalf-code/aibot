@@ -10,6 +10,8 @@ import { logSecurityEvent } from "./hardening-logger.js";
 const DEFAULT_ALLOWED_DOMAINS: string[] = [
   // Claude / Anthropic API
   "api.anthropic.com",
+  // Z.AI GLM API
+  "api.z.ai",
   // WhatsApp Web protocol (Baileys)
   "web.whatsapp.com",
   "w1.web.whatsapp.com",

@@ -1,0 +1,40 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "loopback",
+    "port": 18789,
+    "auth": {
+      "mode": "none"
+    }
+  },
+  "security": {
+    "hardening": {
+      "enabled": true,
+      "authorizedUserHash": "REPLACE_WITH_SHA256_HASH",
+      "network": {
+        "enforce": true,
+        "extraAllowedDomains": [],
+        "extraAllowedSuffixes": [],
+        "logAllowed": false
+      },
+      "filesystem": {
+        "enforce": false,
+        "extraSensitivePaths": []
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "REPLACE_WITH_YOUR_BOT_TOKEN",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["REPLACE_WITH_YOUR_TELEGRAM_ID"]
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": "claude-3-7-sonnet-20250219",
+      "thinkingLevel": "normal"
+    }
+  }
+}
