@@ -765,11 +765,76 @@ export async function applyAuthChoiceApiProviders(
         maxTokens = modelInfo.maxOutputTokens;
       }
     } else {
-      // No models available from LiteLLM - fail with error
-      throw new Error(
-        "Could not fetch models from LiteLLM. Please ensure your LiteLLM server is running " +
-          `at ${normalizedBaseUrl} and accessible, or provide the model via --litellm-model flag.`,
+      // No models available from LiteLLM - offer manual entry or retry
+      await params.prompter.note(
+        [
+          "Could not fetch models from LiteLLM server.",
+          `Server: ${normalizedBaseUrl}`,
+          "",
+          "This could be due to:",
+          "  • Invalid API key",
+          "  • Server not accessible",
+          "  • Network connectivity issues",
+        ].join("\n"),
+        "Model fetch failed",
       );
+
+      const action = await params.prompter.select({
+        message: "How would you like to proceed?",
+        options: [
+          { value: "retry-apikey", label: "Re-enter API key" },
+          { value: "retry-baseurl", label: "Re-enter base URL" },
+          { value: "manual", label: "Enter model name manually" },
+          { value: "cancel", label: "Go back to provider selection" },
+        ],
+      });
+
+      if (action === "cancel") {
+        return null; // Return null to go back to provider selection
+      }
+
+      if (action === "retry-apikey") {
+        // Re-prompt for API key
+        const key = await params.prompter.text({
+          message: "Enter LiteLLM API key",
+          validate: validateApiKeyInput,
+        });
+        apiKey = normalizeApiKeyInput(String(key));
+        await setLitellmApiKey(apiKey, params.agentDir);
+
+        // Retry the entire LiteLLM flow by returning null and letting the caller retry
+        throw new Error("Please try the LiteLLM setup again with the new API key");
+      }
+
+      if (action === "retry-baseurl") {
+        throw new Error("Please restart the setup and provide the correct base URL");
+      }
+
+      // Manual model entry
+      const modelInput = await params.prompter.text({
+        message: "Enter model name (as configured in your LiteLLM server)",
+        placeholder: "e.g., gpt-4, claude-opus-4-5, etc.",
+        validate: (value) => {
+          if (!value?.trim()) return "Model name is required";
+          return undefined;
+        },
+      });
+      normalizedModelId = String(modelInput).trim();
+
+      // Prompt for context window since we couldn't auto-detect it
+      const contextInput = await params.prompter.text({
+        message: "Enter context window size (tokens) - optional",
+        placeholder: "e.g., 200000 for Claude Opus 4.5",
+        validate: (value) => {
+          if (!value?.trim()) return undefined; // Optional
+          const num = Number.parseInt(value, 10);
+          if (Number.isNaN(num) || num <= 0) return "Must be a positive number";
+          return undefined;
+        },
+      });
+      if (contextInput && String(contextInput).trim()) {
+        contextWindow = Number.parseInt(String(contextInput).trim(), 10);
+      }
     }
 
     // Strip litellm/ prefix if the API returned it (avoid litellm/litellm/model)
