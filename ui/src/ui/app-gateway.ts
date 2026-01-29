@@ -81,7 +81,12 @@ function normalizeSessionKeyForDefaults(
 }
 
 function applySessionDefaults(host: GatewayHost, defaults?: SessionDefaultsSnapshot) {
-  if (!defaults?.mainSessionKey) return;
+  console.log(`[DEBUG UI] applySessionDefaults: defaults=${JSON.stringify(defaults)}`);
+  console.log(`[DEBUG UI] applySessionDefaults: host.sessionKey="${host.sessionKey}" host.settings.sessionKey="${host.settings.sessionKey}"`);
+  if (!defaults?.mainSessionKey) {
+    console.log(`[DEBUG UI] applySessionDefaults: no mainSessionKey, returning early`);
+    return;
+  }
   const resolvedSessionKey = normalizeSessionKeyForDefaults(host.sessionKey, defaults);
   const resolvedSettingsSessionKey = normalizeSessionKeyForDefaults(
     host.settings.sessionKey,
@@ -91,6 +96,7 @@ function applySessionDefaults(host: GatewayHost, defaults?: SessionDefaultsSnaps
     host.settings.lastActiveSessionKey,
     defaults,
   );
+  console.log(`[DEBUG UI] applySessionDefaults: resolved="${resolvedSessionKey}" settingsResolved="${resolvedSettingsSessionKey}"`);
   const nextSessionKey = resolvedSessionKey || resolvedSettingsSessionKey || host.sessionKey;
   const nextSettings = {
     ...host.settings,
@@ -100,7 +106,9 @@ function applySessionDefaults(host: GatewayHost, defaults?: SessionDefaultsSnaps
   const shouldUpdateSettings =
     nextSettings.sessionKey !== host.settings.sessionKey ||
     nextSettings.lastActiveSessionKey !== host.settings.lastActiveSessionKey;
+  console.log(`[DEBUG UI] applySessionDefaults: nextSessionKey="${nextSessionKey}" shouldUpdate=${shouldUpdateSettings}`);
   if (nextSessionKey !== host.sessionKey) {
+    console.log(`[DEBUG UI] applySessionDefaults: updating host.sessionKey from "${host.sessionKey}" to "${nextSessionKey}"`);
     host.sessionKey = nextSessionKey;
   }
   if (shouldUpdateSettings) {

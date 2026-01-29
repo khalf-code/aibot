@@ -159,8 +159,12 @@ export function handleChatEvent(
   state: ChatState,
   payload?: ChatEventPayload,
 ) {
+  console.log(`[DEBUG UI] handleChatEvent: payload.sessionKey="${payload?.sessionKey}" state.sessionKey="${state.sessionKey}"`);
   if (!payload) return null;
-  if (payload.sessionKey !== state.sessionKey) return null;
+  if (payload.sessionKey !== state.sessionKey) {
+    console.log(`[DEBUG UI] handleChatEvent: sessionKey mismatch, ignoring event`);
+    return null;
+  }
 
   // Final from another run (e.g. sub-agent announce): refresh history to show new message.
   // See https://github.com/moltbot/moltbot/issues/1909
