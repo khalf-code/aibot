@@ -315,46 +315,28 @@ export function resolveAzureOpenAIConfigFromEnv(
  * These are the most commonly deployed models
  */
 export const AZURE_OPENAI_COMMON_MODELS = {
-  "gpt-4o": {
+  "gpt-5": {
     reasoning: false,
     input: ["text", "image"] as Array<"text" | "image">,
-    contextWindow: 128000,
-    maxTokens: 16384,
+    contextWindow: AZURE_OPENAI_DEFAULT_CONTEXT_WINDOW,
+    maxTokens: AZURE_OPENAI_DEFAULT_MAX_TOKENS,
   },
-  "gpt-4o-mini": {
+  "gpt-5-mini": {
     reasoning: false,
     input: ["text", "image"] as Array<"text" | "image">,
-    contextWindow: 128000,
-    maxTokens: 16384,
+    contextWindow: AZURE_OPENAI_DEFAULT_CONTEXT_WINDOW,
+    maxTokens: AZURE_OPENAI_DEFAULT_MAX_TOKENS,
   },
-  "gpt-4-turbo": {
+  "gpt-5-nano": {
     reasoning: false,
     input: ["text", "image"] as Array<"text" | "image">,
-    contextWindow: 128000,
-    maxTokens: 4096,
+    contextWindow: AZURE_OPENAI_DEFAULT_CONTEXT_WINDOW,
+    maxTokens: AZURE_OPENAI_DEFAULT_MAX_TOKENS,
   },
-  "gpt-4": {
+  "gpt-5-codex": {
     reasoning: false,
     input: ["text"] as Array<"text" | "image">,
-    contextWindow: 8192,
-    maxTokens: 4096,
-  },
-  "gpt-35-turbo": {
-    reasoning: false,
-    input: ["text"] as Array<"text" | "image">,
-    contextWindow: 16384,
-    maxTokens: 4096,
-  },
-  "o1-preview": {
-    reasoning: true,
-    input: ["text"] as Array<"text" | "image">,
-    contextWindow: 128000,
-    maxTokens: 32768,
-  },
-  "o1-mini": {
-    reasoning: true,
-    input: ["text"] as Array<"text" | "image">,
-    contextWindow: 128000,
-    maxTokens: 65536,
+    contextWindow: AZURE_OPENAI_DEFAULT_CONTEXT_WINDOW,
+    maxTokens: AZURE_OPENAI_DEFAULT_MAX_TOKENS,
   },
 } as const;
