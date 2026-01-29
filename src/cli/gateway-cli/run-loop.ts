@@ -6,6 +6,9 @@ import {
 } from "../../infra/restart.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import type { defaultRuntime } from "../../runtime.js";
+import { calculateBackoffMs, applyJitter } from "./backoff.js";
+import { recordCrash, classifyError } from "./crash-tracker.js";
+import { killAllChildrenSync } from "../../infra/child-registry.js";
 
 const gatewayLog = createSubsystemLogger("gateway");
 
@@ -18,7 +21,7 @@ export async function runGatewayLoop(params: {
   const lock = await acquireGatewayLock();
   let server: Awaited<ReturnType<typeof startGatewayServer>> | null = null;
   let shuttingDown = false;
-  let restartResolver: (() => void) | null = null;
+  let restartResolver: ((reason: { isUserInitiated: boolean }) => void) | null = null;
 
   const cleanupSignals = () => {
     process.removeListener("SIGTERM", onSigterm);
@@ -54,7 +57,7 @@ export async function runGatewayLoop(params: {
         server = null;
         if (isRestart) {
           shuttingDown = false;
-          restartResolver?.();
+          restartResolver?.({ isUserInitiated: action === "restart" });
         } else {
           cleanupSignals();
           params.runtime.exit(0);
@@ -87,15 +90,79 @@ export async function runGatewayLoop(params: {
   process.on("SIGINT", onSigint);
   process.on("SIGUSR1", onSigusr1);
 
+  // Register exit handler for crash scenarios (sync only - can't await in 'exit' handler)
+  process.on("exit", () => {
+    killAllChildrenSync();
+  });
+
+  let consecutiveFailures = 0;
+  const STABILITY_THRESHOLD_MS = 60_000;
+
   try {
     // Keep process alive; SIGUSR1 triggers an in-process restart (no supervisor required).
     // SIGTERM/SIGINT still exit after a graceful shutdown.
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      server = await params.start();
-      await new Promise<void>((resolve) => {
+      // Calculate and apply backoff with jitter
+      const baseBackoffMs = calculateBackoffMs(consecutiveFailures);
+      const backoffMs = applyJitter(baseBackoffMs);
+
+      if (backoffMs > 0) {
+        gatewayLog.warn(
+          `Restarting gateway in ${backoffMs}ms after failure (attempt ${consecutiveFailures + 1})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      }
+
+      const startAttemptMs = Date.now();
+
+      try {
+        server = await params.start();
+      } catch (err) {
+        gatewayLog.error(`Gateway startup failed: ${String(err)}`);
+        recordCrash({
+          errorType: classifyError(err),
+          errorMessage: err instanceof Error ? err.message : String(err),
+          uptimeMs: 0,
+          backoffMs,
+          consecutiveFailures: consecutiveFailures + 1,
+        });
+        consecutiveFailures++;
+        continue;
+      }
+
+      // Server started successfully - wait for restart signal
+      const restartReason = await new Promise<{ isUserInitiated: boolean }>((resolve) => {
         restartResolver = resolve;
       });
+
+      const uptimeMs = Date.now() - startAttemptMs;
+
+      // Determine backoff reset behavior based on uptime and restart type
+      if (restartReason.isUserInitiated) {
+        // User-initiated restart (SIGUSR1): no backoff
+        consecutiveFailures = 0;
+      } else if (uptimeMs >= STABILITY_THRESHOLD_MS) {
+        // Crashed after stable uptime: reset to minimal backoff
+        recordCrash({
+          errorType: "runtime_error",
+          errorMessage: "crashed after stable uptime",
+          uptimeMs,
+          backoffMs: calculateBackoffMs(1),
+          consecutiveFailures: 1,
+        });
+        consecutiveFailures = 1;
+      } else {
+        // Crashed during startup or early runtime: increment backoff
+        recordCrash({
+          errorType: "runtime_error",
+          errorMessage: "crashed during early runtime",
+          uptimeMs,
+          backoffMs: calculateBackoffMs(consecutiveFailures + 1),
+          consecutiveFailures: consecutiveFailures + 1,
+        });
+        consecutiveFailures++;
+      }
     }
   } finally {
     await lock?.release();
