@@ -116,6 +116,7 @@ switch(action) {
     break;
   case "test":
     script = "test"
+    break;
   default:
     script = null
 }
