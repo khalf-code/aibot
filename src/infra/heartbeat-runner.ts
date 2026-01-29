@@ -35,7 +35,7 @@ import {
 } from "../config/sessions.js";
 import type { AgentDefaultsConfig } from "../config/types.agent-defaults.js";
 import { formatErrorMessage } from "../infra/errors.js";
-import { peekSystemEvents } from "../infra/system-events.js";
+import { hasSystemEvents, peekSystemEvents } from "../infra/system-events.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { getQueueSize } from "../process/command-queue.js";
 import { CommandLane } from "../process/lanes.js";
@@ -308,7 +308,7 @@ function resolveHeartbeatAckMaxChars(cfg: MoltbotConfig, heartbeat?: HeartbeatCo
   );
 }
 
-function resolveHeartbeatSession(
+function resolveHeartbeatSessionKey(
   cfg: MoltbotConfig,
   agentId?: string,
   heartbeat?: HeartbeatConfig,
@@ -318,23 +318,19 @@ function resolveHeartbeatSession(
   const resolvedAgentId = normalizeAgentId(agentId ?? resolveDefaultAgentId(cfg));
   const mainSessionKey =
     scope === "global" ? "global" : resolveAgentMainSessionKey({ cfg, agentId: resolvedAgentId });
-  const storeAgentId = scope === "global" ? resolveDefaultAgentId(cfg) : resolvedAgentId;
-  const storePath = resolveStorePath(sessionCfg?.store, { agentId: storeAgentId });
-  const store = loadSessionStore(storePath);
-  const mainEntry = store[mainSessionKey];
 
   if (scope === "global") {
-    return { sessionKey: mainSessionKey, storePath, store, entry: mainEntry };
+    return mainSessionKey;
   }
 
   const trimmed = heartbeat?.session?.trim() ?? "";
   if (!trimmed) {
-    return { sessionKey: mainSessionKey, storePath, store, entry: mainEntry };
+    return mainSessionKey;
   }
 
   const normalized = trimmed.toLowerCase();
   if (normalized === "main" || normalized === "global") {
-    return { sessionKey: mainSessionKey, storePath, store, entry: mainEntry };
+    return mainSessionKey;
   }
 
   const candidate = toAgentStoreSessionKey({
@@ -350,11 +346,27 @@ function resolveHeartbeatSession(
   if (canonical !== "global") {
     const sessionAgentId = resolveAgentIdFromSessionKey(canonical);
     if (sessionAgentId === normalizeAgentId(resolvedAgentId)) {
-      return { sessionKey: canonical, storePath, store, entry: store[canonical] };
+      return canonical;
     }
   }
 
-  return { sessionKey: mainSessionKey, storePath, store, entry: mainEntry };
+  return mainSessionKey;
+}
+
+function resolveHeartbeatSession(
+  cfg: MoltbotConfig,
+  agentId?: string,
+  heartbeat?: HeartbeatConfig,
+) {
+  const sessionCfg = cfg.session;
+  const scope = sessionCfg?.scope ?? "per-sender";
+  const resolvedAgentId = normalizeAgentId(agentId ?? resolveDefaultAgentId(cfg));
+  const storeAgentId = scope === "global" ? resolveDefaultAgentId(cfg) : resolvedAgentId;
+  const storePath = resolveStorePath(sessionCfg?.store, { agentId: storeAgentId });
+  const store = loadSessionStore(storePath);
+  const sessionKey = resolveHeartbeatSessionKey(cfg, resolvedAgentId, heartbeat);
+  const entry = store[sessionKey];
+  return { sessionKey, storePath, store, entry };
 }
 
 function resolveHeartbeatReplyPayload(
@@ -459,13 +471,14 @@ export async function runHeartbeatOnce(opts: {
 
   // Skip heartbeat if HEARTBEAT.md exists but has no actionable content.
   // This saves API calls/costs when the file is effectively empty (only comments/headers).
-  // EXCEPTION: Don't skip for exec events - they have pending system events to process.
-  const isExecEventReason = opts.reason === "exec-event";
+  // EXCEPTION: Don't skip when pending system events exist.
+  const heartbeatSessionKey = resolveHeartbeatSessionKey(cfg, agentId, heartbeat);
+  const hasPendingSystemEvents = hasSystemEvents(heartbeatSessionKey);
   const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
   const heartbeatFilePath = path.join(workspaceDir, DEFAULT_HEARTBEAT_FILENAME);
   try {
     const heartbeatFileContent = await fs.readFile(heartbeatFilePath, "utf-8");
-    if (isHeartbeatContentEffectivelyEmpty(heartbeatFileContent) && !isExecEventReason) {
+    if (isHeartbeatContentEffectivelyEmpty(heartbeatFileContent) && !hasPendingSystemEvents) {
       emitHeartbeatEvent({
         status: "skipped",
         reason: "empty-heartbeat-file",
