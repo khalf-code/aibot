@@ -11,6 +11,11 @@ Moltbot exposes **first-class agent tools** for browser, canvas, nodes, and cron
 These replace the old `moltbot-*` skills: the tools are typed, no shelling,
 and the agent should rely on them directly.
 
+![Tool Groups](/images/diagrams/18-tool-groups.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 graph LR
     subgraph Runtime [group:runtime]
@@ -59,6 +64,8 @@ graph LR
         AGENTS_LIST[agents_list]
     end
 ```
+
+</details>
 
 ## Disabling tools
 

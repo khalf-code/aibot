@@ -9,6 +9,11 @@ read_when:
 
 Gateway can expose a small HTTP webhook endpoint for external triggers.
 
+![Webhook Processing Flow](/images/diagrams/10-webhook.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
     participant EXT as External System
@@ -37,6 +42,8 @@ sequenceDiagram
         AUTH-->>EXT: 401 Unauthorized
     end
 ```
+
+</details>
 
 ## Enable
 

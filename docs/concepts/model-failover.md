@@ -13,6 +13,11 @@ Moltbot handles failures in two stages:
 
 This doc explains the runtime rules and the data that backs them.
 
+![Model Failover Decision Tree](/images/diagrams/17-model-failover.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     REQ[Agent Run Request] --> PROF[Select Auth Profile\nSession-pinned or round-robin]
@@ -31,6 +36,8 @@ flowchart TD
     FB -->|No| FAIL[Run Fails]
     SWITCH --> PROF
 ```
+
+</details>
 
 ## Auth storage (keys + OAuth)
 

@@ -9,6 +9,11 @@ read_when:
 The workspace is the agent's home. It is the only working directory used for
 file tools and for workspace context. Keep it private and treat it as memory.
 
+![Agent Workspace Structure](/images/diagrams/26-workspace.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 graph TD
     subgraph Workspace ["Agent Workspace (~/clawd)"]
@@ -43,6 +48,8 @@ graph TD
         MANAGED_SKILLS[skills/\nManaged skills]
     end
 ```
+
+</details>
 
 This is separate from `~/.clawdbot/`, which stores config, credentials, and
 sessions.

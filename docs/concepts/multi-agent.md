@@ -9,6 +9,11 @@ status: active
 
 Goal: multiple *isolated* agents (separate workspace + `agentDir` + sessions), plus multiple channel accounts (e.g. two WhatsApps) in one running Gateway. Inbound is routed to an agent via bindings.
 
+![Multi-Agent Isolation](/images/diagrams/06-multi-agent.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 graph TD
     GW[Gateway Process] --> A1[Agent: home]
@@ -32,6 +37,8 @@ graph TD
     B2[Binding: WhatsApp biz] --> A2
     B3[Binding: Telegram] --> A2
 ```
+
+</details>
 
 ## What is "one agent"?
 

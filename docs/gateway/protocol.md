@@ -18,6 +18,11 @@ handshake time.
 - WebSocket, text frames with JSON payloads.
 - First frame **must** be a `connect` request.
 
+![Gateway WebSocket Protocol](/images/diagrams/04-ws-protocol.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
     participant C as Client
@@ -42,6 +47,8 @@ sequenceDiagram
         G->>C: event {presence, tick, agent, ...}
     end
 ```
+
+</details>
 
 ## Handshake (connect)
 

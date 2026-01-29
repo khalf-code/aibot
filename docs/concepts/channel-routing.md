@@ -51,6 +51,11 @@ Routing picks **one agent** for each inbound message:
 
 The matched agent determines which workspace and session store are used.
 
+![Channel Routing Priority Cascade](/images/diagrams/05-channel-routing.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     MSG[Inbound Message] --> P1{Exact Peer Match?}
@@ -67,6 +72,8 @@ flowchart TD
     P6 --> FOUND
     FOUND --> WS[Workspace + Session Store]
 ```
+
+</details>
 
 ## Broadcast groups (run multiple agents)
 
@@ -86,6 +93,11 @@ Config:
 
 See: [Broadcast Groups](/broadcast-groups).
 
+![Broadcast vs Normal Routing](/images/diagrams/29-broadcast-vs-normal.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     MSG[Inbound Message\nfrom peer] --> BC{Peer in\nBroadcast Config?}
@@ -98,6 +110,8 @@ flowchart TD
     SINGLE --> REPLY_S[Single Reply]
     DEFAULT --> REPLY_S
 ```
+
+</details>
 
 ## Config overview
 

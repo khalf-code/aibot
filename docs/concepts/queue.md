@@ -7,6 +7,11 @@ read_when:
 
 We serialize inbound auto-reply runs (all channels) through a tiny in-process queue to prevent multiple agent runs from colliding, while still allowing safe parallelism across sessions.
 
+![Lane-Aware FIFO Queue](/images/diagrams/07-queue-lanes.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
     subgraph SessionLanes [Session Lanes\none run per session]
@@ -28,6 +33,8 @@ flowchart LR
     CL -.->|parallel| ML
 ```
 
+</details>
+
 ## Why
 - Auto-reply runs can be expensive (LLM calls) and can collide when multiple inbound messages arrive close together.
 - Serializing avoids competing for shared resources (session files, logs, CLI stdin) and reduces the chance of upstream rate limits.
@@ -47,6 +54,11 @@ Inbound messages can steer the current run, wait for a followup turn, or do both
 - `steer-backlog` (aka `steer+backlog`): steer now **and** preserve the message for a followup turn.
 - `interrupt` (legacy): abort the active run for that session, then run the newest message.
 - `queue` (legacy alias): same as `steer`.
+
+![Queue Modes State Machine](/images/diagrams/08-queue-modes.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 stateDiagram-v2
@@ -68,6 +80,8 @@ stateDiagram-v2
     Running --> SteerBacklog: steer-backlog mode
     SteerBacklog --> Running: Steer now + preserve for followup
 ```
+
+</details>
 
 Steer-backlog means you can get a followup response after the steered run, so
 streaming surfaces can look like duplicates. Prefer `collect`/`steer` if you want

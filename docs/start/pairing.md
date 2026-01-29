@@ -14,6 +14,11 @@ It is used in two places:
 1) **DM pairing** (who is allowed to talk to the bot)
 2) **Node pairing** (which devices/nodes are allowed to join the gateway network)
 
+![Pairing Flows](/images/diagrams/16-pairing.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
     participant S as Sender / Device
@@ -36,6 +41,8 @@ sequenceDiagram
     GW->>S: Device token issued
     S->>GW: Future connects use device token
 ```
+
+</details>
 
 Security context: [Security](/gateway/security)
 

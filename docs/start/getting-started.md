@@ -7,7 +7,14 @@ read_when:
 
 # Getting Started
 
+![5 Minutes to First Message](/images/diagrams/32-getting-started-timeline.png)
+
 Goal: go from **zero** → **first working chat** (with sane defaults) as quickly as possible.
+
+![Getting Started: Onboarding Wizard](/images/diagrams/22-onboarding.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 flowchart TD
@@ -21,6 +28,8 @@ flowchart TD
     H --> I[Gateway Running\nAlways-on service]
     I --> J[Send First Message\nmoltbot agent --message 'Hello']
 ```
+
+</details>
 
 Fastest chat: open the Control UI (no channel setup needed). Run `moltbot dashboard`
 and chat in the browser, or open `http://127.0.0.1:18789/` on the gateway host.

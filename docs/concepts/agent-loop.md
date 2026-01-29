@@ -13,6 +13,11 @@ In Moltbot, a loop is a single, serialized run per session that emits lifecycle 
 as the model thinks, calls tools, and streams output. This doc explains how that authentic loop is
 wired end-to-end.
 
+![Agent Loop Lifecycle](/images/diagrams/02-agent-loop.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 stateDiagram-v2
     [*] --> Intake: Inbound message / RPC
@@ -28,6 +33,8 @@ stateDiagram-v2
     ModelInference --> Compaction: Context limit hit
     Compaction --> ModelInference: Retry with compacted context
 ```
+
+</details>
 
 ## Entry points
 - Gateway RPC: `agent` and `agent.wait`.
@@ -96,6 +103,11 @@ These run inside the agent loop or gateway pipeline:
 
 See [Plugins](/plugin#plugin-hooks) for the hook API and registration details.
 
+![Plugin Hooks Lifecycle](/images/diagrams/20-plugin-hooks.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
     participant GW as Gateway
@@ -130,6 +142,8 @@ sequenceDiagram
     GW->>HOOK: message_sent
     GW->>HOOK: session_end
 ```
+
+</details>
 
 ## Streaming + partial replies
 - Assistant deltas are streamed from pi-agent-core and emitted as `assistant` events.

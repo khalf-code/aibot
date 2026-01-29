@@ -15,6 +15,11 @@ the right time, and can optionally deliver output back to a chat.
 If you want *“run this every morning”* or *“poke the agent in 20 minutes”*,
 cron is the mechanism.
 
+![Cron Job Execution Paths](/images/diagrams/09-cron-jobs.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     subgraph MainSession [Main Session Job]
@@ -35,6 +40,8 @@ flowchart TD
         IS5 -->|No| IS7[Internal Only]
     end
 ```
+
+</details>
 
 ## TL;DR
 - Cron runs **inside the Gateway** (not inside the model).

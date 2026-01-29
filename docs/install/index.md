@@ -9,6 +9,11 @@ read_when:
 
 Use the installer unless you have a reason not to. It sets up the CLI and runs onboarding.
 
+![Installation Decision Tree](/images/diagrams/25-install.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     START[Install Moltbot] --> OS{Operating System?}
@@ -27,6 +32,8 @@ flowchart TD
     NPM --> ONBOARD
     GIT --> ONBOARD
 ```
+
+</details>
 
 ## Quick install (recommended)
 

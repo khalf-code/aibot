@@ -21,6 +21,11 @@ Last updated: 2026-01-22
 
 ## Components and flows
 
+![Architecture Overview](/images/diagrams/01-architecture.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 graph TD
     subgraph Channels
@@ -59,6 +64,8 @@ graph TD
     CANVAS[Canvas Host\n:18793]
     GW -.-> CANVAS
 ```
+
+</details>
 
 ### Gateway (daemon)
 - Maintains provider connections.

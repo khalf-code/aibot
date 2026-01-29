@@ -10,6 +10,11 @@ Last updated: 2025-12-09
 ## What it is
 - The always-on process that owns the single Baileys/Telegram connection and the control/event plane.
 
+![Gateway Lifecycle States](/images/diagrams/23-gateway-lifecycle.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 stateDiagram-v2
     [*] --> NotInstalled
@@ -22,6 +27,8 @@ stateDiagram-v2
     Running --> Error: Fatal error
     Error --> Running: Supervisor auto-restart\nRestartSec=5
 ```
+
+</details>
 
 - Replaces the legacy `gateway` command. CLI entry point: `moltbot gateway`.
 - Runs until stopped; exits non-zero on fatal errors so the supervisor restarts it.
@@ -36,6 +43,11 @@ moltbot gateway --force
 # dev loop (auto-reload on TS changes):
 pnpm gateway:watch
 ```
+![Config Hot-Reload](/images/diagrams/24-hot-reload.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
     WATCH[File Watcher\n~/.clawdbot/moltbot.json] --> DEBOUNCE[Debounce]
@@ -44,6 +56,8 @@ flowchart LR
     ANALYZE -->|Critical changes\nport, auth, channels| RESTART[In-Process Restart\nSIGUSR1]
     ANALYZE -->|reload.mode=off| IGNORE[Ignored]
 ```
+
+</details>
 
 - Config hot reload watches `~/.clawdbot/moltbot.json` (or `CLAWDBOT_CONFIG_PATH`).
   - Default mode: `gateway.reload.mode="hybrid"` (hot-apply safe changes, restart on critical).

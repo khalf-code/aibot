@@ -112,6 +112,11 @@ manifest.
 If multiple plugins resolve to the same id, the first match in the order above
 wins and lower-precedence copies are ignored.
 
+![Plugin Discovery Precedence](/images/diagrams/19-plugin-discovery.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     A[Plugin Discovery] --> B[1. Config Paths\nplugins.load.paths]
@@ -134,6 +139,8 @@ flowchart TD
     K --> P[Skills]
     K --> Q[Plugin Hooks]
 ```
+
+</details>
 
 ### Package packs
 

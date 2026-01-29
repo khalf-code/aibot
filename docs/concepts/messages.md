@@ -20,6 +20,11 @@ Inbound message
   -> outbound replies (channel limits + chunking)
 ```
 
+![Message Processing Flow](/images/diagrams/03-message-flow.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     A[Inbound Message] --> B{Dedupe Cache}
@@ -43,6 +48,8 @@ flowchart TD
     N --> O[Channel Chunking + Limits]
     O --> P[Delivered]
 ```
+
+</details>
 
 Key knobs live in configuration:
 - `messages.*` for prefixes, queueing, and group behavior.

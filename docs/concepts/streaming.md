@@ -13,6 +13,11 @@ Moltbot has two separate “streaming” layers:
 
 There is **no real token streaming** to external channel messages today. Telegram draft streaming is the only partial-stream surface.
 
+![Streaming Delivery Paths](/images/diagrams/13-streaming.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     MODEL[Model Output\ntext_delta events] --> BS{Block Streaming\nEnabled?}
@@ -35,6 +40,8 @@ flowchart TD
     DRAFT --> TGFINAL[Final: Normal Message]
     TG -->|No| BS
 ```
+
+</details>
 
 ## Block streaming (channel messages)
 

@@ -321,6 +321,11 @@ High-level flow:
 This design keeps the agent on a stable, deterministic interface while letting
 you swap local/remote browsers and profiles.
 
+![Browser Automation Flow](/images/diagrams/21-browser.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
     AGENT[Agent Tool Call\nbrowser action] --> TARGET{Target?}
@@ -338,6 +343,8 @@ flowchart TD
     NODE --> RESULT
     SB --> RESULT
 ```
+
+</details>
 
 ## CLI quick reference
 
