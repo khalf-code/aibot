@@ -16,6 +16,10 @@
         "type": "boolean",
         "default": true,
         "description": "Sync MEMORY.md with claude-mem context on session start"
+      },
+      "workerPath": {
+        "type": "string",
+        "description": "Custom path to worker-service.cjs (for manual installs outside Claude plugin cache)"
       }
     }
   },
@@ -27,6 +31,10 @@
     "syncMemoryFile": {
       "label": "Sync MEMORY.md",
       "help": "Update MEMORY.md with claude-mem context on session/gateway start"
+    },
+    "workerPath": {
+      "label": "Worker Path",
+      "help": "Path to claude-mem's worker-service.cjs. Only needed for manual installs."
     }
   }
 }

@@ -78,6 +78,7 @@ async function getHookCwd(workspaceDir: string, project: string): Promise<string
 interface ClaudeMemConfig {
   syncMemoryFile: boolean;
   project: string;
+  workerPath?: string;  // Custom path to worker-service.cjs (for manual installs)
 }
 
 const DEFAULT_CONFIG: Omit<ClaudeMemConfig, "project"> = {
@@ -170,36 +171,50 @@ function callHookFireAndForget(hookName: string, data: Record<string, unknown>):
 }
 
 export default function (api: ClawdbotPluginApi) {
-  // Find the latest claude-mem worker service (sync check)
-  const cacheDir = join(homedir(), ".claude/plugins/cache/thedotmack/claude-mem");
-  if (!existsSync(cacheDir)) {
-    api.logger.warn?.("claude-mem: plugin cache not found - plugin disabled");
-    return;
-  }
+  const userConfig = api.pluginConfig as Partial<ClaudeMemConfig>;
   
-  // Find latest version synchronously
-  try {
-    const entries = require("fs").readdirSync(cacheDir);
-    let latestVersion: string | null = null;
-    let latestMtime = 0;
+  // Check for custom worker path first (for manual installs)
+  if (userConfig.workerPath) {
+    if (existsSync(userConfig.workerPath)) {
+      WORKER_SERVICE_PATH = userConfig.workerPath;
+      api.logger.debug?.(`claude-mem: using custom worker path: ${WORKER_SERVICE_PATH}`);
+    } else {
+      api.logger.warn?.(`claude-mem: custom workerPath not found: ${userConfig.workerPath} - plugin disabled`);
+      return;
+    }
+  } else {
+    // Auto-discover from Claude plugin cache
+    const cacheDir = join(homedir(), ".claude/plugins/cache/thedotmack/claude-mem");
+    if (!existsSync(cacheDir)) {
+      api.logger.warn?.("claude-mem: plugin cache not found and no workerPath configured - plugin disabled");
+      api.logger.warn?.("claude-mem: install via Claude Code or set plugins.entries.memory-claudemem.config.workerPath");
+      return;
+    }
     
-    for (const entry of entries) {
-      const fullPath = join(cacheDir, entry);
-      const workerPath = join(fullPath, "scripts/worker-service.cjs");
-      if (existsSync(workerPath)) {
-        const stats = require("fs").statSync(fullPath);
-        if (stats.mtimeMs > latestMtime) {
-          latestMtime = stats.mtimeMs;
-          latestVersion = entry;
+    // Find latest version synchronously
+    try {
+      const entries = require("fs").readdirSync(cacheDir);
+      let latestVersion: string | null = null;
+      let latestMtime = 0;
+      
+      for (const entry of entries) {
+        const fullPath = join(cacheDir, entry);
+        const workerPath = join(fullPath, "scripts/worker-service.cjs");
+        if (existsSync(workerPath)) {
+          const stats = require("fs").statSync(fullPath);
+          if (stats.mtimeMs > latestMtime) {
+            latestMtime = stats.mtimeMs;
+            latestVersion = entry;
+          }
         }
       }
+      
+      if (latestVersion) {
+        WORKER_SERVICE_PATH = join(cacheDir, latestVersion, "scripts/worker-service.cjs");
+      }
+    } catch (err) {
+      api.logger.warn?.("claude-mem: failed to find worker service", err);
     }
-    
-    if (latestVersion) {
-      WORKER_SERVICE_PATH = join(cacheDir, latestVersion, "scripts/worker-service.cjs");
-    }
-  } catch (err) {
-    api.logger.warn?.("claude-mem: failed to find worker service", err);
   }
   
   if (!WORKER_SERVICE_PATH) {
@@ -212,7 +227,6 @@ export default function (api: ClawdbotPluginApi) {
   const workspaceDir = api.workspaceDir || process.cwd();
   const defaultProject = basename(workspaceDir);
 
-  const userConfig = api.pluginConfig as Partial<ClaudeMemConfig>;
   const config: ClaudeMemConfig = {
     ...DEFAULT_CONFIG,
     project: defaultProject,

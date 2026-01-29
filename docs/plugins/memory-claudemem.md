@@ -60,25 +60,7 @@ bun run build
 npm run build
 ```
 
-#### 4. Create the plugin cache directory
-
-The Moltbot plugin expects claude-mem to be in the Claude plugins cache:
-
-```bash
-# Create the directory structure
-mkdir -p ~/.claude/plugins/cache/thedotmack/claude-mem
-
-# Copy the built plugin (use actual version number)
-cp -r plugin ~/.claude/plugins/cache/thedotmack/claude-mem/9.0.12
-```
-
-Alternatively, symlink it:
-
-```bash
-ln -s $(pwd)/plugin ~/.claude/plugins/cache/thedotmack/claude-mem/9.0.12
-```
-
-#### 5. Start the worker service
+#### 4. Start the worker service
 
 Claude-mem runs a background worker service:
 
@@ -99,6 +81,43 @@ The worker runs on `http://localhost:37777` by default and provides:
 - Real-time memory stream UI at http://localhost:37777
 - API endpoints for memory search and retrieval
 - Background observation processing
+
+#### 5. Configure Moltbot with the worker path
+
+Tell Moltbot where to find the worker service:
+
+```json5
+{
+  plugins: {
+    entries: {
+      "memory-claudemem": {
+        enabled: true,
+        config: {
+          workerPath: "/path/to/claude-mem/plugin/scripts/worker-service.cjs"
+        }
+      }
+    }
+  }
+}
+```
+
+Or set the slot directly:
+
+```json5
+{
+  plugins: {
+    slots: {
+      memory: "memory-claudemem"
+    },
+    entries: {
+      "memory-claudemem": {
+        config: {
+          workerPath: "/path/to/claude-mem/plugin/scripts/worker-service.cjs"
+        }
+      }
+    }
+  }
+}
 
 ## Enabling the Moltbot Plugin
 
@@ -147,6 +166,7 @@ Or explicitly in entries:
 |--------|------|---------|-------------|
 | `syncMemoryFile` | boolean | `true` | Sync MEMORY.md with claude-mem context on session/gateway start |
 | `project` | string | workspace dir name | Project name for scoping observations |
+| `workerPath` | string | (auto-detect) | Path to `worker-service.cjs` for manual installs |
 
 ## How It Works
 
