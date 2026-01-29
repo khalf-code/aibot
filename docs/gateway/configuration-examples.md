@@ -493,7 +493,7 @@ Save to `~/.clawdbot/moltbot.json` and you can DM the bot from that number.
   models: {
     providers: {
       minimax: {
-        baseUrl: "https://api.minimax.io/anthropic",
+        baseUrl: "https://api.minimaxi.com/anthropic",
         api: "anthropic-messages",
         apiKey: "${MINIMAX_API_KEY}"
       }
