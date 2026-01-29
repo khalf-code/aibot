@@ -221,11 +221,13 @@ export async function preflightDiscordMessage(
   }
 
   // Fresh config for bindings lookup; other routing inputs are payload-derived.
+  const memberRoleIds = params.data.member?.roles?.map((r: { id: string }) => r.id) ?? [];
   const route = resolveAgentRoute({
     cfg: loadConfig(),
     channel: "discord",
     accountId: params.accountId,
     guildId: params.data.guild_id ?? undefined,
+    memberRoleIds,
     peer: {
       kind: isDirectMessage ? "direct" : isGroupDm ? "group" : "channel",
       id: isDirectMessage ? author.id : message.channelId,
