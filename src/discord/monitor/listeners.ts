@@ -18,9 +18,11 @@ import {
   resolveDiscordChannelConfigWithFallback,
   resolveDiscordGuildEntry,
   shouldEmitDiscordReactionNotification,
+  shouldTriggerDiscordReaction,
 } from "./allow-list.js";
 import { formatDiscordReactionEmoji, formatDiscordUserTag } from "./format.js";
 import { resolveDiscordChannelInfo } from "./message-utils.js";
+import { dispatchReactionTrigger } from "./reaction-trigger.js";
 
 type LoadedConfig = ReturnType<typeof import("../../config/config.js").loadConfig>;
 type RuntimeEnv = import("../../runtime.js").RuntimeEnv;
@@ -97,6 +99,7 @@ export class DiscordReactionListener extends MessageReactionAddListener {
     private params: {
       cfg: LoadedConfig;
       accountId: string;
+      token: string;
       runtime: RuntimeEnv;
       botUserId?: string;
       guildEntries?: Record<string, import("./allow-list.js").DiscordGuildEntryResolved>;
@@ -115,6 +118,7 @@ export class DiscordReactionListener extends MessageReactionAddListener {
         action: "added",
         cfg: this.params.cfg,
         accountId: this.params.accountId,
+        token: this.params.token,
         botUserId: this.params.botUserId,
         guildEntries: this.params.guildEntries,
         logger: this.params.logger,
@@ -135,6 +139,7 @@ export class DiscordReactionRemoveListener extends MessageReactionRemoveListener
     private params: {
       cfg: LoadedConfig;
       accountId: string;
+      token: string;
       runtime: RuntimeEnv;
       botUserId?: string;
       guildEntries?: Record<string, import("./allow-list.js").DiscordGuildEntryResolved>;
@@ -153,6 +158,7 @@ export class DiscordReactionRemoveListener extends MessageReactionRemoveListener
         action: "removed",
         cfg: this.params.cfg,
         accountId: this.params.accountId,
+        token: this.params.token,
         botUserId: this.params.botUserId,
         guildEntries: this.params.guildEntries,
         logger: this.params.logger,
@@ -174,6 +180,7 @@ async function handleDiscordReactionEvent(params: {
   action: "added" | "removed";
   cfg: LoadedConfig;
   accountId: string;
+  token: string;
   botUserId?: string;
   guildEntries?: Record<string, import("./allow-list.js").DiscordGuildEntryResolved>;
   logger: Logger;
@@ -230,11 +237,14 @@ async function handleDiscordReactionEvent(params: {
 
     if (botUserId && user.id === botUserId) return;
 
-    const reactionMode = guildInfo?.reactionNotifications ?? "own";
+    const reactionNotifyMode = guildInfo?.reactionNotifications ?? "own";
+    const reactionTriggerMode = guildInfo?.reactionTrigger ?? "off";
     const message = await data.message.fetch().catch(() => null);
     const messageAuthorId = message?.author?.id ?? undefined;
-    const shouldNotify = shouldEmitDiscordReactionNotification({
-      mode: reactionMode,
+
+    // Check if we should trigger an agent turn
+    const shouldTrigger = shouldTriggerDiscordReaction({
+      mode: reactionTriggerMode,
       botId: botUserId,
       messageAuthorId,
       userId: user.id,
@@ -242,7 +252,21 @@ async function handleDiscordReactionEvent(params: {
       userTag: formatDiscordUserTag(user),
       allowlist: guildInfo?.users,
     });
-    if (!shouldNotify) return;
+
+    // Check if we should notify via system event (only if not triggering)
+    const shouldNotify =
+      !shouldTrigger &&
+      shouldEmitDiscordReactionNotification({
+        mode: reactionNotifyMode,
+        botId: botUserId,
+        messageAuthorId,
+        userId: user.id,
+        userName: user.username,
+        userTag: formatDiscordUserTag(user),
+        allowlist: guildInfo?.users,
+      });
+
+    if (!shouldTrigger && !shouldNotify) return;
 
     const emojiLabel = formatDiscordReactionEmoji(data.emoji);
     const actorLabel = formatDiscordUserTag(user);
@@ -253,9 +277,7 @@ async function handleDiscordReactionEvent(params: {
       : channelName
         ? `#${normalizeDiscordSlug(channelName)}`
         : `#${data.channel_id}`;
-    const authorLabel = message?.author ? formatDiscordUserTag(message.author) : undefined;
-    const baseText = `Discord reaction ${action}: ${emojiLabel} by ${actorLabel} on ${guildSlug} ${channelLabel} msg ${data.message_id}`;
-    const text = authorLabel ? `${baseText} from ${authorLabel}` : baseText;
+
     const route = resolveAgentRoute({
       cfg: params.cfg,
       channel: "discord",
@@ -263,6 +285,33 @@ async function handleDiscordReactionEvent(params: {
       guildId: data.guild_id ?? undefined,
       peer: { kind: "channel", id: data.channel_id },
     });
+
+    // If trigger mode, dispatch to agent
+    if (shouldTrigger) {
+      await dispatchReactionTrigger({
+        cfg: params.cfg,
+        client,
+        accountId: params.accountId,
+        token: params.token,
+        logger: params.logger,
+        route,
+        emoji: emojiLabel,
+        action,
+        reactor: user,
+        message: message as import("@buape/carbon").Message<true> | null,
+        messageId: data.message_id,
+        channelId: data.channel_id,
+        guildId: data.guild_id,
+        guildSlug: typeof guildSlug === "string" ? guildSlug : undefined,
+        channelSlug: channelSlug || undefined,
+      });
+      return;
+    }
+
+    // Otherwise, queue system event for notification
+    const authorLabel = message?.author ? formatDiscordUserTag(message.author) : undefined;
+    const baseText = `Discord reaction ${action}: ${emojiLabel} by ${actorLabel} on ${guildSlug} ${channelLabel} msg ${data.message_id}`;
+    const text = authorLabel ? `${baseText} from ${authorLabel}` : baseText;
     enqueueSystemEvent(text, {
       sessionKey: route.sessionKey,
       contextKey: `discord:reaction:${action}:${data.message_id}:${user.id}:${emojiLabel}`,
