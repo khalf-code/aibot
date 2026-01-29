@@ -103,7 +103,7 @@ function SessionCard({
       {expanded && (
         <div className="border-t border-neutral-800 p-3">
           <div role="table">
-            <div role="row" className="grid grid-cols-[1fr_80px_90px_40px_40px] gap-2 px-3 pb-2 text-neutral-400 text-xs uppercase tracking-wide">
+            <div role="row" className="grid grid-cols-[1fr_80px_90px_40px_40px] gap-2 px-3 pb-2 text-neutral-400 text-xs uppercase">
               <span role="columnheader">Tool</span>
               <span role="columnheader">Tier</span>
               <span role="columnheader">Time</span>
@@ -124,7 +124,7 @@ function SessionCard({
               }}
               className="grid grid-cols-[1fr_80px_90px_40px_40px] gap-2 items-center px-3 py-2 rounded-lg cursor-pointer hover:bg-neutral-800/30 transition-colors"
             >
-              <span role="cell" className="text-sm font-mono truncate">{r.toolName}</span>
+              <span role="cell" className="text-sm font-mono truncate min-w-0">{r.toolName}</span>
               <span role="cell">
                 <span className={cn("rounded-full px-2 py-0.5 text-xs", tierBadge[r.tier])}>
                   {r.tier}
@@ -162,7 +162,7 @@ export default function SessionView({ receipts, onSelectReceipt }: Props) {
   if (groups.length === 0) {
     return (
       <div className="text-neutral-400 text-sm text-center py-12">
-        No sessions recorded yet
+        No sessions recorded yet. Sessions appear here when your agent processes conversations.
       </div>
     );
   }

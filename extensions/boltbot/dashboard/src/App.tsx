@@ -12,10 +12,6 @@ import SessionView from "./components/SessionView";
 
 const LIMIT = 50;
 
-function getSearchParams() {
-  return new URLSearchParams(window.location.search);
-}
-
 function setSearchParams(params: Record<string, string>) {
   const url = new URL(window.location.href);
   for (const [k, v] of Object.entries(params)) {
@@ -26,7 +22,7 @@ function setSearchParams(params: Record<string, string>) {
 }
 
 export default function App() {
-  const initialParams = getSearchParams();
+  const initialParams = useRef(new URLSearchParams(window.location.search)).current;
   const [selectedTiers, setSelectedTiers] = useState<string[]>(() => {
     const tiers = initialParams.get("tiers");
     return tiers ? tiers.split(",").filter(Boolean) : [];
@@ -47,18 +43,18 @@ export default function App() {
   const { stats, isLoading: statsLoading, error: statsError } = useStats();
   const { receipts, isLoading: receiptsLoading, error: receiptsError } = useReceipts(LIMIT, 0);
 
-  // Sync URL with state changes
-  useEffect(() => {
-    setSearchParams({ view: viewMode === "list" ? "" : viewMode });
-  }, [viewMode]);
-
-  useEffect(() => {
-    setSearchParams({ tiers: selectedTiers.join(",") });
-  }, [selectedTiers]);
-
-  useEffect(() => {
-    setSearchParams({ anomalies: anomalyOnly ? "1" : "" });
-  }, [anomalyOnly]);
+  function updateViewMode(v: "list" | "sessions") {
+    setViewMode(v);
+    setSearchParams({ view: v === "list" ? "" : v });
+  }
+  function updateSelectedTiers(tiers: string[]) {
+    setSelectedTiers(tiers);
+    setSearchParams({ tiers: tiers.join(",") });
+  }
+  function updateAnomalyOnly(v: boolean) {
+    setAnomalyOnly(v);
+    setSearchParams({ anomalies: v ? "1" : "" });
+  }
 
   // Polling: merge new receipts at the top, do NOT touch loadedCount or hasMore
   useEffect(() => {
@@ -114,8 +110,8 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-neutral-800 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
+    <div className="min-h-dvh bg-neutral-950 text-neutral-100">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-neutral-800 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
         Skip to main content
       </a>
       <Header />
@@ -126,7 +122,7 @@ export default function App() {
 
           <div className="flex items-center gap-2" role="tablist">
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => updateViewMode("list")}
               role="tab"
               aria-selected={viewMode === "list"}
               className={cn(
@@ -139,7 +135,7 @@ export default function App() {
               All Receipts
             </button>
             <button
-              onClick={() => setViewMode("sessions")}
+              onClick={() => updateViewMode("sessions")}
               role="tab"
               aria-selected={viewMode === "sessions"}
               className={cn(
@@ -155,9 +151,9 @@ export default function App() {
 
           <FilterControls
             selectedTiers={selectedTiers}
-            onTiersChange={setSelectedTiers}
+            onTiersChange={updateSelectedTiers}
             anomalyOnly={anomalyOnly}
-            onAnomalyOnlyChange={setAnomalyOnly}
+            onAnomalyOnlyChange={updateAnomalyOnly}
           />
 
           {viewMode === "list" ? (

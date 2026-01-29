@@ -114,7 +114,7 @@ export default function ReceiptDetail({ receipt, onClose }: Props) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+        className="fixed inset-0 bg-black/60 z-50"
         onClick={onClose}
         role="button"
         aria-label="Close"
@@ -128,7 +128,7 @@ export default function ReceiptDetail({ receipt, onClose }: Props) {
       >
         <div key={receipt.id} className="p-5">
           <div className="flex items-center justify-between mb-5">
-            <h2 id="receipt-detail-title" className="text-lg font-bold truncate pr-4">{receipt.toolName}</h2>
+            <h2 id="receipt-detail-title" className="text-lg font-bold truncate pr-4 text-balance">{receipt.toolName}</h2>
             <button
               ref={closeButtonRef}
               onClick={onClose}

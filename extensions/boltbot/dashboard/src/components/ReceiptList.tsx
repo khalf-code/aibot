@@ -50,14 +50,14 @@ export default function ReceiptList({
   if (receipts.length === 0) {
     return (
       <div className="text-neutral-400 text-sm text-center py-12">
-        No actions recorded yet
+        No actions recorded yet. Receipts appear here when your agent uses tools.
       </div>
     );
   }
 
   return (
     <div role="table" aria-label="Action receipts" aria-busy={isLoading}>
-      <div role="row" className="grid grid-cols-[1fr_80px_90px_40px_40px] gap-2 px-3 pb-2 text-neutral-400 text-xs uppercase tracking-wide">
+      <div role="row" className="grid grid-cols-[1fr_80px_90px_40px_40px] gap-2 px-3 pb-2 text-neutral-400 text-xs uppercase">
         <span role="columnheader">Tool</span>
         <span role="columnheader">Tier</span>
         <span role="columnheader">Time</span>
