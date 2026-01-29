@@ -30,3 +30,20 @@ export function formatUncaughtError(err: unknown): string {
   }
   return formatErrorMessage(err);
 }
+
+/**
+ * Sanitize error for user-facing responses (no stack traces or internal details).
+ * Use this for HTTP responses, user messages, etc.
+ * Full stack traces are still available via formatUncaughtError() for logs.
+ */
+export function sanitizeErrorForUser(err: unknown): string {
+  if (err instanceof Error) {
+    // Return only the message, never the stack trace
+    return err.message || err.name || "An error occurred";
+  }
+  if (typeof err === "string") {
+    return err;
+  }
+  // Avoid exposing internal structure via JSON.stringify
+  return "An unexpected error occurred";
+}

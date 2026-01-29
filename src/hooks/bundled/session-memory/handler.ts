@@ -52,10 +52,20 @@ async function getRecentSessionContent(
 
     // Then slice to get exactly messageCount messages
     const recentMessages = allMessages.slice(-messageCount);
-    return recentMessages.join("\n");
+    const joined = recentMessages.join("\n");
+    // Limit total length for token safety when passed to LLM slug generator
+    return joined.slice(0, 4000);
   } catch {
     return null;
   }
+}
+
+/**
+ * Redact PII from session key for storage (preserves structure for debugging)
+ * Example: "agent:main:telegram:user:123456789" -> "agent:main:telegram:user:***"
+ */
+function redactSessionKeyForStorage(key: string): string {
+  return key.replace(/user:\d+/g, "user:***");
 }
 
 /**
@@ -147,11 +157,11 @@ const saveSessionToMemory: HookHandler = async (event) => {
     const sessionId = (sessionEntry.sessionId as string) || "unknown";
     const source = (context.commandSource as string) || "unknown";
 
-    // Build Markdown entry
+    // Build Markdown entry (redact PII from session key)
     const entryParts = [
       `# Session: ${dateStr} ${timeStr} UTC`,
       "",
-      `- **Session Key**: ${event.sessionKey}`,
+      `- **Session Key**: ${redactSessionKeyForStorage(event.sessionKey)}`,
       `- **Session ID**: ${sessionId}`,
       `- **Source**: ${source}`,
       "",

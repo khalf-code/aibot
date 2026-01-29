@@ -1,6 +1,13 @@
+import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { MoltbotConfig, MarkdownTableMode } from "clawdbot/plugin-sdk";
+
+/** Timing-safe secret comparison to prevent timing attacks */
+function safeSecretCompare(provided: string, expected: string): boolean {
+  if (provided.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+}
 
 import type { ResolvedZaloAccount } from "./accounts.js";
 import {
@@ -165,7 +172,7 @@ export async function handleZaloWebhookRequest(
   }
 
   const headerToken = String(req.headers["x-bot-api-secret-token"] ?? "");
-  const target = targets.find((entry) => entry.secret === headerToken);
+  const target = targets.find((entry) => safeSecretCompare(headerToken, entry.secret));
   if (!target) {
     res.statusCode = 401;
     res.end("unauthorized");

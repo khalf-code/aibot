@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -46,6 +47,45 @@ function isHeicSource(opts: { contentType?: string; fileName?: string }): boolea
   if (opts.contentType && HEIC_MIME_RE.test(opts.contentType.trim())) return true;
   if (opts.fileName && HEIC_EXT_RE.test(opts.fileName.trim())) return true;
   return false;
+}
+
+/**
+ * Validate local file path is within allowed directories (prevents path traversal attacks).
+ * Allows: home directory, temp directory, current working directory (for tests/dev).
+ * Blocks: system paths like /etc, /usr, etc.
+ */
+async function validateLocalFilePath(filePath: string): Promise<string> {
+  const resolved = path.resolve(filePath);
+
+  // Allowed roots: home, temp, cwd (for tests and local development)
+  const allowedRoots = [os.homedir(), os.tmpdir(), process.cwd()];
+
+  // Check if path is within any allowed root
+  const isAllowed = allowedRoots.some(
+    (root) => resolved.startsWith(root + path.sep) || resolved === root,
+  );
+
+  if (!isAllowed) {
+    throw new Error("File access restricted to home directory");
+  }
+
+  // Resolve symlinks and verify final path is still within allowed roots
+  try {
+    const realPath = await fs.realpath(resolved);
+    const realAllowed = allowedRoots.some(
+      (root) => realPath.startsWith(root + path.sep) || realPath === root,
+    );
+    if (!realAllowed) {
+      throw new Error("Path traversal detected via symlink");
+    }
+    return realPath;
+  } catch (err) {
+    // File doesn't exist yet or realpath failed - use resolved path
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return resolved;
+    }
+    throw err;
+  }
 }
 
 function toJpegFileName(fileName?: string): string | undefined {
@@ -200,11 +240,14 @@ async function loadWebMediaInternal(
     mediaUrl = resolveUserPath(mediaUrl);
   }
 
+  // Validate path is within home directory (prevents path traversal)
+  const validatedPath = await validateLocalFilePath(mediaUrl);
+
   // Local path
-  const data = await fs.readFile(mediaUrl);
-  const mime = await detectMime({ buffer: data, filePath: mediaUrl });
+  const data = await fs.readFile(validatedPath);
+  const mime = await detectMime({ buffer: data, filePath: validatedPath });
   const kind = mediaKindFromMime(mime);
-  let fileName = path.basename(mediaUrl) || undefined;
+  let fileName = path.basename(validatedPath) || undefined;
   if (fileName && !path.extname(fileName) && mime) {
     const ext = extensionForMime(mime);
     if (ext) fileName = `${fileName}${ext}`;

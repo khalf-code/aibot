@@ -48,13 +48,13 @@
 
 ## Opportunities
 
-### Nate Jones Monitoring
+### Nate Jones
 **Status:** Active monitoring  
 **Started:** 2026-01-27  
 **Progress File:** `~/clawd/progress/nate-jones-monitoring.txt`
 
-**What:** Track Nate Jones (PuenteWorks alum) for potential collaboration  
-**Method:** Periodic checks on LinkedIn, portfolio, public activity  
+**What:** AI/product newsletter (83K+ subscribers), track for insights + communication patterns  
+**Method:** Substack monitoring, extract frameworks for Simon's projects  
 **Last Check:** 2026-01-27
 
 ---

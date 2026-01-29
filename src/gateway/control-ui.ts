@@ -104,6 +104,15 @@ export function handleControlUiAvatarRequest(
 ): boolean {
   const urlRaw = req.url;
   if (!urlRaw) return false;
+
+  // Security: Control UI (including avatars) is for local use only
+  if (!isLocalRequest(req)) {
+    res.statusCode = 403;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Control UI is restricted to localhost");
+    return true;
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") return false;
 
   const url = new URL(urlRaw, "http://localhost");
@@ -234,6 +243,12 @@ function isSafeRelativePath(relPath: string) {
   return true;
 }
 
+/** Check if request is from localhost (security: UI is for local use only) */
+function isLocalRequest(req: IncomingMessage): boolean {
+  const remoteAddr = req.socket.remoteAddress;
+  return remoteAddr === "127.0.0.1" || remoteAddr === "::1" || remoteAddr === "::ffff:127.0.0.1";
+}
+
 export function handleControlUiHttpRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -241,6 +256,16 @@ export function handleControlUiHttpRequest(
 ): boolean {
   const urlRaw = req.url;
   if (!urlRaw) return false;
+
+  // Security: Control UI is for local use only (per SECURITY.md)
+  // Non-local requests get 403 Forbidden
+  if (!isLocalRequest(req)) {
+    res.statusCode = 403;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("Control UI is restricted to localhost. See docs.molt.bot/gateway/security");
+    return true;
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.statusCode = 405;
     res.setHeader("Content-Type", "text/plain; charset=utf-8");

@@ -18,6 +18,28 @@ import { startLogsPolling, stopLogsPolling, startDebugPolling, stopDebugPolling 
 import { refreshChat } from "./app-chat";
 import type { MoltbotApp } from "./app";
 
+// URL parameter validation (security: reject clearly malicious inputs)
+const VALID_TOKEN_RE = /^[A-Za-z0-9_\-.:]{1,512}$/;
+const VALID_SESSION_KEY_RE = /^[A-Za-z0-9_\-.:]{1,512}$/;
+
+function isValidToken(value: string): boolean {
+  return VALID_TOKEN_RE.test(value);
+}
+
+function isValidSessionKey(value: string): boolean {
+  return VALID_SESSION_KEY_RE.test(value);
+}
+
+function isValidGatewayUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    // Only allow http/https/ws/wss protocols
+    return ["http:", "https:", "ws:", "wss:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
 type SettingsHost = {
   settings: UiSettings;
   theme: ThemeMode;
@@ -67,7 +89,7 @@ export function applySettingsFromUrl(host: SettingsHost) {
 
   if (tokenRaw != null) {
     const token = tokenRaw.trim();
-    if (token && token !== host.settings.token) {
+    if (token && isValidToken(token) && token !== host.settings.token) {
       applySettings(host, { ...host.settings, token });
     }
     params.delete("token");
@@ -76,7 +98,8 @@ export function applySettingsFromUrl(host: SettingsHost) {
 
   if (passwordRaw != null) {
     const password = passwordRaw.trim();
-    if (password) {
+    // Passwords can contain special characters, just validate length
+    if (password && password.length <= 512) {
       (host as { password: string }).password = password;
     }
     params.delete("password");
@@ -85,7 +108,7 @@ export function applySettingsFromUrl(host: SettingsHost) {
 
   if (sessionRaw != null) {
     const session = sessionRaw.trim();
-    if (session) {
+    if (session && isValidSessionKey(session)) {
       host.sessionKey = session;
       applySettings(host, {
         ...host.settings,
@@ -97,7 +120,7 @@ export function applySettingsFromUrl(host: SettingsHost) {
 
   if (gatewayUrlRaw != null) {
     const gatewayUrl = gatewayUrlRaw.trim();
-    if (gatewayUrl && gatewayUrl !== host.settings.gatewayUrl) {
+    if (gatewayUrl && isValidGatewayUrl(gatewayUrl) && gatewayUrl !== host.settings.gatewayUrl) {
       applySettings(host, { ...host.settings, gatewayUrl });
     }
     params.delete("gatewayUrl");
