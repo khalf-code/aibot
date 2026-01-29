@@ -3,172 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <title>Clawd Dashboard</title>
+    <link rel="stylesheet" href="/static/design-system.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 <body>
-    <header>
-        <h1>SYSTEM MONITOR</h1>
-        <nav class="main-nav">
-            <a href="/" class="active">Dashboard</a>
-            <a href="/cis.html">CIS</a>
-            <a href="/sticker-business.html">Sticker Business</a>
-            <a href="/ceramics-intelligence.html">Ceramics</a>
-            <a href="/natural-capture.html">Natural Capture</a>
-        </nav>
-        <div class="status" id="gateway-status" aria-live="polite" aria-atomic="true">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span class="status-text">Loading...</span>
-        </div>
-        <div class="timestamp" id="timestamp">--</div>
-    </header>
-
-    <main>
-        <!-- METRICS ROW -->
-        <section class="metrics-row">
-            <div class="metric">
-                <div class="metric-label">CPU</div>
-                <div class="metric-value" id="cpu-value">--%</div>
-                <div class="metric-bar"><div class="metric-fill" id="cpu-bar"></div></div>
+    <div class="app">
+        <header class="app-header">
+            <div class="app-header-content">
+                <nav class="main-nav">
+                    <a href="/" class="nav-link active" data-module="dashboard">🦞 Dashboard</a>
+                    <a href="/cis.html" class="nav-link" data-module="cis">CIS</a>
+                    <a href="/sticker-business.html" class="nav-link" data-module="sticker">Stickers</a>
+                    <a href="/ceramics-intelligence.html" class="nav-link" data-module="ceramics">Ceramics</a>
+                    <a href="/natural-capture.html" class="nav-link" data-module="capture">Capture</a>
+                </nav>
+                <h1 class="app-title">System Overview</h1>
+                <p class="app-subtitle">Gateway • Sessions • Metrics • Real-time</p>
             </div>
-            <div class="metric">
-                <div class="metric-label">RAM</div>
-                <div class="metric-value" id="mem-value">--%</div>
-                <div class="metric-bar"><div class="metric-fill" id="mem-bar"></div></div>
-            </div>
-            <div class="metric">
-                <div class="metric-label">DISK</div>
-                <div class="metric-value" id="disk-value">--%</div>
-                <div class="metric-bar"><div class="metric-fill" id="disk-bar"></div></div>
-            </div>
-            <div class="metric">
-                <div class="metric-label">SESSIONS</div>
-                <div class="metric-value" id="sessions-value">--</div>
-            </div>
-        </section>
+        </header>
 
-        <!-- CHARTS -->
-        <section class="charts">
-            <div class="chart-container">
-                <div id="cpu-chart" class="chart"></div>
-            </div>
-            <div class="chart-container">
-                <div id="mem-chart" class="chart"></div>
-            </div>
-        </section>
-
-        <!-- LIAM ACTIVITY PANEL -->
-        <section class="activity-panel">
-            <h2>
-                LIAM ACTIVITY
-                <span class="activity-status-wrapper">
-                    <span class="activity-status-dot" id="liam-status-dot"></span>
-                    <span class="activity-status-text" id="liam-status">IDLE</span>
-                </span>
-                <span class="ws-status" id="ws-status" title="WebSocket connection status">WS: --</span>
-            </h2>
-            <div class="activity-feed-container">
-                <div class="activity-feed" id="activity-feed" aria-live="polite">
-                    <div class="activity-item empty">Connecting to gateway...</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TWO COLUMN LAYOUT -->
-        <div class="columns">
-            <!-- LEFT: SESSIONS + SUBAGENTS -->
-            <section class="column">
-                <h2>ACTIVE SESSIONS</h2>
-                <table id="sessions-table">
-                    <thead>
-                        <tr>
-                            <th>AGENT</th>
-                            <th>CHANNEL</th>
-                            <th>UPDATED</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-
-                <h2>SUBAGENTS</h2>
-                <div id="subagents-tree" class="tree"></div>
-            </section>
-
-            <!-- RIGHT: EVOLUTION QUEUE -->
-            <section class="column">
-                <h2>
-                    EVOLUTION QUEUE
-                    <span class="filter-group">
-                        <button class="filter-btn active" data-filter="all" aria-label="Show all queue items">ALL</button>
-                        <button class="filter-btn" data-filter="pending" aria-label="Show pending queue items">PEND</button>
-                        <button class="filter-btn" data-filter="paused" aria-label="Show paused queue items">PAUSE</button>
-                        <button class="filter-btn" data-filter="resolved" aria-label="Show completed queue items">DONE</button>
-                    </span>
-                </h2>
-                <table id="queue-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>TITLE</th>
-                            <th>STATUS</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </section>
-        </div>
-
-        <!-- EF COACH PANEL -->
-        <section class="skills-panel">
-            <h2>EF COACH</h2>
-            <div class="skills-grid">
-                <!-- Context Suggestion -->
-                <div class="skill-card" id="ef-context-card">
-                    <div class="skill-label">CONTEXT SUGGESTION</div>
-                    <div class="skill-content" id="ef-suggestion">Loading...</div>
-                    <div class="skill-meta">
-                        <span class="badge" id="ef-context-type">--</span>
-                        <span class="confidence">Confidence: <span id="ef-confidence">--</span></span>
+        <main class="app-body">
+            <div class="app-content">
+                <!-- Status Bar -->
+                <div class="stats-bar">
+                    <div class="stat-card accent-system">
+                        <div class="stat-value" id="cpu-value">--%</div>
+                        <div class="stat-label">CPU Usage</div>
+                    </div>
+                    <div class="stat-card accent-system">
+                        <div class="stat-value" id="mem-value">--%</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                    <div class="stat-card accent-system">
+                        <div class="stat-value" id="disk-value">--%</div>
+                        <div class="stat-label">Disk</div>
+                    </div>
+                    <div class="stat-card accent-system">
+                        <div class="stat-value" id="sessions-value">--</div>
+                        <div class="stat-label">Sessions</div>
+                    </div>
+                    <div class="stat-card accent-system">
+                        <div class="stat-value" id="gateway-status-badge">--</div>
+                        <div class="stat-label">Gateway</div>
+                    </div>
+                    <div class="stat-card accent-system">
+                        <div class="stat-value" id="timestamp-badge">--:--</div>
+                        <div class="stat-label">Updated</div>
                     </div>
                 </div>
 
-                <!-- Active Focus Session -->
-                <div class="skill-card" id="ef-focus-card">
-                    <div class="skill-label">FOCUS SESSION</div>
-                    <div class="skill-content" id="ef-focus-status">No active session</div>
-                    <div class="skill-meta">
-                        <span class="timer" id="ef-focus-timer"></span>
+                <!-- Charts Row -->
+                <div class="grid-2 mb-xl">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">CPU History</div>
+                        </div>
+                        <div class="card-body">
+                            <div id="cpu-chart" style="height: 200px;"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Memory History</div>
+                        </div>
+                        <div class="card-body">
+                            <div id="mem-chart" style="height: 200px;"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Energy Pattern -->
-                <div class="skill-card">
-                    <div class="skill-label">ENERGY PATTERN (24H)</div>
-                    <div class="skill-content">
-                        <div id="energy-chart" class="mini-chart"></div>
+                <!-- Activity + Sessions Row -->
+                <div class="grid-2">
+                    <!-- Liam Activity Panel -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span id="liam-status-dot" class="badge badge-subtle" style="width:10px;height:10px;padding:0;border-radius:50%;"></span>
+                                Liam Activity
+                            </div>
+                            <div style="display:flex;align-items:center;gap:0.5rem;">
+                                <span id="liam-status" class="badge badge-subtle">IDLE</span>
+                                <span id="ws-status" class="badge badge-subtle">WS: --</span>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding:0;">
+                            <div class="activity-feed-container" style="border:none;border-radius:0;">
+                                <div class="activity-feed" id="activity-feed">
+                                    <div class="activity-item empty">Waiting for activity...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Sessions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Active Sessions</div>
+                        </div>
+                        <div class="card-body" style="padding:0;">
+                            <div class="table-container">
+                                <table id="sessions-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Agent</th>
+                                            <th>Channel</th>
+                                            <th>Last Active</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td colspan="3" class="empty">No active sessions</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Habit Streaks -->
-                <div class="skill-card">
-                    <div class="skill-label">HABIT STREAKS</div>
-                    <div class="skill-content" id="ef-habits-list">Loading...</div>
+                <!-- Queue Section -->
+                <div class="card mt-xl">
+                    <div class="card-header">
+                        <div class="card-title">Evolution Queue</div>
+                        <div class="flex gap-sm">
+                            <button class="btn btn-sm btn-subtle filter-btn active" data-filter="all">All</button>
+                            <button class="btn btn-sm btn-subtle filter-btn" data-filter="pending">Pending</button>
+                            <button class="btn btn-sm btn-subtle filter-btn" data-filter="paused">Paused</button>
+                            <button class="btn btn-sm btn-subtle filter-btn" data-filter="resolved">Resolved</button>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div class="table-container">
+                            <table id="queue-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Title</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="3" class="empty">No items</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subagents Tree -->
+                <div class="card mt-xl">
+                    <div class="card-header">
+                        <div class="card-title">Subagents</div>
+                    </div>
+                    <div class="card-body">
+                        <div id="subagents-tree" class="empty">No active subagents</div>
+                    </div>
+                </div>
+
+                <!-- Keyboard Shortcuts -->
+                <div class="text-center mt-xl" style="color:var(--text-muted);font-size:0.8rem;">
+                    Press <kbd>?</kbd> for keyboard shortcuts • <kbd>R</kbd> to refresh
                 </div>
             </div>
-        </section>
-    </main>
+        </main>
+    </div>
 
-    <!-- KEYBOARD SHORTCUTS HELP -->
-    <div id="shortcuts-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
-        <div class="modal-content">
-            <h3 id="shortcuts-title">KEYBOARD SHORTCUTS</h3>
-            <table role="presentation">
+    <!-- Shortcuts Modal -->
+    <div id="shortcuts-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:500px;">
+            <h3 style="margin-bottom:1rem;">Keyboard Shortcuts</h3>
+            <table style="margin-bottom:1rem;">
                 <tr><td><kbd>R</kbd></td><td>Refresh data</td></tr>
                 <tr><td><kbd>?</kbd></td><td>Show shortcuts</td></tr>
-                <tr><td><kbd>ESC</kbd></td><td>Close modal</td></tr>
+                <tr><td><kbd>Esc</kbd></td><td>Close modal</td></tr>
+                <tr><td><kbd>1-5</kbd></td><td>Navigate pages</td></tr>
             </table>
-            <button onclick="closeShortcuts()" aria-label="Close keyboard shortcuts help">CLOSE</button>
+            <button class="btn btn-primary" onclick="document.getElementById('shortcuts-modal').style.display='none'">Close</button>
         </div>
     </div>
 

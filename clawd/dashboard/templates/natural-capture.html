@@ -3,405 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Natural Capture</title>
+    <title>Natural Capture - Clawd Dashboard</title>
+    <link rel="stylesheet" href="/static/design-system.css">
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <div class="app-header-content">
+                <nav class="main-nav">
+                    <a href="/" class="nav-link" data-module="dashboard">🦞 Dashboard</a>
+                    <a href="/cis.html" class="nav-link" data-module="cis">CIS</a>
+                    <a href="/sticker-business.html" class="nav-link" data-module="sticker">Stickers</a>
+                    <a href="/ceramics-intelligence.html" class="nav-link" data-module="ceramics">Ceramics</a>
+                    <a href="/natural-capture.html" class="nav-link active" data-module="capture">Capture</a>
+                </nav>
+                <h1 class="app-title">Natural Capture</h1>
+                <p class="app-subtitle">Zero-friction capture • PARA routing • Auto-classify</p>
+            </div>
+        </header>
+
+        <main class="app-body">
+            <div class="app-content">
+                <!-- Stats Bar -->
+                <div class="stats-bar">
+                    <div class="stat-card accent-capture">
+                        <div class="stat-value" id="today-captures">0</div>
+                        <div class="stat-label">Today's Captures</div>
+                    </div>
+                    <div class="stat-card accent-capture">
+                        <div class="stat-value" id="week-captures">0</div>
+                        <div class="stat-label">This Week</div>
+                    </div>
+                    <div class="stat-card accent-capture">
+                        <div class="stat-value" id="total-captures">0</div>
+                        <div class="stat-label">Total Captures</div>
+                    </div>
+                    <div class="stat-card accent-capture">
+                        <div class="stat-value" id="para-routed">0</div>
+                        <div class="stat-label">PARA Routed</div>
+                    </div>
+                </div>
+
+                <!-- Status Panel -->
+                <div class="card mb-lg">
+                    <div class="card-header">
+                        <div class="card-title">System Status</div>
+                        <span class="badge badge-success">Active</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex items-center gap-md">
+                            <span style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(126,200,160,0.15);color:var(--accent-capture);padding:0.5rem 1rem;border-radius:var(--radius-sm);font-weight:500;">
+                                <span style="width:8px;height:8px;background:var(--accent-success);border-radius:50%;animation:pulse 2s infinite;"></span>
+                                Capture System Active
+                            </span>
+                            <span class="text-secondary" style="font-size:0.85rem;">Listening for: idea:, todo:, note:, remind me...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trigger Phrases -->
+                <div class="card mb-lg">
+                    <div class="card-header">
+                        <div class="card-title">⚡ Trigger Phrases</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-3">
+                            <div style="background:var(--bg-tertiary);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:1rem;">
+                                <span style="display:inline-block;background:var(--accent-capture);color:var(--bg-primary);padding:0.25rem 0.5rem;border-radius:var(--radius-sm);font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;">idea:</span>
+                                <p style="font-size:0.85rem;color:var(--text-secondary);">Capture ideas, concepts, possibilities</p>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:1rem;">
+                                <span style="display:inline-block;background:var(--accent-sticker);color:var(--bg-primary);padding:0.25rem 0.5rem;border-radius:var(--radius-sm);font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;">todo:</span>
+                                <p style="font-size:0.85rem;color:var(--text-secondary);">Tasks, actions, things to do</p>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:1rem;">
+                                <span style="display:inline-block;background:var(--accent-system);color:var(--bg-primary);padding:0.25rem 0.5rem;border-radius:var(--radius-sm);font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;">note:</span>
+                                <p style="font-size:0.85rem;color:var(--text-secondary);">General notes, observations</p>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:1rem;">
+                                <span style="display:inline-block;background:var(--accent-ceramics);color:var(--bg-primary);padding:0.25rem 0.5rem;border-radius:var(--radius-sm);font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;">remind me...</span>
+                                <p style="font-size:0.85rem;color:var(--text-secondary);">Time-based reminders</p>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:1rem;">
+                                <span style="display:inline-block;background:var(--text-muted);color:var(--bg-primary);padding:0.25rem 0.5rem;border-radius:var(--radius-sm);font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;">bookmark:</span>
+                                <p style="font-size:0.85rem;color:var(--text-secondary);">Save for later reference</p>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:1rem;">
+                                <span style="display:inline-block;background:var(--text-muted);color:var(--bg-primary);padding:0.25rem 0.5rem;border-radius:var(--radius-sm);font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;">question:</span>
+                                <p style="font-size:0.85rem;color:var(--text-secondary);">Open questions to revisit</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Queue -->
+                <div class="card mb-lg">
+                    <div class="card-header">
+                        <div class="card-title">⚙️ Processing Queue</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-4">
+                            <div style="background:var(--bg-tertiary);border-radius:var(--radius-md);padding:1rem;text-align:center;">
+                                <div style="font-size:1.5rem;font-weight:600;font-family:var(--font-mono);" id="queued-count">0</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Queued</div>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border-radius:var(--radius-md);padding:1rem;text-align:center;">
+                                <div style="font-size:1.5rem;font-weight:600;font-family:var(--font-mono);" id="processing-count">0</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Processing</div>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border-radius:var(--radius-md);padding:1rem;text-align:center;">
+                                <div style="font-size:1.5rem;font-weight:600;font-family:var(--font-mono);" id="completed-count">0</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Completed</div>
+                            </div>
+                            <div style="background:var(--bg-tertiary);border-radius:var(--radius-md);padding:1rem;text-align:center;">
+                                <div style="font-size:1.5rem;font-weight:600;font-family:var(--font-mono);" id="failed-count">0</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);">Failed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Captures -->
+                <div class="card mb-lg">
+                    <div class="card-header">
+                        <div class="card-title">📥 Recent Captures</div>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div id="capture-list">
+                            <div style="display:flex;align-items:center;gap:1rem;padding:1rem;border-bottom:1px solid var(--border-default);">
+                                <span class="badge badge-capture">NOTE</span>
+                                <div style="flex:1;">
+                                    <div>Natural Capture system deployed</div>
+                                    <div style="font-size:0.8rem;color:var(--text-muted);">Routed to: system-log</div>
+                                </div>
+                                <span style="font-size:0.8rem;color:var(--text-muted);">Just now</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Capture -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🧪 Test Capture</div>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+                            <input type="text" id="test-input" class="form-input" placeholder="Try: 'idea: build a sticker business' or 'todo: buy coffee'" onkeypress="if(event.key==='Enter')testCapture()">
+                            <button class="btn btn-primary" onclick="testCapture()">CAPTURE</button>
+                        </div>
+                        <p style="color:var(--text-muted);font-size:0.8rem;">
+                            Try: <code style="background:var(--bg-tertiary);padding:0.125rem 0.375rem;border-radius:var(--radius-sm);">idea:</code>
+                            <code style="background:var(--bg-tertiary);padding:0.125rem 0.375rem;border-radius:var(--radius-sm);">todo:</code>
+                            <code style="background:var(--bg-tertiary);padding:0.125rem 0.375rem;border-radius:var(--radius-sm);">note:</code>
+                            <code style="background:var(--bg-tertiary);padding:0.125rem 0.375rem;border-radius:var(--radius-sm);">remind me...</code>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f0f0f;
-            color: #e0e0e0;
-            line-height: 1.6;
-        }
-        .header {
-            background: linear-gradient(135deg, #1a2e1a 0%, #162e16 100%);
-            padding: 2rem;
-            border-bottom: 1px solid #333;
-        }
-        .header h1 { font-size: 1.8rem; color: #fff; margin-bottom: 0.5rem; }
-        .header p { color: #888; font-size: 0.9rem; }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            padding: 1.5rem;
-            background: #1a1a1a;
-        }
-        .stat-card {
-            background: #252525;
-            padding: 1.5rem;
-            border-radius: 8px;
-            border-left: 4px solid #7ec8a0;
-        }
-        .stat-card h3 { font-size: 2rem; color: #7ec8a0; margin-bottom: 0.3rem; }
-        .stat-card p { color: #888; font-size: 0.9rem; }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-        .nav { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
-        .nav a {
-            color: #888;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-        .nav a:hover, .nav a.active { background: #252525; color: #7ec8a0; }
-
-        /* Main Navigation */
-        .main-nav {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-        }
-        .main-nav a {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            color: #888;
-            padding: 0.4rem 0.75rem;
-            text-decoration: none;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-radius: 0;
-            transition: all 0.2s;
-        }
-        .main-nav a:hover {
-            background: #252525;
-            color: #fff;
-        }
-        .main-nav a.active {
-            background: #7ec8a0;
-            border-color: #7ec8a0;
-            color: #0f0f0f;
-        }
-
-        /* Status Panel */
-        .status-panel {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            border-left: 4px solid #7ec8a0;
-        }
-        .status-panel h2 { color: #fff; margin-bottom: 1rem; }
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: #1f3d1f;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            color: #7ec8a0;
-        }
-        .status-indicator::before {
-            content: "●";
-            color: #4a9eff;
-            animation: pulse 2s infinite;
-        }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-
-        /* Capture Triggers */
-        .triggers-section {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-        .triggers-section h2 {
-            color: #fff;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .triggers-section h2::before { content: "⚡"; }
-        .triggers-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-        }
-        .trigger-card {
-            background: #252525;
-            border-radius: 8px;
-            padding: 1rem;
-            border: 1px solid #333;
-            transition: all 0.2s;
-        }
-        .trigger-card:hover { border-color: #7ec8a0; }
-        .trigger-card .keyword {
-            display: inline-block;
-            background: #7ec8a0;
-            color: #0f0f0f;
-            padding: 0.25rem 0.75rem;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-        .trigger-card p { color: #888; font-size: 0.85rem; }
-
-        /* Recent Captures */
-        .captures-section {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-        .captures-section h2 {
-            color: #fff;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .captures-section h2::before { content: "📥"; }
-        .capture-list {
-            display: grid;
-            gap: 0.75rem;
-        }
-        .capture-item {
-            background: #252525;
-            border-radius: 8px;
-            padding: 1rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 1rem;
-            border-left: 3px solid #444;
-            transition: all 0.2s;
-        }
-        .capture-item:hover { border-color: #7ec8a0; }
-        .capture-item.idea { border-color: #4a9eff; }
-        .capture-item.todo { border-color: #ff6b6b; }
-        .capture-item.note { border-color: #7ec8a0; }
-        .capture-item.reminder { border-color: #ffa500; }
-        .capture-type {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .capture-type.idea { background: #1f2d3d; color: #4a9eff; }
-        .capture-type.todo { background: #3d1f1f; color: #ff6b6b; }
-        .capture-type.note { background: #1f3d2d; color: #7ec8a0; }
-        .capture-type.reminder { background: #3d3d1f; color: #ffa500; }
-        .capture-content { flex: 1; }
-        .capture-text { color: #ccc; margin-bottom: 0.25rem; }
-        .capture-meta { color: #666; font-size: 0.8rem; }
-        .capture-time { color: #666; font-size: 0.8rem; }
-
-        /* Processing Queue */
-        .queue-section {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-        .queue-section h2 {
-            color: #fff;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .queue-section h2::before { content: "⚙️"; }
-        .queue-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .queue-stat {
-            background: #252525;
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .queue-stat h4 { font-size: 1.5rem; color: #fff; margin-bottom: 0.25rem; }
-        .queue-stat p { color: #888; font-size: 0.8rem; }
-
-        /* Test Capture */
-        .test-section {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 2rem;
-        }
-        .test-section h2 {
-            color: #fff;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .test-section h2::before { content: "🧪"; }
-        .capture-input-wrapper {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        .capture-input {
-            flex: 1;
-            background: #252525;
-            border: 1px solid #333;
-            color: #fff;
-            padding: 1rem;
-            border-radius: 8px;
-            font-size: 1rem;
-        }
-        .capture-input:focus { outline: none; border-color: #7ec8a0; }
-        .capture-btn {
-            background: #7ec8a0;
-            color: #0f0f0f;
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .capture-btn:hover { background: #6ab88f; }
-        .hint {
-            color: #666;
-            font-size: 0.85rem;
-        }
-        .hint code {
-            background: #252525;
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            color: #7ec8a0;
-        }
     </style>
-</head>
-<body>
-    <div class="header">
-        <nav class="main-nav">
-            <a href="/">Dashboard</a>
-            <a href="/cis.html">CIS</a>
-            <a href="/sticker-business.html">Sticker Business</a>
-            <a href="/ceramics-intelligence.html">Ceramics</a>
-            <a href="/natural-capture.html" class="active">Natural Capture</a>
-        </nav>
-        <h1>🌿 Natural Capture</h1>
-        <p>Zero-friction capture for ideas, todos, notes, and reminders</p>
-    </div>
-
-    <div class="stats">
-        <div class="stat-card">
-            <h3 id="today-captures">0</h3>
-            <p>Today's Captures</p>
-        </div>
-        <div class="stat-card">
-            <h3 id="week-captures">0</h3>
-            <p>This Week</p>
-        </div>
-        <div class="stat-card">
-            <h3 id="total-captures">0</h3>
-            <p>Total Captures</p>
-        </div>
-        <div class="stat-card">
-            <h3 id="para-routed">0</h3>
-            <p>PARA Routed</p>
-        </div>
-    </div>
-
-    <div class="container">
-        <!-- Status Panel -->
-        <div class="status-panel">
-            <h2>System Status</h2>
-            <span class="status-indicator">Capture System Active</span>
-            <p style="color: #888; margin-top: 1rem; font-size: 0.9rem;">
-                Listening for trigger phrases: "idea:", "todo:", "note:", "remind me..."
-            </p>
-        </div>
-
-        <!-- Capture Triggers -->
-        <div class="triggers-section">
-            <h2>Trigger Phrases</h2>
-            <div class="triggers-grid">
-                <div class="trigger-card">
-                    <span class="keyword">idea:</span>
-                    <p>Captures ideas, concepts, possibilities</p>
-                </div>
-                <div class="trigger-card">
-                    <span class="keyword">todo:</span>
-                    <p>Tasks, actions, things to do</p>
-                </div>
-                <div class="trigger-card">
-                    <span class="keyword">note:</span>
-                    <p>General notes, observations, thoughts</p>
-                </div>
-                <div class="trigger-card">
-                    <span class="keyword">remind me...</span>
-                    <p>Time-based reminders</p>
-                </div>
-                <div class="trigger-card">
-                    <span class="keyword">bookmark:</span>
-                    <p>Save for later reference</p>
-                </div>
-                <div class="trigger-card">
-                    <span class="keyword">question:</span>
-                    <p>Open questions to revisit</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Processing Queue -->
-        <div class="queue-section">
-            <h2>Processing Queue</h2>
-            <div class="queue-stats">
-                <div class="queue-stat">
-                    <h4 id="queued-count">0</h4>
-                    <p>Queued</p>
-                </div>
-                <div class="queue-stat">
-                    <h4 id="processing-count">0</h4>
-                    <p>Processing</p>
-                </div>
-                <div class="queue-stat">
-                    <h4 id="completed-count">0</h4>
-                    <p>Completed</p>
-                </div>
-                <div class="queue-stat">
-                    <h4 id">failed-count">0</h4>
-                    <p>Failed</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Captures -->
-        <div class="captures-section">
-            <h2>Recent Captures</h2>
-            <div class="capture-list" id="capture-list">
-                <div class="capture-item note">
-                    <span class="capture-type note">Note</span>
-                    <div class="capture-content">
-                        <div class="capture-text">Natural Capture system deployed to dashboard</div>
-                        <div class="capture-meta">Routed to: system-log</div>
-                    </div>
-                    <span class="capture-time">Just now</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Test Capture -->
-        <div class="test-section">
-            <h2>Test Capture</h2>
-            <div class="capture-input-wrapper">
-                <input type="text" class="capture-input" id="test-input" placeholder="Try: 'idea: build a sticker business' or 'todo: buy more coffee'">
-                <button class="capture-btn" onclick="testCapture()">CAPTURE</button>
-            </div>
-            <p class="hint">
-                Try phrases like: <code>idea:</code> <code>todo:</code> <code>note:</code> <code>remind me to...</code>
-            </p>
-        </div>
-    </div>
 
     <script>
         function testCapture() {
@@ -411,31 +179,53 @@
 
             // Simple classification
             let type = 'note';
-            if (text.toLowerCase().startsWith('idea:')) type = 'idea';
-            else if (text.toLowerCase().startsWith('todo:')) type = 'todo';
-            else if (text.toLowerCase().startsWith('remind')) type = 'reminder';
+            let badgeClass = 'badge-capture';
+            let route = 'inbox';
+            
+            const lower = text.toLowerCase();
+            if (lower.startsWith('idea:')) {
+                type = 'idea';
+                badgeClass = 'badge-cis';
+                route = 'projects';
+            } else if (lower.startsWith('todo:')) {
+                type = 'todo';
+                badgeClass = 'badge-sticker';
+                route = 'tasks';
+            } else if (lower.startsWith('remind')) {
+                type = 'reminder';
+                badgeClass = 'badge-ceramics';
+                route = 'calendar';
+            }
 
             // Add to list
             const list = document.getElementById('capture-list');
             const item = document.createElement('div');
-            item.className = `capture-item ${type}`;
+            item.style.cssText = 'display:flex;align-items:center;gap:1rem;padding:1rem;border-bottom:1px solid var(--border-default);animation:fadeIn 0.3s ease;';
             item.innerHTML = `
-                <span class="capture-type ${type}">${type}</span>
-                <div class="capture-content">
-                    <div class="capture-text">${text}</div>
-                    <div class="capture-meta">Routed to: ${type === 'todo' ? 'tasks' : 'inbox'}</div>
+                <span class="badge ${badgeClass}">${type.toUpperCase()}</span>
+                <div style="flex:1;">
+                    <div>${escapeHtml(text)}</div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);">Routed to: ${route}</div>
                 </div>
-                <span class="capture-time">Just now</span>
+                <span style="font-size:0.8rem;color:var(--text-muted);">Just now</span>
             `;
             list.insertBefore(item, list.firstChild);
 
             input.value = '';
+            
+            // Update count
+            const todayEl = document.getElementById('today-captures');
+            todayEl.textContent = parseInt(todayEl.textContent) + 1;
         }
 
-        // Enter key to submit
-        document.getElementById('test-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') testCapture();
-        });
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
     </script>
 </body>
 </html>

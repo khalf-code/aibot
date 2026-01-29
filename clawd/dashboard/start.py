@@ -630,6 +630,8 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.send_file(TEMPLATES_DIR / 'ceramics-intelligence.html', 'text/html')
         elif path == '/static/style.css':
             self.send_file(STATIC_DIR / 'style.css', 'text/css')
+        elif path == '/static/design-system.css':
+            self.send_file(STATIC_DIR / 'design-system.css', 'text/css')
         elif path == '/static/app.js':
             self.send_file(STATIC_DIR / 'app.js', 'application/javascript')
 
