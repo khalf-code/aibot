@@ -30,6 +30,7 @@ import { applyHookMappings } from "./hooks-mapping.js";
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
+import { applyStandardSecurityHeaders } from "./http-utils.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
 
@@ -236,13 +237,7 @@ export function createGatewayHttpServer(opts: {
     if (String(req.headers.upgrade ?? "").toLowerCase() === "websocket") return;
 
     // Set standard security headers.
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
-    res.setHeader("X-XSS-Protection", "0");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    if (opts.tlsOptions) {
-      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-    }
+    applyStandardSecurityHeaders(res, { isHttps: Boolean(opts.tlsOptions) });
 
     try {
       const configSnapshot = loadConfig();

@@ -229,9 +229,12 @@ function serveIndexHtml(res: ServerResponse, indexPath: string, opts: ServeIndex
 
 function isSafeRelativePath(relPath: string) {
   if (!relPath) return false;
+  if (relPath.includes("\0")) return false;
+  // URLs should use forward slashes; literal backslashes can be used to bypass
+  // directory traversal checks on Windows.
+  if (relPath.includes("\\")) return false;
   const normalized = path.posix.normalize(relPath);
   if (normalized.startsWith("../") || normalized === "..") return false;
-  if (normalized.includes("\0")) return false;
   return true;
 }
 
@@ -295,8 +298,9 @@ export function handleControlUiHttpRequest(
     return true;
   }
 
+  const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
   const filePath = path.join(root, fileRel);
-  if (!filePath.startsWith(root)) {
+  if (!filePath.startsWith(rootWithSep)) {
     respondNotFound(res);
     return true;
   }

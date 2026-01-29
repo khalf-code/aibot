@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { IncomingMessage } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { buildAgentMainSessionKey, normalizeAgentId } from "../routing/session-key.js";
 
@@ -59,4 +59,18 @@ export function resolveSessionKey(params: {
   const user = params.user?.trim();
   const mainKey = user ? `${params.prefix}-user:${user}` : `${params.prefix}:${randomUUID()}`;
   return buildAgentMainSessionKey({ agentId: params.agentId, mainKey });
+}
+
+/**
+ * Applies standard security headers to an HTTP response to prevent common
+ * vulnerabilities like MIME-sniffing, clickjacking, and XSS.
+ */
+export function applyStandardSecurityHeaders(res: ServerResponse, options?: { isHttps?: boolean }) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-XSS-Protection", "0");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (options?.isHttps) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
 }

@@ -9,6 +9,7 @@ import chokidar from "chokidar";
 import { type WebSocket, WebSocketServer } from "ws";
 import { isTruthyEnvValue } from "../infra/env.js";
 import { SafeOpenError, openFileWithinRoot } from "../infra/fs-safe.js";
+import { applyStandardSecurityHeaders } from "../gateway/http-utils.js";
 import { detectMime } from "../media/mime.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { ensureDir, resolveUserPath } from "../utils.js";
@@ -423,6 +424,9 @@ export async function startCanvasHost(opts: CanvasHostServerOpts): Promise<Canva
   const bindHost = opts.listenHost?.trim() || "0.0.0.0";
   const server: Server = http.createServer((req, res) => {
     if (String(req.headers.upgrade ?? "").toLowerCase() === "websocket") return;
+
+    applyStandardSecurityHeaders(res);
+
     void (async () => {
       if (await handleA2uiHttpRequest(req, res)) return;
       if (await handler.handleHttpRequest(req, res)) return;
