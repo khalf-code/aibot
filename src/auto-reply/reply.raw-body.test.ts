@@ -24,8 +24,8 @@ async function withTempHome<T>(fn: (home: string) => Promise<T>): Promise<T> {
     },
     {
       env: {
-        CLAWDBOT_AGENT_DIR: (home) => path.join(home, ".clawdbot", "agent"),
-        PI_CODING_AGENT_DIR: (home) => path.join(home, ".clawdbot", "agent"),
+        MOLTBOT_AGENT_DIR: (home) => path.join(home, ".moltbot", "agent"),
+        PI_CODING_AGENT_DIR: (home) => path.join(home, ".moltbot", "agent"),
       },
       prefix: "moltbot-rawbody-",
     },

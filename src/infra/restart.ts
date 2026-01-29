@@ -95,8 +95,8 @@ export function triggerMoltbotRestart(): RestartAttempt {
   if (process.platform !== "darwin") {
     if (process.platform === "linux") {
       const unit = normalizeSystemdUnit(
-        process.env.CLAWDBOT_SYSTEMD_UNIT,
-        process.env.CLAWDBOT_PROFILE,
+        process.env.MOLTBOT_SYSTEMD_UNIT,
+        process.env.MOLTBOT_PROFILE,
       );
       const userArgs = ["--user", "restart", unit];
       tried.push(`systemctl ${userArgs.join(" ")}`);
@@ -130,8 +130,8 @@ export function triggerMoltbotRestart(): RestartAttempt {
   }
 
   const label =
-    process.env.CLAWDBOT_LAUNCHD_LABEL ||
-    resolveGatewayLaunchAgentLabel(process.env.CLAWDBOT_PROFILE);
+    process.env.MOLTBOT_LAUNCHD_LABEL ||
+    resolveGatewayLaunchAgentLabel(process.env.MOLTBOT_PROFILE);
   const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
   const target = uid !== undefined ? `gui/${uid}/${label}` : label;
   const args = ["kickstart", "-k", target];

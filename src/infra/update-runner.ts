@@ -692,7 +692,7 @@ export async function runGatewayUpdate(opts: UpdateRunnerOptions = {}): Promise<
         "moltbot doctor",
         managerScriptArgs(manager, "moltbot", ["doctor", "--non-interactive"]),
         gitRoot,
-        { CLAWDBOT_UPDATE_IN_PROGRESS: "1" },
+        { MOLTBOT_UPDATE_IN_PROGRESS: "1" },
       ),
     );
     steps.push(doctorStep);

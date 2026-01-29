@@ -5,8 +5,8 @@
  * This is the primary entry point for the Twitch channel integration.
  */
 
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
-import { buildChannelConfigSchema } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
+import { buildChannelConfigSchema } from "moltbot/plugin-sdk";
 import { twitchMessageActions } from "./actions.js";
 import { TwitchConfigSchema } from "./config-schema.js";
 import { DEFAULT_ACCOUNT_ID, getAccountConfig, listAccountIds } from "./config.js";

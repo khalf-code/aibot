@@ -1,4 +1,4 @@
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 
 import type { ZaloFetch } from "./api.js";
 import { sendMessage, sendPhoto } from "./api.js";

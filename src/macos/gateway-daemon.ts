@@ -2,11 +2,11 @@
 import process from "node:process";
 import type { GatewayLockHandle } from "../infra/gateway-lock.js";
 
-declare const __CLAWDBOT_VERSION__: string;
+declare const __MOLTBOT_VERSION__: string;
 
 const BUNDLED_VERSION =
-  (typeof __CLAWDBOT_VERSION__ === "string" && __CLAWDBOT_VERSION__) ||
-  process.env.CLAWDBOT_BUNDLED_VERSION ||
+  (typeof __MOLTBOT_VERSION__ === "string" && __MOLTBOT_VERSION__) ||
+  process.env.MOLTBOT_BUNDLED_VERSION ||
   "0.0.0";
 
 function argValue(args: string[], flag: string): string | undefined {
@@ -75,7 +75,7 @@ async function main() {
   const cfg = loadConfig();
   const portRaw =
     argValue(args, "--port") ??
-    process.env.CLAWDBOT_GATEWAY_PORT ??
+    process.env.MOLTBOT_GATEWAY_PORT ??
     (typeof cfg.gateway?.port === "number" ? String(cfg.gateway.port) : "") ??
     "18789";
   const port = Number.parseInt(portRaw, 10);
@@ -85,10 +85,7 @@ async function main() {
   }
 
   const bindRaw =
-    argValue(args, "--bind") ??
-    process.env.CLAWDBOT_GATEWAY_BIND ??
-    cfg.gateway?.bind ??
-    "loopback";
+    argValue(args, "--bind") ?? process.env.MOLTBOT_GATEWAY_BIND ?? cfg.gateway?.bind ?? "loopback";
   const bind =
     bindRaw === "loopback" ||
     bindRaw === "lan" ||
@@ -103,7 +100,7 @@ async function main() {
   }
 
   const token = argValue(args, "--token");
-  if (token) process.env.CLAWDBOT_GATEWAY_TOKEN = token;
+  if (token) process.env.MOLTBOT_GATEWAY_TOKEN = token;
 
   let server: Awaited<ReturnType<typeof startGatewayServer>> | null = null;
   let lock: GatewayLockHandle | null = null;

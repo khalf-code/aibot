@@ -5,11 +5,11 @@ import {
   normalizeAccountId,
   type ChannelOnboardingAdapter,
   type WizardPrompter,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import { listTlonAccountIds, resolveTlonAccount } from "./types.js";
 import type { TlonResolvedAccount } from "./types.js";
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 
 const channel = "tlon" as const;
 

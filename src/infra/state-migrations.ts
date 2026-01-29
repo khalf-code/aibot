@@ -316,7 +316,7 @@ export async function autoMigrateLegacyStateDir(params: {
   autoMigrateStateDirChecked = true;
 
   const env = params.env ?? process.env;
-  if (env.MOLTBOT_STATE_DIR?.trim() || env.CLAWDBOT_STATE_DIR?.trim()) {
+  if (env.MOLTBOT_STATE_DIR?.trim() || env.MOLTBOT_STATE_DIR?.trim()) {
     return { migrated: false, skipped: true, changes: [], warnings: [] };
   }
 
@@ -727,7 +727,7 @@ export async function autoMigrateLegacyState(params: {
     homedir: params.homedir,
     log: params.log,
   });
-  if (env.CLAWDBOT_AGENT_DIR?.trim() || env.PI_CODING_AGENT_DIR?.trim()) {
+  if (env.MOLTBOT_AGENT_DIR?.trim() || env.PI_CODING_AGENT_DIR?.trim()) {
     return {
       migrated: stateDirResult.migrated,
       skipped: true,

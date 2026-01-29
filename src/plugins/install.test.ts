@@ -88,7 +88,7 @@ afterEach(() => {
 });
 
 describe("installPluginFromArchive", () => {
-  it("installs into ~/.clawdbot/extensions and uses unscoped id", async () => {
+  it("installs into ~/.moltbot/extensions and uses unscoped id", async () => {
     const stateDir = makeTempDir();
     const workDir = makeTempDir();
     const pkgDir = path.join(workDir, "package");

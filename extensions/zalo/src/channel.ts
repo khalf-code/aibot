@@ -3,7 +3,7 @@ import type {
   ChannelDock,
   ChannelPlugin,
   MoltbotConfig,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 import {
   applyAccountNameToChannelSection,
   buildChannelConfigSchema,
@@ -14,7 +14,7 @@ import {
   normalizeAccountId,
   PAIRING_APPROVED_MESSAGE,
   setAccountEnabledInConfigSection,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import { listZaloAccountIds, resolveDefaultZaloAccountId, resolveZaloAccount, type ResolvedZaloAccount } from "./accounts.js";
 import { zaloMessageActions } from "./actions.js";

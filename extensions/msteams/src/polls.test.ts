@@ -4,17 +4,17 @@ import path from "node:path";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { PluginRuntime } from "clawdbot/plugin-sdk";
+import type { PluginRuntime } from "moltbot/plugin-sdk";
 import { buildMSTeamsPollCard, createMSTeamsPollStoreFs, extractMSTeamsPollVote } from "./polls.js";
 import { setMSTeamsRuntime } from "./runtime.js";
 
 const runtimeStub = {
   state: {
     resolveStateDir: (env: NodeJS.ProcessEnv = process.env, homedir?: () => string) => {
-      const override = env.CLAWDBOT_STATE_DIR?.trim();
+      const override = env.MOLTBOT_STATE_DIR?.trim();
       if (override) return override;
       const resolvedHome = homedir ? homedir() : os.homedir();
-      return path.join(resolvedHome, ".clawdbot");
+      return path.join(resolvedHome, ".moltbot");
     },
   },
 } as unknown as PluginRuntime;

@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 
 import type WebSocket from "ws";
 
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 
 export type ResponsePrefixContext = {
   model?: string;

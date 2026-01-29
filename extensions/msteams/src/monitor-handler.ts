@@ -1,4 +1,4 @@
-import type { MoltbotConfig, RuntimeEnv } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig, RuntimeEnv } from "moltbot/plugin-sdk";
 import type { MSTeamsConversationStore } from "./conversation-store.js";
 import {
   buildFileInfoCard,

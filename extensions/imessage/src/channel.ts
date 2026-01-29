@@ -21,7 +21,7 @@ import {
   setAccountEnabledInConfigSection,
   type ChannelPlugin,
   type ResolvedIMessageAccount,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import { getIMessageRuntime } from "./runtime.js";
 

@@ -17,9 +17,9 @@ describe("ensureMoltbotCliOnPath", () => {
       await fs.chmod(cliPath, 0o755);
 
       const originalPath = process.env.PATH;
-      const originalFlag = process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
+      const originalFlag = process.env.MOLTBOT_PATH_BOOTSTRAPPED;
       process.env.PATH = "/usr/bin";
-      delete process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
+      delete process.env.MOLTBOT_PATH_BOOTSTRAPPED;
       try {
         ensureMoltbotCliOnPath({
           execPath: cliPath,
@@ -31,8 +31,8 @@ describe("ensureMoltbotCliOnPath", () => {
         expect(updated.split(path.delimiter)[0]).toBe(appBinDir);
       } finally {
         process.env.PATH = originalPath;
-        if (originalFlag === undefined) delete process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
-        else process.env.CLAWDBOT_PATH_BOOTSTRAPPED = originalFlag;
+        if (originalFlag === undefined) delete process.env.MOLTBOT_PATH_BOOTSTRAPPED;
+        else process.env.MOLTBOT_PATH_BOOTSTRAPPED = originalFlag;
       }
     } finally {
       await fs.rm(tmp, { recursive: true, force: true });
@@ -41,9 +41,9 @@ describe("ensureMoltbotCliOnPath", () => {
 
   it("is idempotent", () => {
     const originalPath = process.env.PATH;
-    const originalFlag = process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
+    const originalFlag = process.env.MOLTBOT_PATH_BOOTSTRAPPED;
     process.env.PATH = "/bin";
-    process.env.CLAWDBOT_PATH_BOOTSTRAPPED = "1";
+    process.env.MOLTBOT_PATH_BOOTSTRAPPED = "1";
     try {
       ensureMoltbotCliOnPath({
         execPath: "/tmp/does-not-matter",
@@ -54,15 +54,15 @@ describe("ensureMoltbotCliOnPath", () => {
       expect(process.env.PATH).toBe("/bin");
     } finally {
       process.env.PATH = originalPath;
-      if (originalFlag === undefined) delete process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
-      else process.env.CLAWDBOT_PATH_BOOTSTRAPPED = originalFlag;
+      if (originalFlag === undefined) delete process.env.MOLTBOT_PATH_BOOTSTRAPPED;
+      else process.env.MOLTBOT_PATH_BOOTSTRAPPED = originalFlag;
     }
   });
 
   it("prepends mise shims when available", async () => {
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "moltbot-path-"));
     const originalPath = process.env.PATH;
-    const originalFlag = process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
+    const originalFlag = process.env.MOLTBOT_PATH_BOOTSTRAPPED;
     const originalMiseDataDir = process.env.MISE_DATA_DIR;
     try {
       const appBinDir = path.join(tmp, "AppBin");
@@ -82,7 +82,7 @@ describe("ensureMoltbotCliOnPath", () => {
       await fs.mkdir(shimsDir, { recursive: true });
       process.env.MISE_DATA_DIR = miseDataDir;
       process.env.PATH = "/usr/bin";
-      delete process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
+      delete process.env.MOLTBOT_PATH_BOOTSTRAPPED;
 
       ensureMoltbotCliOnPath({
         execPath: appCli,
@@ -101,8 +101,8 @@ describe("ensureMoltbotCliOnPath", () => {
       expect(shimsIndex).toBeGreaterThan(localIndex);
     } finally {
       process.env.PATH = originalPath;
-      if (originalFlag === undefined) delete process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
-      else process.env.CLAWDBOT_PATH_BOOTSTRAPPED = originalFlag;
+      if (originalFlag === undefined) delete process.env.MOLTBOT_PATH_BOOTSTRAPPED;
+      else process.env.MOLTBOT_PATH_BOOTSTRAPPED = originalFlag;
       if (originalMiseDataDir === undefined) delete process.env.MISE_DATA_DIR;
       else process.env.MISE_DATA_DIR = originalMiseDataDir;
       await fs.rm(tmp, { recursive: true, force: true });
@@ -112,7 +112,7 @@ describe("ensureMoltbotCliOnPath", () => {
   it("prepends Linuxbrew dirs when present", async () => {
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "moltbot-path-"));
     const originalPath = process.env.PATH;
-    const originalFlag = process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
+    const originalFlag = process.env.MOLTBOT_PATH_BOOTSTRAPPED;
     const originalHomebrewPrefix = process.env.HOMEBREW_PREFIX;
     const originalHomebrewBrewFile = process.env.HOMEBREW_BREW_FILE;
     const originalXdgBinHome = process.env.XDG_BIN_HOME;
@@ -126,7 +126,7 @@ describe("ensureMoltbotCliOnPath", () => {
       await fs.mkdir(linuxbrewSbin, { recursive: true });
 
       process.env.PATH = "/usr/bin";
-      delete process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
+      delete process.env.MOLTBOT_PATH_BOOTSTRAPPED;
       delete process.env.HOMEBREW_PREFIX;
       delete process.env.HOMEBREW_BREW_FILE;
       delete process.env.XDG_BIN_HOME;
@@ -144,8 +144,8 @@ describe("ensureMoltbotCliOnPath", () => {
       expect(parts[1]).toBe(linuxbrewSbin);
     } finally {
       process.env.PATH = originalPath;
-      if (originalFlag === undefined) delete process.env.CLAWDBOT_PATH_BOOTSTRAPPED;
-      else process.env.CLAWDBOT_PATH_BOOTSTRAPPED = originalFlag;
+      if (originalFlag === undefined) delete process.env.MOLTBOT_PATH_BOOTSTRAPPED;
+      else process.env.MOLTBOT_PATH_BOOTSTRAPPED = originalFlag;
       if (originalHomebrewPrefix === undefined) delete process.env.HOMEBREW_PREFIX;
       else process.env.HOMEBREW_PREFIX = originalHomebrewPrefix;
       if (originalHomebrewBrewFile === undefined) delete process.env.HOMEBREW_BREW_FILE;

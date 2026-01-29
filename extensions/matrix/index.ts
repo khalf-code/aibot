@@ -1,5 +1,5 @@
-import type { MoltbotPluginApi } from "clawdbot/plugin-sdk";
-import { emptyPluginConfigSchema } from "clawdbot/plugin-sdk";
+import type { MoltbotPluginApi } from "moltbot/plugin-sdk";
+import { emptyPluginConfigSchema } from "moltbot/plugin-sdk";
 
 import { matrixPlugin } from "./src/channel.js";
 import { setMatrixRuntime } from "./src/runtime.js";

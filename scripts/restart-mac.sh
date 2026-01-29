@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_BUNDLE="${CLAWDBOT_APP_BUNDLE:-}"
+APP_BUNDLE="${MOLTBOT_APP_BUNDLE:-}"
 APP_PROCESS_PATTERN="Moltbot.app/Contents/MacOS/Moltbot"
 DEBUG_PROCESS_PATTERN="${ROOT_DIR}/apps/macos/.build/debug/Moltbot"
 LOCAL_PROCESS_PATTERN="${ROOT_DIR}/apps/macos/.build-local/debug/Moltbot"
@@ -14,12 +14,12 @@ LOCK_KEY="$(printf '%s' "${ROOT_DIR}" | shasum -a 256 | cut -c1-8)"
 LOCK_DIR="${TMPDIR:-/tmp}/moltbot-restart-${LOCK_KEY}"
 LOCK_PID_FILE="${LOCK_DIR}/pid"
 WAIT_FOR_LOCK=0
-LOG_PATH="${CLAWDBOT_RESTART_LOG:-/tmp/moltbot-restart.log}"
+LOG_PATH="${MOLTBOT_RESTART_LOG:-/tmp/moltbot-restart.log}"
 NO_SIGN=0
 SIGN=0
 AUTO_DETECT_SIGNING=1
-GATEWAY_WAIT_SECONDS="${CLAWDBOT_GATEWAY_WAIT_SECONDS:-0}"
-LAUNCHAGENT_DISABLE_MARKER="${HOME}/.clawdbot/disable-launchagent"
+GATEWAY_WAIT_SECONDS="${MOLTBOT_GATEWAY_WAIT_SECONDS:-0}"
+LAUNCHAGENT_DISABLE_MARKER="${HOME}/.moltbot/disable-launchagent"
 ATTACH_ONLY=1
 
 log()  { printf '%s\n' "$*"; }
@@ -93,14 +93,14 @@ for arg in "$@"; do
       log "  --no-attach-only Launch app without attach-only override"
       log ""
       log "Env:"
-      log "  CLAWDBOT_GATEWAY_WAIT_SECONDS=0  Wait time before gateway port check (unsigned only)"
+      log "  MOLTBOT_GATEWAY_WAIT_SECONDS=0  Wait time before gateway port check (unsigned only)"
       log ""
       log "Unsigned recovery:"
       log "  node moltbot.mjs daemon install --force --runtime node"
       log "  node moltbot.mjs daemon restart"
       log ""
       log "Reset unsigned overrides:"
-      log "  rm ~/.clawdbot/disable-launchagent"
+      log "  rm ~/.moltbot/disable-launchagent"
       log ""
       log "Default behavior: Auto-detect signing keys, fallback to --no-sign if none found"
       exit 0
@@ -173,7 +173,7 @@ fi
 if [ "$NO_SIGN" -eq 1 ]; then
   export ALLOW_ADHOC_SIGNING=1
   export SIGN_IDENTITY="-"
-  mkdir -p "${HOME}/.clawdbot"
+  mkdir -p "${HOME}/.moltbot"
   run_step "disable launchagent writes" /usr/bin/touch "${LAUNCHAGENT_DISABLE_MARKER}"
 elif [ "$SIGN" -eq 1 ]; then
   if ! check_signing_keys; then
@@ -204,7 +204,7 @@ choose_app_bundle() {
     return 0
   fi
 
-  fail "App bundle not found. Set CLAWDBOT_APP_BUNDLE to your installed Moltbot.app"
+  fail "App bundle not found. Set MOLTBOT_APP_BUNDLE to your installed Moltbot.app"
 }
 
 choose_app_bundle
@@ -227,7 +227,7 @@ if [ "$NO_SIGN" -eq 1 ] && [ "$ATTACH_ONLY" -ne 1 ]; then
       const fs = require("node:fs");
       const path = require("node:path");
       try {
-        const raw = fs.readFileSync(path.join(process.env.HOME, ".clawdbot", "moltbot.json"), "utf8");
+        const raw = fs.readFileSync(path.join(process.env.HOME, ".moltbot", "moltbot.json"), "utf8");
         const cfg = JSON.parse(raw);
         const port = cfg && cfg.gateway && typeof cfg.gateway.port === "number" ? cfg.gateway.port : 18789;
         process.stdout.write(String(port));

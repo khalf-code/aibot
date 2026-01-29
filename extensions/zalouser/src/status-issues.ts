@@ -1,4 +1,4 @@
-import type { ChannelAccountSnapshot, ChannelStatusIssue } from "clawdbot/plugin-sdk";
+import type { ChannelAccountSnapshot, ChannelStatusIssue } from "moltbot/plugin-sdk";
 
 type ZalouserAccountStatus = {
   accountId?: unknown;

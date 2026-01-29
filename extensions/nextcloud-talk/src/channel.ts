@@ -9,7 +9,7 @@ import {
   type ChannelPlugin,
   type MoltbotConfig,
   type ChannelSetupInput,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import {
   listNextcloudTalkAccountIds,

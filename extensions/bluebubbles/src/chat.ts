@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { resolveBlueBubblesAccount } from "./accounts.js";
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 import { blueBubblesFetchWithTimeout, buildBlueBubblesApiUrl } from "./types.js";
 
 export type BlueBubblesChatOpts = {

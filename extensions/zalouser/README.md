@@ -1,4 +1,4 @@
-# @clawdbot/zalouser
+# @moltbot/zalouser
 
 Clawdbot extension for Zalo Personal Account messaging via [zca-cli](https://zca-cli.dev).
 

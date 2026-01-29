@@ -75,11 +75,11 @@ beforeEach(() => {
 
   originalIsTTY = process.stdin.isTTY;
   setStdinTty(true);
-  originalStateDir = process.env.CLAWDBOT_STATE_DIR;
-  originalUpdateInProgress = process.env.CLAWDBOT_UPDATE_IN_PROGRESS;
-  process.env.CLAWDBOT_UPDATE_IN_PROGRESS = "1";
+  originalStateDir = process.env.MOLTBOT_STATE_DIR;
+  originalUpdateInProgress = process.env.MOLTBOT_UPDATE_IN_PROGRESS;
+  process.env.MOLTBOT_UPDATE_IN_PROGRESS = "1";
   tempStateDir = fs.mkdtempSync(path.join(os.tmpdir(), "moltbot-doctor-state-"));
-  process.env.CLAWDBOT_STATE_DIR = tempStateDir;
+  process.env.MOLTBOT_STATE_DIR = tempStateDir;
   fs.mkdirSync(path.join(tempStateDir, "agents", "main", "sessions"), {
     recursive: true,
   });
@@ -89,14 +89,14 @@ beforeEach(() => {
 afterEach(() => {
   setStdinTty(originalIsTTY);
   if (originalStateDir === undefined) {
-    delete process.env.CLAWDBOT_STATE_DIR;
+    delete process.env.MOLTBOT_STATE_DIR;
   } else {
-    process.env.CLAWDBOT_STATE_DIR = originalStateDir;
+    process.env.MOLTBOT_STATE_DIR = originalStateDir;
   }
   if (originalUpdateInProgress === undefined) {
-    delete process.env.CLAWDBOT_UPDATE_IN_PROGRESS;
+    delete process.env.MOLTBOT_UPDATE_IN_PROGRESS;
   } else {
-    process.env.CLAWDBOT_UPDATE_IN_PROGRESS = originalUpdateInProgress;
+    process.env.MOLTBOT_UPDATE_IN_PROGRESS = originalUpdateInProgress;
   }
   if (tempStateDir) {
     fs.rmSync(tempStateDir, { recursive: true, force: true });
@@ -348,7 +348,7 @@ describe("doctor command", () => {
 
     const missingDir = fs.mkdtempSync(path.join(os.tmpdir(), "moltbot-missing-state-"));
     fs.rmSync(missingDir, { recursive: true, force: true });
-    process.env.CLAWDBOT_STATE_DIR = missingDir;
+    process.env.MOLTBOT_STATE_DIR = missingDir;
     note.mockClear();
 
     const { doctorCommand } = await import("./doctor.js");
@@ -396,7 +396,7 @@ describe("doctor command", () => {
     expect(warned).toBe(true);
   });
 
-  it("skips gateway auth warning when CLAWDBOT_GATEWAY_TOKEN is set", async () => {
+  it("skips gateway auth warning when MOLTBOT_GATEWAY_TOKEN is set", async () => {
     readConfigFileSnapshot.mockResolvedValue({
       path: "/tmp/moltbot.json",
       exists: true,
@@ -410,8 +410,8 @@ describe("doctor command", () => {
       legacyIssues: [],
     });
 
-    const prevToken = process.env.CLAWDBOT_GATEWAY_TOKEN;
-    process.env.CLAWDBOT_GATEWAY_TOKEN = "env-token-1234567890";
+    const prevToken = process.env.MOLTBOT_GATEWAY_TOKEN;
+    process.env.MOLTBOT_GATEWAY_TOKEN = "env-token-1234567890";
     note.mockClear();
 
     try {
@@ -421,8 +421,8 @@ describe("doctor command", () => {
         { nonInteractive: true, workspaceSuggestions: false },
       );
     } finally {
-      if (prevToken === undefined) delete process.env.CLAWDBOT_GATEWAY_TOKEN;
-      else process.env.CLAWDBOT_GATEWAY_TOKEN = prevToken;
+      if (prevToken === undefined) delete process.env.MOLTBOT_GATEWAY_TOKEN;
+      else process.env.MOLTBOT_GATEWAY_TOKEN = prevToken;
     }
 
     const warned = note.mock.calls.some(([message]) =>

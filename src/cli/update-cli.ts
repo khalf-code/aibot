@@ -114,7 +114,7 @@ const MAX_LOG_CHARS = 8000;
 const DEFAULT_PACKAGE_NAME = "moltbot";
 const CORE_PACKAGE_NAMES = new Set([DEFAULT_PACKAGE_NAME, "moltbot"]);
 const CLI_NAME = resolveCliName();
-const CLAWDBOT_REPO_URL = "https://github.com/moltbot/moltbot.git";
+const MOLTBOT_REPO_URL = "https://github.com/moltbot/moltbot.git";
 const DEFAULT_GIT_DIR = path.join(os.homedir(), "moltbot");
 
 function normalizeTag(value?: string | null): string | null {
@@ -200,7 +200,7 @@ async function isEmptyDir(targetPath: string): Promise<boolean> {
 }
 
 function resolveGitInstallDir(): string {
-  const override = process.env.CLAWDBOT_GIT_DIR?.trim();
+  const override = process.env.MOLTBOT_GIT_DIR?.trim();
   if (override) return path.resolve(override);
   return DEFAULT_GIT_DIR;
 }
@@ -261,7 +261,7 @@ async function ensureGitCheckout(params: {
   if (!dirExists) {
     return await runUpdateStep({
       name: "git clone",
-      argv: ["git", "clone", CLAWDBOT_REPO_URL, params.dir],
+      argv: ["git", "clone", MOLTBOT_REPO_URL, params.dir],
       timeoutMs: params.timeoutMs,
       progress: params.progress,
     });
@@ -271,12 +271,12 @@ async function ensureGitCheckout(params: {
     const empty = await isEmptyDir(params.dir);
     if (!empty) {
       throw new Error(
-        `CLAWDBOT_GIT_DIR points at a non-git directory: ${params.dir}. Set CLAWDBOT_GIT_DIR to an empty folder or a moltbot checkout.`,
+        `MOLTBOT_GIT_DIR points at a non-git directory: ${params.dir}. Set MOLTBOT_GIT_DIR to an empty folder or a moltbot checkout.`,
       );
     }
     return await runUpdateStep({
       name: "git clone",
-      argv: ["git", "clone", CLAWDBOT_REPO_URL, params.dir],
+      argv: ["git", "clone", MOLTBOT_REPO_URL, params.dir],
       cwd: params.dir,
       timeoutMs: params.timeoutMs,
       progress: params.progress,
@@ -284,7 +284,7 @@ async function ensureGitCheckout(params: {
   }
 
   if (!(await isCorePackage(params.dir))) {
-    throw new Error(`CLAWDBOT_GIT_DIR does not look like a core checkout: ${params.dir}.`);
+    throw new Error(`MOLTBOT_GIT_DIR does not look like a core checkout: ${params.dir}.`);
   }
 
   return null;
@@ -929,7 +929,7 @@ export async function updateCommand(opts: UpdateCommandOptions): Promise<void> {
       if (!opts.json && restarted) {
         defaultRuntime.log(theme.success("Daemon restarted successfully."));
         defaultRuntime.log("");
-        process.env.CLAWDBOT_UPDATE_IN_PROGRESS = "1";
+        process.env.MOLTBOT_UPDATE_IN_PROGRESS = "1";
         try {
           const { doctorCommand } = await import("../commands/doctor.js");
           const interactiveDoctor = Boolean(process.stdin.isTTY) && !opts.json && opts.yes !== true;
@@ -937,7 +937,7 @@ export async function updateCommand(opts: UpdateCommandOptions): Promise<void> {
         } catch (err) {
           defaultRuntime.log(theme.warn(`Doctor failed: ${String(err)}`));
         } finally {
-          delete process.env.CLAWDBOT_UPDATE_IN_PROGRESS;
+          delete process.env.MOLTBOT_UPDATE_IN_PROGRESS;
         }
       }
     } catch (err) {
@@ -1066,7 +1066,7 @@ export async function updateWizardCommand(opts: UpdateWizardOptions = {}): Promi
         const empty = await isEmptyDir(gitDir);
         if (!empty) {
           defaultRuntime.error(
-            `CLAWDBOT_GIT_DIR points at a non-git directory: ${gitDir}. Set CLAWDBOT_GIT_DIR to an empty folder or a moltbot checkout.`,
+            `MOLTBOT_GIT_DIR points at a non-git directory: ${gitDir}. Set MOLTBOT_GIT_DIR to an empty folder or a moltbot checkout.`,
           );
           defaultRuntime.exit(1);
           return;
@@ -1074,7 +1074,7 @@ export async function updateWizardCommand(opts: UpdateWizardOptions = {}): Promi
       }
       const ok = await confirm({
         message: stylePromptMessage(
-          `Create a git checkout at ${gitDir}? (override via CLAWDBOT_GIT_DIR)`,
+          `Create a git checkout at ${gitDir}? (override via MOLTBOT_GIT_DIR)`,
         ),
         initialValue: true,
       });

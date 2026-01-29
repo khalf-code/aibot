@@ -9,7 +9,7 @@ describe("diagnostic flags", () => {
       diagnostics: { flags: ["telegram.http", "cache.*"] },
     } as MoltbotConfig;
     const env = {
-      CLAWDBOT_DIAGNOSTICS: "foo,bar",
+      MOLTBOT_DIAGNOSTICS: "foo,bar",
     } as NodeJS.ProcessEnv;
 
     const flags = resolveDiagnosticFlags(cfg, env);
@@ -20,12 +20,12 @@ describe("diagnostic flags", () => {
   });
 
   it("treats env true as wildcard", () => {
-    const env = { CLAWDBOT_DIAGNOSTICS: "1" } as NodeJS.ProcessEnv;
+    const env = { MOLTBOT_DIAGNOSTICS: "1" } as NodeJS.ProcessEnv;
     expect(isDiagnosticFlagEnabled("anything.here", undefined, env)).toBe(true);
   });
 
   it("treats env false as disabled", () => {
-    const env = { CLAWDBOT_DIAGNOSTICS: "0" } as NodeJS.ProcessEnv;
+    const env = { MOLTBOT_DIAGNOSTICS: "0" } as NodeJS.ProcessEnv;
     expect(isDiagnosticFlagEnabled("telegram.http", undefined, env)).toBe(false);
   });
 });

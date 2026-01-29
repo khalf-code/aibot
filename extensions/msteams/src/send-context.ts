@@ -1,4 +1,4 @@
-import { resolveChannelMediaMaxBytes, type MoltbotConfig, type PluginRuntime } from "clawdbot/plugin-sdk";
+import { resolveChannelMediaMaxBytes, type MoltbotConfig, type PluginRuntime } from "moltbot/plugin-sdk";
 import type { MSTeamsAccessTokenProvider } from "./attachments/types.js";
 import type {
   MSTeamsConversationStore,

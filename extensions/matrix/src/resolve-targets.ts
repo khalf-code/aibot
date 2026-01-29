@@ -3,7 +3,7 @@ import type {
   ChannelResolveKind,
   ChannelResolveResult,
   RuntimeEnv,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import {
   listMatrixDirectoryGroupsLive,

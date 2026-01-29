@@ -1,4 +1,4 @@
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 import { getPublicKeyFromPrivate } from "./nostr-bus.js";
 import { DEFAULT_RELAYS } from "./nostr-bus.js";
 import type { NostrProfile } from "./config-schema.js";

@@ -103,25 +103,25 @@ function defaultIndexHTML() {
       window.webkit &&
       window.webkit.messageHandlers &&
       (window.webkit.messageHandlers.moltbotCanvasA2UIAction ||
-        window.webkit.messageHandlers.clawdbotCanvasA2UIAction)
+        window.webkit.messageHandlers.moltbotCanvasA2UIAction)
     );
   const hasAndroid = () =>
     !!(
       (window.moltbotCanvasA2UIAction &&
         typeof window.moltbotCanvasA2UIAction.postMessage === "function") ||
-      (window.clawdbotCanvasA2UIAction &&
-        typeof window.clawdbotCanvasA2UIAction.postMessage === "function")
+      (window.moltbotCanvasA2UIAction &&
+        typeof window.moltbotCanvasA2UIAction.postMessage === "function")
     );
-  const legacySend = typeof window.clawdbotSendUserAction === "function" ? window.clawdbotSendUserAction : undefined;
+  const legacySend = typeof window.moltbotSendUserAction === "function" ? window.moltbotSendUserAction : undefined;
   if (!window.moltbotSendUserAction && legacySend) {
     window.moltbotSendUserAction = legacySend;
   }
-  if (!window.clawdbotSendUserAction && typeof window.moltbotSendUserAction === "function") {
-    window.clawdbotSendUserAction = window.moltbotSendUserAction;
+  if (!window.moltbotSendUserAction && typeof window.moltbotSendUserAction === "function") {
+    window.moltbotSendUserAction = window.moltbotSendUserAction;
   }
   const hasHelper = () =>
     typeof window.moltbotSendUserAction === "function" ||
-    typeof window.clawdbotSendUserAction === "function";
+    typeof window.moltbotSendUserAction === "function";
   statusEl.innerHTML =
     "Bridge: " +
     (hasHelper() ? "<span class='ok'>ready</span>" : "<span class='bad'>missing</span>") +
@@ -141,7 +141,7 @@ function defaultIndexHTML() {
     const sendUserAction =
       typeof window.moltbotSendUserAction === "function"
         ? window.moltbotSendUserAction
-        : window.clawdbotSendUserAction;
+        : window.moltbotSendUserAction;
     const ok = sendUserAction({
       name,
       surfaceId: "main",
@@ -199,7 +199,7 @@ async function resolveFilePath(rootReal: string, urlPath: string) {
 }
 
 function isDisabledByEnv() {
-  if (isTruthyEnvValue(process.env.CLAWDBOT_SKIP_CANVAS_HOST)) return true;
+  if (isTruthyEnvValue(process.env.MOLTBOT_SKIP_CANVAS_HOST)) return true;
   if (process.env.NODE_ENV === "test") return true;
   if (process.env.VITEST) return true;
   return false;

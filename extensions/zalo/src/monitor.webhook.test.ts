@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 
 import { describe, expect, it } from "vitest";
 
-import type { MoltbotConfig, PluginRuntime } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig, PluginRuntime } from "moltbot/plugin-sdk";
 import type { ResolvedZaloAccount } from "./types.js";
 import { handleZaloWebhookRequest, registerZaloWebhookTarget } from "./monitor.js";
 

@@ -3,12 +3,12 @@ import type {
   ChannelPlugin,
   ChannelSetupInput,
   MoltbotConfig,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 import {
   applyAccountNameToChannelSection,
   DEFAULT_ACCOUNT_ID,
   normalizeAccountId,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import { resolveTlonAccount, listTlonAccountIds } from "./types.js";
 import { formatTargetHint, normalizeShip, parseTlonTarget } from "./targets.js";

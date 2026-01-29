@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
-import { resolveMentionGatingWithBypass } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
+import { resolveMentionGatingWithBypass } from "moltbot/plugin-sdk";
 
 import {
   type ResolvedGoogleChatAccount

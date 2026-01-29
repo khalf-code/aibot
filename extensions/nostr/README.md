@@ -1,4 +1,4 @@
-# @clawdbot/nostr
+# @moltbot/nostr
 
 Nostr DM channel plugin for Clawdbot using NIP-04 encrypted direct messages.
 
@@ -13,7 +13,7 @@ This extension adds Nostr as a messaging channel to Clawdbot. It enables your bo
 ## Installation
 
 ```bash
-clawdbot plugins install @clawdbot/nostr
+clawdbot plugins install @moltbot/nostr
 ```
 
 ## Quick Setup

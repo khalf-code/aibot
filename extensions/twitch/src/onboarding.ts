@@ -8,11 +8,11 @@ import {
   type ChannelOnboardingAdapter,
   type ChannelOnboardingDmPolicy,
   type WizardPrompter,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID, getAccountConfig } from "./config.js";
 import { isAccountConfigured } from "./utils/twitch.js";
 import type { TwitchAccountConfig, TwitchRole } from "./types.js";
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 
 const channel = "twitch" as const;
 
@@ -70,7 +70,7 @@ async function noteTwitchSetupHelp(prompter: WizardPrompter): Promise<void> {
       "2. Generate a token with scopes: chat:read and chat:write",
       "   Use https://twitchtokengenerator.com/ or https://twitchapps.com/tmi/",
       "3. Copy the token (starts with 'oauth:') and Client ID",
-      "Env vars supported: CLAWDBOT_TWITCH_ACCESS_TOKEN",
+      "Env vars supported: MOLTBOT_TWITCH_ACCESS_TOKEN",
       `Docs: ${formatDocsLink("/channels/twitch", "channels/twitch")}`,
     ].join("\n"),
     "Twitch setup",
@@ -213,7 +213,7 @@ async function configureWithEnvToken(
   dmPolicy: ChannelOnboardingDmPolicy,
 ): Promise<{ cfg: MoltbotConfig } | null> {
   const useEnv = await prompter.confirm({
-    message: "Twitch env var CLAWDBOT_TWITCH_ACCESS_TOKEN detected. Use env token?",
+    message: "Twitch env var MOLTBOT_TWITCH_ACCESS_TOKEN detected. Use env token?",
     initialValue: true,
   });
   if (!useEnv) {
@@ -316,7 +316,7 @@ export const twitchOnboardingAdapter: ChannelOnboardingAdapter = {
       await noteTwitchSetupHelp(prompter);
     }
 
-    const envToken = process.env.CLAWDBOT_TWITCH_ACCESS_TOKEN?.trim();
+    const envToken = process.env.MOLTBOT_TWITCH_ACCESS_TOKEN?.trim();
 
     // Check if env var is set and config is empty
     if (envToken && !account?.accessToken) {

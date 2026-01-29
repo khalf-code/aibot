@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTALL_URL="${CLAWDBOT_INSTALL_URL:-https://molt.bot/install.sh}"
+INSTALL_URL="${MOLTBOT_INSTALL_URL:-https://molt.bot/install.sh}"
 DEFAULT_PACKAGE="moltbot"
-if [[ -z "${CLAWDBOT_INSTALL_PACKAGE:-}" && "$INSTALL_URL" == *"clawd.bot"* ]]; then
+if [[ -z "${MOLTBOT_INSTALL_PACKAGE:-}" && "$INSTALL_URL" == *"clawd.bot"* ]]; then
   DEFAULT_PACKAGE="clawdbot"
 fi
-PACKAGE_NAME="${CLAWDBOT_INSTALL_PACKAGE:-$DEFAULT_PACKAGE}"
+PACKAGE_NAME="${MOLTBOT_INSTALL_PACKAGE:-$DEFAULT_PACKAGE}"
 if [[ "$PACKAGE_NAME" == "moltbot" ]]; then
   ALT_PACKAGE_NAME="clawdbot"
 else
@@ -28,7 +28,7 @@ export PATH="$HOME/.npm-global/bin:$PATH"
 echo "==> Verify git installed"
 command -v git >/dev/null
 
-EXPECTED_VERSION="${CLAWDBOT_INSTALL_EXPECT_VERSION:-}"
+EXPECTED_VERSION="${MOLTBOT_INSTALL_EXPECT_VERSION:-}"
 if [[ -n "$EXPECTED_VERSION" ]]; then
   LATEST_VERSION="$EXPECTED_VERSION"
 else

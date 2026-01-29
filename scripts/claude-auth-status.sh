@@ -5,7 +5,7 @@
 set -euo pipefail
 
 CLAUDE_CREDS="$HOME/.claude/.credentials.json"
-CLAWDBOT_AUTH="$HOME/.clawdbot/agents/main/agent/auth-profiles.json"
+MOLTBOT_AUTH="$HOME/.moltbot/agents/main/agent/auth-profiles.json"
 
 # Colors for terminal output
 RED='\033[0;31m'
@@ -122,7 +122,7 @@ check_moltbot_auth() {
         return $?
     fi
 
-    if [ ! -f "$CLAWDBOT_AUTH" ]; then
+    if [ ! -f "$MOLTBOT_AUTH" ]; then
         echo "MISSING"
         return 1
     fi
@@ -131,7 +131,7 @@ check_moltbot_auth() {
     expires=$(jq -r '
         [.profiles | to_entries[] | select(.value.provider == "anthropic") | .value.expires]
         | max // 0
-    ' "$CLAWDBOT_AUTH" 2>/dev/null || echo "0")
+    ' "$MOLTBOT_AUTH" 2>/dev/null || echo "0")
 
     calc_status_from_expires "$expires"
 }
@@ -148,7 +148,7 @@ if [ "$OUTPUT_MODE" = "json" ]; then
         moltbot_expires=$(json_expires_for_anthropic_any)
     else
         claude_expires=$(jq -r '.claudeAiOauth.expiresAt // 0' "$CLAUDE_CREDS" 2>/dev/null || echo "0")
-        moltbot_expires=$(jq -r '.profiles["anthropic:default"].expires // 0' "$CLAWDBOT_AUTH" 2>/dev/null || echo "0")
+        moltbot_expires=$(jq -r '.profiles["anthropic:default"].expires // 0' "$MOLTBOT_AUTH" 2>/dev/null || echo "0")
     fi
 
     jq -n \
@@ -173,13 +173,13 @@ if [ "$OUTPUT_MODE" = "simple" ]; then
         echo "CLAUDE_EXPIRED"
         exit 1
     elif [[ "$moltbot_status" == EXPIRED* ]] || [[ "$moltbot_status" == MISSING* ]]; then
-        echo "CLAWDBOT_EXPIRED"
+        echo "MOLTBOT_EXPIRED"
         exit 1
     elif [[ "$claude_status" == EXPIRING* ]]; then
         echo "CLAUDE_EXPIRING"
         exit 2
     elif [[ "$moltbot_status" == EXPIRING* ]]; then
-        echo "CLAWDBOT_EXPIRING"
+        echo "MOLTBOT_EXPIRING"
         exit 2
     else
         echo "OK"
@@ -228,7 +228,7 @@ else
 fi
 
 echo ""
-echo "Moltbot Auth (~/.clawdbot/agents/main/agent/auth-profiles.json):"
+echo "Moltbot Auth (~/.moltbot/agents/main/agent/auth-profiles.json):"
 if [ "$USE_JSON" -eq 1 ]; then
     best_profile=$(json_best_anthropic_profile)
     expires=$(json_expires_for_anthropic_any)
@@ -239,11 +239,11 @@ else
         | map(select(.value.provider == "anthropic"))
         | sort_by(.value.expires) | reverse
         | .[0].key // "none"
-    ' "$CLAWDBOT_AUTH" 2>/dev/null || echo "none")
+    ' "$MOLTBOT_AUTH" 2>/dev/null || echo "none")
     expires=$(jq -r '
         [.profiles | to_entries[] | select(.value.provider == "anthropic") | .value.expires]
         | max // 0
-    ' "$CLAWDBOT_AUTH" 2>/dev/null || echo "0")
+    ' "$MOLTBOT_AUTH" 2>/dev/null || echo "0")
     api_keys=0
 fi
 

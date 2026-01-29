@@ -1,5 +1,5 @@
-import type { MoltbotPluginApi } from "clawdbot/plugin-sdk";
-import { emptyPluginConfigSchema } from "clawdbot/plugin-sdk";
+import type { MoltbotPluginApi } from "moltbot/plugin-sdk";
+import { emptyPluginConfigSchema } from "moltbot/plugin-sdk";
 
 import { slackPlugin } from "./src/channel.js";
 import { setSlackRuntime } from "./src/runtime.js";

@@ -209,7 +209,6 @@ export function loadMoltbotPlugins(options: PluginLoadOptions = {}): PluginRegis
     ...(pluginSdkAlias
       ? {
           alias: {
-            "clawdbot/plugin-sdk": pluginSdkAlias,
             "moltbot/plugin-sdk": pluginSdkAlias,
           },
         }

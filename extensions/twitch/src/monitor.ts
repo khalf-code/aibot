@@ -5,7 +5,7 @@
  * resolves agent routes, and handles replies.
  */
 
-import type { ReplyPayload, MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { ReplyPayload, MoltbotConfig } from "moltbot/plugin-sdk";
 import type { TwitchAccountConfig, TwitchChatMessage } from "./types.js";
 import { checkTwitchAccessControl } from "./access-control.js";
 import { getTwitchRuntime } from "./runtime.js";

@@ -44,7 +44,7 @@ const parseArgs = (): Args => {
 
 const loadAuthProfiles = (agentId: string) => {
   const stateRoot =
-    process.env.CLAWDBOT_STATE_DIR?.trim() || path.join(os.homedir(), ".clawdbot");
+    process.env.MOLTBOT_STATE_DIR?.trim() || path.join(os.homedir(), ".clawdbot");
   const authPath = path.join(stateRoot, "agents", agentId, "agent", "auth-profiles.json");
   if (!fs.existsSync(authPath)) throw new Error(`Missing: ${authPath}`);
   const store = JSON.parse(fs.readFileSync(authPath, "utf8")) as {

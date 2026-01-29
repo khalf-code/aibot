@@ -1,6 +1,6 @@
 import { RefreshingAuthProvider, StaticAuthProvider } from "@twurple/auth";
 import { ChatClient, LogLevel } from "@twurple/chat";
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 import type { ChannelLogSink, TwitchAccountConfig, TwitchChatMessage } from "./types.js";
 import { resolveTwitchToken } from "./token.js";
 import { normalizeToken } from "./utils/twitch.js";
@@ -92,7 +92,7 @@ export class TwitchClientManager {
 
     if (!tokenResolution.token) {
       this.logger.error(
-        `Missing Twitch token for account ${account.username} (set channels.twitch.accounts.${account.username}.token or CLAWDBOT_TWITCH_ACCESS_TOKEN for default)`,
+        `Missing Twitch token for account ${account.username} (set channels.twitch.accounts.${account.username}.token or MOLTBOT_TWITCH_ACCESS_TOKEN for default)`,
       );
       throw new Error("Missing Twitch token");
     }

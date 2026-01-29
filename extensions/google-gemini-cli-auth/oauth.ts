@@ -3,9 +3,9 @@ import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { createServer } from "node:http";
 import { delimiter, dirname, join } from "node:path";
 
-const CLIENT_ID_KEYS = ["CLAWDBOT_GEMINI_OAUTH_CLIENT_ID", "GEMINI_CLI_OAUTH_CLIENT_ID"];
+const CLIENT_ID_KEYS = ["MOLTBOT_GEMINI_OAUTH_CLIENT_ID", "GEMINI_CLI_OAUTH_CLIENT_ID"];
 const CLIENT_SECRET_KEYS = [
-  "CLAWDBOT_GEMINI_OAUTH_CLIENT_SECRET",
+  "MOLTBOT_GEMINI_OAUTH_CLIENT_SECRET",
   "GEMINI_CLI_OAUTH_CLIENT_SECRET",
 ];
 const REDIRECT_URI = "http://localhost:8085/oauth2callback";

@@ -28,7 +28,7 @@ export type GatewayBonjourAdvertiseOpts = {
 };
 
 function isDisabledByEnv() {
-  if (isTruthyEnvValue(process.env.CLAWDBOT_DISABLE_BONJOUR)) return true;
+  if (isTruthyEnvValue(process.env.MOLTBOT_DISABLE_BONJOUR)) return true;
   if (process.env.NODE_ENV === "test") return true;
   if (process.env.VITEST) return true;
   return false;

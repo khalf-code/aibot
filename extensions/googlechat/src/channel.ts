@@ -16,8 +16,8 @@ import {
   type ChannelMessageActionAdapter,
   type ChannelPlugin,
   type MoltbotConfig,
-} from "clawdbot/plugin-sdk";
-import { GoogleChatConfigSchema } from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
+import { GoogleChatConfigSchema } from "moltbot/plugin-sdk";
 
 import {
   listGoogleChatAccountIds,

@@ -1,4 +1,4 @@
-import type { MoltbotConfig, DmPolicy } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig, DmPolicy } from "moltbot/plugin-sdk";
 import {
   addWildcardAllowFrom,
   formatDocsLink,
@@ -9,7 +9,7 @@ import {
   DEFAULT_ACCOUNT_ID,
   normalizeAccountId,
   migrateBaseNameToDefaultAccount,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import {
   listGoogleChatAccountIds,

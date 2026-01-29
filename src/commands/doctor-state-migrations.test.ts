@@ -54,7 +54,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     const result = await runLegacyStateMigrations({
       detected,
@@ -95,7 +95,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     await runLegacyStateMigrations({ detected, now: () => 123 });
 
@@ -116,7 +116,7 @@ describe("doctor legacy state migrations", () => {
 
     const result = await autoMigrateLegacyState({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
       log,
     });
 
@@ -141,7 +141,7 @@ describe("doctor legacy state migrations", () => {
 
     const result = await autoMigrateLegacyState({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
       log,
       now: () => 123,
     });
@@ -167,7 +167,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     await runLegacyStateMigrations({ detected, now: () => 123 });
 
@@ -183,7 +183,7 @@ describe("doctor legacy state migrations", () => {
     const cfg: MoltbotConfig = {};
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     const result = await runLegacyStateMigrations({ detected });
     expect(result.changes).toEqual([]);
@@ -202,7 +202,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     await runLegacyStateMigrations({ detected, now: () => 123 });
 
@@ -225,7 +225,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     await runLegacyStateMigrations({ detected, now: () => 123 });
 
@@ -248,7 +248,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     await runLegacyStateMigrations({ detected, now: () => 123 });
 
@@ -270,7 +270,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     await runLegacyStateMigrations({ detected, now: () => 123 });
 
@@ -291,7 +291,7 @@ describe("doctor legacy state migrations", () => {
 
     const detected = await detectLegacyStateMigrations({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
     });
     await runLegacyStateMigrations({ detected, now: () => 123 });
 
@@ -314,7 +314,7 @@ describe("doctor legacy state migrations", () => {
 
     const result = await autoMigrateLegacyState({
       cfg,
-      env: { CLAWDBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
+      env: { MOLTBOT_STATE_DIR: root } as NodeJS.ProcessEnv,
       log,
     });
 
@@ -329,7 +329,7 @@ describe("doctor legacy state migrations", () => {
 
   it("auto-migrates legacy state dir to ~/.moltbot", async () => {
     const root = await makeTempRoot();
-    const legacyDir = path.join(root, ".clawdbot");
+    const legacyDir = path.join(root, ".moltbot");
     fs.mkdirSync(legacyDir, { recursive: true });
     fs.writeFileSync(path.join(legacyDir, "foo.txt"), "legacy", "utf-8");
 
@@ -348,7 +348,7 @@ describe("doctor legacy state migrations", () => {
 
   it("skips state dir migration when target exists", async () => {
     const root = await makeTempRoot();
-    const legacyDir = path.join(root, ".clawdbot");
+    const legacyDir = path.join(root, ".moltbot");
     const targetDir = path.join(root, ".moltbot");
     fs.mkdirSync(legacyDir, { recursive: true });
     fs.mkdirSync(targetDir, { recursive: true });
@@ -364,7 +364,7 @@ describe("doctor legacy state migrations", () => {
 
   it("skips state dir migration when env override is set", async () => {
     const root = await makeTempRoot();
-    const legacyDir = path.join(root, ".clawdbot");
+    const legacyDir = path.join(root, ".moltbot");
     fs.mkdirSync(legacyDir, { recursive: true });
 
     const result = await autoMigrateLegacyStateDir({

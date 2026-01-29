@@ -26,7 +26,7 @@ async function withTempHome<T>(fn: (home: string) => Promise<T>): Promise<T> {
 }
 
 async function writeSessionStore(home: string) {
-  const dir = path.join(home, ".clawdbot", "sessions");
+  const dir = path.join(home, ".moltbot", "sessions");
   await fs.mkdir(dir, { recursive: true });
   const storePath = path.join(dir, "sessions.json");
   await fs.writeFile(
@@ -182,7 +182,7 @@ describe("runCronIsolatedAgentTurn", () => {
 
       const cfg = makeCfg(
         home,
-        path.join(home, ".clawdbot", "agents", "{agentId}", "sessions", "sessions.json"),
+        path.join(home, ".moltbot", "agents", "{agentId}", "sessions", "sessions.json"),
         {
           agents: {
             defaults: { workspace: path.join(home, "default-workspace") },

@@ -10,7 +10,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveTwitchToken, type TwitchTokenSource } from "./token.js";
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 
 describe("token", () => {
   // Multi-account config for testing non-default accounts
@@ -47,7 +47,7 @@ describe("token", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.CLAWDBOT_TWITCH_ACCESS_TOKEN;
+    delete process.env.MOLTBOT_TWITCH_ACCESS_TOKEN;
   });
 
   describe("resolveTwitchToken", () => {
@@ -66,7 +66,7 @@ describe("token", () => {
     });
 
     it("should prioritize config token over env var (simplified config)", () => {
-      process.env.CLAWDBOT_TWITCH_ACCESS_TOKEN = "oauth:env-token";
+      process.env.MOLTBOT_TWITCH_ACCESS_TOKEN = "oauth:env-token";
 
       const result = resolveTwitchToken(mockSimplifiedConfig, { accountId: "default" });
 
@@ -76,7 +76,7 @@ describe("token", () => {
     });
 
     it("should use env var when config token is empty (simplified config)", () => {
-      process.env.CLAWDBOT_TWITCH_ACCESS_TOKEN = "oauth:env-token";
+      process.env.MOLTBOT_TWITCH_ACCESS_TOKEN = "oauth:env-token";
 
       const configWithEmptyToken = {
         channels: {
@@ -110,7 +110,7 @@ describe("token", () => {
     });
 
     it("should not use env var for non-default accounts (multi-account)", () => {
-      process.env.CLAWDBOT_TWITCH_ACCESS_TOKEN = "oauth:env-token";
+      process.env.MOLTBOT_TWITCH_ACCESS_TOKEN = "oauth:env-token";
 
       const configWithoutToken = {
         channels: {

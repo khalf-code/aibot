@@ -1,4 +1,4 @@
-# @clawdbot/twitch
+# @moltbot/twitch
 
 Twitch channel plugin for Clawdbot.
 
@@ -11,7 +11,7 @@ clawdbot plugins install ./extensions/twitch
 ## Install (npm)
 
 ```bash
-clawdbot plugins install @clawdbot/twitch
+clawdbot plugins install @moltbot/twitch
 ```
 
 Onboarding: select Twitch and confirm the install prompt to fetch the plugin automatically.

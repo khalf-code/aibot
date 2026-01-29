@@ -30,7 +30,7 @@ vi.mock("@clack/prompts", () => ({
 }));
 
 vi.mock("../config/config.js", () => ({
-  CONFIG_PATH: "~/.clawdbot/moltbot.json",
+  CONFIG_PATH: "~/.moltbot/moltbot.json",
   readConfigFileSnapshot: mocks.readConfigFileSnapshot,
   writeConfigFile: mocks.writeConfigFile,
   resolveGatewayPort: mocks.resolveGatewayPort,
@@ -49,7 +49,7 @@ vi.mock("../terminal/note.js", () => ({
 }));
 
 vi.mock("./onboard-helpers.js", () => ({
-  DEFAULT_WORKSPACE: "~/.clawdbot/workspace",
+  DEFAULT_WORKSPACE: "~/.moltbot/workspace",
   applyWizardMetadata: (cfg: MoltbotConfig) => cfg,
   ensureWorkspaceAndSessions: vi.fn(),
   guardCancel: <T>(value: T) => value,

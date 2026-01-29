@@ -1,5 +1,5 @@
-import type { MoltbotConfig, WizardPrompter } from "clawdbot/plugin-sdk";
-import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig, WizardPrompter } from "moltbot/plugin-sdk";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "moltbot/plugin-sdk";
 
 type PromptAccountIdParams = {
   cfg: MoltbotConfig;

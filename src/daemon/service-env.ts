@@ -131,7 +131,7 @@ export function buildServiceEnvironment(params: {
   launchdLabel?: string;
 }): Record<string, string | undefined> {
   const { env, port, token, launchdLabel } = params;
-  const profile = env.CLAWDBOT_PROFILE;
+  const profile = env.MOLTBOT_PROFILE;
   const resolvedLaunchdLabel =
     launchdLabel ||
     (process.platform === "darwin" ? resolveGatewayLaunchAgentLabel(profile) : undefined);
@@ -139,16 +139,16 @@ export function buildServiceEnvironment(params: {
   return {
     HOME: env.HOME,
     PATH: buildMinimalServicePath({ env }),
-    CLAWDBOT_PROFILE: profile,
-    CLAWDBOT_STATE_DIR: env.CLAWDBOT_STATE_DIR,
-    CLAWDBOT_CONFIG_PATH: env.CLAWDBOT_CONFIG_PATH,
-    CLAWDBOT_GATEWAY_PORT: String(port),
-    CLAWDBOT_GATEWAY_TOKEN: token,
-    CLAWDBOT_LAUNCHD_LABEL: resolvedLaunchdLabel,
-    CLAWDBOT_SYSTEMD_UNIT: systemdUnit,
-    CLAWDBOT_SERVICE_MARKER: GATEWAY_SERVICE_MARKER,
-    CLAWDBOT_SERVICE_KIND: GATEWAY_SERVICE_KIND,
-    CLAWDBOT_SERVICE_VERSION: VERSION,
+    MOLTBOT_PROFILE: profile,
+    MOLTBOT_STATE_DIR: env.MOLTBOT_STATE_DIR,
+    MOLTBOT_CONFIG_PATH: env.MOLTBOT_CONFIG_PATH,
+    MOLTBOT_GATEWAY_PORT: String(port),
+    MOLTBOT_GATEWAY_TOKEN: token,
+    MOLTBOT_LAUNCHD_LABEL: resolvedLaunchdLabel,
+    MOLTBOT_SYSTEMD_UNIT: systemdUnit,
+    MOLTBOT_SERVICE_MARKER: GATEWAY_SERVICE_MARKER,
+    MOLTBOT_SERVICE_KIND: GATEWAY_SERVICE_KIND,
+    MOLTBOT_SERVICE_VERSION: VERSION,
   };
 }
 
@@ -159,15 +159,15 @@ export function buildNodeServiceEnvironment(params: {
   return {
     HOME: env.HOME,
     PATH: buildMinimalServicePath({ env }),
-    CLAWDBOT_STATE_DIR: env.CLAWDBOT_STATE_DIR,
-    CLAWDBOT_CONFIG_PATH: env.CLAWDBOT_CONFIG_PATH,
-    CLAWDBOT_LAUNCHD_LABEL: resolveNodeLaunchAgentLabel(),
-    CLAWDBOT_SYSTEMD_UNIT: resolveNodeSystemdServiceName(),
-    CLAWDBOT_WINDOWS_TASK_NAME: resolveNodeWindowsTaskName(),
-    CLAWDBOT_TASK_SCRIPT_NAME: NODE_WINDOWS_TASK_SCRIPT_NAME,
-    CLAWDBOT_LOG_PREFIX: "node",
-    CLAWDBOT_SERVICE_MARKER: NODE_SERVICE_MARKER,
-    CLAWDBOT_SERVICE_KIND: NODE_SERVICE_KIND,
-    CLAWDBOT_SERVICE_VERSION: VERSION,
+    MOLTBOT_STATE_DIR: env.MOLTBOT_STATE_DIR,
+    MOLTBOT_CONFIG_PATH: env.MOLTBOT_CONFIG_PATH,
+    MOLTBOT_LAUNCHD_LABEL: resolveNodeLaunchAgentLabel(),
+    MOLTBOT_SYSTEMD_UNIT: resolveNodeSystemdServiceName(),
+    MOLTBOT_WINDOWS_TASK_NAME: resolveNodeWindowsTaskName(),
+    MOLTBOT_TASK_SCRIPT_NAME: NODE_WINDOWS_TASK_SCRIPT_NAME,
+    MOLTBOT_LOG_PREFIX: "node",
+    MOLTBOT_SERVICE_MARKER: NODE_SERVICE_MARKER,
+    MOLTBOT_SERVICE_KIND: NODE_SERVICE_KIND,
+    MOLTBOT_SERVICE_VERSION: VERSION,
   };
 }

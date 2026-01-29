@@ -1,7 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 
-import type { MoltbotConfig, MarkdownTableMode, RuntimeEnv } from "clawdbot/plugin-sdk";
-import { mergeAllowlist, summarizeMapping } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig, MarkdownTableMode, RuntimeEnv } from "moltbot/plugin-sdk";
+import { mergeAllowlist, summarizeMapping } from "moltbot/plugin-sdk";
 import { sendMessageZalouser } from "./send.js";
 import type {
   ResolvedZalouserAccount,

@@ -6,7 +6,7 @@ import {
   normalizeBlueBubblesHandle,
   parseBlueBubblesTarget,
 } from "./targets.js";
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 import {
   blueBubblesFetchWithTimeout,
   buildBlueBubblesApiUrl,

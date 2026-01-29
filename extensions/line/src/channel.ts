@@ -8,7 +8,7 @@ import {
   type LineConfig,
   type LineChannelData,
   type ResolvedLineAccount,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import { getLineRuntime } from "./runtime.js";
 

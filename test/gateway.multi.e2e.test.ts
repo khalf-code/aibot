@@ -127,13 +127,13 @@ const spawnGatewayInstance = async (name: string): Promise<GatewayInstance> => {
         env: {
           ...process.env,
           HOME: homeDir,
-          CLAWDBOT_CONFIG_PATH: configPath,
-          CLAWDBOT_STATE_DIR: stateDir,
-          CLAWDBOT_GATEWAY_TOKEN: "",
-          CLAWDBOT_GATEWAY_PASSWORD: "",
-          CLAWDBOT_SKIP_CHANNELS: "1",
-          CLAWDBOT_SKIP_BROWSER_CONTROL_SERVER: "1",
-          CLAWDBOT_SKIP_CANVAS_HOST: "1",
+          MOLTBOT_CONFIG_PATH: configPath,
+          MOLTBOT_STATE_DIR: stateDir,
+          MOLTBOT_GATEWAY_TOKEN: "",
+          MOLTBOT_GATEWAY_PASSWORD: "",
+          MOLTBOT_SKIP_CHANNELS: "1",
+          MOLTBOT_SKIP_BROWSER_CONTROL_SERVER: "1",
+          MOLTBOT_SKIP_CANVAS_HOST: "1",
         },
         stdio: ["ignore", "pipe", "pipe"],
       },
@@ -335,8 +335,8 @@ const waitForNodeStatus = async (inst: GatewayInstance, nodeId: string, timeoutM
     const list = (await runCliJson(
       ["nodes", "status", "--json", "--url", `ws://127.0.0.1:${inst.port}`],
       {
-        CLAWDBOT_GATEWAY_TOKEN: inst.gatewayToken,
-        CLAWDBOT_GATEWAY_PASSWORD: "",
+        MOLTBOT_GATEWAY_TOKEN: inst.gatewayToken,
+        MOLTBOT_GATEWAY_PASSWORD: "",
       },
     )) as NodeListPayload;
     const match = list.nodes?.find((n) => n.nodeId === nodeId);
@@ -370,14 +370,14 @@ describe("gateway multi-instance e2e", () => {
 
       const [healthA, healthB] = (await Promise.all([
         runCliJson(["health", "--json", "--timeout", "10000"], {
-          CLAWDBOT_GATEWAY_PORT: String(gwA.port),
-          CLAWDBOT_GATEWAY_TOKEN: gwA.gatewayToken,
-          CLAWDBOT_GATEWAY_PASSWORD: "",
+          MOLTBOT_GATEWAY_PORT: String(gwA.port),
+          MOLTBOT_GATEWAY_TOKEN: gwA.gatewayToken,
+          MOLTBOT_GATEWAY_PASSWORD: "",
         }),
         runCliJson(["health", "--json", "--timeout", "10000"], {
-          CLAWDBOT_GATEWAY_PORT: String(gwB.port),
-          CLAWDBOT_GATEWAY_TOKEN: gwB.gatewayToken,
-          CLAWDBOT_GATEWAY_PASSWORD: "",
+          MOLTBOT_GATEWAY_PORT: String(gwB.port),
+          MOLTBOT_GATEWAY_TOKEN: gwB.gatewayToken,
+          MOLTBOT_GATEWAY_PASSWORD: "",
         }),
       ])) as [HealthPayload, HealthPayload];
       expect(healthA.ok).toBe(true);

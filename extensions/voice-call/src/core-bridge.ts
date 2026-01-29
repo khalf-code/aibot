@@ -88,7 +88,7 @@ function findPackageRoot(startDir: string, name: string): string | null {
 
 function resolveMoltbotRoot(): string {
   if (coreRootCache) return coreRootCache;
-  const override = process.env.MOLTBOT_ROOT?.trim() || process.env.CLAWDBOT_ROOT?.trim();
+  const override = process.env.MOLTBOT_ROOT?.trim() || process.env.MOLTBOT_ROOT?.trim();
   if (override) {
     coreRootCache = override;
     return override;
@@ -117,7 +117,7 @@ function resolveMoltbotRoot(): string {
   }
 
   throw new Error(
-    "Unable to resolve core root. Set MOLTBOT_ROOT (or legacy CLAWDBOT_ROOT) to the package root.",
+    "Unable to resolve core root. Set MOLTBOT_ROOT (or legacy MOLTBOT_ROOT) to the package root.",
   );
 }
 

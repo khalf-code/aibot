@@ -407,7 +407,7 @@ const FIELD_HELP: Record<string, string> = {
   "diagnostics.cacheTrace.enabled":
     "Log cache trace snapshots for embedded agent runs (default: false).",
   "diagnostics.cacheTrace.filePath":
-    "JSONL output path for cache trace logs (default: $CLAWDBOT_STATE_DIR/logs/cache-trace.jsonl).",
+    "JSONL output path for cache trace logs (default: $MOLTBOT_STATE_DIR/logs/cache-trace.jsonl).",
   "diagnostics.cacheTrace.includeMessages":
     "Include full message payloads in trace output (default: true).",
   "diagnostics.cacheTrace.includePrompt": "Include prompt text in trace output (default: true).",
@@ -525,7 +525,7 @@ const FIELD_HELP: Record<string, string> = {
   "agents.defaults.memorySearch.fallback":
     'Fallback provider when embeddings fail ("openai", "gemini", "local", or "none").',
   "agents.defaults.memorySearch.store.path":
-    "SQLite index path (default: ~/.clawdbot/memory/{agentId}.sqlite).",
+    "SQLite index path (default: ~/.moltbot/memory/{agentId}.sqlite).",
   "agents.defaults.memorySearch.store.vector.enabled":
     "Enable sqlite-vec extension for vector search (default: true).",
   "agents.defaults.memorySearch.store.vector.extensionPath":
@@ -565,7 +565,7 @@ const FIELD_HELP: Record<string, string> = {
   "plugins.installs.*.spec": "Original npm spec used for install (if source is npm).",
   "plugins.installs.*.sourcePath": "Original archive/path used for install (if any).",
   "plugins.installs.*.installPath":
-    "Resolved install directory (usually ~/.clawdbot/extensions/<id>).",
+    "Resolved install directory (usually ~/.moltbot/extensions/<id>).",
   "plugins.installs.*.version": "Version recorded at install time (if available).",
   "plugins.installs.*.installedAt": "ISO timestamp of last install/update.",
   "agents.list.*.identity.avatar":

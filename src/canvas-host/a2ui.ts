@@ -132,8 +132,8 @@ export function injectCanvasLiveReload(html: string): string {
   globalThis.Moltbot.sendUserAction = sendUserAction;
   globalThis.moltbotPostMessage = postToNode;
   globalThis.moltbotSendUserAction = sendUserAction;
-  globalThis.clawdbotPostMessage = postToNode;
-  globalThis.clawdbotSendUserAction = sendUserAction;
+  globalThis.moltbotPostMessage = postToNode;
+  globalThis.moltbotSendUserAction = sendUserAction;
 
   try {
     const proto = location.protocol === "https:" ? "wss" : "ws";

@@ -94,16 +94,16 @@ describe("session cost usage", () => {
       },
     } as MoltbotConfig;
 
-    const originalState = process.env.CLAWDBOT_STATE_DIR;
-    process.env.CLAWDBOT_STATE_DIR = root;
+    const originalState = process.env.MOLTBOT_STATE_DIR;
+    process.env.MOLTBOT_STATE_DIR = root;
     try {
       const summary = await loadCostUsageSummary({ days: 30, config });
       expect(summary.daily.length).toBe(1);
       expect(summary.totals.totalTokens).toBe(50);
       expect(summary.totals.totalCost).toBeCloseTo(0.03003, 5);
     } finally {
-      if (originalState === undefined) delete process.env.CLAWDBOT_STATE_DIR;
-      else process.env.CLAWDBOT_STATE_DIR = originalState;
+      if (originalState === undefined) delete process.env.MOLTBOT_STATE_DIR;
+      else process.env.MOLTBOT_STATE_DIR = originalState;
     }
   });
 

@@ -121,7 +121,7 @@ function noteOpencodeProviderOverrides(cfg: MoltbotConfig) {
 }
 
 function hasExplicitConfigPath(env: NodeJS.ProcessEnv): boolean {
-  return Boolean(env.MOLTBOT_CONFIG_PATH?.trim() || env.CLAWDBOT_CONFIG_PATH?.trim());
+  return Boolean(env.MOLTBOT_CONFIG_PATH?.trim() || env.MOLTBOT_CONFIG_PATH?.trim());
 }
 
 function moveLegacyConfigFile(legacyPath: string, canonicalPath: string) {

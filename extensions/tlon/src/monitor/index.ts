@@ -1,6 +1,6 @@
 import { format } from "node:util";
 
-import type { RuntimeEnv, ReplyPayload, MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { RuntimeEnv, ReplyPayload, MoltbotConfig } from "moltbot/plugin-sdk";
 
 import { getTlonRuntime } from "../runtime.js";
 import { resolveTlonAccount } from "../types.js";

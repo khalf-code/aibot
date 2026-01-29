@@ -1,4 +1,4 @@
-# @clawdbot/voice-call
+# @moltbot/voice-call
 
 Official Voice Call plugin for **Clawdbot**.
 
@@ -16,7 +16,7 @@ Plugin system: `https://docs.molt.bot/plugin`
 ### Option A: install via Clawdbot (recommended)
 
 ```bash
-clawdbot plugins install @clawdbot/voice-call
+clawdbot plugins install @moltbot/voice-call
 ```
 
 Restart the Gateway afterwards.

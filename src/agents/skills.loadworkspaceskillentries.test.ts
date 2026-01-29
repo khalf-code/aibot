@@ -44,7 +44,7 @@ describe("loadWorkspaceSkillEntries", () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "moltbot-"));
     const managedDir = path.join(workspaceDir, ".managed");
     const bundledDir = path.join(workspaceDir, ".bundled");
-    const pluginRoot = path.join(workspaceDir, ".clawdbot", "extensions", "open-prose");
+    const pluginRoot = path.join(workspaceDir, ".moltbot", "extensions", "open-prose");
 
     await fs.mkdir(path.join(pluginRoot, "skills", "prose"), { recursive: true });
     await fs.writeFile(
@@ -83,7 +83,7 @@ describe("loadWorkspaceSkillEntries", () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "moltbot-"));
     const managedDir = path.join(workspaceDir, ".managed");
     const bundledDir = path.join(workspaceDir, ".bundled");
-    const pluginRoot = path.join(workspaceDir, ".clawdbot", "extensions", "open-prose");
+    const pluginRoot = path.join(workspaceDir, ".moltbot", "extensions", "open-prose");
 
     await fs.mkdir(path.join(pluginRoot, "skills", "prose"), { recursive: true });
     await fs.writeFile(

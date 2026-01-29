@@ -98,12 +98,12 @@ async function main() {
   await fs.writeFile(configPath, JSON.stringify(config, null, 2), "utf8");
 
   const sessionId =
-    process.env.CLAWDBOT_ZAI_FALLBACK_SESSION_ID ?? randomUUID();
+    process.env.MOLTBOT_ZAI_FALLBACK_SESSION_ID ?? randomUUID();
 
   const baseEnv: NodeJS.ProcessEnv = {
     ...process.env,
-    CLAWDBOT_CONFIG_PATH: configPath,
-    CLAWDBOT_STATE_DIR: stateDir,
+    MOLTBOT_CONFIG_PATH: configPath,
+    MOLTBOT_STATE_DIR: stateDir,
     ZAI_API_KEY: zaiKey,
     Z_AI_API_KEY: "",
   };

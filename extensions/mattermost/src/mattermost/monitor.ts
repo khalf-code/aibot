@@ -5,7 +5,7 @@ import type {
   MoltbotConfig,
   ReplyPayload,
   RuntimeEnv,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 import {
   createReplyPrefixContext,
   createTypingCallbacks,
@@ -18,7 +18,7 @@ import {
   resolveControlCommandGate,
   resolveChannelMediaMaxBytes,
   type HistoryEntry,
-} from "clawdbot/plugin-sdk";
+} from "moltbot/plugin-sdk";
 
 import { getMattermostRuntime } from "../runtime.js";
 import { resolveMattermostAccount } from "./accounts.js";

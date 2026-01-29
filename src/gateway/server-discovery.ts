@@ -20,7 +20,7 @@ export function formatBonjourInstanceName(displayName: string) {
 
 export function resolveBonjourCliPath(opts: ResolveBonjourCliPathOptions = {}): string | undefined {
   const env = opts.env ?? process.env;
-  const envPath = env.CLAWDBOT_CLI_PATH?.trim();
+  const envPath = env.MOLTBOT_CLI_PATH?.trim();
   if (envPath) return envPath;
 
   const statSync = opts.statSync ?? fs.statSync;
@@ -58,7 +58,7 @@ export async function resolveTailnetDnsHint(opts?: {
   enabled?: boolean;
 }): Promise<string | undefined> {
   const env = opts?.env ?? process.env;
-  const envRaw = env.CLAWDBOT_TAILNET_DNS?.trim();
+  const envRaw = env.MOLTBOT_TAILNET_DNS?.trim();
   const envValue = envRaw && envRaw.length > 0 ? envRaw.replace(/\.$/, "") : "";
   if (envValue) return envValue;
   if (opts?.enabled === false) return undefined;

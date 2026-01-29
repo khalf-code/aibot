@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 
-declare const __CLAWDBOT_VERSION__: string | undefined;
+declare const __MOLTBOT_VERSION__: string | undefined;
 
 function readVersionFromPackageJson(): string | null {
   try {
@@ -16,7 +16,7 @@ function readVersionFromPackageJson(): string | null {
 // - Embedded/bundled builds: injected define or env var.
 // - Dev/npm builds: package.json.
 export const VERSION =
-  (typeof __CLAWDBOT_VERSION__ === "string" && __CLAWDBOT_VERSION__) ||
-  process.env.CLAWDBOT_BUNDLED_VERSION ||
+  (typeof __MOLTBOT_VERSION__ === "string" && __MOLTBOT_VERSION__) ||
+  process.env.MOLTBOT_BUNDLED_VERSION ||
   readVersionFromPackageJson() ||
   "0.0.0";

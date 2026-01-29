@@ -7,7 +7,7 @@
 
 import { DEFAULT_ACCOUNT_ID, getAccountConfig } from "./config.js";
 import { getClientManager as getRegistryClientManager } from "./client-manager-registry.js";
-import type { MoltbotConfig } from "clawdbot/plugin-sdk";
+import type { MoltbotConfig } from "moltbot/plugin-sdk";
 import { resolveTwitchToken } from "./token.js";
 import { stripMarkdownForTwitch } from "./utils/markdown.js";
 import { generateMessageId, isAccountConfigured, normalizeTwitchChannel } from "./utils/twitch.js";

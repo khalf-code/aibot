@@ -13,9 +13,9 @@ docker run --rm -t "$IMAGE_NAME" bash -lc '
 
   home_dir=$(mktemp -d "/tmp/moltbot-plugins-e2e.XXXXXX")
   export HOME="$home_dir"
-  mkdir -p "$HOME/.clawdbot/extensions"
+  mkdir -p "$HOME/.moltbot/extensions"
 
-  cat > "$HOME/.clawdbot/extensions/demo-plugin.js" <<'"'"'JS'"'"'
+  cat > "$HOME/.moltbot/extensions/demo-plugin.js" <<'"'"'JS'"'"'
 module.exports = {
   id: "demo-plugin",
   name: "Demo Plugin",

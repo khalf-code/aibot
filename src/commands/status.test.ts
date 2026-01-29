@@ -3,15 +3,15 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 let previousProfile: string | undefined;
 
 beforeAll(() => {
-  previousProfile = process.env.CLAWDBOT_PROFILE;
-  process.env.CLAWDBOT_PROFILE = "isolated";
+  previousProfile = process.env.MOLTBOT_PROFILE;
+  process.env.MOLTBOT_PROFILE = "isolated";
 });
 
 afterAll(() => {
   if (previousProfile === undefined) {
-    delete process.env.CLAWDBOT_PROFILE;
+    delete process.env.MOLTBOT_PROFILE;
   } else {
-    process.env.CLAWDBOT_PROFILE = previousProfile;
+    process.env.MOLTBOT_PROFILE = previousProfile;
   }
 });
 
@@ -339,8 +339,8 @@ describe("statusCommand", () => {
   });
 
   it("shows gateway auth when reachable", async () => {
-    const prevToken = process.env.CLAWDBOT_GATEWAY_TOKEN;
-    process.env.CLAWDBOT_GATEWAY_TOKEN = "abcd1234";
+    const prevToken = process.env.MOLTBOT_GATEWAY_TOKEN;
+    process.env.MOLTBOT_GATEWAY_TOKEN = "abcd1234";
     try {
       mocks.probeGateway.mockResolvedValueOnce({
         ok: true,
@@ -358,8 +358,8 @@ describe("statusCommand", () => {
       const logs = (runtime.log as vi.Mock).mock.calls.map((c) => String(c[0]));
       expect(logs.some((l) => l.includes("auth token"))).toBe(true);
     } finally {
-      if (prevToken === undefined) delete process.env.CLAWDBOT_GATEWAY_TOKEN;
-      else process.env.CLAWDBOT_GATEWAY_TOKEN = prevToken;
+      if (prevToken === undefined) delete process.env.MOLTBOT_GATEWAY_TOKEN;
+      else process.env.MOLTBOT_GATEWAY_TOKEN = prevToken;
     }
   });
 

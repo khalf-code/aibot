@@ -34,11 +34,11 @@ export function configureProgramHelp(program: Command, ctx: ProgramContext) {
     .version(ctx.programVersion)
     .option(
       "--dev",
-      "Dev profile: isolate state under ~/.clawdbot-dev, default gateway port 19001, and shift derived ports (browser/canvas)",
+      "Dev profile: isolate state under ~/.moltbot-dev, default gateway port 19001, and shift derived ports (browser/canvas)",
     )
     .option(
       "--profile <name>",
-      "Use a named profile (isolates CLAWDBOT_STATE_DIR/CLAWDBOT_CONFIG_PATH under ~/.clawdbot-<name>)",
+      "Use a named profile (isolates MOLTBOT_STATE_DIR/MOLTBOT_CONFIG_PATH under ~/.moltbot-<name>)",
     );
 
   program.option("--no-color", "Disable ANSI colors", false);

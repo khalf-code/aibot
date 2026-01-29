@@ -82,7 +82,7 @@ export function parseCliProfileArgs(argv: string[]): CliProfileParseResult {
 
 function resolveProfileStateDir(profile: string, homedir: () => string): string {
   const suffix = profile.toLowerCase() === "default" ? "" : `-${profile}`;
-  return path.join(homedir(), `.clawdbot${suffix}`);
+  return path.join(homedir(), `.moltbot${suffix}`);
 }
 
 export function applyCliProfileEnv(params: {
@@ -96,16 +96,16 @@ export function applyCliProfileEnv(params: {
   if (!profile) return;
 
   // Convenience only: fill defaults, never override explicit env values.
-  env.CLAWDBOT_PROFILE = profile;
+  env.MOLTBOT_PROFILE = profile;
 
-  const stateDir = env.CLAWDBOT_STATE_DIR?.trim() || resolveProfileStateDir(profile, homedir);
-  if (!env.CLAWDBOT_STATE_DIR?.trim()) env.CLAWDBOT_STATE_DIR = stateDir;
+  const stateDir = env.MOLTBOT_STATE_DIR?.trim() || resolveProfileStateDir(profile, homedir);
+  if (!env.MOLTBOT_STATE_DIR?.trim()) env.MOLTBOT_STATE_DIR = stateDir;
 
-  if (!env.CLAWDBOT_CONFIG_PATH?.trim()) {
-    env.CLAWDBOT_CONFIG_PATH = path.join(stateDir, "moltbot.json");
+  if (!env.MOLTBOT_CONFIG_PATH?.trim()) {
+    env.MOLTBOT_CONFIG_PATH = path.join(stateDir, "moltbot.json");
   }
 
-  if (profile === "dev" && !env.CLAWDBOT_GATEWAY_PORT?.trim()) {
-    env.CLAWDBOT_GATEWAY_PORT = "19001";
+  if (profile === "dev" && !env.MOLTBOT_GATEWAY_PORT?.trim()) {
+    env.MOLTBOT_GATEWAY_PORT = "19001";
   }
 }
