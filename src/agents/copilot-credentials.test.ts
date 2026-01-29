@@ -31,10 +31,7 @@ describe("copilot-credentials", () => {
     it("uses custom cliPath when provided", () => {
       const execSync = vi.fn().mockReturnValue("0.0.1");
       isCopilotCliInstalled({ cliPath: "/usr/local/bin/copilot", execSync });
-      expect(execSync).toHaveBeenCalledWith(
-        "/usr/local/bin/copilot --version",
-        expect.any(Object),
-      );
+      expect(execSync).toHaveBeenCalledWith("/usr/local/bin/copilot --version", expect.any(Object));
     });
   });
 

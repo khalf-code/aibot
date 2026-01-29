@@ -80,7 +80,7 @@ const COPILOT_MODEL_ALIASES: Record<string, string> = {
   "gpt-4.1-mini": "gpt-4.1-mini",
   "gpt-4.1-nano": "gpt-4.1-nano",
   "gpt-4o": "gpt-4o",
-  "o1": "o1",
+  o1: "o1",
   "o1-mini": "o1-mini",
   "o3-mini": "o3-mini",
   "claude-sonnet-4.5": "claude-sonnet-4.5",
