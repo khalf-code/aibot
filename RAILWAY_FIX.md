@@ -3,6 +3,9 @@
 ## Problem
 Railway deployment was failing with error: `Cannot find module '/app/dist/moltbot.mjs'`
 
+**Note:** `moltbot` was the old project name. The project has been renamed to `openclaw`.
+The correct entry point is `openclaw.mjs` (not `moltbot.mjs`).
+
 ## Root Cause Analysis
 
 1. **Wrong entry point**: The Dockerfile was trying to run `node dist/index.js`, which is the library entry point, not the CLI entry point
@@ -51,10 +54,10 @@ To test locally with Docker:
 
 ```bash
 # Build the image
-docker build -t moltbot-test .
+docker build -t openclaw-test .
 
 # Run with Railway-like PORT env var
-docker run -p 8080:8080 -e PORT=8080 -e CLAWDBOT_GATEWAY_TOKEN=test-token moltbot-test
+docker run -p 8080:8080 -e PORT=8080 -e CLAWDBOT_GATEWAY_TOKEN=test-token openclaw-test
 
 # Verify it's running
 curl http://localhost:8080/health

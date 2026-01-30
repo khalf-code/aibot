@@ -34,6 +34,12 @@ RUN OPENCLAW_A2UI_SKIP_MISSING=1 pnpm build
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:build
 
+# Verify build artifacts exist (fail fast if build didn't produce expected files)
+RUN echo "=== Verifying build artifacts ===" && \
+    test -f /app/openclaw.mjs || (echo "ERROR: /app/openclaw.mjs not found" && exit 1) && \
+    test -f /app/dist/entry.js || (echo "ERROR: /app/dist/entry.js not found" && exit 1) && \
+    echo "Build verification passed: openclaw.mjs and dist/entry.js exist"
+
 ENV NODE_ENV=production
 
 # Create persistent data directory for Railway deployments
