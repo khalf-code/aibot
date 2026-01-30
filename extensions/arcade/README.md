@@ -118,81 +118,89 @@ openclaw arcade cache         # Show cache status
 openclaw arcade cache --clear # Clear cache
 ```
 
-## Available Toolkits
+## Available Toolkits (89 total)
 
-### Productivity
-- **Gmail** (18 tools) - ListEmails, SendEmail, ReplyToEmail, SearchThreads
+### Productivity & Project Management
+- **Gmail** (18 tools) - SendEmail, ListEmails, SearchThreads, ReplyToEmail
 - **GoogleCalendar** (7 tools) - ListEvents, CreateEvent, UpdateEvent, DeleteEvent
 - **GoogleDrive** (11 tools) - SearchFiles, UploadFile, ShareFile, DownloadFile
 - **GoogleDocs** (13 tools) - CreateBlankDocument, EditDocument, SearchDocuments
 - **GoogleSheets** (9 tools) - GetSpreadsheet, WriteToCell, CreateSpreadsheet
+- **GoogleSlides** (8 tools) - Presentation management
+- **GoogleContacts** (5 tools) - Contact management
+- **Google** (37 tools) - General Google services
 - **NotionToolkit** (8 tools) - CreatePage, SearchByTitle, GetPageContentById
-- **Asana** + **AsanaApi** (218 tools)
+- **Asana** + **AsanaApi** (218 tools) - Task and project management
 - **Linear** (39 tools) - CreateIssue, UpdateIssue, ArchiveIssue
 - **Jira** (43 tools) - CreateIssue, UpdateIssue, AddCommentToIssue
-- **Clickup** + **ClickupApi**
-- **Confluence**
-- **Trello** (TrelloApi)
+- **Clickup** + **ClickupApi** (158 tools) - Project management
+- **Confluence** (14 tools) - Documentation
+- **TrelloApi** (246 tools) - Board and card management
+- **TicktickApi** (11 tools) - Task management
 
 ### Communication
 - **Slack** + **SlackApi** (81 tools) - SendMessage, GetMessages, ListChannels
 - **Microsoft** (11 tools) - CreateAndSendEmail, CreateEvent, ListEmails
-- **MicrosoftTeams**
+- **MicrosoftTeams** (25 tools) - Team messaging
 - **OutlookMail** (9 tools) - ListEmails, SendEmail, CreateDraftEmail
-- **OutlookCalendar**
+- **OutlookCalendar** (4 tools) - Calendar management
 - **Zoom** (2 tools) - GetMeetingInvitation, ListUpcomingMeetings
-- **Intercom** (IntercomApi - 107 tools)
+- **IntercomApi** (107 tools) - Customer messaging
 
-### Development
-- **Github** + **GithubApi** (862 tools)
-- **Figma** + **FigmaApi** (58 tools)
-- **E2b**
-- **Vercel** (VercelApi)
-- **Datadog** (DatadogApi)
-- **Posthog** (PosthogApi)
+### Development & DevOps
+- **Github** + **GithubApi** (862 tools) - Repos, issues, PRs, actions
+- **Figma** + **FigmaApi** (58 tools) - Design files, comments, components
+- **VercelApi** (194 tools) - Deployment and hosting
+- **DatadogApi** (588 tools) - Monitoring and analytics
+- **PosthogApi** (766 tools) - Product analytics
+- **E2b** (2 tools) - Code execution
+- **CursorAgentsApi** (7 tools) - AI coding agents
+- **ArcadeEngineApi** (29 tools) - Arcade platform tools
 
-### Business & CRM
-- **Stripe** + **StripeApi** (235 tools)
-- **Hubspot** (809 tools across 9 toolkits)
-- **Salesforce** (3 tools)
-- **Zendesk** (6 tools)
-- **Pylon** + **PylonApi**
-- **Freshservice** (FreshserviceApi)
-- **Calendly** (CalendlyApi)
+### Business, CRM & Finance
+- **Stripe** + **StripeApi** (235 tools) - Payments, customers, subscriptions
+- **SquareupApi** (286 tools) - Payment processing
+- **Hubspot** + **HubspotCrmApi** + **HubspotMarketingApi** + **HubspotCmsApi** + **HubspotConversationsApi** + **HubspotAutomationApi** + **HubspotEventsApi** + **HubspotMeetingsApi** + **HubspotUsersApi** (769 tools) - Full CRM suite
+- **Salesforce** (3 tools) - CRM
+- **Zendesk** (6 tools) - Customer support
+- **Pylon** + **PylonApi** (95 tools) - Customer success
+- **FreshserviceApi** (214 tools) - IT service management
+- **CalendlyApi** (51 tools) - Scheduling
+- **XeroApi** (153 tools) - Accounting
+- **ZohoBooksApi** (511 tools) - Accounting
+- **MailchimpMarketingApi** (278 tools) - Email marketing
+- **CustomerioApi** + **CustomerioTrackApi** + **CustomerioPipelinesApi** (139 tools) - Customer engagement
+- **AshbyApi** (141 tools) - Recruiting
 
-### Data & Search
-- **GoogleSearch** (1 tool)
-- **GoogleNews** (1 tool)
-- **Firecrawl** (6 tools)
-- **Exa** (ExaApi)
-- **Brightdata**
-- **Weaviate** (WeaviateApi)
+### Data, Search & AI
+- **GoogleSearch** (1 tool) - Web search
+- **GoogleNews** (1 tool) - News search
+- **Firecrawl** (6 tools) - Web scraping
+- **ExaApi** (45 tools) - AI search
+- **Brightdata** (3 tools) - Web data
+- **WeaviateApi** (81 tools) - Vector database
+- **Math** (23 tools) - Calculations
 
 ### Storage & Files
-- **Airtable** (AirtableApi - 96 tools)
-- **Dropbox**
-- **Box** (BoxApi)
-- **Sharepoint**
+- **AirtableApi** (96 tools) - Database/spreadsheet
+- **Dropbox** (3 tools) - File storage
+- **BoxApi** (188 tools) - Enterprise file storage
+- **Sharepoint** (12 tools) - Document management
 
-### Social
-- **X** (Twitter)
-- **Linkedin**
-- **Reddit**
-- **Youtube**
-- **Spotify**
+### Social & Media
+- **X** (8 tools) - Twitter/X posting
+- **Linkedin** (1 tool) - Professional networking
+- **Reddit** (11 tools) - Reddit interactions
+- **Youtube** (2 tools) - Video platform
+- **Spotify** (13 tools) - Music streaming
 
-### Other
-- **Xero** (XeroApi) - Accounting
-- **ZohoBooks** (ZohoBooksApi)
-- **Mailchimp** (MailchimpMarketingApi)
-- **Customer.io** (CustomerioApi + tracks/pipelines)
-- **Pagerduty** + **PagerdutyApi**
-- **Miro** (MiroApi)
-- **Luma** (LumaApi)
-- **Imgflip**
-- **Math**
-- **Walmart**
-- **GoogleMaps**, **GoogleFlights**, **GoogleHotels**, **GoogleJobs**, **GoogleShopping**, **GoogleFinance**, **GoogleContacts**, **GoogleSlides**
+### Other Services
+- **Pagerduty** + **PagerdutyApi** (388 tools) - Incident management
+- **MiroApi** (139 tools) - Whiteboard collaboration
+- **LumaApi** (37 tools) - Event management
+- **Imgflip** (3 tools) - Meme generation
+- **Walmart** (2 tools) - E-commerce
+- **GoogleMaps** (2 tools), **GoogleFlights** (1 tool), **GoogleHotels** (1 tool), **GoogleJobs** (1 tool), **GoogleShopping** (1 tool), **GoogleFinance** (2 tools) - Google services
 
 ## Authorization Flow
 

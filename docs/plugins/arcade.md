@@ -171,54 +171,97 @@ Authorizations persist across sessions. Pre-authorize with:
 openclaw arcade auth login Gmail.SendEmail
 ```
 
-## Available Toolkits
+## Available Toolkits (89 total)
 
-### Productivity
+### Productivity & Project Management
 | Toolkit | Tools | Examples |
 |---------|-------|----------|
-| Gmail | 18 | ListEmails, SendEmail, ReplyToEmail, SearchThreads |
-| GoogleCalendar | 7 | ListEvents, CreateEvent, UpdateEvent, DeleteEvent |
-| GoogleDrive | 11 | SearchFiles, UploadFile, ShareFile, DownloadFile |
-| GoogleDocs | 13 | CreateBlankDocument, EditDocument, SearchDocuments |
+| Gmail | 18 | SendEmail, ListEmails, SearchThreads |
+| GoogleCalendar | 7 | ListEvents, CreateEvent, UpdateEvent |
+| GoogleDrive | 11 | SearchFiles, UploadFile, ShareFile |
+| GoogleDocs | 13 | CreateDocument, EditDocument, SearchDocuments |
 | GoogleSheets | 9 | GetSpreadsheet, WriteToCell, CreateSpreadsheet |
+| GoogleSlides | 8 | Presentation management |
+| GoogleContacts | 5 | Contact management |
 | NotionToolkit | 8 | CreatePage, SearchByTitle, GetPageContentById |
 | Asana + AsanaApi | 218 | Task and project management |
 | Linear | 39 | CreateIssue, UpdateIssue, ArchiveIssue |
 | Jira | 43 | CreateIssue, UpdateIssue, AddCommentToIssue |
+| Clickup + ClickupApi | 158 | Project management |
+| TrelloApi | 246 | Board and card management |
+| Confluence | 14 | Documentation |
+| TicktickApi | 11 | Task management |
 
 ### Communication
 | Toolkit | Tools | Examples |
 |---------|-------|----------|
 | Slack + SlackApi | 81 | SendMessage, GetMessages, ListChannels |
-| OutlookMail | 9 | ListEmails, SendEmail, CreateDraftEmail |
 | Microsoft | 11 | CreateAndSendEmail, CreateEvent |
-| MicrosoftTeams | 25 | Teams messaging |
+| MicrosoftTeams | 25 | Team messaging |
+| OutlookMail | 9 | ListEmails, SendEmail, CreateDraftEmail |
+| OutlookCalendar | 4 | Calendar management |
 | Zoom | 2 | GetMeetingInvitation, ListUpcomingMeetings |
+| IntercomApi | 107 | Customer messaging |
 
-### Development
+### Development & DevOps
 | Toolkit | Tools | Examples |
 |---------|-------|----------|
 | Github + GithubApi | 862 | Issues, PRs, repos, commits, actions |
 | Figma + FigmaApi | 58 | Files, comments, components |
+| VercelApi | 194 | Deployment and hosting |
+| DatadogApi | 588 | Monitoring and analytics |
+| PosthogApi | 766 | Product analytics |
+| E2b | 2 | Code execution |
 
-### Business
+### Business, CRM & Finance
 | Toolkit | Tools | Examples |
 |---------|-------|----------|
 | Stripe + StripeApi | 235 | Payments, customers, subscriptions |
-| Hubspot (9 toolkits) | 809 | CRM, marketing, automation |
+| SquareupApi | 286 | Payment processing |
+| Hubspot (9 toolkits) | 769 | CRM, marketing, automation |
 | Salesforce | 3 | Contacts, accounts |
 | Zendesk | 6 | Tickets, comments |
-| IntercomApi | 107 | Conversations, contacts |
+| Pylon + PylonApi | 95 | Customer success |
+| FreshserviceApi | 214 | IT service management |
+| CalendlyApi | 51 | Scheduling |
+| XeroApi | 153 | Accounting |
+| ZohoBooksApi | 511 | Accounting |
+| MailchimpMarketingApi | 278 | Email marketing |
+| CustomerioApi (3 toolkits) | 139 | Customer engagement |
+| AshbyApi | 141 | Recruiting |
 
-### Data & Search
+### Data, Search & Storage
 | Toolkit | Tools | Examples |
 |---------|-------|----------|
 | GoogleSearch | 1 | Web search |
 | GoogleNews | 1 | News search |
 | Firecrawl | 6 | Web scraping |
-| AirtableApi | 96 | Records, tables |
+| ExaApi | 45 | AI search |
+| WeaviateApi | 81 | Vector database |
+| AirtableApi | 96 | Database/spreadsheet |
+| BoxApi | 188 | Enterprise file storage |
+| Dropbox | 3 | File storage |
+| Sharepoint | 12 | Document management |
 
-Run `openclaw arcade cache` to see all 89 toolkits.
+### Social & Media
+| Toolkit | Tools | Examples |
+|---------|-------|----------|
+| X | 8 | Twitter/X posting |
+| Reddit | 11 | Reddit interactions |
+| Linkedin | 1 | Professional networking |
+| Youtube | 2 | Video platform |
+| Spotify | 13 | Music streaming |
+
+### Other Services
+| Toolkit | Tools | Examples |
+|---------|-------|----------|
+| Pagerduty + PagerdutyApi | 388 | Incident management |
+| MiroApi | 139 | Whiteboard collaboration |
+| LumaApi | 37 | Event management |
+| Math | 23 | Calculations |
+| Google (general) | 37 | Various Google services |
+
+Run `openclaw arcade cache` to see all 89 toolkits with tool counts.
 
 ## Troubleshooting
 
