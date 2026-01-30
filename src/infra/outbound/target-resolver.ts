@@ -115,7 +115,25 @@ export function formatTargetDisplay(params: {
   return withoutPrefix;
 }
 
+/**
+ * Preserve original case for channel targets where case-sensitivity matters.
+ *
+ * - Signal group IDs are base64-encoded and case-sensitive.
+ * - Slack channel/user IDs are case-sensitive.
+ * - Most other identifiers can be safely lowercased.
+ */
 function preserveTargetCase(channel: ChannelId, raw: string, normalized: string): string {
+  // Signal group IDs are base64-encoded and case-sensitive
+  if (channel === "signal") {
+    const trimmed = raw.trim();
+    const lower = trimmed.toLowerCase();
+    if (lower.startsWith("group:") || lower.startsWith("signal:group:")) {
+      // Return the original-case target, stripping signal: prefix if present
+      return lower.startsWith("signal:") ? trimmed.slice("signal:".length).trim() : trimmed;
+    }
+    return normalized;
+  }
+
   if (channel !== "slack") return normalized;
   const trimmed = raw.trim();
   if (/^channel:/i.test(trimmed) || /^user:/i.test(trimmed)) return trimmed;

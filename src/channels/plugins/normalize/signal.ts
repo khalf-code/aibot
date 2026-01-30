@@ -1,3 +1,17 @@
+/**
+ * Normalize a Signal messaging target.
+ *
+ * Signal group IDs are base64-encoded and case-sensitive. Unlike usernames
+ * and UUIDs (which are case-insensitive), group IDs must preserve their
+ * original case to be recognized by signal-cli.
+ *
+ * @example
+ * normalizeSignalMessagingTarget("group:Zy6lFqNBqQ0KcMHD8apzPYGGfE0xjKO6F27gMVHJD8A=")
+ * // => "group:Zy6lFqNBqQ0KcMHD8apzPYGGfE0xjKO6F27gMVHJD8A="
+ *
+ * normalizeSignalMessagingTarget("username:Alice")
+ * // => "username:alice"
+ */
 export function normalizeSignalMessagingTarget(raw: string): string | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
@@ -7,10 +21,14 @@ export function normalizeSignalMessagingTarget(raw: string): string | undefined 
   }
   if (!normalized) return undefined;
   const lower = normalized.toLowerCase();
+
+  // Group IDs are base64-encoded and case-sensitive - preserve original case
   if (lower.startsWith("group:")) {
     const id = normalized.slice("group:".length).trim();
-    return id ? `group:${id}`.toLowerCase() : undefined;
+    return id ? `group:${id}` : undefined;
   }
+
+  // Usernames are case-insensitive
   if (lower.startsWith("username:")) {
     const id = normalized.slice("username:".length).trim();
     return id ? `username:${id}`.toLowerCase() : undefined;
@@ -19,10 +37,13 @@ export function normalizeSignalMessagingTarget(raw: string): string | undefined 
     const id = normalized.slice("u:".length).trim();
     return id ? `username:${id}`.toLowerCase() : undefined;
   }
+
+  // UUIDs are case-insensitive (hex digits)
   if (lower.startsWith("uuid:")) {
     const id = normalized.slice("uuid:".length).trim();
     return id ? id.toLowerCase() : undefined;
   }
+
   return normalized.toLowerCase();
 }
 
