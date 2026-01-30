@@ -9,6 +9,10 @@ import { Bot, Context } from "grammy";
 import type { SecureConfig } from "./config.js";
 import type { AuditLogger } from "./audit.js";
 import type { AgentCore, ConversationStore, ImageContent } from "./agent.js";
+import type { SandboxRunner } from "./sandbox.js";
+import type { Scheduler } from "./scheduler.js";
+import type { Personality } from "./personality.js";
+import { extractText, summarizeDocument } from "./documents.js";
 
 export type TelegramBot = {
   bot: Bot;
@@ -21,6 +25,9 @@ export type TelegramDeps = {
   audit: AuditLogger;
   agent: AgentCore;
   conversations: ConversationStore;
+  sandbox?: SandboxRunner;
+  scheduler?: Scheduler;
+  personality?: Personality;
   onWebhookMessage?: (userId: number, text: string) => void;
 };
 
@@ -37,7 +44,7 @@ function formatUsername(ctx: Context): string {
 }
 
 export function createTelegramBot(deps: TelegramDeps): TelegramBot {
-  const { config, audit, agent, conversations } = deps;
+  const { config, audit, agent, conversations, sandbox, scheduler, personality } = deps;
   const bot = new Bot(config.telegram.botToken);
 
   // Error handler
@@ -70,6 +77,9 @@ Commands:
 /start - Show this message
 /clear - Clear conversation history
 /status - Check bot status
+/sandbox <code> - Run code in sandbox
+/schedule <cron> <task> - Schedule a task
+/tasks - List scheduled tasks
 /help - Show help
 
 Features:
@@ -124,19 +134,181 @@ Features:
 - Chat with AI (text messages)
 - Image analysis (send photos)
 - Forward content for analysis
-- Receive webhook notifications
+- Run code in isolated sandbox
+- Schedule recurring AI tasks
 
 Commands:
 /start - Welcome message
 /clear - Clear conversation history
 /status - Bot status
+/sandbox <code> - Run code in sandbox
+/schedule "<cron>" "<name>" <prompt> - Schedule task
+/tasks - List scheduled tasks
+/deltask <id> - Delete a task
 /help - This message
 
 Security:
 - Only authorized users can interact
 - All interactions are logged
-- No data is sent to third parties (except AI provider)`
+- Sandbox runs in isolated Docker (no network)`
     );
+  });
+
+  // Command: /sandbox <code>
+  bot.command("sandbox", async (ctx) => {
+    const userId = ctx.from?.id;
+    const username = formatUsername(ctx);
+    if (!userId || !isUserAllowed(userId, config.telegram.allowedUsers)) {
+      return;
+    }
+
+    if (!sandbox) {
+      await ctx.reply("Sandbox is not configured.");
+      return;
+    }
+
+    if (!config.sandbox.enabled) {
+      await ctx.reply("Sandbox is disabled.");
+      return;
+    }
+
+    const code = ctx.message?.text?.replace(/^\/sandbox\s*/, "").trim() ?? "";
+    if (!code) {
+      await ctx.reply("Usage: /sandbox <code>\n\nExample: /sandbox echo Hello World");
+      return;
+    }
+
+    const startTime = Date.now();
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const result = await sandbox.run(code);
+      const output = result.stdout || result.stderr || "(no output)";
+      const status = result.exitCode === 0 ? "✓" : `✗ (exit ${result.exitCode})`;
+      const timeout = result.timedOut ? " [TIMED OUT]" : "";
+
+      await ctx.reply(
+        `**Sandbox Result** ${status}${timeout}\n\`\`\`\n${output.slice(0, 3000)}\n\`\`\`\nDuration: ${result.durationMs}ms`,
+        { parse_mode: "Markdown" }
+      ).catch(async () => {
+        await ctx.reply(`Sandbox Result ${status}${timeout}\n\n${output.slice(0, 3500)}\n\nDuration: ${result.durationMs}ms`);
+      });
+
+      audit.sandbox({
+        command: code,
+        exitCode: result.exitCode,
+        durationMs: result.durationMs,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      audit.error({ error: `Sandbox error: ${errorMsg}`, metadata: { userId, code } });
+      await ctx.reply(`Sandbox error: ${errorMsg}`);
+    }
+  });
+
+  // Command: /schedule <cron> <name> <prompt>
+  bot.command("schedule", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !isUserAllowed(userId, config.telegram.allowedUsers)) {
+      return;
+    }
+
+    if (!scheduler) {
+      await ctx.reply("Scheduler is not configured.");
+      return;
+    }
+
+    if (!config.scheduler.enabled) {
+      await ctx.reply("Scheduler is disabled.");
+      return;
+    }
+
+    // Parse: /schedule "*/5 * * * *" "Task Name" What to do
+    const text = ctx.message?.text?.replace(/^\/schedule\s*/, "").trim() ?? "";
+    const match = text.match(/^"([^"]+)"\s+"([^"]+)"\s+(.+)$/s);
+    if (!match) {
+      await ctx.reply(
+        `Usage: /schedule "<cron>" "<name>" <prompt>
+
+Example:
+/schedule "0 9 * * *" "Morning Brief" Give me a summary of what I should focus on today
+
+Cron format: minute hour day month weekday
+- "0 9 * * *" = 9:00 AM daily
+- "*/30 * * * *" = Every 30 minutes
+- "0 0 * * 1" = Midnight on Mondays`
+      );
+      return;
+    }
+
+    const [, cronExpr, name, prompt] = match;
+
+    try {
+      const taskId = scheduler.addTask({
+        name,
+        schedule: cronExpr,
+        prompt,
+        enabled: true,
+      });
+      await ctx.reply(`Task scheduled!\n\nID: ${taskId}\nName: ${name}\nSchedule: ${cronExpr}`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      await ctx.reply(`Failed to schedule task: ${errorMsg}`);
+    }
+  });
+
+  // Command: /tasks
+  bot.command("tasks", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !isUserAllowed(userId, config.telegram.allowedUsers)) {
+      return;
+    }
+
+    if (!scheduler) {
+      await ctx.reply("Scheduler is not configured.");
+      return;
+    }
+
+    const tasks = scheduler.listTasks();
+    if (tasks.length === 0) {
+      await ctx.reply("No scheduled tasks.\n\nUse /schedule to create one.");
+      return;
+    }
+
+    const lines = tasks.map((t) => {
+      const status = t.enabled ? "✓" : "✗";
+      const lastRun = t.lastRun ? t.lastRun.toISOString().slice(0, 16) : "never";
+      return `${status} **${t.name}** (${t.id})\n   ${t.schedule}\n   Last: ${lastRun}`;
+    });
+
+    await ctx.reply(`**Scheduled Tasks**\n\n${lines.join("\n\n")}`, { parse_mode: "Markdown" }).catch(async () => {
+      await ctx.reply(`Scheduled Tasks\n\n${lines.join("\n\n").replace(/\*\*/g, "")}`);
+    });
+  });
+
+  // Command: /deltask <id>
+  bot.command("deltask", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !isUserAllowed(userId, config.telegram.allowedUsers)) {
+      return;
+    }
+
+    if (!scheduler) {
+      await ctx.reply("Scheduler is not configured.");
+      return;
+    }
+
+    const taskId = ctx.message?.text?.replace(/^\/deltask\s*/, "").trim() ?? "";
+    if (!taskId) {
+      await ctx.reply("Usage: /deltask <task_id>");
+      return;
+    }
+
+    if (scheduler.removeTask(taskId)) {
+      await ctx.reply(`Task ${taskId} deleted.`);
+    } else {
+      await ctx.reply(`Task ${taskId} not found.`);
+    }
   });
 
   // Handle all text messages
@@ -173,11 +345,21 @@ Security:
       // Get conversation history
       const history = conversations.get(userId);
 
-      // Call AI
-      const response = await agent.chat(history);
+      // Get personalized system prompt if personality is configured
+      const systemPrompt = personality
+        ? await personality.getSystemPrompt(userId)
+        : undefined;
+
+      // Call AI with optional personalized system prompt
+      const response = await agent.chat(history, systemPrompt);
 
       // Add assistant response to history
       conversations.add(userId, { role: "assistant", content: response.text });
+
+      // Learn from this conversation
+      if (personality) {
+        await personality.learnFromConversation(userId, text, response.text);
+      }
 
       // Send response
       await ctx.reply(response.text, { parse_mode: "Markdown" }).catch(async () => {
@@ -332,13 +514,95 @@ Security:
   // Handle documents
   bot.on("message:document", async (ctx) => {
     const userId = ctx.from?.id;
+    const username = formatUsername(ctx);
+
     if (!userId || !isUserAllowed(userId, config.telegram.allowedUsers)) {
+      audit.messageBlocked({
+        userId: userId || 0,
+        username,
+        reason: "User not in allowlist",
+      });
       return;
     }
 
-    await ctx.reply(
-      "I received your document. Document analysis coming soon - for now, please copy/paste the text content."
-    );
+    const doc = ctx.message?.document;
+    if (!doc) {
+      await ctx.reply("Could not process document.");
+      return;
+    }
+
+    const startTime = Date.now();
+    const caption = ctx.message?.caption || "Please analyze this document and summarize the key points.";
+
+    try {
+      await ctx.replyWithChatAction("typing");
+
+      // Check file size (max 20MB)
+      if (doc.file_size && doc.file_size > 20 * 1024 * 1024) {
+        await ctx.reply("Document too large (max 20MB).");
+        return;
+      }
+
+      // Get file info
+      const file = await ctx.api.getFile(doc.file_id);
+      if (!file.file_path) {
+        await ctx.reply("Could not download document.");
+        return;
+      }
+
+      // Download the file
+      const fileUrl = `https://api.telegram.org/file/bot${config.telegram.botToken}/${file.file_path}`;
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        await ctx.reply("Failed to download document.");
+        return;
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const mimeType = doc.mime_type || "application/octet-stream";
+
+      // Extract text
+      const extracted = await extractText(buffer, mimeType, doc.file_name);
+
+      if (extracted.format === "unsupported") {
+        await ctx.reply(
+          `Unsupported document format: ${mimeType}\n\nSupported: PDF, TXT, MD, JSON, CSV, code files`
+        );
+        return;
+      }
+
+      if (extracted.format === "pdf-error") {
+        await ctx.reply(`Could not parse PDF: ${extracted.text}`);
+        return;
+      }
+
+      // Analyze with AI
+      const result = await agent.chat([
+        {
+          role: "user",
+          content: `${caption}\n\n--- Document Content (${summarizeDocument(extracted)}) ---\n\n${extracted.text}`,
+        },
+      ]);
+
+      await ctx.reply(result.text, { parse_mode: "Markdown" }).catch(async () => {
+        await ctx.reply(result.text);
+      });
+
+      audit.message({
+        userId,
+        username,
+        text: `[DOCUMENT: ${doc.file_name || "unnamed"}] ${caption}`,
+        response: result.text,
+        durationMs: Date.now() - startTime,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      audit.error({
+        error: `Failed to analyze document: ${errorMsg}`,
+        metadata: { userId, username, filename: doc.file_name },
+      });
+      await ctx.reply("Sorry, I couldn't analyze that document. Please try again.");
+    }
   });
 
   return {
