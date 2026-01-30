@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import {
+  canCompactFurther,
   checkContextLimit,
   calculateContextUsage,
   estimateOutputTokenBudget,
@@ -271,6 +272,89 @@ describe("context-limit-warnings", () => {
         defaultTokens: 50000,
       });
       expect(result).toBe(100000);
+    });
+  });
+
+  describe("canCompactFurther", () => {
+    it("should return false for empty message list", () => {
+      const result = canCompactFurther([], 100000);
+      expect(result.canCompact).toBe(false);
+      expect(result.reason).toBe("no messages");
+    });
+
+    it("should return false if last message is a summary", () => {
+      const messages: AgentMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi" },
+        { role: "summary", content: "Summary of previous conversation" } as AgentMessage,
+      ];
+      const result = canCompactFurther(messages, 100000);
+      expect(result.canCompact).toBe(false);
+      expect(result.reason).toBe("already compacted");
+    });
+
+    it("should return false if last message is a compaction type", () => {
+      const messages: AgentMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi" },
+        { role: "user", content: "Test", type: "compaction" } as AgentMessage & { type: string },
+      ];
+      const result = canCompactFurther(messages, 100000);
+      expect(result.canCompact).toBe(false);
+      expect(result.reason).toBe("already compacted");
+    });
+
+    it("should return false if potential reduction is less than 5%", () => {
+      // Create a session where most tokens are in recent messages
+      const messages: AgentMessage[] = [];
+      // Add 5 old short messages
+      for (let i = 0; i < 5; i++) {
+        messages.push({ role: "user", content: "Short" });
+      }
+      // Add 10 recent long messages (these won't be compacted)
+      for (let i = 0; i < 10; i++) {
+        messages.push({
+          role: "assistant",
+          content: "This is a very long message that contains lots of tokens. ".repeat(50),
+        });
+      }
+      const result = canCompactFurther(messages, 100000);
+      expect(result.canCompact).toBe(false);
+      expect(result.reason).toContain("reducible (session too dense)");
+    });
+
+    it("should return true if there are many old messages that can be compacted", () => {
+      const messages: AgentMessage[] = [];
+      // Add 100 old messages with moderate content
+      for (let i = 0; i < 100; i++) {
+        messages.push({
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `Message ${i}: This is a message with some content. `.repeat(10),
+        });
+      }
+      // Add 10 recent messages
+      for (let i = 0; i < 10; i++) {
+        messages.push({
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `Recent message ${i}`,
+        });
+      }
+      const result = canCompactFurther(messages, 200000);
+      expect(result.canCompact).toBe(true);
+      expect(result.reason).toBeUndefined();
+    });
+
+    it("should handle sessions with exactly 10 messages", () => {
+      const messages: AgentMessage[] = [];
+      for (let i = 0; i < 10; i++) {
+        messages.push({
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `Message ${i}`,
+        });
+      }
+      // With only 10 messages total, all are "recent", so nothing to compact
+      const result = canCompactFurther(messages, 100000);
+      expect(result.canCompact).toBe(false);
     });
   });
 });

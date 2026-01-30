@@ -238,3 +238,50 @@ export function resolveMaxContextTokens(params: {
   // Last resort: default
   return params.defaultTokens;
 }
+
+/**
+ * Check if session can be compacted further based on message distribution.
+ * Uses conservative estimates to avoid false negatives.
+ *
+ * @param messages - Current session messages
+ * @param maxContextTokens - Maximum context window in tokens
+ * @returns Object indicating if compaction is possible and reason if not
+ */
+export function canCompactFurther(
+  messages: AgentMessage[],
+  maxContextTokens: number,
+): { canCompact: boolean; reason?: string } {
+  if (messages.length === 0) {
+    return { canCompact: false, reason: "no messages" };
+  }
+
+  // Check if last entry is already a compaction summary
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage.role === "summary" || (lastMessage as { type?: string }).type === "compaction") {
+    return { canCompact: false, reason: "already compacted" };
+  }
+
+  // Conservative estimate: Keep recent 10 messages + summary overhead
+  // This is a simplified model since actual compaction logic is in upstream library
+  const keepRecent = 10;
+  const recentMessages = messages.slice(-keepRecent);
+  const recentTokens = estimateMessagesTokens(recentMessages);
+
+  // Upper bound for summary overhead (multi-stage summarization worst case)
+  const summaryOverheadMax = 2500;
+  const minimumTokens = recentTokens + summaryOverheadMax;
+
+  const currentTokens = estimateMessagesTokens(messages);
+  const potentialReduction = currentTokens - minimumTokens;
+  const reductionPercent = (potentialReduction / currentTokens) * 100;
+
+  // Minimum threshold: 5% matches MIN_REDUCTION_PERCENT in retry loop
+  if (reductionPercent < 5) {
+    return {
+      canCompact: false,
+      reason: `only ${reductionPercent.toFixed(1)}% reducible (session too dense)`,
+    };
+  }
+
+  return { canCompact: true };
+}

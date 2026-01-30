@@ -86,13 +86,16 @@ import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
 import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types.js";
 import { detectAndLoadPromptImages } from "./images.js";
 import {
+  canCompactFurther,
   checkContextLimit,
+  estimateMessagesTokens,
   estimateOutputTokenBudget,
   logContextWarning,
   resolveContextThresholds,
   resolveMaxContextTokens,
 } from "../context-limit-warnings.js";
 import { compactEmbeddedPiSessionDirect } from "../compact.js";
+import { canCompactNow, recordCompaction } from "../compaction-tracker.js";
 import { DEFAULT_CONTEXT_TOKENS } from "../../defaults.js";
 
 export function injectHistoryImagesIntoMessages(
@@ -137,6 +140,205 @@ export function injectHistoryImagesIntoMessages(
   }
 
   return didMutate;
+}
+
+/**
+ * Constants for bounded retry logic with progress verification.
+ */
+const MAX_COMPACTION_ATTEMPTS = 3;
+const MIN_REDUCTION_PERCENT = 5;
+const TARGET_USAGE_PERCENT = 80;
+
+/**
+ * Compact session with bounded retry, progress verification, and cooldown enforcement.
+ * Implements Fixes 1-4 from PREFLIGHT-proactive-compaction.md:
+ * - Fix 1: Bounded retry loop (max 3 attempts, min 5% reduction, early abort)
+ * - Fix 2: Pre-flight bounds check using canCompactFurther()
+ * - Fix 3: Compaction cooldown (30s per checkpoint)
+ * - Fix 4: Abort signal handling at loop boundaries
+ *
+ * @param params - Compaction parameters (same as compactEmbeddedPiSessionDirect)
+ * @param checkpoint - Checkpoint identifier (session_load, turn_boundary, reactive_error)
+ * @param activeSession - Active agent session for message reload
+ * @param sessionManager - Session manager for building context
+ * @param maxContextTokens - Maximum context window in tokens
+ * @throws Error if compaction fails or cannot reach target usage
+ */
+async function compactWithRetry(
+  params: {
+    sessionId: string;
+    sessionKey?: string | null;
+    messageChannel?: string | null;
+    messageProvider?: string | null;
+    agentAccountId?: string | null;
+    sessionFile: string;
+    workspaceDir: string;
+    agentDir: string;
+    config: unknown;
+    skillsSnapshot: unknown;
+    provider?: string | null;
+    model?: string | null;
+    thinkLevel?: string | null;
+    reasoningLevel?: string | null;
+    bashElevated?: boolean;
+    extraSystemPrompt?: string | null;
+    ownerNumbers?: string[] | null;
+    abortSignal?: AbortSignal;
+  },
+  checkpoint: string,
+  activeSession: {
+    agent: { replaceMessages: (messages: AgentMessage[]) => void };
+    messages: AgentMessage[];
+  },
+  sessionManager: { buildSessionContext: () => { messages: AgentMessage[] } },
+  maxContextTokens: number,
+): Promise<void> {
+  // Check abort signal before starting
+  if (params.abortSignal?.aborted) {
+    throw new Error(`${checkpoint}: Compaction aborted (gateway shutting down)`);
+  }
+
+  // Fix 3: Check cooldown before attempting compaction
+  const cooldownCheck = canCompactNow(params.sessionId, checkpoint);
+  if (!cooldownCheck.allowed) {
+    log.info(`${checkpoint}: Skipping compaction - ${cooldownCheck.reason}`);
+    // Don't throw - cooldown is protective, not an error
+    // If session is still over limit, subsequent code will handle it
+    return;
+  }
+
+  // Fix 2: Pre-flight bounds check
+  const canCompactCheck = canCompactFurther(activeSession.messages, maxContextTokens);
+  if (!canCompactCheck.canCompact) {
+    const currentPercent =
+      (estimateMessagesTokens(activeSession.messages) / maxContextTokens) * 100;
+    throw new Error(
+      `${checkpoint}: Session cannot be compacted (${canCompactCheck.reason}). ` +
+        `Context at ${currentPercent.toFixed(0)}%.\n\n` +
+        `What to do:\n` +
+        `1. Save your work to files\n` +
+        `2. Use /new to start a fresh session\n\n` +
+        `Why this happened: Session is too dense with recent context to compress effectively.`,
+    );
+  }
+
+  // Fix 1: Bounded retry loop with progress verification
+  for (let attempt = 1; attempt <= MAX_COMPACTION_ATTEMPTS; attempt++) {
+    // Check abort signal before each attempt
+    if (params.abortSignal?.aborted) {
+      log.warn(`${checkpoint}: Compaction aborted mid-retry (gateway shutdown)`);
+      throw new Error("Gateway shutdown during compaction");
+    }
+
+    const beforeTokens = estimateMessagesTokens(activeSession.messages);
+    const beforePercent = (beforeTokens / maxContextTokens) * 100;
+
+    log.info(
+      `${checkpoint}: Compaction attempt ${attempt}/${MAX_COMPACTION_ATTEMPTS} (current: ${beforePercent.toFixed(1)}%)`,
+    );
+
+    const compactResult = await compactEmbeddedPiSessionDirect({
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey,
+      messageChannel: params.messageChannel,
+      messageProvider: params.messageProvider,
+      agentAccountId: params.agentAccountId,
+      sessionFile: params.sessionFile,
+      workspaceDir: params.workspaceDir,
+      agentDir: params.agentDir,
+      config: params.config,
+      skillsSnapshot: params.skillsSnapshot,
+      provider: params.provider,
+      model: params.model,
+      thinkLevel: params.thinkLevel,
+      reasoningLevel: params.reasoningLevel,
+      bashElevated: params.bashElevated,
+      extraSystemPrompt: params.extraSystemPrompt,
+      ownerNumbers: params.ownerNumbers,
+    });
+
+    // Fix 4: CHECK 1 must abort on failure
+    if (!compactResult.compacted) {
+      throw new Error(
+        `${checkpoint}: Compaction failed: ${compactResult.reason ?? "unknown"}.\n\n` +
+          `What to do:\n` +
+          `1. Save your work: Ask agent to commit files or summarize progress\n` +
+          `2. Start fresh: Use /new to create a new session\n` +
+          `3. Upgrade model: Use a model with larger context if available\n\n` +
+          `Why this happened: Session at ${beforePercent.toFixed(0)}% has too much recent context that can't be compressed.`,
+      );
+    }
+
+    // Reload messages after compaction
+    const sessionContext = sessionManager.buildSessionContext();
+    activeSession.agent.replaceMessages(sessionContext.messages);
+
+    const afterTokens = estimateMessagesTokens(activeSession.messages);
+    const afterPercent = (afterTokens / maxContextTokens) * 100;
+    const reductionPercent = ((beforeTokens - afterTokens) / beforeTokens) * 100;
+
+    log.info(
+      `${checkpoint}: After compaction: ${afterPercent.toFixed(1)}% (reduced ${reductionPercent.toFixed(1)}%)`,
+    );
+
+    // Record successful compaction for cooldown tracking
+    recordCompaction(params.sessionId, checkpoint);
+
+    // Check abort after compaction completes
+    if (params.abortSignal?.aborted) {
+      log.warn(`${checkpoint}: Compaction completed but gateway shutting down`);
+      throw new Error("Gateway shutdown after compaction");
+    }
+
+    // Success: under target
+    if (afterPercent < TARGET_USAGE_PERCENT) {
+      return;
+    }
+
+    // Progress too slow
+    if (reductionPercent < MIN_REDUCTION_PERCENT) {
+      throw new Error(
+        `${checkpoint}: Compaction only reduced context by ${reductionPercent.toFixed(1)}% ` +
+          `(now ${afterPercent.toFixed(0)}%). Session is too dense to compact further.\n\n` +
+          `What to do:\n` +
+          `1. Save your work to files before starting fresh\n` +
+          `2. Use /new to create a session with clean context\n` +
+          `3. Consider using a larger context model\n\n` +
+          `Why this happened: Your session has too much recent context that can't be compressed.`,
+      );
+    }
+
+    // Early abort: Check if we can reach target with remaining attempts
+    const remainingAttempts = MAX_COMPACTION_ATTEMPTS - attempt;
+    const estimatedFinalPercent = afterPercent - reductionPercent * remainingAttempts;
+
+    if (estimatedFinalPercent > TARGET_USAGE_PERCENT * 1.05) {
+      throw new Error(
+        `${checkpoint}: Compaction making progress (${reductionPercent.toFixed(1)}% reduction) ` +
+          `but won't reach ${TARGET_USAGE_PERCENT}% target in ${remainingAttempts} remaining attempts. ` +
+          `Current: ${afterPercent.toFixed(0)}%.\n\n` +
+          `What to do:\n` +
+          `1. Save work to files using /write or asking agent to commit\n` +
+          `2. Use /new to start a fresh session\n\n` +
+          `Why this happened: Session context is too large and dense for effective compaction.`,
+      );
+    }
+
+    // Still over target after max attempts
+    if (attempt === MAX_COMPACTION_ATTEMPTS) {
+      throw new Error(
+        `${checkpoint}: Context still at ${afterPercent.toFixed(0)}% after ${MAX_COMPACTION_ATTEMPTS} compaction attempts.\n\n` +
+          `What to do:\n` +
+          `1. Save your progress to files\n` +
+          `2. Use /new to start a fresh session\n\n` +
+          `Why this happened: Session has grown too large to compress further.`,
+      );
+    }
+
+    log.warn(`${checkpoint}: Still at ${afterPercent.toFixed(0)}%, attempting compaction again...`);
+    // Exponential backoff between attempts
+    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+  }
 }
 
 export async function runEmbeddedAttempt(
@@ -576,41 +778,34 @@ export async function runEmbeddedAttempt(
           `action=${sessionLoadCheck.action}`,
       );
 
-      // ≥90%: Auto-compact before first turn
+      // ≥90%: Auto-compact before first turn (CHECK 1 - Fix 1, 2, 3, 4)
       if (sessionLoadCheck.action === "hard_gate" || sessionLoadCheck.action === "block") {
-        log.warn(
-          `Session load: context at ${sessionLoadCheck.usagePercent.toFixed(0)}% - auto-compacting before first turn`,
+        await compactWithRetry(
+          {
+            sessionId: params.sessionId,
+            sessionKey: params.sessionKey,
+            messageChannel: params.messageChannel,
+            messageProvider: params.messageProvider,
+            agentAccountId: params.agentAccountId,
+            sessionFile: params.sessionFile,
+            workspaceDir: params.workspaceDir,
+            agentDir: params.agentDir,
+            config: params.config,
+            skillsSnapshot: params.skillsSnapshot,
+            provider: params.provider,
+            model: params.modelId,
+            thinkLevel: params.thinkLevel,
+            reasoningLevel: params.reasoningLevel,
+            bashElevated: params.bashElevated,
+            extraSystemPrompt: params.extraSystemPrompt,
+            ownerNumbers: params.ownerNumbers,
+            abortSignal: params.abortSignal,
+          },
+          "session_load",
+          activeSession,
+          sessionManager,
+          maxContextTokens,
         );
-        const compactResult = await compactEmbeddedPiSessionDirect({
-          sessionId: params.sessionId,
-          sessionKey: params.sessionKey,
-          messageChannel: params.messageChannel,
-          messageProvider: params.messageProvider,
-          agentAccountId: params.agentAccountId,
-          sessionFile: params.sessionFile,
-          workspaceDir: params.workspaceDir,
-          agentDir: params.agentDir,
-          config: params.config,
-          skillsSnapshot: params.skillsSnapshot,
-          provider: params.provider,
-          model: params.modelId,
-          thinkLevel: params.thinkLevel,
-          reasoningLevel: params.reasoningLevel,
-          bashElevated: params.bashElevated,
-          extraSystemPrompt: params.extraSystemPrompt,
-          ownerNumbers: params.ownerNumbers,
-        });
-
-        if (compactResult.compacted) {
-          log.info("Session load: auto-compaction succeeded, reloading messages");
-          // Reload messages after compaction
-          const sessionContext = sessionManager.buildSessionContext();
-          activeSession.agent.replaceMessages(sessionContext.messages);
-        } else {
-          log.warn(
-            `Session load: auto-compaction failed: ${compactResult.reason ?? "nothing to compact"}`,
-          );
-        }
       } else if (sessionLoadCheck.action === "soft_warn" && sessionLoadCheck.warningMessage) {
         // ≥80%: Log warning
         logContextWarning({
@@ -869,97 +1064,35 @@ export async function runEmbeddedAttempt(
               `includes ${estimatedOutput} output budget) action=${turnBoundaryCheck.action}`,
           );
 
-          // ≥95%: Block - force save/compact, do not call API
-          if (turnBoundaryCheck.action === "block") {
-            log.error(
-              `Turn boundary: context at ${turnBoundaryCheck.usagePercent.toFixed(0)}% - blocking API call, forcing compaction`,
+          // ≥90%: Auto-compact before API call (CHECK 2 - Fix 1, 2, 3, 4, 5)
+          // Unified handling for both hard_gate (≥90%) and block (≥95%)
+          if (turnBoundaryCheck.action === "hard_gate" || turnBoundaryCheck.action === "block") {
+            await compactWithRetry(
+              {
+                sessionId: params.sessionId,
+                sessionKey: params.sessionKey,
+                messageChannel: params.messageChannel,
+                messageProvider: params.messageProvider,
+                agentAccountId: params.agentAccountId,
+                sessionFile: params.sessionFile,
+                workspaceDir: params.workspaceDir,
+                agentDir: params.agentDir,
+                config: params.config,
+                skillsSnapshot: params.skillsSnapshot,
+                provider: params.provider,
+                model: params.modelId,
+                thinkLevel: params.thinkLevel,
+                reasoningLevel: params.reasoningLevel,
+                bashElevated: params.bashElevated,
+                extraSystemPrompt: params.extraSystemPrompt,
+                ownerNumbers: params.ownerNumbers,
+                abortSignal: params.abortSignal,
+              },
+              "turn_boundary",
+              activeSession,
+              sessionManager,
+              maxContextTokens,
             );
-            if (turnBoundaryCheck.warningMessage) {
-              logContextWarning({
-                warningMessage: turnBoundaryCheck.warningMessage,
-                checkpoint: "turn_boundary",
-                usagePercent: turnBoundaryCheck.usagePercent,
-              });
-            }
-            // Force compaction
-            const compactResult = await compactEmbeddedPiSessionDirect({
-              sessionId: params.sessionId,
-              sessionKey: params.sessionKey,
-              messageChannel: params.messageChannel,
-              messageProvider: params.messageProvider,
-              agentAccountId: params.agentAccountId,
-              sessionFile: params.sessionFile,
-              workspaceDir: params.workspaceDir,
-              agentDir: params.agentDir,
-              config: params.config,
-              skillsSnapshot: params.skillsSnapshot,
-              provider: params.provider,
-              model: params.modelId,
-              thinkLevel: params.thinkLevel,
-              reasoningLevel: params.reasoningLevel,
-              bashElevated: params.bashElevated,
-              extraSystemPrompt: params.extraSystemPrompt,
-              ownerNumbers: params.ownerNumbers,
-            });
-
-            if (compactResult.compacted) {
-              log.info("Turn boundary: compaction succeeded, session should be safe now");
-              // Reload messages
-              const sessionContext = sessionManager.buildSessionContext();
-              activeSession.agent.replaceMessages(sessionContext.messages);
-            } else {
-              log.error(
-                `Turn boundary: compaction failed: ${compactResult.reason ?? "nothing to compact"}. Aborting to prevent context overflow.`,
-              );
-              throw new Error(
-                `Context limit reached but compaction failed: ${compactResult.reason ?? "unknown"}`,
-              );
-            }
-          } else if (turnBoundaryCheck.action === "hard_gate") {
-            // ≥90%: Hard gate - log warning and auto-compact
-            log.warn(
-              `Turn boundary: context at ${turnBoundaryCheck.usagePercent.toFixed(0)}% - logging hard warning and auto-compacting`,
-            );
-            if (turnBoundaryCheck.warningMessage) {
-              logContextWarning({
-                warningMessage: turnBoundaryCheck.warningMessage,
-                checkpoint: "turn_boundary",
-                usagePercent: turnBoundaryCheck.usagePercent,
-              });
-            }
-            // Auto-compact but allow the turn to proceed
-            const compactResult = await compactEmbeddedPiSessionDirect({
-              sessionId: params.sessionId,
-              sessionKey: params.sessionKey,
-              messageChannel: params.messageChannel,
-              messageProvider: params.messageProvider,
-              agentAccountId: params.agentAccountId,
-              sessionFile: params.sessionFile,
-              workspaceDir: params.workspaceDir,
-              agentDir: params.agentDir,
-              config: params.config,
-              skillsSnapshot: params.skillsSnapshot,
-              provider: params.provider,
-              model: params.modelId,
-              thinkLevel: params.thinkLevel,
-              reasoningLevel: params.reasoningLevel,
-              bashElevated: params.bashElevated,
-              extraSystemPrompt: params.extraSystemPrompt,
-              ownerNumbers: params.ownerNumbers,
-            });
-
-            if (compactResult.compacted) {
-              log.info("Turn boundary: auto-compaction succeeded");
-              const sessionContext = sessionManager.buildSessionContext();
-              activeSession.agent.replaceMessages(sessionContext.messages);
-            } else {
-              log.warn(
-                `Turn boundary: hard gate compaction failed: ${compactResult.reason ?? "nothing to compact"}. Aborting to prevent context overflow.`,
-              );
-              throw new Error(
-                `Context limit hard gate: at ${turnBoundaryCheck.usagePercent.toFixed(0)}% but compaction failed: ${compactResult.reason ?? "unknown"}`,
-              );
-            }
           } else if (turnBoundaryCheck.action === "soft_warn" && turnBoundaryCheck.warningMessage) {
             // ≥80%: Soft warning - log about approaching limit
             logContextWarning({
