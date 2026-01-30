@@ -18,8 +18,8 @@
 
 <p align="center">
   <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
+  <a href="README_zh.md">简体中文</a> |
+  <a href="README_zht.md">繁體中文</a> |
 </p>
 
 **Moltbot** is a *personal AI assistant* you run on your own devices.
