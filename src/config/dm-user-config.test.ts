@@ -19,9 +19,7 @@ describe("resolveDmUserConfig", () => {
 
   it("returns undefined when sender has no DM config", () => {
     const cfg = makeConfig({ "+1234": { role: "owner" } });
-    expect(
-      resolveDmUserConfig({ cfg, channel: "whatsapp", senderId: "+9999" }),
-    ).toBeUndefined();
+    expect(resolveDmUserConfig({ cfg, channel: "whatsapp", senderId: "+9999" })).toBeUndefined();
   });
 
   it("resolves owner role", () => {
@@ -86,16 +84,12 @@ describe("resolveDmUserConfig", () => {
 
   it("returns undefined when channel config is missing", () => {
     const cfg = { channels: {} } as unknown as OpenClawConfig;
-    expect(
-      resolveDmUserConfig({ cfg, channel: "whatsapp", senderId: "+1234" }),
-    ).toBeUndefined();
+    expect(resolveDmUserConfig({ cfg, channel: "whatsapp", senderId: "+1234" })).toBeUndefined();
   });
 
   it("returns undefined when channels is missing entirely", () => {
     const cfg = {} as unknown as OpenClawConfig;
-    expect(
-      resolveDmUserConfig({ cfg, channel: "whatsapp", senderId: "+1234" }),
-    ).toBeUndefined();
+    expect(resolveDmUserConfig({ cfg, channel: "whatsapp", senderId: "+1234" })).toBeUndefined();
   });
 
   it("resolves from account-level dms when accountId provided", () => {

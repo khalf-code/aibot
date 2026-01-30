@@ -52,9 +52,7 @@ describe("DmConfigSchema", () => {
   });
 
   it("rejects unknown fields (strict mode)", () => {
-    expect(() =>
-      DmConfigSchema.parse({ role: "owner", unknownField: true }),
-    ).toThrow();
+    expect(() => DmConfigSchema.parse({ role: "owner", unknownField: true })).toThrow();
   });
 
   it("rejects invalid role value", () => {
