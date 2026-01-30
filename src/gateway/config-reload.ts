@@ -2,6 +2,7 @@ import chokidar from "chokidar";
 import { type ChannelId, listChannelPlugins } from "../channels/plugins/index.js";
 import { getActivePluginRegistry } from "../plugins/runtime.js";
 import type { MoltbotConfig, ConfigFileSnapshot, GatewayReloadMode } from "../config/config.js";
+import { getActiveAgentRunCount, onAgentRunComplete } from "../infra/agent-events.js";
 
 export type GatewayReloadSettings = {
   mode: GatewayReloadMode;
@@ -264,6 +265,8 @@ export function startGatewayConfigReloader(opts: {
   let running = false;
   let stopped = false;
   let restartQueued = false;
+  let queuedPlan: GatewayReloadPlan | null = null;
+  let queuedConfig: MoltbotConfig | null = null;
 
   const schedule = () => {
     if (stopped) return;
@@ -306,6 +309,16 @@ export function startGatewayConfigReloader(opts: {
       }
       if (settings.mode === "restart") {
         if (!restartQueued) {
+          const activeRunCount = getActiveAgentRunCount();
+          if (activeRunCount > 0) {
+            opts.log.warn(
+              `config change requires gateway restart, but deferring (${activeRunCount} active agent run${activeRunCount === 1 ? "" : "s"})`,
+            );
+            restartQueued = true;
+            queuedPlan = plan;
+            queuedConfig = nextConfig;
+            return;
+          }
           restartQueued = true;
           opts.onRestart(plan, nextConfig);
         }
@@ -321,6 +334,16 @@ export function startGatewayConfigReloader(opts: {
           return;
         }
         if (!restartQueued) {
+          const activeRunCount = getActiveAgentRunCount();
+          if (activeRunCount > 0) {
+            opts.log.warn(
+              `config change requires gateway restart, but deferring (${activeRunCount} active agent run${activeRunCount === 1 ? "" : "s"})`,
+            );
+            restartQueued = true;
+            queuedPlan = plan;
+            queuedConfig = nextConfig;
+            return;
+          }
           restartQueued = true;
           opts.onRestart(plan, nextConfig);
         }
@@ -356,12 +379,26 @@ export function startGatewayConfigReloader(opts: {
     void watcher.close().catch(() => {});
   });
 
+  // Register callback to apply queued restart when all runs complete
+  const unregisterCallback = onAgentRunComplete(() => {
+    if (restartQueued && queuedPlan && queuedConfig && getActiveAgentRunCount() === 0) {
+      opts.log.info("applying queued gateway restart (all agent runs completed)");
+      restartQueued = false;
+      const plan = queuedPlan;
+      const config = queuedConfig;
+      queuedPlan = null;
+      queuedConfig = null;
+      opts.onRestart(plan, config);
+    }
+  });
+
   return {
     stop: async () => {
       stopped = true;
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = null;
       watcherClosed = true;
+      unregisterCallback();
       await watcher.close().catch(() => {});
     },
   };

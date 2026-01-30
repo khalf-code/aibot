@@ -21,6 +21,7 @@ export type AgentRunContext = {
 const seqByRun = new Map<string, number>();
 const listeners = new Set<(evt: AgentEventPayload) => void>();
 const runContextById = new Map<string, AgentRunContext>();
+const runCompletionCallbacks = new Set<() => void>();
 
 export function registerAgentRunContext(runId: string, context: AgentRunContext) {
   if (!runId) return;
@@ -46,6 +47,27 @@ export function getAgentRunContext(runId: string) {
 
 export function clearAgentRunContext(runId: string) {
   runContextById.delete(runId);
+  // Notify callbacks that a run has completed
+  for (const callback of runCompletionCallbacks) {
+    try {
+      callback();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function onAgentRunComplete(callback: () => void): () => void {
+  runCompletionCallbacks.add(callback);
+  return () => runCompletionCallbacks.delete(callback);
+}
+
+export function getActiveAgentRunCount(): number {
+  return runContextById.size;
+}
+
+export function getActiveAgentRunIds(): string[] {
+  return Array.from(runContextById.keys());
 }
 
 export function resetAgentRunContextForTest() {

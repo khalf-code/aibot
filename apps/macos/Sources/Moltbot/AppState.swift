@@ -449,6 +449,9 @@ final class AppState {
             ? CommandResolver.parseSSHTarget(remoteTarget)?.host
             : nil
 
+        // Don't write to gateway config in remote mode - gateway manages its own config
+        guard connectionMode == .local else { return }
+
         Task { @MainActor in
             // Keep app-only connection settings local to avoid overwriting remote gateway config.
             var root = MoltbotConfigFile.loadDict()
