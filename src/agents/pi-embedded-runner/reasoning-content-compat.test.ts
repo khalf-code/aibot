@@ -139,6 +139,53 @@ describe("patchReasoningContentCompat", () => {
     expect(params.messages[0]).not.toHaveProperty("reasoning_content");
   });
 
+  it("adds reasoning_content when payload has reasoning_effort set", () => {
+    const params = {
+      reasoning_effort: "high",
+      messages: [
+        { role: "user", content: "hello" },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [{ id: "tc_1", type: "function", function: { name: "fn", arguments: "{}" } }],
+        },
+        { role: "tool", content: "result", tool_call_id: "tc_1" },
+      ],
+    };
+
+    // No modelId, no existing reasoning field — but reasoning_effort is set
+    patchReasoningContentCompat(params);
+    expect((params.messages[1] as Record<string, unknown>).reasoning_content).toBe("");
+  });
+
+  it("adds reasoning_content when payload has thinking: { type: 'enabled' }", () => {
+    const params = {
+      thinking: { type: "enabled" },
+      messages: [
+        { role: "user", content: "hello" },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [{ id: "tc_1", type: "function", function: { name: "fn", arguments: "{}" } }],
+        },
+      ],
+    };
+
+    patchReasoningContentCompat(params);
+    expect((params.messages[1] as Record<string, unknown>).reasoning_content).toBe("");
+  });
+
+  it("does not trigger on thinking: { type: 'disabled' }", () => {
+    const params = {
+      thinking: { type: "disabled" },
+      messages: [{ role: "assistant", content: "hi", tool_calls: [{ id: "tc_1" }] }],
+    };
+
+    const before = JSON.parse(JSON.stringify(params));
+    patchReasoningContentCompat(params);
+    expect(params.messages).toEqual(before.messages);
+  });
+
   it("does not add field when reasoning_content is explicitly set to empty string", () => {
     const params = {
       messages: [

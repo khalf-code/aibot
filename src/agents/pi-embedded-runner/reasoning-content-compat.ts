@@ -46,6 +46,26 @@ function ensureReasoningFieldPresent(messages: ApiMessage[], field: string): voi
   }
 }
 
+/**
+ * Check if the payload indicates thinking/reasoning is enabled.
+ * When the API request includes reasoning params, every assistant message
+ * MUST have reasoning_content — regardless of model ID detection.
+ */
+function payloadHasThinkingEnabled(params: Record<string, unknown>): boolean {
+  // OpenAI-style reasoning_effort (e.g. "high", "medium", "low")
+  if (params.reasoning_effort) return true;
+  // Z.ai / Kimi style thinking: { type: "enabled" }
+  const thinking = params.thinking;
+  if (
+    thinking &&
+    typeof thinking === "object" &&
+    (thinking as Record<string, unknown>).type === "enabled"
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** @internal Exported for testing only. */
 export function patchReasoningContentCompat(
   params: Record<string, unknown>,
@@ -62,7 +82,9 @@ export function patchReasoningContentCompat(
 
   // For models that always require reasoning_content (e.g. Kimi K2.5),
   // add it even when no prior message has it yet (first interaction).
-  if (requiresAlwaysReasoning(modelId)) {
+  // Also trigger when the payload itself has thinking/reasoning params enabled —
+  // this is a safety net in case model ID detection misses.
+  if (requiresAlwaysReasoning(modelId) || payloadHasThinkingEnabled(params)) {
     ensureReasoningFieldPresent(messages as ApiMessage[], "reasoning_content");
   }
 }
