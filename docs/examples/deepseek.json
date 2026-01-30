@@ -1,0 +1,43 @@
+{
+    "models": {
+        "providers": {
+            "deepseek": {
+                "baseUrl": "https://api.deepseek.com/v1",
+                "apiKey": "${DEEPSEEK_API_KEY}",
+                "api": "openai-responses",
+                "models": [
+                    {
+                        "id": "deepseek-chat",
+                        "name": "Deep Seek Chat (V3.2 非思考模式)",
+                        "contextWindow": 64000,
+                        "maxTokens": 8000,
+                        "cost": {
+                            "input": 0.14,
+                            "output": 0.28,
+                            "cacheRead": 0.014,
+                            "cacheWrite": 0.14
+                        },
+                        "compat": {
+                            "supportsStore": false
+                        }
+                    },
+                    {
+                        "id": "deepseek-reasoner",
+                        "name": "DeepSeek Reasoner (V3.2 思考模式)",
+                        "reasoning": true,
+                        "contextWindow": 64000,
+                        "maxTokens": 8000,
+                        "cost": {
+                            "input": 0.55,
+                            "output": 2.19
+                        },
+                        "compat": {
+                            "supportsStore": false,
+                            "supportsReasoningEffort": true
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
