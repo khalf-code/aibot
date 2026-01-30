@@ -378,9 +378,16 @@ export async function compactEmbeddedPiSessionDirect(
         model,
       });
 
+      const openaiCompletionsTools =
+        model.api === "openai-completions" &&
+        (model.compat as { openaiCompletionsTools?: unknown } | undefined)
+          ?.openaiCompletionsTools === true;
+
       const { builtInTools, customTools } = splitSdkTools({
         tools,
         sandboxEnabled: !!sandbox?.enabled,
+        modelApi: model.api,
+        openaiCompletionsTools,
       });
 
       let session: Awaited<ReturnType<typeof createAgentSession>>["session"];
