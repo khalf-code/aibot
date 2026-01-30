@@ -2,6 +2,9 @@
 
 R6 workflow formalism, audit trails, session identity, and policy-based pre-action gating for moltbot agent sessions.
 
+> **New to Moltbot?** See [MOLTBOT_OVERVIEW.md](./MOLTBOT_OVERVIEW.md) for a broad-to-narrow
+> explanation of how Moltbot works and where this extension fits in the architecture.
+
 ## Overview
 
 This plugin observes and optionally gates every tool call an agent makes:
