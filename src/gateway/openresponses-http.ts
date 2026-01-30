@@ -1,7 +1,7 @@
 /**
  * OpenResponses HTTP Handler
  *
- * Implements the OpenResponses `/v1/responses` endpoint for Moltbot Gateway.
+ * Implements the OpenResponses `/v1/responses` endpoint for OpenClaw Gateway.
  *
  * @see https://www.open-responses.com/
  */
@@ -251,12 +251,12 @@ function createEmptyUsage(): Usage {
 function toUsage(
   value:
     | {
-      input?: number;
-      output?: number;
-      cacheRead?: number;
-      cacheWrite?: number;
-      total?: number;
-    }
+        input?: number;
+        output?: number;
+        cacheRead?: number;
+        cacheWrite?: number;
+        total?: number;
+      }
     | undefined,
 ): Usage {
   if (!value) return createEmptyUsage();
@@ -277,8 +277,8 @@ function extractUsageFromResult(result: unknown): Usage {
   const usage = meta && typeof meta === "object" ? meta.agentMeta?.usage : undefined;
   return toUsage(
     usage as
-    | { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; total?: number }
-    | undefined,
+      | { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; total?: number }
+      | undefined,
   );
 }
 
@@ -526,7 +526,7 @@ export async function handleOpenResponsesHttpRequest(
       const pendingToolCalls =
         meta && typeof meta === "object"
           ? (meta as { pendingToolCalls?: Array<{ id: string; name: string; arguments: string }> })
-            .pendingToolCalls
+              .pendingToolCalls
           : undefined;
 
       // If agent called a client tool, return function_call instead of text
@@ -555,10 +555,10 @@ export async function handleOpenResponsesHttpRequest(
       const content =
         Array.isArray(payloads) && payloads.length > 0
           ? payloads
-            .map((p) => (typeof p.text === "string" ? p.text : ""))
-            .filter(Boolean)
-            .join("\n\n")
-          : "No response from Moltbot.";
+              .map((p) => (typeof p.text === "string" ? p.text : ""))
+              .filter(Boolean)
+              .join("\n\n")
+          : "No response from OpenClaw.";
 
       const response = createResponseResource({
         id: responseId,
@@ -594,7 +594,7 @@ export async function handleOpenResponsesHttpRequest(
   let accumulatedText = "";
   let sawAssistantDelta = false;
   let closed = false;
-  let unsubscribe = () => { };
+  let unsubscribe = () => {};
   let finalUsage: Usage | undefined;
   let finalizeRequested: { status: ResponseResource["status"]; text: string } | null = null;
 
@@ -713,7 +713,7 @@ export async function handleOpenResponsesHttpRequest(
     if (evt.stream === "lifecycle") {
       const phase = evt.data?.phase;
       if (phase === "end" || phase === "error") {
-        const finalText = accumulatedText || "No response from Moltbot.";
+        const finalText = accumulatedText || "No response from OpenClaw.";
         const finalStatus = phase === "error" ? "failed" : "completed";
         requestFinalize(finalStatus, finalText);
       }
@@ -761,10 +761,10 @@ export async function handleOpenResponsesHttpRequest(
         const pendingToolCalls =
           meta && typeof meta === "object"
             ? (
-              meta as {
-                pendingToolCalls?: Array<{ id: string; name: string; arguments: string }>;
-              }
-            ).pendingToolCalls
+                meta as {
+                  pendingToolCalls?: Array<{ id: string; name: string; arguments: string }>;
+                }
+              ).pendingToolCalls
             : undefined;
 
         // If agent called a client tool, emit function_call instead of text
@@ -835,10 +835,10 @@ export async function handleOpenResponsesHttpRequest(
         const content =
           Array.isArray(payloads) && payloads.length > 0
             ? payloads
-              .map((p) => (typeof p.text === "string" ? p.text : ""))
-              .filter(Boolean)
-              .join("\n\n")
-            : "No response from Moltbot.";
+                .map((p) => (typeof p.text === "string" ? p.text : ""))
+                .filter(Boolean)
+                .join("\n\n")
+            : "No response from OpenClaw.";
 
         accumulatedText = content;
         sawAssistantDelta = true;
