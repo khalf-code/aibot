@@ -90,19 +90,35 @@ pnpm openclaw gateway run --force
 
 ## Current state
 
-- **Working:** cursor-cli backend registration, keychain credential reading, `--model` on `openclaw agent`, gateway passing `model`, models status treating cursor-cli as authenticated when keychain has tokens and showing the right missing-auth hint, version with commit hash, default agent "main".
+- **Working:** cursor-cli backend registration, keychain credential reading, `--model` on `openclaw agent`, gateway passing `model`, models status treating cursor-cli as authenticated when keychain has tokens and showing the right missing-auth hint, version with commit hash, default agent "main", **onboarding auth choice for cursor-cli**.
 - **Not done:** No automated tests for cursor-cli in this session. E2E would require `cursor` on PATH and (optionally) mock or real login.
 - **Platform:** Cursor keychain auth is macOS-only in code (`platform === "darwin"` in `readCursorCliCredentials`); other platforms would need another auth story (e.g. env or file) if desired.
 
-## UI improvement opportunities
+## Known bugs
 
-To ease cursor-cli setup, consider:
+### TUI does not parse cursor-cli JSONL output
+
+When using cursor-cli via the Control UI TUI, the raw JSONL output is displayed instead of being parsed and rendered properly:
+
+```
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"\n2 + 4 = 6."}]}...}
+```
+
+**Root cause:** The TUI expects a different output format than what cursor-cli produces. The CLI backend outputs JSONL with `type: "assistant"`, `type: "thinking"`, etc., which the TUI doesn't interpret.
+
+**Files to investigate:**
+- `ui/src/ui/views/chat.ts` or similar — TUI message rendering
+- `src/agents/cli-runner.ts` — CLI output parsing
+- Gateway websocket message handling for agent responses
+
+## UI improvement opportunities (remaining)
 
 1. **Model picker** (`src/commands/model-picker.ts`) — Could add cursor-cli as a visible option in interactive model selection
 2. **Auth overview** (`src/commands/models/list.auth-overview.ts`) — Already shows cursor-cli auth status, works well
 3. **Control UI config form** (`ui/src/ui/views/config-form.*.ts`) — Could add cursor-cli backend selection dropdown in the agents section
-4. **Onboarding registry** (`src/commands/onboarding/registry.ts`) — Could add cursor-cli onboarding step that prompts `cursor agent login`
+4. ~~**Onboarding**~~ ✅ Done — `src/commands/auth-choice.apply.cursor-cli.ts`
 5. **Gateway model catalog** (`src/gateway/server-model-catalog.ts`) — cursor-cli models could appear in `models.list` API for UI display
+6. **Fix TUI JSONL parsing** — See bug above
 
 ## Repo / env
 
