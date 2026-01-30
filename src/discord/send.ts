@@ -26,6 +26,12 @@ export {
   timeoutMemberDiscord,
 } from "./send.guild.js";
 export {
+  clearVoiceProvider,
+  getVoiceRegistry,
+  registerVoiceProvider,
+  type VoiceRegistry,
+} from "./voice-registry.js";
+export {
   createThreadDiscord,
   deleteMessageDiscord,
   editMessageDiscord,

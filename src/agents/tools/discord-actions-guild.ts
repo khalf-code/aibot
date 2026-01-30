@@ -11,6 +11,7 @@ import {
   fetchMemberInfoDiscord,
   fetchRoleInfoDiscord,
   fetchVoiceStatusDiscord,
+  getVoiceRegistry,
   listGuildChannelsDiscord,
   listGuildEmojisDiscord,
   listScheduledEventsDiscord,
@@ -223,6 +224,44 @@ export async function handleDiscordGuildAction(
         ? await fetchVoiceStatusDiscord(guildId, userId, { accountId })
         : await fetchVoiceStatusDiscord(guildId, userId);
       return jsonResult({ ok: true, voice });
+    }
+    case "voiceJoin": {
+      if (!isActionEnabled("voiceJoin")) {
+        throw new Error("Discord voice join is disabled.");
+      }
+      const registry = getVoiceRegistry();
+      if (!registry) {
+        throw new Error(
+          "Voice functionality not initialized. Ensure Discord voice plugin is enabled.",
+        );
+      }
+      const guildId = readStringParam(params, "guildId", {
+        required: true,
+      });
+      const channelId = readStringParam(params, "channelId", {
+        required: true,
+      });
+      const userId = readStringParam(params, "userId", {
+        required: true,
+      });
+      await registry.joinChannel(guildId, channelId, userId);
+      return jsonResult({ ok: true, joined: channelId });
+    }
+    case "voiceLeave": {
+      if (!isActionEnabled("voiceLeave")) {
+        throw new Error("Discord voice leave is disabled.");
+      }
+      const registry = getVoiceRegistry();
+      if (!registry) {
+        throw new Error(
+          "Voice functionality not initialized. Ensure Discord voice plugin is enabled.",
+        );
+      }
+      const guildId = readStringParam(params, "guildId", {
+        required: true,
+      });
+      await registry.leaveChannel(guildId);
+      return jsonResult({ ok: true, left: true });
     }
     case "eventList": {
       if (!isActionEnabled("events")) {

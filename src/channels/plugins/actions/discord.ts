@@ -57,6 +57,8 @@ export const discordMessageActions: ChannelMessageActionAdapter = {
       actions.add("category-delete");
     }
     if (gate("voiceStatus")) actions.add("voice-status");
+    if (gate("voiceJoin")) actions.add("voice-join");
+    if (gate("voiceLeave")) actions.add("voice-leave");
     if (gate("events")) {
       actions.add("event-list");
       actions.add("event-create");

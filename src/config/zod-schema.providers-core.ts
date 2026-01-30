@@ -249,6 +249,8 @@ export const DiscordAccountSchema = z
         roles: z.boolean().optional(),
         channelInfo: z.boolean().optional(),
         voiceStatus: z.boolean().optional(),
+        voiceJoin: z.boolean().optional(),
+        voiceLeave: z.boolean().optional(),
         events: z.boolean().optional(),
         moderation: z.boolean().optional(),
         channels: z.boolean().optional(),
