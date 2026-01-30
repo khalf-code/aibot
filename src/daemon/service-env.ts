@@ -36,10 +36,10 @@ function resolveSystemPathDirs(platform: NodeJS.Platform): string[] {
 }
 
 /**
- * Resolve common user bin directories for Linux.
+ * Resolve common user bin directories for POSIX systems (Linux and macOS).
  * These are paths where npm global installs and node version managers typically place binaries.
  */
-export function resolveLinuxUserBinDirs(
+export function resolvePosixUserBinDirs(
   home: string | undefined,
   env?: Record<string, string | undefined>,
 ): string[] {
@@ -74,8 +74,10 @@ export function resolveLinuxUserBinDirs(
   dirs.push(`${home}/.fnm/current/bin`); // fnm
   dirs.push(`${home}/.volta/bin`); // Volta
   dirs.push(`${home}/.asdf/shims`); // asdf
-  dirs.push(`${home}/.local/share/pnpm`); // pnpm global bin
+  dirs.push(`${home}/.local/share/pnpm`); // pnpm global bin (Linux)
+  dirs.push(`${home}/Library/pnpm`); // pnpm global bin (macOS)
   dirs.push(`${home}/.bun/bin`); // Bun
+  dirs.push(`${home}/.cargo/bin`); // Rust/Cargo
 
   return dirs;
 }
@@ -88,9 +90,11 @@ export function getMinimalServicePathParts(options: MinimalServicePathOptions = 
   const extraDirs = options.extraDirs ?? [];
   const systemDirs = resolveSystemPathDirs(platform);
 
-  // Add Linux user bin directories (npm global, nvm, fnm, volta, etc.)
-  const linuxUserDirs =
-    platform === "linux" ? resolveLinuxUserBinDirs(options.home, options.env) : [];
+  // Add user bin directories for POSIX systems (npm global, nvm, fnm, volta, pnpm, bun, etc.)
+  const posixUserDirs =
+    platform === "linux" || platform === "darwin"
+      ? resolvePosixUserBinDirs(options.home, options.env)
+      : [];
 
   const add = (dir: string) => {
     if (!dir) return;
@@ -99,7 +103,7 @@ export function getMinimalServicePathParts(options: MinimalServicePathOptions = 
 
   for (const dir of extraDirs) add(dir);
   // User dirs first so user-installed binaries take precedence
-  for (const dir of linuxUserDirs) add(dir);
+  for (const dir of posixUserDirs) add(dir);
   for (const dir of systemDirs) add(dir);
 
   return parts;
