@@ -202,14 +202,14 @@ Inbound attachments (images/audio/docs) can be surfaced to your command via temp
 - `{{MediaUrl}}` (pseudo-URL)
 - `{{Transcript}}` (if audio transcription is enabled)
 
-Outbound attachments from the agent: include `MEDIA:<path-or-url>` on its own line (no spaces). Example:
+Outbound attachments from the agent: include `MEDIA:<path-or-url>` on its own line. Example:
 
 ```
 Here’s the screenshot.
-MEDIA:/tmp/screenshot.png
+MEDIA:https://example.com/screenshot.png
 ```
 
-OpenClaw extracts these and sends them as media alongside the text.
+Local `MEDIA:` paths are restricted for security; prefer the message tool for local attachments (or use a safe relative `MEDIA:./...` when applicable).
 
 ## Operations checklist
 
