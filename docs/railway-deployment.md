@@ -139,28 +139,41 @@ openssl rand -hex 32
 3. Add volume mount for `/data`
 4. Deploy
 
-### 3. Initial Pairing
+### 3. Initial Pairing (Minimal Steps)
 
-After deployment, the Control UI will show "Pairing Required" because device pairing is enforced. To approve:
+After deployment, the Control UI will show "Pairing Required" because device pairing is enforced. Since you don't have shell access on Railway, use the remote pairing API:
+
+**Step 1: Check logs for the pairing requestId**
+
+In Railway dashboard or CLI, look for this log line:
+```
+device pair requested requestId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx deviceId=... role=operator remoteIp=...
+```
+
+Or query the pending endpoint:
+```bash
+curl -H "Authorization: Bearer $CLAWDBOT_PAIRING_ADMIN_SECRET" \
+  "https://your-app.up.railway.app/.moltbot/pairing/pending"
+```
+
+**Step 2: Approve the pairing (simple method - no HMAC required)**
 
 ```bash
-# Method 1: Using the admin API (recommended)
 curl -X POST "https://your-app.up.railway.app/.moltbot/pairing/approve" \
   -H "Authorization: Bearer $CLAWDBOT_PAIRING_ADMIN_SECRET" \
   -H "Content-Type: application/json" \
-  -H "X-Moltbot-Timestamp: $(date +%s)" \
-  -H "X-Moltbot-Nonce: $(openssl rand -hex 16)" \
-  -d '{"requestId": "pending-request-id-from-ui"}'
-
-# Method 2: Use the Control UI
-# 1. Open Control UI: https://your-app.up.railway.app/
-# 2. Enter admin secret in Settings > Pairing
-# 3. Click "Approve" on pending requests
+  -d '{"requestId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}'
 ```
 
-### 4. Automate Pairing (Optional)
+**Step 3: Refresh the Control UI**
 
-For automated pipelines, use HMAC-signed requests:
+Your browser session should now be paired and connected.
+
+---
+
+### Alternative: HMAC-Signed Approval (More Secure)
+
+For production use with HMAC signature verification:
 
 ```bash
 #!/bin/bash
@@ -209,6 +222,39 @@ Settings
 ```
 
 ## Troubleshooting
+
+### Finding the requestId
+
+**Option 1: Check Gateway Logs**
+Look for this log line in Railway logs:
+```
+device pair requested requestId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx deviceId=... role=operator remoteIp=...
+```
+
+**Option 2: Query Pending Endpoint**
+```bash
+curl -H "Authorization: Bearer $CLAWDBOT_PAIRING_ADMIN_SECRET" \
+  "https://your-app.up.railway.app/.moltbot/pairing/pending"
+```
+
+Response:
+```json
+{
+  "ok": true,
+  "pending": [
+    {
+      "requestId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "deviceId": "...",
+      "displayName": "Chrome on Windows",
+      "platform": "web",
+      "role": "operator",
+      "remoteIp": "...",
+      "ts": 1234567890,
+      "isRepair": false
+    }
+  ]
+}
+```
 
 ### Permission Denied on /data
 
