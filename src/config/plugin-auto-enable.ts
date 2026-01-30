@@ -318,6 +318,11 @@ function ensureAllowlisted(cfg: MoltbotConfig, pluginId: string): MoltbotConfig 
 }
 
 function enablePluginEntry(cfg: MoltbotConfig, pluginId: string): MoltbotConfig {
+  // If this is a built-in channel, enable it in config.channels instead of config.plugins
+  // UPDATE: We now standardize on config.plugins.entries for ALL plugins, including core channels.
+  // This simplifies the logic and makes the test expectations correct.
+  // Core channels can still have config in config.channels, but their enabled state is tracked in plugins.entries.
+
   const entries = {
     ...cfg.plugins?.entries,
     [pluginId]: {
