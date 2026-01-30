@@ -814,6 +814,22 @@
       "destination": "/northflank"
     },
     {
+      "source": "/dokploy",
+      "destination": "/dokploy"
+    },
+    {
+      "source": "/dokploy/",
+      "destination": "/dokploy"
+    },
+    {
+      "source": "/install/dokploy",
+      "destination": "/dokploy"
+    },
+    {
+      "source": "/install/dokploy/",
+      "destination": "/dokploy"
+    },
+    {
       "source": "/gcp",
       "destination": "/platforms/gcp"
     },
@@ -861,6 +877,7 @@
           "railway",
           "render",
           "northflank",
+          "dokploy",
           "install/bun"
         ]
       },
