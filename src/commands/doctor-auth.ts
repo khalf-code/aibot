@@ -30,9 +30,9 @@ export async function maybeRepairAnthropicOAuthProfileId(
   });
   if (!repair.migrated || repair.changes.length === 0) return cfg;
 
-  note(repair.changes.map((c) => `- ${c}`).join("\n"), "Auth profiles");
+  note(repair.changes.map((c) => `- ${c}`).join("\n"), "身份验证配置文件");
   const apply = await prompter.confirm({
-    message: "Update Anthropic OAuth profile id in config now?",
+    message: "立即更新配置中的 Anthropic OAuth 配置文件 ID？",
     initialValue: true,
   });
   if (!apply) return cfg;
@@ -80,10 +80,10 @@ function pruneAuthProfiles(
   const nextAuth =
     nextProfiles || prunedOrder.next
       ? {
-          ...cfg.auth,
-          profiles: nextProfiles && Object.keys(nextProfiles).length > 0 ? nextProfiles : undefined,
-          order: prunedOrder.next,
-        }
+        ...cfg.auth,
+        profiles: nextProfiles && Object.keys(nextProfiles).length > 0 ? nextProfiles : undefined,
+        order: prunedOrder.next,
+      }
       : undefined;
 
   return {
@@ -110,23 +110,23 @@ export async function maybeRemoveDeprecatedCliAuthProfiles(
 
   if (deprecated.size === 0) return cfg;
 
-  const lines = ["Deprecated external CLI auth profiles detected (no longer supported):"];
+  const lines = ["检测到已弃用的外部 CLI 身份验证配置文件（不再支持）："];
   if (deprecated.has(CLAUDE_CLI_PROFILE_ID)) {
     lines.push(
-      `- ${CLAUDE_CLI_PROFILE_ID} (Anthropic): use setup-token → ${formatCliCommand("openclaw models auth setup-token")}`,
+      `- ${CLAUDE_CLI_PROFILE_ID} (Anthropic): 请使用 setup-token → ${formatCliCommand("openclaw models auth setup-token")}`,
     );
   }
   if (deprecated.has(CODEX_CLI_PROFILE_ID)) {
     lines.push(
-      `- ${CODEX_CLI_PROFILE_ID} (OpenAI Codex): use OAuth → ${formatCliCommand(
+      `- ${CODEX_CLI_PROFILE_ID} (OpenAI Codex): 请使用 OAuth → ${formatCliCommand(
         "openclaw models auth login --provider openai-codex",
       )}`,
     );
   }
-  note(lines.join("\n"), "Auth profiles");
+  note(lines.join("\n"), "身份验证配置文件");
 
   const shouldRemove = await prompter.confirmRepair({
-    message: "Remove deprecated CLI auth profiles now?",
+    message: "立即移除已弃用的 CLI 身份验证配置文件？",
     initialValue: true,
   });
   if (!shouldRemove) return cfg;
@@ -175,7 +175,7 @@ export async function maybeRemoveDeprecatedCliAuthProfiles(
       Array.from(deprecated.values())
         .map((id) => `- removed ${id} from config`)
         .join("\n"),
-      "Doctor changes",
+      "医生修改",
     );
   }
   return pruned.next;
@@ -190,16 +190,16 @@ type AuthIssue = {
 
 function formatAuthIssueHint(issue: AuthIssue): string | null {
   if (issue.provider === "anthropic" && issue.profileId === CLAUDE_CLI_PROFILE_ID) {
-    return `Deprecated profile. Use ${formatCliCommand("openclaw models auth setup-token")} or ${formatCliCommand(
+    return `已弃用的配置文件。请使用 ${formatCliCommand("openclaw models auth setup-token")} 或 ${formatCliCommand(
       "openclaw configure",
-    )}.`;
+    )}。`;
   }
   if (issue.provider === "openai-codex" && issue.profileId === CODEX_CLI_PROFILE_ID) {
-    return `Deprecated profile. Use ${formatCliCommand(
+    return `已弃用的配置文件。请使用 ${formatCliCommand(
       "openclaw models auth login --provider openai-codex",
-    )} or ${formatCliCommand("openclaw configure")}.`;
+    )} 或 ${formatCliCommand("openclaw configure")}。`;
   }
-  return `Re-auth via \`${formatCliCommand("openclaw configure")}\` or \`${formatCliCommand("openclaw onboard")}\`.`;
+  return `通过 \`${formatCliCommand("openclaw configure")}\` 或 \`${formatCliCommand("openclaw onboard")}\` 重新验证。`;
 }
 
 function formatAuthIssueLine(issue: AuthIssue): string {
@@ -227,18 +227,18 @@ export async function noteAuthProfileHealth(params: {
       const remaining = formatRemainingShort(until - now);
       const kind =
         typeof stats?.disabledUntil === "number" && now < stats.disabledUntil
-          ? `disabled${stats.disabledReason ? `:${stats.disabledReason}` : ""}`
-          : "cooldown";
-      const hint = kind.startsWith("disabled:billing")
-        ? "Top up credits (provider billing) or switch provider."
-        : "Wait for cooldown or switch provider.";
+          ? `已禁用${stats.disabledReason ? `:${stats.disabledReason}` : ""}`
+          : "冷却中";
+      const hint = kind.startsWith("已禁用:billing")
+        ? "充值（提供商计费）或切换提供商。"
+        : "等待冷却或切换提供商。";
       out.push(`- ${profileId}: ${kind} (${remaining})${hint ? ` — ${hint}` : ""}`);
     }
     return out;
   })();
 
   if (unusable.length > 0) {
-    note(unusable.join("\n"), "Auth profile cooldowns");
+    note(unusable.join("\n"), "身份验证配置文件冷却");
   }
 
   let summary = buildAuthHealthSummary({
@@ -260,7 +260,7 @@ export async function noteAuthProfileHealth(params: {
   if (issues.length === 0) return;
 
   const shouldRefresh = await params.prompter.confirmRepair({
-    message: "Refresh expiring OAuth tokens now? (static tokens need re-auth)",
+    message: "立即刷新过期的 OAuth 令牌？（静态令牌需要重新验证）",
     initialValue: true,
   });
 
@@ -282,7 +282,7 @@ export async function noteAuthProfileHealth(params: {
       }
     }
     if (errors.length > 0) {
-      note(errors.join("\n"), "OAuth refresh errors");
+      note(errors.join("\n"), "OAuth 刷新错误");
     }
     summary = buildAuthHealthSummary({
       store: ensureAuthProfileStore(undefined, {
@@ -306,7 +306,7 @@ export async function noteAuthProfileHealth(params: {
           }),
         )
         .join("\n"),
-      "Model auth",
+      "模型验证",
     );
   }
 }

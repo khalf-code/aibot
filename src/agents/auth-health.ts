@@ -44,14 +44,14 @@ export function resolveAuthProfileSource(_profileId: string): AuthProfileSource 
 }
 
 export function formatRemainingShort(remainingMs?: number): string {
-  if (remainingMs === undefined || Number.isNaN(remainingMs)) return "unknown";
-  if (remainingMs <= 0) return "0m";
+  if (remainingMs === undefined || Number.isNaN(remainingMs)) return "未知";
+  if (remainingMs <= 0) return "0分";
   const minutes = Math.max(1, Math.round(remainingMs / 60_000));
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `${minutes}分`;
   const hours = Math.round(minutes / 60);
-  if (hours < 48) return `${hours}h`;
+  if (hours < 48) return `${hours}小时`;
   const days = Math.round(hours / 24);
-  return `${days}d`;
+  return `${days}天`;
 }
 
 function resolveOAuthStatus(
