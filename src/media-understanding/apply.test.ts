@@ -576,7 +576,12 @@ describe("applyMediaUnderstanding", () => {
     // Verify XML special chars are escaped in the output
     expect(ctx.Body).toContain("&amp;");
     // The raw & should not appear unescaped in the name attribute
-    expect(ctx.Body).not.toMatch(/name="[^"]*&[^"]*"/);
+    // Note: The regex /name="[^"]*&[^"]*"/ matches both unescaped '&' AND escaped '&amp;' because '&amp;' contains '&'.
+    // We need a regex that matches '&' NOT followed by 'amp;' (and other entities if we cared, but &amp; is the main one here).
+    // Or simpler: check that it DOES match &amp; and DOES NOT match a raw & that isn't the start of an entity.
+    // But since we know the input is specifically "file&test.txt", we expect "file&amp;test.txt".
+    expect(ctx.Body).toContain('name="file&amp;test.txt"');
+    expect(ctx.Body).not.toContain('name="file&test.txt"');
   });
 
   it("normalizes MIME types to prevent attribute injection", async () => {
