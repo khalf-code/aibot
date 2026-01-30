@@ -275,3 +275,93 @@ describe("web_fetch extraction fallbacks", () => {
     );
   });
 });
+
+describe("web_fetch proxy support", () => {
+  const priorFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.spyOn(ssrf, "resolvePinnedHostname").mockImplementation(async (hostname) => {
+      const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
+      const addresses = ["93.184.216.34"];
+      return {
+        hostname: normalized,
+        addresses,
+        lookup: ssrf.createPinnedLookup({ hostname: normalized, addresses }),
+      };
+    });
+  });
+
+  afterEach(() => {
+    // @ts-expect-error restore
+    global.fetch = priorFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("uses proxy dispatcher when proxy is configured", async () => {
+    let capturedDispatcher: unknown = null;
+    const mockFetch = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      capturedDispatcher = (init as { dispatcher?: unknown })?.dispatcher;
+      return Promise.resolve(
+        htmlResponse("<html><body><p>Hello via proxy</p></body></html>", requestUrl(input)),
+      ) as Promise<Response>;
+    });
+    // @ts-expect-error mock fetch
+    global.fetch = mockFetch;
+
+    const tool = createWebFetchTool({
+      config: {
+        tools: {
+          web: {
+            fetch: {
+              cacheTtlMinutes: 0,
+              proxy: "http://127.0.0.1:7890",
+              firecrawl: { enabled: false },
+            },
+          },
+        },
+      },
+      sandboxed: false,
+    });
+
+    const result = await tool?.execute?.("call", { url: "https://example.com/proxy-test" });
+    const details = result?.details as { text?: string };
+
+    expect(mockFetch).toHaveBeenCalled();
+    expect(capturedDispatcher).toBeDefined();
+    expect(details.text).toContain("Hello via proxy");
+  });
+
+  it("does not use proxy when proxy is not configured", async () => {
+    let capturedDispatcher: unknown = null;
+    const mockFetch = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      capturedDispatcher = (init as { dispatcher?: unknown })?.dispatcher;
+      return Promise.resolve(
+        htmlResponse("<html><body><p>Hello direct</p></body></html>", requestUrl(input)),
+      ) as Promise<Response>;
+    });
+    // @ts-expect-error mock fetch
+    global.fetch = mockFetch;
+
+    const tool = createWebFetchTool({
+      config: {
+        tools: {
+          web: {
+            fetch: {
+              cacheTtlMinutes: 0,
+              firecrawl: { enabled: false },
+            },
+          },
+        },
+      },
+      sandboxed: false,
+    });
+
+    const result = await tool?.execute?.("call", { url: "https://example.com/no-proxy" });
+    const details = result?.details as { text?: string };
+
+    expect(mockFetch).toHaveBeenCalled();
+    // Without proxy, dispatcher should be a pinned dispatcher (not ProxyAgent)
+    expect(capturedDispatcher).toBeDefined();
+    expect(details.text).toContain("Hello direct");
+  });
+});
