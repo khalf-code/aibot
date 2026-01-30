@@ -1,0 +1,272 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" role="img" aria-label="Moltbot Message Pipeline Flow">
+  <defs>
+    <style>
+      .bg { fill: #fafbfc; }
+      .box-inbound { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+      .box-process { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .box-agent { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; }
+      .box-outbound { fill: #e0e7ff; stroke: #4f46e5; stroke-width: 2; }
+      .box-decision { fill: #fff; stroke: #64748b; stroke-width: 1.5; }
+      .box-drop { fill: #fee2e2; stroke: #dc2626; stroke-width: 1.5; }
+      .box-store { fill: #fce7f3; stroke: #db2777; stroke-width: 1.5; }
+      .title { font: bold 24px "Inter", "SF Pro Display", -apple-system, sans-serif; fill: #0f172a; }
+      .subtitle { font: 14px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .heading { font: bold 14px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #1e293b; }
+      .label { font: 12px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #475569; }
+      .code { font: 11px "SF Mono", "JetBrains Mono", monospace; fill: #6366f1; }
+      .small { font: 10px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .step-num { font: bold 16px "Inter", sans-serif; fill: #fff; }
+      .arrow { stroke: #94a3b8; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-yes { stroke: #16a34a; stroke-width: 2; fill: none; marker-end: url(#arrowhead-green); }
+      .arrow-no { stroke: #dc2626; stroke-width: 2; fill: none; marker-end: url(#arrowhead-red); }
+      .line-group { stroke: #e2e8f0; stroke-width: 1; stroke-dasharray: 4,4; fill: none; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0,0 10,4 0,8" fill="#94a3b8" />
+    </marker>
+    <marker id="arrowhead-green" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0,0 10,4 0,8" fill="#16a34a" />
+    </marker>
+    <marker id="arrowhead-red" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0,0 10,4 0,8" fill="#dc2626" />
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect class="bg" width="1200" height="750" />
+
+  <!-- Title -->
+  <text class="title" x="40" y="45">Message Pipeline Flow</text>
+  <text class="subtitle" x="40" y="67">Inbound message processing through AI agent to outbound delivery</text>
+
+  <!-- Phase Labels -->
+  <rect x="40" y="90" width="180" height="30" rx="6" fill="#dbeafe" />
+  <text class="heading" x="130" y="110" text-anchor="middle" fill="#2563eb">INBOUND</text>
+
+  <rect x="240" y="90" width="380" height="30" rx="6" fill="#fef3c7" />
+  <text class="heading" x="430" y="110" text-anchor="middle" fill="#d97706">PROCESSING</text>
+
+  <rect x="640" y="90" width="280" height="30" rx="6" fill="#dcfce7" />
+  <text class="heading" x="780" y="110" text-anchor="middle" fill="#16a34a">AGENT EXECUTION</text>
+
+  <rect x="940" y="90" width="220" height="30" rx="6" fill="#e0e7ff" />
+  <text class="heading" x="1050" y="110" text-anchor="middle" fill="#4f46e5">OUTBOUND</text>
+
+  <!-- Step 1: Message Received -->
+  <circle cx="60" cy="180" r="18" fill="#2563eb" />
+  <text class="step-num" x="60" y="185" text-anchor="middle">1</text>
+
+  <rect class="box-inbound" x="90" y="145" width="130" height="70" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="155" y="172" text-anchor="middle">Message In</text>
+  <text class="small" x="155" y="190" text-anchor="middle">Channel webhook</text>
+  <text class="small" x="155" y="203" text-anchor="middle">or polling</text>
+
+  <!-- Step 2: Envelope Wrap -->
+  <circle cx="260" cy="180" r="18" fill="#d97706" />
+  <text class="step-num" x="260" y="185" text-anchor="middle">2</text>
+
+  <rect class="box-process" x="290" y="145" width="120" height="70" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="350" y="172" text-anchor="middle">Envelope</text>
+  <text class="small" x="350" y="190" text-anchor="middle">Wrap metadata</text>
+  <text class="small" x="350" y="203" text-anchor="middle">context, sender</text>
+
+  <!-- Step 3: Authorization Check (Diamond) -->
+  <circle cx="455" cy="180" r="18" fill="#d97706" />
+  <text class="step-num" x="455" y="185" text-anchor="middle">3</text>
+
+  <polygon class="box-decision" points="520,180 580,145 640,180 580,215" filter="url(#shadow)" />
+  <text class="label" x="580" y="176" text-anchor="middle">allowFrom</text>
+  <text class="small" x="580" y="190" text-anchor="middle">check?</text>
+
+  <!-- Drop box for auth fail -->
+  <rect class="box-drop" x="540" y="260" width="80" height="40" rx="6" />
+  <text class="label" x="580" y="285" text-anchor="middle">Drop</text>
+
+  <!-- Step 4: Group Policy Check -->
+  <circle cx="700" cy="180" r="18" fill="#d97706" />
+  <text class="step-num" x="700" y="185" text-anchor="middle">4</text>
+
+  <polygon class="box-decision" points="740,180 800,145 860,180 800,215" filter="url(#shadow)" />
+  <text class="label" x="800" y="176" text-anchor="middle">group</text>
+  <text class="small" x="800" y="190" text-anchor="middle">policy?</text>
+
+  <!-- Store for context -->
+  <rect class="box-store" x="760" y="260" width="80" height="40" rx="6" />
+  <text class="label" x="800" y="277" text-anchor="middle">Store</text>
+  <text class="small" x="800" y="292" text-anchor="middle">no reply</text>
+
+  <!-- Step 5: Mention Check -->
+  <circle cx="910" cy="180" r="18" fill="#d97706" />
+  <text class="step-num" x="910" y="185" text-anchor="middle">5</text>
+
+  <polygon class="box-decision" points="950,180 1010,145 1070,180 1010,215" filter="url(#shadow)" />
+  <text class="label" x="1010" y="176" text-anchor="middle">mention</text>
+  <text class="small" x="1010" y="190" text-anchor="middle">required?</text>
+
+  <!-- Arrows Row 1 -->
+  <line class="arrow" x1="220" y1="180" x2="255" y2="180" />
+  <line class="arrow" x1="410" y1="180" x2="450" y2="180" />
+  <line class="arrow-yes" x1="640" y1="180" x2="695" y2="180" />
+  <line class="arrow-no" x1="580" y1="215" x2="580" y2="255" />
+  <text class="small" x="605" y="235" fill="#dc2626">no</text>
+  <text class="small" x="660" y="175" fill="#16a34a">yes</text>
+
+  <line class="arrow-yes" x1="860" y1="180" x2="905" y2="180" />
+  <line class="arrow-no" x1="800" y1="215" x2="800" y2="255" />
+  <text class="small" x="825" y="235" fill="#dc2626">store only</text>
+
+  <line class="arrow-yes" x1="1070" y1="180" x2="1100" y2="180" />
+  <line class="arrow" x1="1100" y1="180" x2="1100" y2="320" />
+  <line class="arrow" x1="1100" y1="320" x2="1070" y2="320" />
+
+  <!-- Row 2: Command Detection and Routing -->
+  <circle cx="60" cy="350" r="18" fill="#d97706" />
+  <text class="step-num" x="60" y="355" text-anchor="middle">6</text>
+
+  <polygon class="box-decision" points="110,350 170,315 230,350 170,385" filter="url(#shadow)" />
+  <text class="label" x="170" y="346" text-anchor="middle">built-in</text>
+  <text class="small" x="170" y="360" text-anchor="middle">command?</text>
+
+  <!-- Built-in command handler -->
+  <rect class="box-process" x="130" y="420" width="100" height="55" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="180" y="445" text-anchor="middle">Commands</text>
+  <text class="small" x="180" y="460" text-anchor="middle">!help, !status</text>
+
+  <!-- Step 7: Route to Agent -->
+  <circle cx="295" cy="350" r="18" fill="#d97706" />
+  <text class="step-num" x="295" y="355" text-anchor="middle">7</text>
+
+  <rect class="box-process" x="325" y="320" width="130" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="390" y="345" text-anchor="middle">Route to Agent</text>
+  <text class="small" x="390" y="363" text-anchor="middle">Session key lookup</text>
+
+  <!-- Step 8: Agent Scope -->
+  <circle cx="500" cy="350" r="18" fill="#16a34a" />
+  <text class="step-num" x="500" y="355" text-anchor="middle">8</text>
+
+  <rect class="box-agent" x="530" y="320" width="130" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="595" y="345" text-anchor="middle">Agent Scope</text>
+  <text class="small" x="595" y="363" text-anchor="middle">Workspace, skills</text>
+
+  <!-- Step 9: Auth Profile -->
+  <circle cx="710" cy="350" r="18" fill="#16a34a" />
+  <text class="step-num" x="710" y="355" text-anchor="middle">9</text>
+
+  <rect class="box-agent" x="740" y="320" width="130" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="805" y="345" text-anchor="middle">Auth Profile</text>
+  <text class="small" x="805" y="363" text-anchor="middle">Select LLM provider</text>
+
+  <!-- Step 10: AI Execution -->
+  <circle cx="920" cy="350" r="18" fill="#16a34a" />
+  <text class="step-num" x="920" y="355" text-anchor="middle">10</text>
+
+  <rect class="box-agent" x="950" y="305" width="140" height="90" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="1020" y="335" text-anchor="middle">PI Agent Core</text>
+  <text class="small" x="1020" y="353" text-anchor="middle">Tool execution</text>
+  <text class="small" x="1020" y="368" text-anchor="middle">Streaming output</text>
+  <text class="small" x="1020" y="383" text-anchor="middle">Approval gates</text>
+
+  <!-- Arrows Row 2 -->
+  <line class="arrow" x1="1070" y1="320" x2="1095" y2="350" />
+  <line class="arrow" x1="1095" y1="350" x2="1070" y2="350" />
+  <line class="arrow-no" x1="170" y1="385" x2="170" y2="415" />
+  <text class="small" x="145" y="400" fill="#dc2626">yes</text>
+  <line class="arrow-yes" x1="230" y1="350" x2="290" y2="350" />
+  <text class="small" x="255" y="340" fill="#16a34a">no</text>
+  <line class="arrow" x1="455" y1="350" x2="495" y2="350" />
+  <line class="arrow" x1="660" y1="350" x2="705" y2="350" />
+  <line class="arrow" x1="870" y1="350" x2="915" y2="350" />
+
+  <!-- Row 3: Response Processing -->
+  <circle cx="60" cy="530" r="18" fill="#16a34a" />
+  <text class="step-num" x="60" y="535" text-anchor="middle">11</text>
+
+  <rect class="box-agent" x="90" y="500" width="150" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="165" y="525" text-anchor="middle">Block Streaming</text>
+  <text class="small" x="165" y="543" text-anchor="middle">Coalesce output chunks</text>
+
+  <!-- Step 12: Chunk -->
+  <circle cx="290" cy="530" r="18" fill="#4f46e5" />
+  <text class="step-num" x="290" y="535" text-anchor="middle">12</text>
+
+  <rect class="box-outbound" x="320" y="500" width="140" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="390" y="525" text-anchor="middle">Chunk Text</text>
+  <text class="small" x="390" y="543" text-anchor="middle">Channel limits (4k)</text>
+
+  <!-- Step 13: Media -->
+  <circle cx="510" cy="530" r="18" fill="#4f46e5" />
+  <text class="step-num" x="510" y="535" text-anchor="middle">13</text>
+
+  <rect class="box-outbound" x="540" y="500" width="130" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="605" y="525" text-anchor="middle">Media Prep</text>
+  <text class="small" x="605" y="543" text-anchor="middle">Resize, convert</text>
+
+  <!-- Step 14: Outbound -->
+  <circle cx="720" cy="530" r="18" fill="#4f46e5" />
+  <text class="step-num" x="720" y="535" text-anchor="middle">14</text>
+
+  <rect class="box-outbound" x="750" y="500" width="130" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="815" y="525" text-anchor="middle">Outbound</text>
+  <text class="small" x="815" y="543" text-anchor="middle">Channel API call</text>
+
+  <!-- Step 15: Delivery -->
+  <circle cx="930" cy="530" r="18" fill="#4f46e5" />
+  <text class="step-num" x="930" y="535" text-anchor="middle">15</text>
+
+  <rect class="box-outbound" x="960" y="500" width="140" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="1030" y="525" text-anchor="middle">Delivery</text>
+  <text class="small" x="1030" y="543" text-anchor="middle">Telegram/Discord/etc</text>
+
+  <!-- Arrows Row 3 -->
+  <line class="arrow" x1="950" y1="395" x2="950" y2="420" />
+  <line class="arrow" x1="950" y1="420" x2="55" y2="420" />
+  <line class="arrow" x1="55" y1="420" x2="55" y2="505" />
+  <line class="arrow" x1="240" y1="530" x2="285" y2="530" />
+  <line class="arrow" x1="460" y1="530" x2="505" y2="530" />
+  <line class="arrow" x1="670" y1="530" x2="715" y2="530" />
+  <line class="arrow" x1="880" y1="530" x2="925" y2="530" />
+
+  <!-- Session Store (bottom) -->
+  <rect class="box-store" x="450" y="610" width="300" height="60" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="600" y="635" text-anchor="middle">Session Store</text>
+  <text class="small" x="600" y="655" text-anchor="middle">Transcript + metadata persisted to ~/.clawdbot/sessions/</text>
+
+  <line class="arrow" x1="165" y1="560" x2="165" y2="600" />
+  <line class="arrow" x1="165" y1="600" x2="445" y2="640" />
+  <line class="arrow" x1="815" y1="560" x2="815" y2="600" />
+  <line class="arrow" x1="815" y1="600" x2="755" y2="640" />
+
+  <!-- Legend -->
+  <rect x="40" y="690" width="1120" height="45" rx="8" fill="#f1f5f9" />
+  <text class="small" x="60" y="717">Legend:</text>
+
+  <circle cx="130" cy="713" r="12" fill="#2563eb" />
+  <text class="small" x="148" y="717">Inbound</text>
+
+  <circle cx="220" cy="713" r="12" fill="#d97706" />
+  <text class="small" x="238" y="717">Processing</text>
+
+  <circle cx="330" cy="713" r="12" fill="#16a34a" />
+  <text class="small" x="348" y="717">Agent</text>
+
+  <circle cx="420" cy="713" r="12" fill="#4f46e5" />
+  <text class="small" x="438" y="717">Outbound</text>
+
+  <polygon points="530,713 550,700 570,713 550,726" fill="#fff" stroke="#64748b" stroke-width="1" />
+  <text class="small" x="580" y="717">Decision</text>
+
+  <rect x="650" y="705" width="20" height="16" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="1" />
+  <text class="small" x="680" y="717">Drop</text>
+
+  <rect x="730" y="705" width="20" height="16" rx="3" fill="#fce7f3" stroke="#db2777" stroke-width="1" />
+  <text class="small" x="760" y="717">Store</text>
+
+  <line x1="830" y1="713" x2="870" y2="713" stroke="#16a34a" stroke-width="2" marker-end="url(#arrowhead-green)" />
+  <text class="small" x="880" y="717">Pass</text>
+
+  <line x1="930" y1="713" x2="970" y2="713" stroke="#dc2626" stroke-width="2" marker-end="url(#arrowhead-red)" />
+  <text class="small" x="980" y="717">Reject/Store</text>
+</svg>

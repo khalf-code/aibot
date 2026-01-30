@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="800" viewBox="0 0 1100 800" role="img" aria-label="Moltbot Gateway RPC Architecture">
+  <defs>
+    <style>
+      .bg { fill: #fafbfc; }
+      .box-gateway { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .box-server { fill: #fff; stroke: #64748b; stroke-width: 1.5; }
+      .box-handler { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.5; }
+      .box-state { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.5; }
+      .box-client { fill: #e0e7ff; stroke: #4f46e5; stroke-width: 1.5; }
+      .box-storage { fill: #fce7f3; stroke: #db2777; stroke-width: 1.5; }
+      .box-external { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5; }
+      .title { font: bold 24px "Inter", "SF Pro Display", -apple-system, sans-serif; fill: #0f172a; }
+      .subtitle { font: 14px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .heading { font: bold 14px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #1e293b; }
+      .label { font: 12px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #475569; }
+      .code { font: 11px "SF Mono", "JetBrains Mono", monospace; fill: #6366f1; }
+      .small { font: 10px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .arrow { stroke: #94a3b8; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+      .arrow-ws { stroke: #16a34a; stroke-width: 2; fill: none; marker-end: url(#arrowhead-green); }
+      .arrow-data { stroke: #3b82f6; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-blue); stroke-dasharray: 5,3; }
+      .line-group { stroke: #e2e8f0; stroke-width: 1.5; fill: none; }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#94a3b8" />
+    </marker>
+    <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#16a34a" />
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#3b82f6" />
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect class="bg" width="1100" height="800" />
+
+  <!-- Title -->
+  <text class="title" x="40" y="45">Gateway RPC Architecture</text>
+  <text class="subtitle" x="40" y="67">Central orchestration server with WebSocket RPC protocol</text>
+
+  <!-- Clients (Left Side) -->
+  <rect x="30" y="100" width="180" height="380" rx="12" class="line-group" />
+  <text class="small" x="45" y="118">CLIENTS</text>
+
+  <rect class="box-client" x="50" y="135" width="140" height="60" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="120" y="160" text-anchor="middle">CLI</text>
+  <text class="small" x="120" y="178" text-anchor="middle">moltbot commands</text>
+
+  <rect class="box-client" x="50" y="210" width="140" height="60" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="120" y="235" text-anchor="middle">Web UI</text>
+  <text class="small" x="120" y="253" text-anchor="middle">Control panel</text>
+
+  <rect class="box-client" x="50" y="285" width="140" height="60" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="120" y="310" text-anchor="middle">Mobile Apps</text>
+  <text class="small" x="120" y="328" text-anchor="middle">iOS / Android</text>
+
+  <rect class="box-client" x="50" y="360" width="140" height="60" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="120" y="385" text-anchor="middle">macOS App</text>
+  <text class="small" x="120" y="403" text-anchor="middle">Menubar gateway</text>
+
+  <rect class="box-external" x="50" y="435" width="140" height="40" rx="6" />
+  <text class="label" x="120" y="460" text-anchor="middle">Webhooks</text>
+
+  <!-- Gateway Server (Center) -->
+  <rect class="box-gateway" x="250" y="100" width="500" height="580" rx="16" filter="url(#shadow)" />
+  <text class="heading" x="500" y="130" text-anchor="middle">Gateway Server</text>
+  <text class="code" x="500" y="148" text-anchor="middle">src/gateway/server.impl.ts</text>
+
+  <!-- HTTP/WebSocket Layer -->
+  <rect class="box-server" x="275" y="165" width="450" height="70" rx="10" />
+  <text class="heading" x="500" y="190" text-anchor="middle">HTTP/WebSocket Server</text>
+  <text class="code" x="500" y="210" text-anchor="middle">Hono + server-ws-runtime.ts</text>
+
+  <!-- RPC Method Handlers -->
+  <rect x="275" y="250" width="450" height="180" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+  <text class="heading" x="500" y="275" text-anchor="middle">RPC Method Handlers</text>
+
+  <rect class="box-handler" x="290" y="290" width="100" height="50" rx="6" />
+  <text class="label" x="340" y="312" text-anchor="middle">chat.*</text>
+  <text class="small" x="340" y="328" text-anchor="middle">Agent events</text>
+
+  <rect class="box-handler" x="400" y="290" width="100" height="50" rx="6" />
+  <text class="label" x="450" y="312" text-anchor="middle">channels.*</text>
+  <text class="small" x="450" y="328" text-anchor="middle">Lifecycle</text>
+
+  <rect class="box-handler" x="510" y="290" width="100" height="50" rx="6" />
+  <text class="label" x="560" y="312" text-anchor="middle">config.*</text>
+  <text class="small" x="560" y="328" text-anchor="middle">Settings</text>
+
+  <rect class="box-handler" x="620" y="290" width="95" height="50" rx="6" />
+  <text class="label" x="667" y="312" text-anchor="middle">nodes.*</text>
+  <text class="small" x="667" y="328" text-anchor="middle">Devices</text>
+
+  <rect class="box-handler" x="290" y="350" width="100" height="50" rx="6" />
+  <text class="label" x="340" y="372" text-anchor="middle">sessions.*</text>
+  <text class="small" x="340" y="388" text-anchor="middle">Transcripts</text>
+
+  <rect class="box-handler" x="400" y="350" width="100" height="50" rx="6" />
+  <text class="label" x="450" y="372" text-anchor="middle">agents.*</text>
+  <text class="small" x="450" y="388" text-anchor="middle">Management</text>
+
+  <rect class="box-handler" x="510" y="350" width="100" height="50" rx="6" />
+  <text class="label" x="560" y="372" text-anchor="middle">auth.*</text>
+  <text class="small" x="560" y="388" text-anchor="middle">Pairing</text>
+
+  <rect class="box-handler" x="620" y="350" width="95" height="50" rx="6" />
+  <text class="label" x="667" y="372" text-anchor="middle">status.*</text>
+  <text class="small" x="667" y="388" text-anchor="middle">Health</text>
+
+  <!-- Runtime State -->
+  <rect x="275" y="445" width="215" height="120" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1" />
+  <text class="heading" x="382" y="470" text-anchor="middle">Runtime State</text>
+  <text class="code" x="382" y="488" text-anchor="middle">server-runtime-state.ts</text>
+
+  <rect class="box-state" x="290" y="500" width="90" height="30" rx="4" />
+  <text class="small" x="335" y="520" text-anchor="middle">Node registry</text>
+
+  <rect class="box-state" x="385" y="500" width="90" height="30" rx="4" />
+  <text class="small" x="430" y="520" text-anchor="middle">Active sessions</text>
+
+  <rect class="box-state" x="290" y="535" width="185" height="22" rx="4" />
+  <text class="small" x="382" y="550" text-anchor="middle">Channel plugin instances</text>
+
+  <!-- Subsystems -->
+  <rect x="505" y="445" width="220" height="120" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+  <text class="heading" x="615" y="470" text-anchor="middle">Subsystems</text>
+
+  <rect x="520" y="490" width="90" height="25" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="1" />
+  <text class="small" x="565" y="507" text-anchor="middle">Cron jobs</text>
+
+  <rect x="620" y="490" width="90" height="25" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="1" />
+  <text class="small" x="665" y="507" text-anchor="middle">Discovery</text>
+
+  <rect x="520" y="525" width="90" height="25" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="1" />
+  <text class="small" x="565" y="542" text-anchor="middle">Maintenance</text>
+
+  <rect x="620" y="525" width="90" height="25" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="1" />
+  <text class="small" x="665" y="542" text-anchor="middle">Reload</text>
+
+  <!-- Plugin Registry -->
+  <rect class="box-handler" x="275" y="580" width="450" height="50" rx="10" />
+  <text class="heading" x="500" y="605" text-anchor="middle">Plugin Registry</text>
+  <text class="small" x="500" y="620" text-anchor="middle">Channel plugins + extensions (30+)</text>
+
+  <!-- Exec Approval Manager -->
+  <rect x="275" y="640" width="450" height="35" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1" />
+  <text class="label" x="500" y="662" text-anchor="middle">Exec Approval Manager (security gate for tool execution)</text>
+
+  <!-- Storage Layer (Bottom) -->
+  <rect x="250" y="700" width="500" height="80" rx="12" class="line-group" />
+  <text class="small" x="265" y="718">STORAGE</text>
+
+  <rect class="box-storage" x="275" y="730" width="130" height="40" rx="6" />
+  <text class="label" x="340" y="755" text-anchor="middle">config.json</text>
+
+  <rect class="box-storage" x="420" y="730" width="130" height="40" rx="6" />
+  <text class="label" x="485" y="755" text-anchor="middle">sessions/</text>
+
+  <rect class="box-storage" x="565" y="730" width="130" height="40" rx="6" />
+  <text class="label" x="630" y="755" text-anchor="middle">credentials/</text>
+
+  <!-- Channel Plugins (Right) -->
+  <rect x="790" y="100" width="280" height="280" rx="12" class="line-group" />
+  <text class="small" x="805" y="118">CHANNEL PLUGINS</text>
+
+  <rect class="box-handler" x="810" y="135" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="870" y="160" text-anchor="middle">Telegram</text>
+
+  <rect class="box-handler" x="940" y="135" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="1000" y="160" text-anchor="middle">Discord</text>
+
+  <rect class="box-handler" x="810" y="185" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="870" y="210" text-anchor="middle">Slack</text>
+
+  <rect class="box-handler" x="940" y="185" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="1000" y="210" text-anchor="middle">WhatsApp</text>
+
+  <rect class="box-handler" x="810" y="235" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="870" y="260" text-anchor="middle">Signal</text>
+
+  <rect class="box-handler" x="940" y="235" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="1000" y="260" text-anchor="middle">iMessage</text>
+
+  <rect class="box-handler" x="810" y="285" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="870" y="310" text-anchor="middle">LINE</text>
+
+  <rect class="box-handler" x="940" y="285" width="120" height="40" rx="6" filter="url(#shadow)" />
+  <text class="label" x="1000" y="310" text-anchor="middle">Matrix</text>
+
+  <rect x="810" y="335" width="250" height="35" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+  <text class="label" x="935" y="357" text-anchor="middle">+ Extensions (MS Teams, Zalo...)</text>
+
+  <!-- External Services (Right Bottom) -->
+  <rect x="790" y="400" width="280" height="180" rx="12" class="line-group" />
+  <text class="small" x="805" y="418">EXTERNAL</text>
+
+  <rect class="box-external" x="810" y="435" width="120" height="40" rx="6" />
+  <text class="label" x="870" y="460" text-anchor="middle">Telegram API</text>
+
+  <rect class="box-external" x="940" y="435" width="120" height="40" rx="6" />
+  <text class="label" x="1000" y="460" text-anchor="middle">Discord API</text>
+
+  <rect class="box-external" x="810" y="485" width="120" height="40" rx="6" />
+  <text class="label" x="870" y="510" text-anchor="middle">Slack API</text>
+
+  <rect class="box-external" x="940" y="485" width="120" height="40" rx="6" />
+  <text class="label" x="1000" y="510" text-anchor="middle">WhatsApp</text>
+
+  <rect class="box-external" x="810" y="535" width="250" height="35" rx="6" />
+  <text class="label" x="935" y="557" text-anchor="middle">LLM Providers (OpenAI, Anthropic...)</text>
+
+  <!-- Arrows: Clients to Gateway -->
+  <line class="arrow-ws" x1="190" y1="165" x2="245" y2="190" />
+  <line class="arrow-ws" x1="190" y1="240" x2="245" y2="210" />
+  <line class="arrow-ws" x1="190" y1="315" x2="245" y2="220" />
+  <line class="arrow-ws" x1="190" y1="390" x2="245" y2="230" />
+  <line class="arrow" x1="190" y1="455" x2="245" y2="210" />
+
+  <!-- Arrows: Gateway to Channels -->
+  <line class="arrow" x1="750" y1="300" x2="785" y2="230" />
+
+  <!-- Arrows: Channels to External -->
+  <line class="arrow" x1="870" y1="375" x2="870" y2="430" />
+  <line class="arrow" x1="1000" y1="375" x2="1000" y2="430" />
+
+  <!-- Arrows: Gateway to Storage -->
+  <line class="arrow-data" x1="400" y1="680" x2="400" y2="725" />
+  <line class="arrow-data" x1="500" y1="680" x2="500" y2="725" />
+  <line class="arrow-data" x1="600" y1="680" x2="600" y2="725" />
+
+  <!-- Protocol Box -->
+  <rect x="790" y="620" width="280" height="90" rx="12" fill="#f0fdf4" stroke="#22c55e" stroke-width="1" />
+  <text class="heading" x="930" y="645" text-anchor="middle">RPC Protocol</text>
+  <text class="code" x="930" y="665" text-anchor="middle">protocol/gateway.proto</text>
+  <text class="small" x="930" y="685" text-anchor="middle">WebSocket request/response</text>
+  <text class="small" x="930" y="700" text-anchor="middle">Event subscriptions</text>
+
+  <!-- Legend -->
+  <rect x="40" y="740" width="180" height="50" rx="8" fill="#f1f5f9" />
+  <text class="small" x="55" y="760">Legend:</text>
+  <line x1="55" y1="775" x2="85" y2="775" stroke="#16a34a" stroke-width="2" marker-end="url(#arrowhead-green)" />
+  <text class="small" x="95" y="779">WebSocket</text>
+  <line x1="140" y1="775" x2="170" y2="775" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowhead-blue)" />
+  <text class="small" x="180" y="779">Data</text>
+</svg>

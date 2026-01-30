@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="850" viewBox="0 0 1200 850" role="img" aria-label="Moltbot Security Architecture">
+  <defs>
+    <style>
+      .bg { fill: #fafbfc; }
+      .box-auth { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .box-authz { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+      .box-exec { fill: #fee2e2; stroke: #dc2626; stroke-width: 2; }
+      .box-storage { fill: #fce7f3; stroke: #db2777; stroke-width: 1.5; }
+      .box-audit { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; }
+      .box-device { fill: #e0e7ff; stroke: #4f46e5; stroke-width: 1.5; }
+      .box-critical { fill: #fef2f2; stroke: #b91c1c; stroke-width: 2; stroke-dasharray: 5,3; }
+      .box-note { fill: #fffbeb; stroke: #ca8a04; stroke-width: 1; }
+      .title { font: bold 24px "Inter", "SF Pro Display", -apple-system, sans-serif; fill: #0f172a; }
+      .subtitle { font: 14px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .heading { font: bold 15px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #1e293b; }
+      .label { font: 12px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #475569; }
+      .code { font: 11px "SF Mono", "JetBrains Mono", monospace; fill: #6366f1; }
+      .small { font: 11px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .critical-text { font: bold 11px "Inter", -apple-system, sans-serif; fill: #b91c1c; }
+      .arrow { stroke: #94a3b8; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+      .arrow-success { stroke: #16a34a; stroke-width: 2; fill: none; marker-end: url(#arrowhead-green); }
+      .arrow-deny { stroke: #dc2626; stroke-width: 2; fill: none; marker-end: url(#arrowhead-red); }
+      .line-group { stroke: #e2e8f0; stroke-width: 1.5; fill: none; }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#94a3b8" />
+    </marker>
+    <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#16a34a" />
+    </marker>
+    <marker id="arrowhead-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#dc2626" />
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect class="bg" width="1200" height="850" />
+
+  <!-- Title -->
+  <text class="title" x="40" y="45">Security Architecture</text>
+  <text class="subtitle" x="40" y="67">Multi-layer authentication, authorization, and execution control</text>
+
+  <!-- Section 1: Authentication Layer -->
+  <rect x="30" y="90" width="560" height="280" rx="12" class="line-group" />
+  <text class="heading" x="50" y="115" fill="#d97706">AUTHENTICATION LAYER</text>
+
+  <!-- Gateway Auth -->
+  <rect class="box-auth" x="50" y="130" width="250" height="120" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="175" y="155" text-anchor="middle">Gateway Authentication</text>
+  <text class="code" x="175" y="173" text-anchor="middle">src/gateway/auth.ts</text>
+
+  <rect x="65" y="185" width="220" height="22" rx="4" fill="#fef9c3" stroke="#eab308" stroke-width="1" />
+  <text class="label" x="175" y="201" text-anchor="middle">Token (CLAWDBOT_GATEWAY_TOKEN)</text>
+
+  <rect x="65" y="212" width="220" height="22" rx="4" fill="#fef9c3" stroke="#eab308" stroke-width="1" />
+  <text class="label" x="175" y="228" text-anchor="middle">Password + timingSafeEqual</text>
+
+  <!-- Device Identity -->
+  <rect class="box-device" x="320" y="130" width="250" height="120" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="445" y="155" text-anchor="middle">Device Identity</text>
+  <text class="code" x="445" y="173" text-anchor="middle">Ed25519 key pairs</text>
+
+  <rect x="335" y="185" width="220" height="22" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1" />
+  <text class="label" x="445" y="201" text-anchor="middle">~/.clawdbot/identity/device.json</text>
+
+  <rect x="335" y="212" width="220" height="22" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1" />
+  <text class="label" x="445" y="228" text-anchor="middle">SHA256(pubkey) = deviceId</text>
+
+  <!-- Device Pairing Flow -->
+  <rect class="box-auth" x="50" y="260" width="520" height="100" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="310" y="285" text-anchor="middle">Device Pairing Protocol</text>
+
+  <rect x="65" y="300" width="100" height="45" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="1" />
+  <text class="label" x="115" y="320" text-anchor="middle">1. Request</text>
+  <text class="small" x="115" y="335" text-anchor="middle">+ public key</text>
+
+  <rect x="185" y="300" width="100" height="45" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="1" />
+  <text class="label" x="235" y="320" text-anchor="middle">2. Store</text>
+  <text class="small" x="235" y="335" text-anchor="middle">5min TTL</text>
+
+  <rect x="305" y="300" width="100" height="45" rx="6" fill="#fff7ed" stroke="#f97316" stroke-width="1" />
+  <text class="label" x="355" y="320" text-anchor="middle">3. Approve</text>
+  <text class="small" x="355" y="335" text-anchor="middle">Human click</text>
+
+  <rect x="425" y="300" width="130" height="45" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1" />
+  <text class="label" x="490" y="320" text-anchor="middle">4. Token issued</text>
+  <text class="small" x="490" y="335" text-anchor="middle">role + scopes</text>
+
+  <line class="arrow" x1="165" y1="322" x2="180" y2="322" />
+  <line class="arrow" x1="285" y1="322" x2="300" y2="322" />
+  <line class="arrow" x1="405" y1="322" x2="420" y2="322" />
+
+  <!-- Section 2: Authorization Layer -->
+  <rect x="610" y="90" width="560" height="280" rx="12" class="line-group" />
+  <text class="heading" x="630" y="115" fill="#2563eb">AUTHORIZATION LAYER</text>
+
+  <!-- Channel Authorization -->
+  <rect class="box-authz" x="630" y="130" width="250" height="230" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="755" y="155" text-anchor="middle">Channel Access Control</text>
+
+  <rect x="645" y="170" width="220" height="28" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" />
+  <text class="label" x="755" y="189" text-anchor="middle">allowFrom: string[]</text>
+
+  <rect x="645" y="205" width="220" height="28" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" />
+  <text class="label" x="755" y="224" text-anchor="middle">groupPolicy: open|restricted|block</text>
+
+  <rect x="645" y="240" width="220" height="28" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" />
+  <text class="label" x="755" y="259" text-anchor="middle">dmPolicy: open|restricted|block</text>
+
+  <rect x="645" y="275" width="220" height="28" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" />
+  <text class="label" x="755" y="294" text-anchor="middle">requireMention: boolean</text>
+
+  <rect x="645" y="310" width="220" height="28" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" />
+  <text class="label" x="755" y="329" text-anchor="middle">elevated: per-sender override</text>
+
+  <!-- Session Isolation -->
+  <rect class="box-authz" x="900" y="130" width="250" height="230" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="1025" y="155" text-anchor="middle">Session Isolation</text>
+  <text class="code" x="1025" y="173" text-anchor="middle">dmScope modes</text>
+
+  <rect x="915" y="190" width="220" height="22" rx="4" fill="#eff6ff" stroke="#60a5fa" stroke-width="1" />
+  <text class="label" x="1025" y="206" text-anchor="middle">main (shared DM session)</text>
+
+  <rect x="915" y="218" width="220" height="22" rx="4" fill="#eff6ff" stroke="#60a5fa" stroke-width="1" />
+  <text class="label" x="1025" y="234" text-anchor="middle">per-peer (isolated by sender)</text>
+
+  <rect x="915" y="246" width="220" height="22" rx="4" fill="#eff6ff" stroke="#60a5fa" stroke-width="1" />
+  <text class="label" x="1025" y="262" text-anchor="middle">per-channel-peer</text>
+
+  <rect x="915" y="274" width="220" height="22" rx="4" fill="#eff6ff" stroke="#60a5fa" stroke-width="1" />
+  <text class="label" x="1025" y="290" text-anchor="middle">per-account-channel-peer</text>
+
+  <rect x="915" y="310" width="220" height="40" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1" />
+  <text class="label" x="1025" y="328" text-anchor="middle">TLA+ formal verification</text>
+  <text class="small" x="1025" y="343" text-anchor="middle">Session isolation proofs</text>
+
+  <!-- Section 3: Execution Control -->
+  <rect x="30" y="390" width="560" height="240" rx="12" class="line-group" />
+  <text class="heading" x="50" y="415" fill="#dc2626">EXECUTION CONTROL</text>
+
+  <!-- Exec Approvals -->
+  <rect class="box-exec" x="50" y="430" width="520" height="190" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="310" y="455" text-anchor="middle">Exec Approval Gates</text>
+  <text class="code" x="310" y="473" text-anchor="middle">src/infra/exec-approvals.ts</text>
+
+  <!-- Security Levels -->
+  <rect x="65" y="490" width="150" height="55" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1" />
+  <text class="heading" x="140" y="510" text-anchor="middle">security: deny</text>
+  <text class="small" x="140" y="528" text-anchor="middle">Block all execution</text>
+  <text class="critical-text" x="140" y="540" text-anchor="middle">DEFAULT</text>
+
+  <rect x="225" y="490" width="150" height="55" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1" />
+  <text class="heading" x="300" y="510" text-anchor="middle">security: allowlist</text>
+  <text class="small" x="300" y="528" text-anchor="middle">Check patterns</text>
+
+  <rect x="385" y="490" width="170" height="55" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1" />
+  <text class="heading" x="470" y="510" text-anchor="middle">security: full</text>
+  <text class="small" x="470" y="528" text-anchor="middle">Allow all (dangerous)</text>
+
+  <!-- Ask Modes -->
+  <rect x="65" y="555" width="145" height="55" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" />
+  <text class="label" x="137" y="578" text-anchor="middle">ask: off</text>
+  <text class="small" x="137" y="593" text-anchor="middle">No prompts</text>
+
+  <rect x="220" y="555" width="160" height="55" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" />
+  <text class="label" x="300" y="578" text-anchor="middle">ask: on-miss</text>
+  <text class="small" x="300" y="593" text-anchor="middle">Prompt if not matched</text>
+
+  <rect x="390" y="555" width="165" height="55" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" />
+  <text class="label" x="472" y="578" text-anchor="middle">ask: always</text>
+  <text class="small" x="472" y="593" text-anchor="middle">Always prompt</text>
+
+  <!-- Section 4: Storage Security -->
+  <rect x="610" y="390" width="270" height="240" rx="12" class="line-group" />
+  <text class="heading" x="630" y="415" fill="#db2777">STORAGE SECURITY</text>
+
+  <rect class="box-storage" x="630" y="430" width="230" height="190" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="745" y="455" text-anchor="middle">File Permissions</text>
+  <text class="code" x="745" y="473" text-anchor="middle">mode 0o600 (owner r/w)</text>
+
+  <rect x="645" y="490" width="200" height="25" rx="4" fill="#fdf2f8" stroke="#ec4899" stroke-width="1" />
+  <text class="label" x="745" y="508" text-anchor="middle">config.json (secrets)</text>
+
+  <rect x="645" y="520" width="200" height="25" rx="4" fill="#fdf2f8" stroke="#ec4899" stroke-width="1" />
+  <text class="label" x="745" y="538" text-anchor="middle">credentials/*.json</text>
+
+  <rect x="645" y="550" width="200" height="25" rx="4" fill="#fdf2f8" stroke="#ec4899" stroke-width="1" />
+  <text class="label" x="745" y="568" text-anchor="middle">sessions/*.jsonl</text>
+
+  <rect x="645" y="580" width="200" height="25" rx="4" fill="#fdf2f8" stroke="#ec4899" stroke-width="1" />
+  <text class="label" x="745" y="598" text-anchor="middle">exec-approvals.json</text>
+
+  <!-- Section 5: Audit System -->
+  <rect x="900" y="390" width="270" height="240" rx="12" class="line-group" />
+  <text class="heading" x="920" y="415" fill="#16a34a">AUDIT SYSTEM</text>
+
+  <rect class="box-audit" x="920" y="430" width="230" height="190" rx="10" filter="url(#shadow)" />
+  <text class="heading" x="1035" y="455" text-anchor="middle">Security Audit</text>
+  <text class="code" x="1035" y="473" text-anchor="middle">moltbot security audit</text>
+
+  <rect x="935" y="490" width="200" height="22" rx="4" fill="#dcfce7" stroke="#22c55e" stroke-width="1" />
+  <text class="small" x="1035" y="506" text-anchor="middle">Gateway exposure checks</text>
+
+  <rect x="935" y="518" width="200" height="22" rx="4" fill="#dcfce7" stroke="#22c55e" stroke-width="1" />
+  <text class="small" x="1035" y="534" text-anchor="middle">File permission audits</text>
+
+  <rect x="935" y="546" width="200" height="22" rx="4" fill="#dcfce7" stroke="#22c55e" stroke-width="1" />
+  <text class="small" x="1035" y="562" text-anchor="middle">Channel security scans</text>
+
+  <rect x="935" y="574" width="200" height="22" rx="4" fill="#dcfce7" stroke="#22c55e" stroke-width="1" />
+  <text class="small" x="1035" y="590" text-anchor="middle">Authorization policy checks</text>
+
+  <rect x="935" y="602" width="200" height="12" rx="3" fill="#f0fdf4" />
+  <text class="small" x="1035" y="611" text-anchor="middle">60+ security checks</text>
+
+  <!-- Section 6: Potential Vulnerabilities -->
+  <rect x="30" y="650" width="1140" height="180" rx="12" class="line-group" />
+  <text class="heading" x="50" y="675" fill="#b91c1c">IDENTIFIED SECURITY CONSIDERATIONS</text>
+
+  <rect class="box-critical" x="50" y="695" width="260" height="125" rx="8" />
+  <text class="heading" x="180" y="718" text-anchor="middle">High Priority</text>
+
+  <text class="small" x="65" y="738">Device pairing: no rate limiting</text>
+  <text class="small" x="65" y="755">Allowlist patterns: ** may over-match</text>
+  <text class="small" x="65" y="772">Approval socket: no mutual auth</text>
+  <text class="small" x="65" y="789">CWD manipulation: not validated</text>
+  <text class="small" x="65" y="806">Exec approvals: potential race condition</text>
+
+  <rect class="box-note" x="330" y="695" width="260" height="125" rx="8" />
+  <text class="heading" x="460" y="718" text-anchor="middle">Medium Priority</text>
+
+  <text class="small" x="345" y="738">PATH env can be manipulated</text>
+  <text class="small" x="345" y="755">Safe bin arg parsing: escapable</text>
+  <text class="small" x="345" y="772">Config symlinks: detected not blocked</text>
+  <text class="small" x="345" y="789">Prompt injection: regex evasion</text>
+  <text class="small" x="345" y="806">Gateway HTTP auth: optional TLS</text>
+
+  <rect x="610" y="695" width="260" height="125" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="2" />
+  <text class="heading" x="740" y="718" text-anchor="middle">Strengths</text>
+
+  <text class="small" x="625" y="738">Ed25519 crypto for device identity</text>
+  <text class="small" x="625" y="755">timingSafeEqual prevents timing attacks</text>
+  <text class="small" x="625" y="772">0o600 file permissions throughout</text>
+  <text class="small" x="625" y="789">Quote-aware command parsing</text>
+  <text class="small" x="625" y="806">TLA+ formal verification models</text>
+
+  <rect x="890" y="695" width="260" height="125" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="1" />
+  <text class="heading" x="1020" y="718" text-anchor="middle">Recommendations</text>
+
+  <text class="small" x="905" y="738">Add rate limiting to pairing</text>
+  <text class="small" x="905" y="755">Implement approval audit persistence</text>
+  <text class="small" x="905" y="772">Add mutual socket authentication</text>
+  <text class="small" x="905" y="789">Validate CWD before exec</text>
+  <text class="small" x="905" y="806">Consider encrypted credential store</text>
+</svg>

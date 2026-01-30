@@ -1,0 +1,296 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700" role="img" aria-label="Moltbot Channel Plugin Architecture">
+  <defs>
+    <style>
+      .bg { fill: #fafbfc; }
+      .box-interface { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .box-adapter { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.5; }
+      .box-impl { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.5; }
+      .box-registry { fill: #fce7f3; stroke: #db2777; stroke-width: 2; }
+      .box-config { fill: #e0e7ff; stroke: #4f46e5; stroke-width: 1.5; }
+      .title { font: bold 24px "Inter", "SF Pro Display", -apple-system, sans-serif; fill: #0f172a; }
+      .subtitle { font: 14px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .heading { font: bold 15px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #1e293b; }
+      .label { font: 12px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #475569; }
+      .code { font: 11px "SF Mono", "JetBrains Mono", monospace; fill: #6366f1; }
+      .small { font: 11px "Inter", "SF Pro Text", -apple-system, sans-serif; fill: #64748b; }
+      .arrow { stroke: #94a3b8; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+      .arrow-implements { stroke: #16a34a; stroke-width: 1.5; fill: none; stroke-dasharray: 5,3; marker-end: url(#arrowhead-green); }
+      .line-group { stroke: #e2e8f0; stroke-width: 1.5; stroke-dasharray: 4,4; fill: none; }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#94a3b8" />
+    </marker>
+    <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#16a34a" />
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect class="bg" width="1100" height="700" />
+
+  <!-- Title -->
+  <text class="title" x="40" y="45">Channel Plugin Architecture</text>
+  <text class="subtitle" x="40" y="67">Unified adapter pattern for multi-platform messaging</text>
+
+  <!-- ChannelPlugin Interface (Top Center) -->
+  <rect class="box-interface" x="350" y="95" width="400" height="180" rx="12" filter="url(#shadow)" />
+  <text class="heading" x="550" y="120" text-anchor="middle">ChannelPlugin Interface</text>
+  <text class="code" x="550" y="140" text-anchor="middle">src/channels/plugins/types.plugin.ts</text>
+
+  <!-- Adapter slots -->
+  <g transform="translate(370, 155)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">id: ChannelId</text>
+  </g>
+  <g transform="translate(466, 155)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">meta</text>
+  </g>
+  <g transform="translate(562, 155)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">capabilities</text>
+  </g>
+  <g transform="translate(658, 155)">
+    <rect class="box-adapter" x="0" y="0" width="74" height="32" rx="4" />
+    <text class="label" x="37" y="21" text-anchor="middle">config</text>
+  </g>
+
+  <g transform="translate(370, 195)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">setup?</text>
+  </g>
+  <g transform="translate(466, 195)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">pairing?</text>
+  </g>
+  <g transform="translate(562, 195)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">security?</text>
+  </g>
+  <g transform="translate(658, 195)">
+    <rect class="box-adapter" x="0" y="0" width="74" height="32" rx="4" />
+    <text class="label" x="37" y="21" text-anchor="middle">auth?</text>
+  </g>
+
+  <g transform="translate(370, 235)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">outbound?</text>
+  </g>
+  <g transform="translate(466, 235)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">gateway?</text>
+  </g>
+  <g transform="translate(562, 235)">
+    <rect class="box-adapter" x="0" y="0" width="88" height="32" rx="4" />
+    <text class="label" x="44" y="21" text-anchor="middle">messaging?</text>
+  </g>
+  <g transform="translate(658, 235)">
+    <rect class="box-adapter" x="0" y="0" width="74" height="32" rx="4" />
+    <text class="label" x="37" y="21" text-anchor="middle">tools?</text>
+  </g>
+
+  <!-- Plugin Registry (Left) -->
+  <rect class="box-registry" x="40" y="120" width="260" height="130" rx="12" filter="url(#shadow)" />
+  <text class="heading" x="170" y="148" text-anchor="middle">Plugin Registry</text>
+  <text class="code" x="170" y="168" text-anchor="middle">src/plugins/registry.ts</text>
+
+  <rect x="60" y="180" width="220" height="24" rx="4" fill="#fdf2f8" stroke="#ec4899" stroke-width="1" />
+  <text class="label" x="170" y="197" text-anchor="middle">registerChannelPlugin()</text>
+
+  <rect x="60" y="210" width="220" height="24" rx="4" fill="#fdf2f8" stroke="#ec4899" stroke-width="1" />
+  <text class="label" x="170" y="227" text-anchor="middle">getChannelPlugins()</text>
+
+  <!-- Configuration (Right) -->
+  <rect class="box-config" x="800" y="120" width="260" height="130" rx="12" filter="url(#shadow)" />
+  <text class="heading" x="930" y="148" text-anchor="middle">Config Schema</text>
+  <text class="code" x="930" y="168" text-anchor="middle">Zod validation</text>
+
+  <rect x="820" y="180" width="220" height="24" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1" />
+  <text class="label" x="930" y="197" text-anchor="middle">configSchema: ZodObject</text>
+
+  <rect x="820" y="210" width="220" height="24" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1" />
+  <text class="label" x="930" y="227" text-anchor="middle">allowFrom, groupPolicy...</text>
+
+  <!-- Arrows from Registry to Interface -->
+  <line class="arrow" x1="300" y1="185" x2="345" y2="185" />
+
+  <!-- Arrows from Interface to Config -->
+  <line class="arrow" x1="755" y1="185" x2="795" y2="185" />
+
+  <!-- Built-in Implementations (Bottom) -->
+  <rect x="40" y="320" width="1020" height="200" rx="12" fill="none" class="line-group" />
+  <text class="small" x="55" y="340">CHANNEL IMPLEMENTATIONS</text>
+
+  <!-- Row 1 -->
+  <rect class="box-impl" x="60" y="360" width="140" height="70" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="130" y="385" text-anchor="middle">Telegram</text>
+  <text class="small" x="130" y="402" text-anchor="middle">src/telegram/</text>
+  <text class="code" x="130" y="418" text-anchor="middle">Webhooks, polling</text>
+
+  <rect class="box-impl" x="210" y="360" width="140" height="70" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="280" y="385" text-anchor="middle">Discord</text>
+  <text class="small" x="280" y="402" text-anchor="middle">src/discord/</text>
+  <text class="code" x="280" y="418" text-anchor="middle">Bot token, guilds</text>
+
+  <rect class="box-impl" x="360" y="360" width="140" height="70" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="430" y="385" text-anchor="middle">Slack</text>
+  <text class="small" x="430" y="402" text-anchor="middle">src/slack/</text>
+  <text class="code" x="430" y="418" text-anchor="middle">Bolt SDK, OAuth</text>
+
+  <rect class="box-impl" x="510" y="360" width="140" height="70" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="580" y="385" text-anchor="middle">Signal</text>
+  <text class="small" x="580" y="402" text-anchor="middle">src/signal/</text>
+  <text class="code" x="580" y="418" text-anchor="middle">Phone auth</text>
+
+  <rect class="box-impl" x="660" y="360" width="140" height="70" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="730" y="385" text-anchor="middle">WhatsApp</text>
+  <text class="small" x="730" y="402" text-anchor="middle">src/web/</text>
+  <text class="code" x="730" y="418" text-anchor="middle">Baileys, QR login</text>
+
+  <rect class="box-impl" x="810" y="360" width="140" height="70" rx="8" filter="url(#shadow)" />
+  <text class="heading" x="880" y="385" text-anchor="middle">iMessage</text>
+  <text class="small" x="880" y="402" text-anchor="middle">src/imessage/</text>
+  <text class="code" x="880" y="418" text-anchor="middle">BlueBubbles</text>
+
+  <!-- Row 2 - Extensions -->
+  <rect class="box-impl" x="60" y="440" width="140" height="70" rx="8" filter="url(#shadow)" style="fill: #f0fdf4; stroke: #22c55e;" />
+  <text class="heading" x="130" y="465" text-anchor="middle">LINE</text>
+  <text class="small" x="130" y="482" text-anchor="middle">src/line/</text>
+  <text class="code" x="130" y="498" text-anchor="middle">Channel tokens</text>
+
+  <rect class="box-impl" x="210" y="440" width="140" height="70" rx="8" filter="url(#shadow)" style="fill: #f0fdf4; stroke: #22c55e;" />
+  <text class="heading" x="280" y="465" text-anchor="middle">Matrix</text>
+  <text class="small" x="280" y="482" text-anchor="middle">extensions/matrix/</text>
+  <text class="code" x="280" y="498" text-anchor="middle">E2E encrypted</text>
+
+  <rect class="box-impl" x="360" y="440" width="140" height="70" rx="8" filter="url(#shadow)" style="fill: #f0fdf4; stroke: #22c55e;" />
+  <text class="heading" x="430" y="465" text-anchor="middle">MS Teams</text>
+  <text class="small" x="430" y="482" text-anchor="middle">extensions/msteams/</text>
+  <text class="code" x="430" y="498" text-anchor="middle">Azure AD auth</text>
+
+  <rect class="box-impl" x="510" y="440" width="140" height="70" rx="8" filter="url(#shadow)" style="fill: #f0fdf4; stroke: #22c55e;" />
+  <text class="heading" x="580" y="465" text-anchor="middle">Zalo</text>
+  <text class="small" x="580" y="482" text-anchor="middle">extensions/zalo/</text>
+  <text class="code" x="580" y="498" text-anchor="middle">OA integration</text>
+
+  <rect class="box-impl" x="660" y="440" width="140" height="70" rx="8" filter="url(#shadow)" style="fill: #f0fdf4; stroke: #22c55e;" />
+  <text class="heading" x="730" y="465" text-anchor="middle">Voice Call</text>
+  <text class="small" x="730" y="482" text-anchor="middle">extensions/voice/</text>
+  <text class="code" x="730" y="498" text-anchor="middle">Twilio, Vapi</text>
+
+  <rect class="box-impl" x="810" y="440" width="140" height="70" rx="8" filter="url(#shadow)" style="fill: #f0fdf4; stroke: #22c55e;" />
+  <text class="heading" x="880" y="465" text-anchor="middle">Web/HTTP</text>
+  <text class="small" x="880" y="482" text-anchor="middle">src/channels/web/</text>
+  <text class="code" x="880" y="498" text-anchor="middle">Webhooks</text>
+
+  <!-- Implements arrows -->
+  <line class="arrow-implements" x1="130" y1="360" x2="400" y2="280" />
+  <line class="arrow-implements" x1="280" y1="360" x2="450" y2="280" />
+  <line class="arrow-implements" x1="430" y1="360" x2="500" y2="280" />
+  <line class="arrow-implements" x1="580" y1="360" x2="550" y2="280" />
+  <line class="arrow-implements" x1="730" y1="360" x2="600" y2="280" />
+  <line class="arrow-implements" x1="880" y1="360" x2="650" y2="280" />
+
+  <!-- Adapter Detail (Bottom) -->
+  <rect x="40" y="540" width="1020" height="140" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+  <text class="heading" x="550" y="565" text-anchor="middle">Adapter Types (15+ adapters per plugin)</text>
+
+  <g transform="translate(60, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">ConfigAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Settings CRUD</text>
+  </g>
+
+  <g transform="translate(180, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">SetupAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Onboarding</text>
+  </g>
+
+  <g transform="translate(300, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">PairingAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Device link</text>
+  </g>
+
+  <g transform="translate(420, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">OutboundAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Send messages</text>
+  </g>
+
+  <g transform="translate(540, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">GatewayAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Lifecycle hooks</text>
+  </g>
+
+  <g transform="translate(660, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">AuthAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Credentials</text>
+  </g>
+
+  <g transform="translate(780, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">SecurityAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Access control</text>
+  </g>
+
+  <g transform="translate(900, 580)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">MessagingAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Inbound handling</text>
+  </g>
+
+  <g transform="translate(60, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">StatusAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Health checks</text>
+  </g>
+
+  <g transform="translate(180, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">NormalizeAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Address format</text>
+  </g>
+
+  <g transform="translate(300, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">MediaAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">File handling</text>
+  </g>
+
+  <g transform="translate(420, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">ThreadingAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Conversations</text>
+  </g>
+
+  <g transform="translate(540, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">GroupAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Membership</text>
+  </g>
+
+  <g transform="translate(660, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">AgentToolAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">AI tools</text>
+  </g>
+
+  <g transform="translate(780, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">WebhookAdapter</text>
+    <text class="small" x="55" y="32" text-anchor="middle">HTTP hooks</text>
+  </g>
+
+  <g transform="translate(900, 630)">
+    <rect class="box-adapter" x="0" y="0" width="110" height="40" rx="6" />
+    <text class="label" x="55" y="18" text-anchor="middle">+7 more...</text>
+    <text class="small" x="55" y="32" text-anchor="middle">Extensible</text>
+  </g>
+</svg>
