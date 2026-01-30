@@ -186,7 +186,7 @@ describe("subagent announce formatting", () => {
     });
 
     expect(didAnnounce).toBe(true);
-    await new Promise((r) => setTimeout(r, 5));
+    await expect.poll(() => agentSpy.mock.calls.length).toBe(1);
 
     const call = agentSpy.mock.calls[0]?.[0] as { params?: Record<string, unknown> };
     expect(call?.params?.channel).toBe("whatsapp");
@@ -308,7 +308,6 @@ describe("subagent announce formatting", () => {
       "agent:main:main": {
         sessionId: "session-stale",
         lastChannel: "whatsapp",
-        lastTo: "+1555",
         queueMode: "collect",
         queueDebounceMs: 0,
       },
@@ -330,7 +329,7 @@ describe("subagent announce formatting", () => {
     });
 
     expect(didAnnounce).toBe(true);
-    await new Promise((r) => setTimeout(r, 5));
+    await expect.poll(() => agentSpy.mock.calls.length).toBe(1);
 
     const call = agentSpy.mock.calls[0]?.[0] as { params?: Record<string, unknown> };
     // The channel should match requesterOrigin, NOT the stale session entry.
@@ -382,7 +381,7 @@ describe("subagent announce formatting", () => {
       outcome: { status: "ok" },
     });
 
-    await new Promise((r) => setTimeout(r, 5));
+    await expect.poll(() => agentSpy.mock.calls.length).toBe(2);
 
     const accountIds = agentSpy.mock.calls.map(
       (call) => (call[0] as { params?: Record<string, unknown> }).params?.accountId,
