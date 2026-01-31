@@ -41,13 +41,7 @@ import {
   type MemoryFileEntry,
   parseEmbedding,
 } from "./internal.js";
-import {
-  bm25RankToScore,
-  buildFtsQuery,
-  mergeHybridResults,
-  mergeHybridResultsRRF,
-  mergeHybridResultsNormalized,
-} from "./hybrid.js";
+import { bm25RankToScore, buildFtsQuery, mergeHybridResults } from "./hybrid.js";
 import { searchKeyword, searchVector } from "./manager-search.js";
 import { ensureMemoryIndexSchema } from "./memory-schema.js";
 import { requireNodeSqlite } from "./sqlite.js";
@@ -303,19 +297,14 @@ export class MemoryIndexManager {
       return vectorResults.filter((entry) => entry.score >= minScore).slice(0, maxResults);
     }
 
-    const merged = this.mergeHybridResultsWithMethod({
+    const merged = this.mergeHybridResults({
       vector: vectorResults,
       keyword: keywordResults,
       vectorWeight: hybrid.vectorWeight,
       textWeight: hybrid.textWeight,
-      fusionMethod: hybrid.fusionMethod,
     });
 
-    const shouldFilterByScore = hybrid.fusionMethod !== "rrf";
-    if (shouldFilterByScore) {
-      return merged.filter((entry) => entry.score >= minScore).slice(0, maxResults);
-    }
-    return merged.slice(0, maxResults);
+    return merged.filter((entry) => entry.score >= minScore).slice(0, maxResults);
   }
 
   private async searchVector(
@@ -343,7 +332,7 @@ export class MemoryIndexManager {
   private async searchKeyword(
     query: string,
     limit: number,
-  ): Promise<Array<MemorySearchResult & { id: string; textScore: number; rawBm25Score: number }>> {
+  ): Promise<Array<MemorySearchResult & { id: string; textScore: number }>> {
     if (!this.fts.enabled || !this.fts.available) return [];
     const sourceFilter = this.buildSourceFilter();
     const results = await searchKeyword({
@@ -357,9 +346,7 @@ export class MemoryIndexManager {
       buildFtsQuery: (raw) => this.buildFtsQuery(raw),
       bm25RankToScore,
     });
-    return results.map(
-      (entry) => entry as MemorySearchResult & { id: string; textScore: number; rawBm25Score: number },
-    );
+    return results.map((entry) => entry as MemorySearchResult & { id: string; textScore: number });
   }
 
   private mergeHybridResults(params: {
@@ -391,62 +378,6 @@ export class MemoryIndexManager {
       textWeight: params.textWeight,
     });
     return merged.map((entry) => entry as MemorySearchResult);
-  }
-
-  private mergeHybridResultsWithMethod(params: {
-    vector: Array<MemorySearchResult & { id: string }>;
-    keyword: Array<MemorySearchResult & { id: string; textScore: number; rawBm25Score: number }>;
-    vectorWeight: number;
-    textWeight: number;
-    fusionMethod: "weighted" | "rrf" | "normalized";
-  }): MemorySearchResult[] {
-    const vectorMapped = params.vector.map((r) => ({
-      id: r.id,
-      path: r.path,
-      startLine: r.startLine,
-      endLine: r.endLine,
-      source: r.source,
-      snippet: r.snippet,
-      vectorScore: r.score,
-    }));
-
-    const keywordMapped = params.keyword.map((r) => ({
-      id: r.id,
-      path: r.path,
-      startLine: r.startLine,
-      endLine: r.endLine,
-      source: r.source,
-      snippet: r.snippet,
-      textScore: r.textScore,
-    }));
-
-    if (params.fusionMethod === "rrf") {
-      return mergeHybridResultsRRF({
-        vector: vectorMapped,
-        keyword: keywordMapped,
-      }).map((entry) => entry as MemorySearchResult);
-    }
-
-    if (params.fusionMethod === "normalized") {
-      const rawBm25Scores = new Map<string, number>();
-      for (const r of params.keyword) {
-        rawBm25Scores.set(r.id, r.rawBm25Score);
-      }
-      return mergeHybridResultsNormalized({
-        vector: vectorMapped,
-        keyword: keywordMapped,
-        vectorWeight: params.vectorWeight,
-        textWeight: params.textWeight,
-        rawBm25Scores,
-      }).map((entry) => entry as MemorySearchResult);
-    }
-
-    return mergeHybridResults({
-      vector: vectorMapped,
-      keyword: keywordMapped,
-      vectorWeight: params.vectorWeight,
-      textWeight: params.textWeight,
-    }).map((entry) => entry as MemorySearchResult);
   }
 
   async sync(params?: {
