@@ -5,10 +5,10 @@ import type { SourceType } from "../kg/schema.js";
  * Provenance tracking for memory chunks.
  * Records where each piece of information came from and its trust level.
  *
- * TODO (Agent 2 - Phase 3):
- * - Implement source tracking on ingest
- * - Add audit logging for provenance changes
- * - Support provenance inheritance for derived chunks
+ * Features:
+ * - Source tracking on ingest (user_stated, inferred, external_doc, tool_result)
+ * - Trust scoring with verification boost
+ * - Contradiction tracking with trust penalties
  */
 
 export interface ChunkProvenance {

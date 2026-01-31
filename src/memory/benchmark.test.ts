@@ -134,13 +134,7 @@ describe("memory/benchmarks", () => {
         "Node",
         "Deno",
       ];
-      const projects = [
-        "OpenClaw",
-        "MemorySystem",
-        "TrustLayer",
-        "KnowledgeGraph",
-        "HybridSearch",
-      ];
+      const projects = ["OpenClaw", "MemorySystem", "TrustLayer", "KnowledgeGraph", "HybridSearch"];
 
       let text = "";
       for (let i = 0; i < 50; i++) {
@@ -205,10 +199,22 @@ describe("memory/benchmarks", () => {
         db.prepare(
           `INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(id, `Entity${i}`, i % 3 === 0 ? "person" : "concept", `entity${i}`, "[]", 0.8, "user_stated", now, now);
+        ).run(
+          id,
+          `Entity${i}`,
+          i % 3 === 0 ? "person" : "concept",
+          `entity${i}`,
+          "[]",
+          0.8,
+          "user_stated",
+          now,
+          now,
+        );
 
         // Create chunk for entity
-        db.exec(`INSERT OR IGNORE INTO chunks (id, text) VALUES ('chunk-${i}', 'text for entity ${i}')`);
+        db.exec(
+          `INSERT OR IGNORE INTO chunks (id, text) VALUES ('chunk-${i}', 'text for entity ${i}')`,
+        );
 
         // Link entity to chunk via mention
         const mentionId = generateId();
@@ -219,9 +225,9 @@ describe("memory/benchmarks", () => {
       }
 
       // Create relations between entities
-      const entityIds = (
-        db.prepare(`SELECT id FROM entities`).all() as Array<{ id: string }>
-      ).map((r) => r.id);
+      const entityIds = (db.prepare(`SELECT id FROM entities`).all() as Array<{ id: string }>).map(
+        (r) => r.id,
+      );
 
       for (let i = 0; i < 200; i++) {
         const sourceIdx = i % entityIds.length;
@@ -230,7 +236,16 @@ describe("memory/benchmarks", () => {
         db.prepare(
           `INSERT INTO relations (id, source_entity_id, target_entity_id, relation_type, confidence, trust_score, source_type, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(relId, entityIds[sourceIdx], entityIds[targetIdx], "relates_to", 0.7, 0.8, "inferred", now);
+        ).run(
+          relId,
+          entityIds[sourceIdx],
+          entityIds[targetIdx],
+          "relates_to",
+          0.7,
+          0.8,
+          "inferred",
+          now,
+        );
       }
     });
 
@@ -281,7 +296,14 @@ describe("memory/benchmarks", () => {
       for (let i = 0; i < 50; i++) {
         const chunkId = `trust-chunk-${i}`;
         db.exec(`INSERT INTO chunks (id, text) VALUES ('${chunkId}', 'Test content ${i}')`);
-        const sourceType = i % 4 === 0 ? "user_stated" : i % 4 === 1 ? "inferred" : i % 4 === 2 ? "tool_result" : "external_doc";
+        const sourceType =
+          i % 4 === 0
+            ? "user_stated"
+            : i % 4 === 1
+              ? "inferred"
+              : i % 4 === 2
+                ? "tool_result"
+                : "external_doc";
         db.prepare(
           `INSERT INTO chunk_provenance (chunk_id, source_type, trust_score, created_at)
            VALUES (?, ?, ?, ?)`,
@@ -368,7 +390,17 @@ describe("memory/benchmarks", () => {
       db.prepare(
         `INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(id, "TypeScript", "technology", "typescript", '["TS", "ts"]', 0.9, "user_stated", now, now);
+      ).run(
+        id,
+        "TypeScript",
+        "technology",
+        "typescript",
+        '["TS", "ts"]',
+        0.9,
+        "user_stated",
+        now,
+        now,
+      );
 
       const elapsed = measure("expand-query", () => {
         expandQueryWithAliases("Does Tom use TypeScript?", ["TypeScript"], { db });
@@ -387,7 +419,17 @@ describe("memory/benchmarks", () => {
         db.prepare(
           `INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(id, `ContextEntity${i}`, "concept", `contextentity${i}`, "[]", 0.8, "user_stated", now, now);
+        ).run(
+          id,
+          `ContextEntity${i}`,
+          "concept",
+          `contextentity${i}`,
+          "[]",
+          0.8,
+          "user_stated",
+          now,
+          now,
+        );
       }
 
       for (let i = 0; i < 15; i++) {
@@ -395,7 +437,16 @@ describe("memory/benchmarks", () => {
         db.prepare(
           `INSERT INTO relations (id, source_entity_id, target_entity_id, relation_type, confidence, trust_score, source_type, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(relId, ids[i % ids.length], ids[(i + 1) % ids.length], "relates_to", 0.7, 0.8, "inferred", now);
+        ).run(
+          relId,
+          ids[i % ids.length],
+          ids[(i + 1) % ids.length],
+          "relates_to",
+          0.7,
+          0.8,
+          "inferred",
+          now,
+        );
       }
 
       const elapsed = measure("build-kg-context", () => {
@@ -439,13 +490,12 @@ describe("memory/benchmarks", () => {
       ];
 
       for (const c of chunks) {
-        db.exec(`INSERT INTO chunks (id, path, source, text) VALUES ('${c.id}', '/test', 'memory', '${c.text}')`);
-        db.prepare(`INSERT INTO chunk_provenance (chunk_id, source_type, trust_score, created_at) VALUES (?, ?, ?, ?)`).run(
-          c.id,
-          "user_stated",
-          0.9,
-          now,
+        db.exec(
+          `INSERT INTO chunks (id, path, source, text) VALUES ('${c.id}', '/test', 'memory', '${c.text}')`,
         );
+        db.prepare(
+          `INSERT INTO chunk_provenance (chunk_id, source_type, trust_score, created_at) VALUES (?, ?, ?, ?)`,
+        ).run(c.id, "user_stated", 0.9, now);
       }
 
       // Create relations
@@ -462,19 +512,25 @@ describe("memory/benchmarks", () => {
         db.prepare(
           `INSERT INTO relations (id, source_entity_id, target_entity_id, relation_type, confidence, source_chunk_id, trust_score, source_type, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(relId, entityIds[r.source], entityIds[r.target], r.type, 0.9, "c1", 0.9, "user_stated", now);
+        ).run(
+          relId,
+          entityIds[r.source],
+          entityIds[r.target],
+          r.type,
+          0.9,
+          "c1",
+          0.9,
+          "user_stated",
+          now,
+        );
       }
 
       // Create mentions
       for (const e of entities) {
         const mentionId = generateId();
-        db.prepare(`INSERT INTO entity_mentions (id, entity_id, chunk_id, mention_text, confidence) VALUES (?, ?, ?, ?, ?)`).run(
-          mentionId,
-          entityIds[e.name],
-          "c1",
-          e.name,
-          0.9,
-        );
+        db.prepare(
+          `INSERT INTO entity_mentions (id, entity_id, chunk_id, mention_text, confidence) VALUES (?, ?, ?, ?, ?)`,
+        ).run(mentionId, entityIds[e.name], "c1", e.name, 0.9);
       }
     });
 
@@ -490,7 +546,9 @@ describe("memory/benchmarks", () => {
       const strategy = selectStrategy(classification);
 
       // Step 3: Expand query
-      const expandedQueries = expandQueryWithAliases(query, classification.extractedEntities, { db });
+      const expandedQueries = expandQueryWithAliases(query, classification.extractedEntities, {
+        db,
+      });
 
       // Step 4: Build KG context
       const kgContext = buildKGContext(classification.extractedEntities, { db, maxHops: 2 });

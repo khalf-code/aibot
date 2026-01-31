@@ -1,11 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { RetrievalStrategy, ClassificationResult } from "./classifier.js";
-import {
-  findEntity,
-  findNeighbors,
-  getEntityChunks,
-  searchEntities,
-} from "../kg/index.js";
+import { findEntity, findNeighbors, getEntityChunks, searchEntities } from "../kg/index.js";
 
 /**
  * Retrieval strategy selection and execution.
@@ -223,11 +218,9 @@ export function expandQueryWithAliases(
     }
 
     // Get aliases and canonical name
-    const allNames = [
-      entity.canonical_name,
-      entity.name,
-      ...(entity.aliases || []),
-    ].filter((n): n is string => n !== undefined && n !== null);
+    const allNames = [entity.canonical_name, entity.name, ...(entity.aliases || [])].filter(
+      (n): n is string => n !== undefined && n !== null,
+    );
 
     // Generate query variants with each alias
     for (const alias of allNames) {

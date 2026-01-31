@@ -28,15 +28,15 @@ describe("kg/extractor", () => {
       const techEntities = result.entities.filter((e) => e.type === "technology");
       expect(techEntities.length).toBeGreaterThanOrEqual(2);
 
-      const typeScriptEntity = techEntities.find(
-        (e) => e.name.toLowerCase() === "typescript",
-      );
+      const typeScriptEntity = techEntities.find((e) => e.name.toLowerCase() === "typescript");
       expect(typeScriptEntity).toBeDefined();
       expect(typeScriptEntity?.confidence).toBe(0.8);
     });
 
     it("extracts quoted strings as concepts", () => {
-      const result = extractWithPatterns('The project is called "Memory RAGKG" and uses "hybrid search".');
+      const result = extractWithPatterns(
+        'The project is called "Memory RAGKG" and uses "hybrid search".',
+      );
 
       const concepts = result.entities.filter((e) => e.type === "concept");
       const names = concepts.map((e) => e.name);
@@ -292,30 +292,22 @@ describe("kg/extractor", () => {
 
   describe("extractFromChunk with LLM", () => {
     it("falls back to patterns when LLM is disabled", async () => {
-      const result = await extractFromChunk(
-        "chunk1",
-        "Tom uses TypeScript for development.",
-        {
-          db: {} as DatabaseSync,
-          sourceType: "user_stated",
-          useLlm: false,
-        },
-      );
+      const result = await extractFromChunk("chunk1", "Tom uses TypeScript for development.", {
+        db: {} as DatabaseSync,
+        sourceType: "user_stated",
+        useLlm: false,
+      });
 
       expect(result.entities.length).toBeGreaterThan(0);
     });
 
     it("falls back to patterns when no API key provided", async () => {
-      const result = await extractFromChunk(
-        "chunk1",
-        "Tom uses TypeScript for development.",
-        {
-          db: {} as DatabaseSync,
-          sourceType: "user_stated",
-          useLlm: true,
-          // No API key
-        },
-      );
+      const result = await extractFromChunk("chunk1", "Tom uses TypeScript for development.", {
+        db: {} as DatabaseSync,
+        sourceType: "user_stated",
+        useLlm: true,
+        // No API key
+      });
 
       expect(result.entities.length).toBeGreaterThan(0);
     });
@@ -326,16 +318,12 @@ describe("kg/extractor", () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
       try {
-        const result = await extractFromChunk(
-          "chunk1",
-          "Tom uses TypeScript for development.",
-          {
-            db: {} as DatabaseSync,
-            sourceType: "user_stated",
-            useLlm: true,
-            openaiApiKey: "test-key",
-          },
-        );
+        const result = await extractFromChunk("chunk1", "Tom uses TypeScript for development.", {
+          db: {} as DatabaseSync,
+          sourceType: "user_stated",
+          useLlm: true,
+          openaiApiKey: "test-key",
+        });
 
         // Should fall back to pattern extraction
         expect(result.entities.length).toBeGreaterThan(0);

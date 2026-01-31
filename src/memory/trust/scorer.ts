@@ -5,11 +5,6 @@ import { getProvenance, getDefaultTrustScore } from "./provenance.js";
 /**
  * Trust score calculation and propagation.
  * Determines final trust scores based on source, verification, and context.
- *
- * TODO (Agent 2 - Phase 3):
- * - Implement trust propagation through relations
- * - Add time-decay for unverified content
- * - Support confidence intervals
  */
 
 export interface TrustFactors {
@@ -71,12 +66,55 @@ export function getEffectiveTrustScore(db: DatabaseSync, chunkId: string): numbe
   const factors: TrustFactors = {
     sourceType: provenance.source_type,
     isVerified: provenance.verified_by_user,
-    hasHighTrustEvidence: false, // TODO: Check for corroborating evidence
+    hasHighTrustEvidence: hasCorroboratingEvidence(db, chunkId),
     contradictionCount: provenance.contradiction_count ?? 0,
     ageInDays,
   };
 
   return calculateTrustScore(factors);
+}
+
+/**
+ * Checks if a chunk has corroborating evidence from other high-trust sources.
+ * Returns true if there are other chunks with trust >= 0.7 that mention the same entities.
+ */
+function hasCorroboratingEvidence(db: DatabaseSync, chunkId: string): boolean {
+  const minCorroborationTrust = 0.7;
+  const minCorroboratingChunks = 2;
+
+  try {
+    // Find entities mentioned in this chunk
+    const entityIds = db
+      .prepare(`SELECT DISTINCT entity_id FROM entity_mentions WHERE chunk_id = ?`)
+      .all(chunkId) as Array<{ entity_id: string }>;
+
+    if (entityIds.length === 0) {
+      return false;
+    }
+
+    // For each entity, check if there are other high-trust chunks mentioning it
+    for (const { entity_id } of entityIds) {
+      const corroboratingCount = db
+        .prepare(
+          `SELECT COUNT(DISTINCT em.chunk_id) as count
+           FROM entity_mentions em
+           JOIN chunk_provenance cp ON em.chunk_id = cp.chunk_id
+           WHERE em.entity_id = ?
+             AND em.chunk_id != ?
+             AND cp.trust_score >= ?`,
+        )
+        .get(entity_id, chunkId, minCorroborationTrust) as { count: number } | undefined;
+
+      if (corroboratingCount && corroboratingCount.count >= minCorroboratingChunks) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    // Tables might not exist yet
+    return false;
+  }
 }
 
 /**

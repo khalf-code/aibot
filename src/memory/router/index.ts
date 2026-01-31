@@ -19,6 +19,8 @@ export {
   type QueryIntent,
   type ClassificationResult,
   type RetrievalStrategy,
+  type EmbeddingProviderLike,
+  type EmbeddingClassificationOptions,
 } from "./classifier.js";
 
 // Strategy selection and execution

@@ -6,10 +6,11 @@ import { getProvenance } from "./provenance.js";
  * Security rule enforcement for memory content.
  * Validates that content doesn't violate trust boundaries.
  *
- * TODO (Agent 2 - Phase 3):
- * - Implement security directive detection
- * - Add content classification for sensitive patterns
- * - Support custom validation rules
+ * Features:
+ * - Security directive detection (prompt injection patterns)
+ * - Content classification for sensitive patterns
+ * - Trust level validation
+ * - Contradiction detection against high-trust memories
  */
 
 export interface ValidationResult {
@@ -230,7 +231,11 @@ function extractClaims(content: string): Claim[] {
 
   // Pattern: "X uses/prefers/works_on/knows Y"
   const claimPatterns = [
-    { pattern: /(\w+(?:\s+\w+)?)\s+(does\s+not\s+|doesn't\s+)?(use|prefer|know|work\s+on|own|like)\s+(\w+(?:\s+\w+)?)/gi, negatedGroup: 2 },
+    {
+      pattern:
+        /(\w+(?:\s+\w+)?)\s+(does\s+not\s+|doesn't\s+)?(use|prefer|know|work\s+on|own|like)\s+(\w+(?:\s+\w+)?)/gi,
+      negatedGroup: 2,
+    },
     { pattern: /(\w+(?:\s+\w+)?)\s+(is\s+not\s+|isn't\s+)?(a|an|the)?\s*(\w+)/gi, negatedGroup: 2 },
   ];
 
@@ -321,8 +326,14 @@ function detectContradiction(claim: Claim, existingText: string): ContradictionR
   // Check for direct negation contradiction
   // e.g., "X uses Y" (new) vs "X does not use Y" (existing) or vice versa
   const negationPatterns = [
-    new RegExp(`${escapeRegex(subject)}\\s+(does\\s+not|doesn't)\\s+${escapeRegex(claim.predicate.replace("_", "\\s*"))}\\s+${escapeRegex(object)}`, "i"),
-    new RegExp(`${escapeRegex(subject)}\\s+${escapeRegex(claim.predicate.replace("_", "\\s*"))}\\s+${escapeRegex(object)}`, "i"),
+    new RegExp(
+      `${escapeRegex(subject)}\\s+(does\\s+not|doesn't)\\s+${escapeRegex(claim.predicate.replace("_", "\\s*"))}\\s+${escapeRegex(object)}`,
+      "i",
+    ),
+    new RegExp(
+      `${escapeRegex(subject)}\\s+${escapeRegex(claim.predicate.replace("_", "\\s*"))}\\s+${escapeRegex(object)}`,
+      "i",
+    ),
   ];
 
   const hasNegatedForm = negationPatterns[0].test(lowerText);

@@ -240,8 +240,7 @@ export function getQueryRouting(query: string): {
   const strategy = selectStrategy(classification);
 
   // Determine if KG should be used based on strategy
-  const shouldUseKG =
-    strategy === "kg_first" || strategy === "kg_only" || strategy === "hybrid";
+  const shouldUseKG = strategy === "kg_first" || strategy === "kg_only" || strategy === "hybrid";
 
   return {
     classification,
@@ -432,11 +431,9 @@ export async function searchKeywordWithRouting(
   });
 
   // Step 5: Apply KG boost to results
-  const boostedResults = applyKGBoost(
-    baseResults,
-    kgChunks,
-    options.kgBoostFactor,
-  ) as Array<RoutedSearchResult & { textScore: number }>;
+  const boostedResults = applyKGBoost(baseResults, kgChunks, options.kgBoostFactor) as Array<
+    RoutedSearchResult & { textScore: number }
+  >;
 
   // Step 6: Re-sort by boosted score
   const sortedResults = boostedResults.toSorted((a, b) => b.score - a.score);

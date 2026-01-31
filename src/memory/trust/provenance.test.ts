@@ -31,9 +31,7 @@ describe("trust/provenance", () => {
   describe("ensureProvenanceSchema", () => {
     it("creates chunk_provenance table", () => {
       const tables = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='chunk_provenance'",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='chunk_provenance'")
         .all();
       expect(tables).toHaveLength(1);
     });
@@ -53,9 +51,7 @@ describe("trust/provenance", () => {
       ensureProvenanceSchema(db);
 
       const tables = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='chunk_provenance'",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='chunk_provenance'")
         .all();
       expect(tables).toHaveLength(1);
     });

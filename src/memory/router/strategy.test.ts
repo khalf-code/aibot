@@ -104,14 +104,26 @@ describe("router/strategy", () => {
       const chunkId = generateId();
       const entityId = generateId();
       db.prepare("INSERT INTO chunks (id, path, text) VALUES (?, ?, ?)").run(
-        chunkId, "test.md", "Tom prefers TypeScript"
+        chunkId,
+        "test.md",
+        "Tom prefers TypeScript",
       );
 
       const now = Date.now();
       db.prepare(`
         INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(entityId, "Tom", "person", "Tom", JSON.stringify(["Thomas", "Tommy"]), 0.8, "user_stated", now, now);
+      `).run(
+        entityId,
+        "Tom",
+        "person",
+        "Tom",
+        JSON.stringify(["Thomas", "Tommy"]),
+        0.8,
+        "user_stated",
+        now,
+        now,
+      );
 
       db.prepare(`
         INSERT INTO entity_mentions (id, entity_id, chunk_id, mention_text, start_offset, end_offset, confidence)
@@ -128,7 +140,9 @@ describe("router/strategy", () => {
     it("handles multiple entities in query", () => {
       const chunkId = generateId();
       db.prepare("INSERT INTO chunks (id, path, text) VALUES (?, ?, ?)").run(
-        chunkId, "test.md", "Tom thinks OpenClaw is great"
+        chunkId,
+        "test.md",
+        "Tom thinks OpenClaw is great",
       );
 
       const now = Date.now();
@@ -138,12 +152,32 @@ describe("router/strategy", () => {
       db.prepare(`
         INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(tomId, "Tom", "person", "Tom", JSON.stringify(["Thomas"]), 0.8, "user_stated", now, now);
+      `).run(
+        tomId,
+        "Tom",
+        "person",
+        "Tom",
+        JSON.stringify(["Thomas"]),
+        0.8,
+        "user_stated",
+        now,
+        now,
+      );
 
       db.prepare(`
         INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(openclawId, "OpenClaw", "project", "OpenClaw", JSON.stringify(["OC"]), 0.8, "user_stated", now, now);
+      `).run(
+        openclawId,
+        "OpenClaw",
+        "project",
+        "OpenClaw",
+        JSON.stringify(["OC"]),
+        0.8,
+        "user_stated",
+        now,
+        now,
+      );
 
       db.prepare(`
         INSERT INTO entity_mentions (id, entity_id, chunk_id, mention_text, start_offset, end_offset, confidence)
@@ -158,12 +192,12 @@ describe("router/strategy", () => {
       const queries = expandQueryWithAliases(
         "What does Tom think about OpenClaw?",
         ["Tom", "OpenClaw"],
-        { db }
+        { db },
       );
 
       expect(queries.length).toBeGreaterThan(1);
-      expect(queries.some(q => q.includes("Thomas"))).toBe(true);
-      expect(queries.some(q => q.includes("OC"))).toBe(true);
+      expect(queries.some((q) => q.includes("Thomas"))).toBe(true);
+      expect(queries.some((q) => q.includes("OC"))).toBe(true);
     });
   });
 
@@ -178,7 +212,9 @@ describe("router/strategy", () => {
     it("builds context with entity and its relations", () => {
       const chunkId = generateId();
       db.prepare("INSERT INTO chunks (id, path, text) VALUES (?, ?, ?)").run(
-        chunkId, "test.md", "Tom works on OpenClaw"
+        chunkId,
+        "test.md",
+        "Tom works on OpenClaw",
       );
 
       const now = Date.now();
@@ -216,15 +252,19 @@ describe("router/strategy", () => {
       const context = buildKGContext(["Tom"], { db });
 
       expect(context.relevantEntities.length).toBeGreaterThan(0);
-      expect(context.relevantEntities.some(e => e.name === "Tom")).toBe(true);
-      expect(context.relevantEntities.some(e => e.name === "OpenClaw")).toBe(true);
-      expect(context.relations.some(r => r.source === "Tom" && r.target === "OpenClaw")).toBe(true);
+      expect(context.relevantEntities.some((e) => e.name === "Tom")).toBe(true);
+      expect(context.relevantEntities.some((e) => e.name === "OpenClaw")).toBe(true);
+      expect(context.relations.some((r) => r.source === "Tom" && r.target === "OpenClaw")).toBe(
+        true,
+      );
     });
 
     it("includes N-hop neighbors when maxHops > 1", () => {
       const chunkId = generateId();
       db.prepare("INSERT INTO chunks (id, path, text) VALUES (?, ?, ?)").run(
-        chunkId, "test.md", "Tom works on OpenClaw which uses Claude"
+        chunkId,
+        "test.md",
+        "Tom works on OpenClaw which uses Claude",
       );
 
       const now = Date.now();
@@ -268,7 +308,7 @@ describe("router/strategy", () => {
       const context = buildKGContext(["Tom"], { db, maxHops: 2 });
 
       // Should include Claude (2 hops from Tom)
-      expect(context.relevantEntities.some(e => e.name === "Claude")).toBe(true);
+      expect(context.relevantEntities.some((e) => e.name === "Claude")).toBe(true);
     });
   });
 
@@ -288,7 +328,10 @@ describe("router/strategy", () => {
       const now = Date.now();
 
       db.prepare("INSERT INTO chunks (id, path, source, text) VALUES (?, ?, ?, ?)").run(
-        chunkId, "memory/prefs.md", "memory", "Tom prefers TypeScript for new projects."
+        chunkId,
+        "memory/prefs.md",
+        "memory",
+        "Tom prefers TypeScript for new projects.",
       );
 
       db.prepare(`
@@ -316,7 +359,10 @@ describe("router/strategy", () => {
       const now = Date.now();
 
       db.prepare("INSERT INTO chunks (id, path, source, text) VALUES (?, ?, ?, ?)").run(
-        chunkId, "external.md", "external", "Tom prefers JavaScript."
+        chunkId,
+        "external.md",
+        "external",
+        "Tom prefers JavaScript.",
       );
 
       db.prepare(`
@@ -342,7 +388,7 @@ describe("router/strategy", () => {
       });
 
       // Should filter out the low-trust chunk
-      expect(result.results.every(r => (r.trustScore ?? 0.5) >= 0.5)).toBe(true);
+      expect(result.results.every((r) => (r.trustScore ?? 0.5) >= 0.5)).toBe(true);
     });
 
     it("includes expanded queries in result", async () => {
@@ -351,13 +397,25 @@ describe("router/strategy", () => {
       const now = Date.now();
 
       db.prepare("INSERT INTO chunks (id, path, text) VALUES (?, ?, ?)").run(
-        chunkId, "test.md", "Tom prefers TypeScript"
+        chunkId,
+        "test.md",
+        "Tom prefers TypeScript",
       );
 
       db.prepare(`
         INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(entityId, "Tom", "person", "Tom", JSON.stringify(["Thomas"]), 0.8, "user_stated", now, now);
+      `).run(
+        entityId,
+        "Tom",
+        "person",
+        "Tom",
+        JSON.stringify(["Thomas"]),
+        0.8,
+        "user_stated",
+        now,
+        now,
+      );
 
       db.prepare(`
         INSERT INTO entity_mentions (id, entity_id, chunk_id, mention_text, start_offset, end_offset, confidence)
@@ -380,8 +438,22 @@ describe("router/strategy", () => {
       ];
 
       const kgResults: SearchResult[] = [
-        { chunkId: "c1", text: "Chunk 1", score: 0.9, path: "p1", source: "memory", entities: ["Tom"] },
-        { chunkId: "c3", text: "Chunk 3", score: 0.7, path: "p3", source: "memory", entities: ["Alice"] },
+        {
+          chunkId: "c1",
+          text: "Chunk 1",
+          score: 0.9,
+          path: "p1",
+          source: "memory",
+          entities: ["Tom"],
+        },
+        {
+          chunkId: "c3",
+          text: "Chunk 3",
+          score: 0.7,
+          path: "p3",
+          source: "memory",
+          entities: ["Alice"],
+        },
       ];
 
       const merged = mergeStrategyResults(vectorResults, kgResults, {
@@ -390,16 +462,16 @@ describe("router/strategy", () => {
       });
 
       // c1 should have boosted score (found in both)
-      const c1 = merged.find(r => r.chunkId === "c1");
+      const c1 = merged.find((r) => r.chunkId === "c1");
       expect(c1).toBeDefined();
       expect(c1!.score).toBe(0.8 * 0.6 + 0.9 * 0.4); // 0.48 + 0.36 = 0.84
 
       // c2 only from vector
-      const c2 = merged.find(r => r.chunkId === "c2");
+      const c2 = merged.find((r) => r.chunkId === "c2");
       expect(c2!.score).toBe(0.6 * 0.6); // 0.36
 
       // c3 only from KG
-      const c3 = merged.find(r => r.chunkId === "c3");
+      const c3 = merged.find((r) => r.chunkId === "c3");
       expect(c3!.score).toBe(0.7 * 0.4); // 0.28
     });
 
@@ -422,11 +494,25 @@ describe("router/strategy", () => {
 
     it("merges entity lists for overlapping results", () => {
       const vectorResults: SearchResult[] = [
-        { chunkId: "c1", text: "Chunk 1", score: 0.8, path: "p1", source: "memory", entities: ["Tom"] },
+        {
+          chunkId: "c1",
+          text: "Chunk 1",
+          score: 0.8,
+          path: "p1",
+          source: "memory",
+          entities: ["Tom"],
+        },
       ];
 
       const kgResults: SearchResult[] = [
-        { chunkId: "c1", text: "Chunk 1", score: 0.9, path: "p1", source: "memory", entities: ["Alice"] },
+        {
+          chunkId: "c1",
+          text: "Chunk 1",
+          score: 0.9,
+          path: "p1",
+          source: "memory",
+          entities: ["Alice"],
+        },
       ];
 
       const merged = mergeStrategyResults(vectorResults, kgResults, {
@@ -434,7 +520,7 @@ describe("router/strategy", () => {
         kgWeight: 0.5,
       });
 
-      const c1 = merged.find(r => r.chunkId === "c1");
+      const c1 = merged.find((r) => r.chunkId === "c1");
       expect(c1!.entities).toContain("Tom");
       expect(c1!.entities).toContain("Alice");
     });

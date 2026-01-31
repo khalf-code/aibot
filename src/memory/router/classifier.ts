@@ -1,11 +1,6 @@
 /**
  * Query intent classification for hybrid retrieval routing.
  * Determines the optimal retrieval strategy based on query patterns.
- *
- * TODO (Agent 3 - Phase 4):
- * - Implement embedding-based classification
- * - Add LLM fallback for ambiguous queries
- * - Support custom intent definitions
  */
 
 export type QueryIntent =
@@ -168,19 +163,151 @@ function extractPotentialEntities(query: string): string[] {
   return [...new Set(entities)];
 }
 
+/** Embedding provider interface for classification */
+export interface EmbeddingProviderLike {
+  embedQuery: (text: string) => Promise<number[]>;
+}
+
+/** Options for embedding-based classification */
+export interface EmbeddingClassificationOptions {
+  embeddingProvider: EmbeddingProviderLike;
+  confidenceThreshold?: number;
+}
+
+// Intent prototype phrases for embedding comparison
+const INTENT_PROTOTYPES: Record<QueryIntent, string[]> = {
+  episodic: [
+    "what did we discuss about this topic",
+    "when did we talk about this",
+    "remember our previous conversation",
+    "in our last meeting we mentioned",
+    "what did I tell you before",
+  ],
+  factual: [
+    "what does the user prefer",
+    "what technology does the project use",
+    "what is the preferred programming language",
+    "what are the features of this system",
+    "how does this function work",
+  ],
+  relational: [
+    "who works on this project",
+    "what projects involve this person",
+    "how are these two things related",
+    "what is the relationship between these concepts",
+    "who knows about this topic",
+  ],
+  planning: [
+    "how should we approach this problem",
+    "what strategy should we use",
+    "given the constraints how do we proceed",
+    "considering the requirements what should we do",
+    "what is the best way to handle this",
+  ],
+  unknown: [],
+};
+
+// Strategy mapping for each intent
+const INTENT_STRATEGIES: Record<QueryIntent, RetrievalStrategy> = {
+  episodic: "vector_first",
+  factual: "kg_first",
+  relational: "kg_only",
+  planning: "hybrid",
+  unknown: "vector_first",
+};
+
 /**
  * Enhanced classification using embedding similarity.
- * TODO (Agent 3): Implement embedding-based classification
+ * Compares query embeddings against intent prototype embeddings.
  */
 export async function classifyQueryWithEmbeddings(
-  _query: string,
-  _options?: { db?: unknown; embeddingProvider?: unknown },
+  query: string,
+  options?: EmbeddingClassificationOptions,
 ): Promise<ClassificationResult> {
-  // Placeholder - will use pre-computed intent embeddings for semantic matching
-  // 1. Embed the query
-  // 2. Compare against intent prototype embeddings
-  // 3. Return best match with confidence
+  // Fall back to pattern-based if no embedding provider
+  if (!options?.embeddingProvider) {
+    return classifyQuery(query);
+  }
 
-  // For now, fall back to pattern-based classification
-  return classifyQuery(_query);
+  const { embeddingProvider, confidenceThreshold = 0.5 } = options;
+
+  try {
+    // Embed the query
+    const queryEmbedding = await embeddingProvider.embedQuery(query);
+
+    // Compare against each intent's prototypes
+    const intentScores: Array<{ intent: QueryIntent; score: number }> = [];
+
+    for (const intent of ["episodic", "factual", "relational", "planning"] as QueryIntent[]) {
+      const prototypes = INTENT_PROTOTYPES[intent];
+      if (prototypes.length === 0) {
+        continue;
+      }
+
+      // Embed all prototypes and find best match
+      const prototypeEmbeddings = await Promise.all(
+        prototypes.map((p) => embeddingProvider.embedQuery(p)),
+      );
+
+      let maxSimilarity = 0;
+      for (const protoEmb of prototypeEmbeddings) {
+        const similarity = cosineSimilarity(queryEmbedding, protoEmb);
+        maxSimilarity = Math.max(maxSimilarity, similarity);
+      }
+
+      intentScores.push({ intent, score: maxSimilarity });
+    }
+
+    // Sort by score descending
+    intentScores.sort((a, b) => b.score - a.score);
+
+    const best = intentScores[0];
+    const secondBest = intentScores[1];
+
+    // Check if the best match is confident enough
+    if (best && best.score >= confidenceThreshold) {
+      // Also check the margin over second best for confidence
+      const margin = secondBest ? best.score - secondBest.score : best.score;
+      const confidence = Math.min(0.95, best.score * (1 + margin));
+
+      return {
+        intent: best.intent,
+        confidence,
+        suggestedStrategy: INTENT_STRATEGIES[best.intent],
+        extractedEntities: extractPotentialEntities(query),
+      };
+    }
+
+    // Low confidence - fall back to pattern matching
+    return classifyQuery(query);
+  } catch {
+    // On any error, fall back to pattern-based
+    return classifyQuery(query);
+  }
+}
+
+/**
+ * Computes cosine similarity between two vectors.
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) {
+    return 0;
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return dotProduct / denominator;
 }

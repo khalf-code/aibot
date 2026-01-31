@@ -98,7 +98,8 @@ describe("trust/poison-pill security", () => {
     });
 
     it("warns but allows user_stated content with similar patterns", () => {
-      const content = "Note: We discussed how to ignore previous instructions in our security training.";
+      const content =
+        "Note: We discussed how to ignore previous instructions in our security training.";
       const result = validateContent(content, "user_stated", { db });
 
       // Should warn but not block user content (might be legitimate discussion)
@@ -389,19 +390,41 @@ describe("trust/poison-pill security", () => {
       db.prepare(`
         INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(userEntityId, "SecureConfig", "concept", "SecureConfig", "[]", 0.9, "user_stated", now, now);
+      `).run(
+        userEntityId,
+        "SecureConfig",
+        "concept",
+        "SecureConfig",
+        "[]",
+        0.9,
+        "user_stated",
+        now,
+        now,
+      );
 
       // External entity with same name should not override trust
       const externalEntityId = generateId();
       db.prepare(`
         INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(externalEntityId, "SecureConfig", "concept", "SecureConfig", "[]", 0.3, "external_doc", now, now);
+      `).run(
+        externalEntityId,
+        "SecureConfig",
+        "concept",
+        "SecureConfig",
+        "[]",
+        0.3,
+        "external_doc",
+        now,
+        now,
+      );
 
       // Query should still find the trusted entity
-      const entities = db.prepare(`
+      const entities = db
+        .prepare(`
         SELECT * FROM entities WHERE name = ? ORDER BY trust_score DESC
-      `).all("SecureConfig") as Array<{ trust_score: number; source_type: string }>;
+      `)
+        .all("SecureConfig") as Array<{ trust_score: number; source_type: string }>;
 
       expect(entities[0].trust_score).toBe(0.9);
       expect(entities[0].source_type).toBe("user_stated");
@@ -421,23 +444,47 @@ describe("trust/poison-pill security", () => {
       db.prepare(`
         INSERT INTO entities (id, name, entity_type, canonical_name, aliases, trust_score, source_type, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(projectId, "SecretProject", "project", "SecretProject", "[]", 0.9, "user_stated", now, now);
+      `).run(
+        projectId,
+        "SecretProject",
+        "project",
+        "SecretProject",
+        "[]",
+        0.9,
+        "user_stated",
+        now,
+        now,
+      );
 
       // External relation trying to claim access
       const externalRelationId = generateId();
       const externalChunkId = "external-relation-chunk";
-      db.exec(`INSERT INTO chunks (id, text) VALUES ('${externalChunkId}', 'External claims access')`);
+      db.exec(
+        `INSERT INTO chunks (id, text) VALUES ('${externalChunkId}', 'External claims access')`,
+      );
       recordProvenance(db, externalChunkId, "external_doc");
 
       db.prepare(`
         INSERT INTO relations (id, source_entity_id, target_entity_id, relation_type, confidence, source_chunk_id, trust_score, source_type, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(externalRelationId, adminId, projectId, "has_access", 0.8, externalChunkId, 0.3, "external_doc", now);
+      `).run(
+        externalRelationId,
+        adminId,
+        projectId,
+        "has_access",
+        0.8,
+        externalChunkId,
+        0.3,
+        "external_doc",
+        now,
+      );
 
       // External relation should have low trust
-      const relation = db.prepare(`
+      const relation = db
+        .prepare(`
         SELECT trust_score, source_type FROM relations WHERE id = ?
-      `).get(externalRelationId) as { trust_score: number; source_type: string };
+      `)
+        .get(externalRelationId) as { trust_score: number; source_type: string };
 
       expect(relation.trust_score).toBe(0.3);
       expect(relation.source_type).toBe("external_doc");

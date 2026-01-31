@@ -281,7 +281,15 @@ describe("kg/integration", () => {
         db.prepare(
           `INSERT INTO relations (id, source_entity_id, target_entity_id, relation_type, trust_score, source_type, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ).run(`r_${source}_${target}`, `e_${source}`, `e_${target}`, "related_to", 0.9, "user_stated", now);
+        ).run(
+          `r_${source}_${target}`,
+          `e_${source}`,
+          `e_${target}`,
+          "related_to",
+          0.9,
+          "user_stated",
+          now,
+        );
       }
     });
 
@@ -289,10 +297,20 @@ describe("kg/integration", () => {
       const neighbors = findNeighbors("A", 2, { db });
 
       // 1 hop: B, E
-      expect(neighbors.get(1)?.map((e) => e.name).toSorted()).toEqual(["B", "E"]);
+      expect(
+        neighbors
+          .get(1)
+          ?.map((e) => e.name)
+          .toSorted(),
+      ).toEqual(["B", "E"]);
 
       // 2 hops: C (via B), F (via E)
-      expect(neighbors.get(2)?.map((e) => e.name).toSorted()).toEqual(["C", "F"]);
+      expect(
+        neighbors
+          .get(2)
+          ?.map((e) => e.name)
+          .toSorted(),
+      ).toEqual(["C", "F"]);
     });
 
     it("finds shortest path between entities", () => {
