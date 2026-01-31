@@ -4,7 +4,8 @@ read_when:
   - You want GLM models in OpenClaw
   - You need the model naming convention and setup
 ---
-# GLM Models
+
+# GLM models
 
 GLM is a **model family** developed by Zhipu AI. GLM models are available through two platforms:
 
@@ -35,7 +36,7 @@ openclaw onboard --auth-choice zhipu-api-key
 ```json5
 {
   env: { ZAI_API_KEY: "sk-..." },
-  agents: { defaults: { model: { primary: "zai/glm-4.7" } } }
+  agents: { defaults: { model: { primary: "zai/glm-4.7" } } },
 }
 ```
 

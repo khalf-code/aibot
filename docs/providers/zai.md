@@ -5,7 +5,8 @@ read_when:
   - You need to choose between international and China endpoints
   - You have a Coding Plan subscription
 ---
-# Z.AI / Zhipu AI (GLM Models)
+
+# Z.AI
 
 Z.AI and Zhipu AI provide access to **GLM** models. There are four provider configurations
 depending on your region and subscription type.
@@ -80,7 +81,7 @@ use a single API key for both if desired.
 ```json5
 {
   env: { ZAI_API_KEY: "sk-..." },
-  agents: { defaults: { model: { primary: "zai/glm-4.7" } } }
+  agents: { defaults: { model: { primary: "zai/glm-4.7" } } },
 }
 ```
 

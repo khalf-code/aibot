@@ -14,11 +14,15 @@ export function normalizeModelCompat(model: Model<Api>): Model<Api> {
     model.provider === "zhipu-coding" ||
     baseUrl.includes("api.z.ai") ||
     baseUrl.includes("bigmodel.cn");
-  if (!isGlm || !isOpenAiCompletionsModel(model)) return model;
+  if (!isGlm || !isOpenAiCompletionsModel(model)) {
+    return model;
+  }
 
-  const openaiModel = model as Model<"openai-completions">;
+  const openaiModel = model;
   const compat = openaiModel.compat ?? undefined;
-  if (compat?.supportsDeveloperRole === false) return model;
+  if (compat?.supportsDeveloperRole === false) {
+    return model;
+  }
 
   openaiModel.compat = compat
     ? { ...compat, supportsDeveloperRole: false }
