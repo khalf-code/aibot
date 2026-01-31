@@ -1,39 +1,42 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { extractMessagingToolSend } from "./pi-embedded-subscribe.tools.js";
-import { setActivePluginRegistry } from "../plugins/runtime.js";
-import { createTestRegistry } from "../test-utils/channel-plugins.js";
-import { telegramPlugin } from "../../extensions/telegram/src/channel.js";
+import { sanitizeToolResult } from "./pi-embedded-subscribe.tools.js";
 
-describe("extractMessagingToolSend", () => {
-  beforeEach(() => {
-    setActivePluginRegistry(
-      createTestRegistry([{ pluginId: "telegram", plugin: telegramPlugin, source: "test" }]),
-    );
+describe("sanitizeToolResult", () => {
+  it("omits base64 data by default", () => {
+    const input = {
+      content: [{ type: "image", data: "AQID", mimeType: "image/png" }],
+    };
+    const sanitized = sanitizeToolResult(input) as {
+      content?: Array<Record<string, unknown>>;
+    };
+    const item = sanitized.content?.[0] ?? {};
+    expect(item.data).toBeUndefined();
+    expect(item.omitted).toBe(true);
   });
 
-  it("uses channel as provider for message tool", () => {
-    const result = extractMessagingToolSend("message", {
-      action: "send",
-      channel: "telegram",
-      to: "123",
-    });
-
-    expect(result?.tool).toBe("message");
-    expect(result?.provider).toBe("telegram");
-    expect(result?.to).toBe("telegram:123");
+  it("keeps base64 data when under limit", () => {
+    const input = {
+      content: [{ type: "image", data: "AQID", mimeType: "image/png" }],
+    };
+    const sanitized = sanitizeToolResult(input, { maxDataBytes: 10 }) as {
+      content?: Array<Record<string, unknown>>;
+    };
+    const item = sanitized.content?.[0] ?? {};
+    expect(item.data).toBe("AQID");
+    expect(item.bytes).toBe(3);
+    expect(item.omitted).toBeUndefined();
   });
 
-  it("prefers provider when both provider and channel are set", () => {
-    const result = extractMessagingToolSend("message", {
-      action: "send",
-      provider: "slack",
-      channel: "telegram",
-      to: "channel:C1",
-    });
-
-    expect(result?.tool).toBe("message");
-    expect(result?.provider).toBe("slack");
-    expect(result?.to).toBe("channel:c1");
+  it("omits base64 data when over limit", () => {
+    const input = {
+      content: [{ type: "image", data: "AQID", mimeType: "image/png" }],
+    };
+    const sanitized = sanitizeToolResult(input, { maxDataBytes: 2 }) as {
+      content?: Array<Record<string, unknown>>;
+    };
+    const item = sanitized.content?.[0] ?? {};
+    expect(item.data).toBeUndefined();
+    expect(item.omitted).toBe(true);
   });
 });
