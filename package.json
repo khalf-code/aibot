@@ -248,7 +248,7 @@
     "minimumReleaseAge": 2880,
     "overrides": {
       "@sinclair/typebox": "0.34.47",
-      "hono": "4.11.4",
+      "hono": "4.11.7",
       "tar": "7.5.4"
     }
   },
