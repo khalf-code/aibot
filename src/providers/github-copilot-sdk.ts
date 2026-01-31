@@ -2,7 +2,6 @@ import { CopilotClient } from "@github/copilot-sdk";
 import type { ModelInfo } from "@github/copilot-sdk";
 
 import type { ModelDefinitionConfig } from "../config/types.models.js";
-import { resolveCopilotApiToken } from "./github-copilot-token.js";
 
 const DEFAULT_CONTEXT_WINDOW = 128_000;
 const DEFAULT_MAX_TOKENS = 8192;
@@ -20,13 +19,8 @@ export async function discoverCopilotModels(params: {
 }): Promise<ModelDefinitionConfig[]> {
   let client: CopilotClient | undefined;
   try {
-    // Resolve Copilot API token from GitHub token
-    const copilotAuth = await resolveCopilotApiToken({
-      githubToken: params.githubToken,
-      env: params.env,
-    });
-
     // Create SDK client with GitHub token
+    // The SDK handles token exchange internally
     client = new CopilotClient({
       githubToken: params.githubToken,
       autoStart: true,

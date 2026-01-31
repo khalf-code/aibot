@@ -47,6 +47,59 @@ openclaw models auth login-github-copilot --profile-id github-copilot:work
 openclaw models auth login-github-copilot --yes
 ```
 
+## SDK-based Model Discovery
+
+OpenClaw integrates with the GitHub Copilot SDK to automatically discover models
+available in your subscription. This feature requires the [GitHub Copilot CLI](https://www.npmjs.com/package/@github/copilot)
+to be installed separately.
+
+### Enable SDK discovery
+
+Add to your config file:
+
+```json5
+{
+  models: {
+    copilotSdk: {
+      enableModelDiscovery: true
+    }
+  }
+}
+```
+
+When enabled, OpenClaw will:
+- Query the Copilot CLI for available models
+- Automatically populate your models list based on your subscription
+- Include model capabilities (context window, vision support, etc.)
+
+### Prerequisites
+
+Install the GitHub Copilot CLI:
+
+```bash
+npm install -g @github/copilot
+```
+
+Authenticate with the CLI:
+
+```bash
+gh copilot auth login
+```
+
+### How it works
+
+1. OpenClaw connects to the Copilot CLI via the SDK
+2. Queries your subscription's available models using `listModels()`
+3. Converts model metadata to OpenClaw's format
+4. Merges discovered models with your config
+
+### Fallback behavior
+
+If SDK discovery fails (CLI not installed or auth issues):
+- OpenClaw falls back to built-in model definitions
+- No error is thrown; discovery is best-effort
+- Check logs for discovery warnings
+
 ## Set a default model
 
 ```bash
@@ -68,3 +121,5 @@ openclaw models set github-copilot/gpt-4o
   another ID (for example `github-copilot/gpt-4.1`).
 - The login stores a GitHub token in the auth profile store and exchanges it for a
   Copilot API token when OpenClaw runs.
+- SDK discovery is optional and requires the Copilot CLI to be installed.
+- Models are discovered at config load time and cached in `models.json`.
