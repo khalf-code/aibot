@@ -136,7 +136,7 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
     outbound: { textChunkLimit: 4000 },
     config: {
       resolveAllowFrom: ({ cfg, accountId }) =>
-        (resolveFeishuAccount({ cfg, accountId }).config.allowFrom ?? []).map((entry) =>
+        (resolveFeishuAccount({ cfg, accountId: accountId ?? undefined }).config.allowFrom ?? []).map((entry) =>
           String(entry),
         ),
       formatAllowFrom: ({ allowFrom }) =>
@@ -145,7 +145,7 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
     groups: {
       // Default to requiring mentions in groups for now
       resolveRequireMention: ({ cfg, accountId }) =>
-        resolveFeishuAccount({ cfg, accountId }).config.requireMention ?? true,
+        resolveFeishuAccount({ cfg, accountId: accountId ?? undefined }).config.requireMention ?? true,
       resolveToolPolicy: () => undefined,
     },
     mentions: {
