@@ -6,6 +6,7 @@ import { requireActivePluginRegistry } from "../plugins/runtime.js";
 // register the plugin in its extension entrypoint and keep protocol IDs in sync.
 export const CHAT_CHANNEL_ORDER = [
   "telegram",
+  "feishu",
   "whatsapp",
   "discord",
   "googlechat",
@@ -37,6 +38,16 @@ const CHAT_CHANNEL_META: Record<ChatChannelId, ChannelMeta> = {
     selectionDocsPrefix: "",
     selectionDocsOmitLabel: true,
     selectionExtras: [WEBSITE_URL],
+  },
+  feishu: {
+    id: "feishu",
+    label: "Feishu",
+    selectionLabel: "Feishu (Lark)",
+    detailLabel: "Feishu Open Platform",
+    docsPath: "/channels/feishu",
+    docsLabel: "feishu",
+    blurb: "enterprise-ready bot with rich messages (fork of Larksuite).",
+    systemImage: "bubble.left.and.exclamationmark.bubble.right",
   },
   whatsapp: {
     id: "whatsapp",
@@ -104,6 +115,7 @@ export const CHAT_CHANNEL_ALIASES: Record<string, ChatChannelId> = {
   imsg: "imessage",
   "google-chat": "googlechat",
   gchat: "googlechat",
+  lark: "feishu",
 };
 
 const normalizeChannelKey = (raw?: string | null): string | undefined => {
