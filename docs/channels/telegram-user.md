@@ -3,8 +3,8 @@ summary: "Connect a Telegram user account via MTProto (DMs + groups)"
 ---
 # Telegram User
 
-Telegram User connects OpenClaw to a **personal Telegram account** using MTProto.
-Use this when you need user-level DMs or want to message from your own account in groups.
+Telegram User connects OpenClaw to a **Telegram user session** using MTProto.
+Use it for higher media limits and full group visibility. Run it on a **dedicated account** (not your main personal/work account) to avoid risking your primary identity.
 
 ## Requirements
 
@@ -34,6 +34,12 @@ Option B: config
 ```bash
 openclaw channels add --channel telegram-user --api-id 123456 --api-hash your_api_hash
 ```
+
+## When to use this instead of the Bot API
+
+- **Bigger media**: Matches the app (up to 2 GB; 4 GB with Telegram Premium). The hosted Bot API caps uploads at 50 MB.
+- **Full visibility**: Sees everything that user sees (including forums/topics). Bot API can miss posts when privacy mode is on or the bot lacks admin rights.
+- **Run alongside the bot**: Keep the Bot API channel for public/automation flows; use this for heavy media and full visibility. Always keep this session on its own dedicated account/SIM.
 
 ## Login (QR or phone code)
 
