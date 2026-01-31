@@ -1109,6 +1109,7 @@
           "platforms/fly",
           "platforms/hetzner",
           "platforms/gcp",
+          "platforms/azure-aci",
           "platforms/exe-dev"
         ]
       },
