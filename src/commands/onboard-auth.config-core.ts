@@ -20,15 +20,12 @@ import {
 } from "./onboard-auth.credentials.js";
 import {
   buildDeepSeekModelDefinition,
-  buildKimiCodeModelDefinition,
   buildMoonshotModelDefinition,
   DEEPSEEK_BASE_URL,
   DEEPSEEK_CHAT_MODEL_ID,
   DEEPSEEK_DEFAULT_MODEL_REF,
   DEEPSEEK_REASONER_MODEL_ID,
-  KIMI_CODE_BASE_URL,
-  KIMI_CODE_MODEL_ID,
-  KIMI_CODE_MODEL_REF,
+  KIMI_CODING_MODEL_REF,
   MOONSHOT_BASE_URL,
   MOONSHOT_DEFAULT_MODEL_ID,
   MOONSHOT_DEFAULT_MODEL_REF,
