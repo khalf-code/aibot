@@ -35,6 +35,8 @@ services:
     healthCheckPath: /health
     dockerCommand: node dist/index.js gateway --bind lan --port 8080 --allow-unconfigured
     envVars:
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=384"
       - key: PORT
         value: "8080"
       - key: SETUP_PASSWORD
