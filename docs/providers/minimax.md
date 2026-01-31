@@ -1,7 +1,7 @@
 ---
-summary: "Use MiniMax M2.1 in Moltbot"
+summary: "Use MiniMax M2.1 in OpenClaw"
 read_when:
-  - You want MiniMax models in Moltbot
+  - You want MiniMax models in OpenClaw
   - You need MiniMax setup guidance
 ---
 # MiniMax
@@ -35,12 +35,29 @@ MiniMax highlights these improvements in M2.1:
 
 ## Choose a setup
 
-### MiniMax M2.1 — recommended
+### MiniMax OAuth (Coding Plan) — recommended
+
+**Best for:** quick setup with MiniMax Coding Plan via OAuth, no API key required.
+
+Enable the bundled OAuth plugin and authenticate:
+
+```bash
+moltbot plugins enable minimax-portal-auth  # skip if already loaded.
+moltbot gateway restart  # restart if gateway is already running
+moltbot onboard --auth-choice minimax-portal
+```
+You will be prompted to select an endpoint:
+- **Global** - International users (`api.minimax.io`)
+- **CN** - Users in China (`api.minimaxi.com`)
+
+See [MiniMax OAuth plugin README](https://github.com/moltbot/moltbot/tree/main/extensions/minimax-portal-auth) for details.
+
+### MiniMax M2.1 (API key) 
 
 **Best for:** hosted MiniMax with Anthropic-compatible API.
 
 Configure via CLI:
-- Run `moltbot configure`
+- Run `openclaw configure`
 - Select **Model/auth**
 - Choose **MiniMax M2.1**
 
@@ -100,7 +117,7 @@ Configure via CLI:
 We have seen strong results with MiniMax M2.1 on powerful hardware (e.g. a
 desktop/server) using LM Studio's local server.
 
-Configure manually via `moltbot.json`:
+Configure manually via `openclaw.json`:
 
 ```json5
 {
@@ -134,14 +151,15 @@ Configure manually via `moltbot.json`:
 }
 ```
 
-## Configure via `moltbot configure`
+## Configure via `openclaw configure`
 
 Use the interactive config wizard to set MiniMax without editing JSON:
 
-1) Run `moltbot configure`.
+1) Run `openclaw configure`.
 2) Select **Model/auth**.
 3) Choose **MiniMax M2.1**.
 4) Pick your default model when prompted.
+
 
 ## Configuration options
 
@@ -159,7 +177,7 @@ Use the interactive config wizard to set MiniMax without editing JSON:
 - Update pricing values in `models.json` if you need exact cost tracking.
 - Referral link for MiniMax Coding Plan (10% off): https://platform.minimax.io/subscribe/coding-plan?code=DbXJTRClnb&source=link
 - See [/concepts/model-providers](/concepts/model-providers) for provider rules.
-- Use `moltbot models list` and `moltbot models set minimax/MiniMax-M2.1` to switch.
+- Use `openclaw models list` and `openclaw models set minimax/MiniMax-M2.1` to switch.
 
 ## Troubleshooting
 
@@ -169,7 +187,7 @@ This usually means the **MiniMax provider isn’t configured** (no provider entr
 and no MiniMax auth profile/env key found). A fix for this detection is in
 **2026.1.12** (unreleased at the time of writing). Fix by:
 - Upgrading to **2026.1.12** (or run from source `main`), then restarting the gateway.
-- Running `moltbot configure` and selecting **MiniMax M2.1**, or
+- Running `openclaw configure` and selecting **MiniMax M2.1**, or
 - Adding the `models.providers.minimax` block manually, or
 - Setting `MINIMAX_API_KEY` (or a MiniMax auth profile) so the provider can be injected.
 
@@ -179,5 +197,5 @@ Make sure the model id is **case‑sensitive**:
 
 Then recheck with:
 ```bash
-moltbot models list
+openclaw models list
 ```
