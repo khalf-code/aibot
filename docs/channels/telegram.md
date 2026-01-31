@@ -10,14 +10,14 @@ Status: production-ready for bot DMs + groups via grammY. Long-polling by defaul
 
 ## Which Telegram channel should I use?
 
+Both channels can run at the same time. Keep the Bot API channel for public-facing flows; add the Telegram User plugin when you need higher media limits or full group visibility.
+
 | Topic | Telegram (Bot API) | Telegram User (MTProto) |
 | --- | --- | --- |
 | Identity | Messages come from a bot you create with @BotFather. | Messages come from a user session (run on a dedicated “automation” account, not your primary). |
 | Setup | Built-in; needs only a bot token. | Plugin install + API ID/API hash + QR/phone login. |
 | Group visibility | May miss posts if privacy mode is on or the bot isn’t admin. | Sees everything that user sees, including forum topics. |
 | Media cap | 50 MB per upload on the hosted Bot API. | Same as the app: up to 2 GB (4 GB with Telegram Premium). |
-| Best for | Public/production bots, shared automations. | Higher media limits and full visibility in chats you’re already in (on a separate account). |
-| Run both? | Yes—keep bot for public flows. | Yes—use user channel for heavy media/full visibility on a separate account. |
 
 ## Quick setup (beginner)
 1) Create a bot with **@BotFather** and copy the token.
