@@ -4,7 +4,31 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { parseSchtasksQuery, readScheduledTaskCommand, resolveTaskScriptPath } from "./schtasks.js";
+import {
+  parseSchtasksQuery,
+  readScheduledTaskCommand,
+  resolveSchtasksErrorHint,
+  resolveTaskScriptPath,
+} from "./schtasks.js";
+
+describe("resolveSchtasksErrorHint", () => {
+  it("returns hint for access denied errors", () => {
+    const hint = resolveSchtasksErrorHint("ERROR: Access is denied.");
+    expect(hint).toContain("Run PowerShell as Administrator");
+  });
+
+  it("returns hint for stub received bad data errors", () => {
+    const hint = resolveSchtasksErrorHint("ERROR: The stub received bad data.");
+    expect(hint).toContain("Task Scheduler issue");
+    expect(hint).toContain("services.msc");
+    expect(hint).toContain("openclaw gateway run");
+  });
+
+  it("returns empty string for unknown errors", () => {
+    const hint = resolveSchtasksErrorHint("ERROR: Some other error occurred.");
+    expect(hint).toBe("");
+  });
+});
 
 describe("schtasks runtime parsing", () => {
   it("parses status and last run info", () => {

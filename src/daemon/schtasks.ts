@@ -44,6 +44,21 @@ function resolveTaskUser(env: Record<string, string | undefined>): string | null
   return username;
 }
 
+export function resolveSchtasksErrorHint(detail: string): string {
+  if (/access is denied/i.test(detail)) {
+    return " Run PowerShell as Administrator or rerun without installing the daemon.";
+  }
+  if (/stub received bad data/i.test(detail)) {
+    return (
+      " This often indicates a Task Scheduler issue. Try: " +
+      "(1) Restart the Task Scheduler service (services.msc → Task Scheduler → Restart), " +
+      "(2) Run from an elevated PowerShell, or " +
+      "(3) Skip daemon install and run the gateway manually with `openclaw gateway run`."
+    );
+  }
+  return "";
+}
+
 function parseCommandLine(value: string): string[] {
   const args: string[] = [];
   let current = "";
@@ -259,9 +274,7 @@ export async function installScheduledTask({
   }
   if (create.code !== 0) {
     const detail = create.stderr || create.stdout;
-    const hint = /access is denied/i.test(detail)
-      ? " Run PowerShell as Administrator or rerun without installing the daemon."
-      : "";
+    const hint = resolveSchtasksErrorHint(detail);
     throw new Error(`schtasks create failed: ${detail}${hint}`.trim());
   }
 
