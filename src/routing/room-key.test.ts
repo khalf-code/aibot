@@ -127,4 +127,38 @@ describe("resolve_room_key hook", () => {
 
     expect(roomKey).toBe("agent:main:telegram:dm:123:hi");
   });
+
+  it("uses pluginId as a deterministic tie-breaker when priorities match", async () => {
+    const hooks = [
+      {
+        hookName: "resolve_room_key",
+        pluginId: "b",
+        priority: 0,
+        handler: async () => ({ roomKey: "agent:main:telegram:dm:123:b" }),
+      },
+      {
+        hookName: "resolve_room_key",
+        pluginId: "a",
+        priority: 0,
+        handler: async () => ({ roomKey: "agent:main:telegram:dm:123:a" }),
+      },
+    ];
+
+    resetGlobalHookRunner();
+    initializeGlobalHookRunner(makeRegistry(hooks));
+
+    const roomKey = await resolveCanonicalRoomKey({
+      roomKey: "agent:main:telegram:dm:123",
+      baseRoomKey: "agent:main:telegram:dm:123",
+      event: {
+        agentId: "main",
+        channel: "telegram",
+        accountId: "default",
+        peer: { kind: "dm", id: "123" },
+        messageId: 5,
+      },
+    });
+
+    expect(roomKey).toBe("agent:main:telegram:dm:123:a");
+  });
 });

@@ -85,9 +85,17 @@ function getHooksForName<K extends PluginHookName>(
   registry: PluginRegistry,
   hookName: K,
 ): PluginHookRegistration<K>[] {
+  // Deterministic order is important for hooks that "select a winner" (e.g. resolve_room_key).
+  // Sort by priority (higher first), then by pluginId (stable tie-breaker), then by source.
   return (registry.typedHooks as PluginHookRegistration<K>[])
     .filter((h) => h.hookName === hookName)
-    .toSorted((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+    .toSorted((a, b) => {
+      const prio = (b.priority ?? 0) - (a.priority ?? 0);
+      if (prio !== 0) return prio;
+      const plugin = a.pluginId.localeCompare(b.pluginId);
+      if (plugin !== 0) return plugin;
+      return a.source.localeCompare(b.source);
+    });
 }
 
 /**
