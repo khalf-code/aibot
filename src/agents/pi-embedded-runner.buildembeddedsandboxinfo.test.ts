@@ -145,6 +145,76 @@ describe("buildEmbeddedSandboxInfo", () => {
       hostBrowserAllowed: true,
     });
   });
+  it("includes containerWorkdir as agentWorkspaceMount for rw access", () => {
+    const sandbox = {
+      enabled: true,
+      sessionKey: "session:test",
+      workspaceDir: "/tmp/moltbot-sandbox",
+      agentWorkspaceDir: "/tmp/moltbot-workspace",
+      workspaceAccess: "rw",
+      containerName: "moltbot-sbx-test",
+      containerWorkdir: "/workspace",
+      docker: {
+        image: "moltbot-sandbox:bookworm-slim",
+        containerPrefix: "moltbot-sbx-",
+        workdir: "/workspace",
+        readOnlyRoot: true,
+        tmpfs: ["/tmp"],
+        network: "none",
+        user: "1000:1000",
+        capDrop: ["ALL"],
+        env: { LANG: "C.UTF-8" },
+      },
+      tools: {
+        allow: ["exec"],
+        deny: ["browser"],
+      },
+      browserAllowHostControl: false,
+    } satisfies SandboxContext;
+
+    expect(buildEmbeddedSandboxInfo(sandbox)).toEqual({
+      enabled: true,
+      workspaceDir: "/tmp/moltbot-sandbox",
+      workspaceAccess: "rw",
+      agentWorkspaceMount: "/workspace",
+      hostBrowserAllowed: false,
+    });
+  });
+  it("includes /agent as agentWorkspaceMount for ro access", () => {
+    const sandbox = {
+      enabled: true,
+      sessionKey: "session:test",
+      workspaceDir: "/tmp/moltbot-sandbox",
+      agentWorkspaceDir: "/tmp/moltbot-workspace",
+      workspaceAccess: "ro",
+      containerName: "moltbot-sbx-test",
+      containerWorkdir: "/workspace",
+      docker: {
+        image: "moltbot-sandbox:bookworm-slim",
+        containerPrefix: "moltbot-sbx-",
+        workdir: "/workspace",
+        readOnlyRoot: true,
+        tmpfs: ["/tmp"],
+        network: "none",
+        user: "1000:1000",
+        capDrop: ["ALL"],
+        env: { LANG: "C.UTF-8" },
+      },
+      tools: {
+        allow: ["exec"],
+        deny: ["browser"],
+      },
+      browserAllowHostControl: false,
+    } satisfies SandboxContext;
+
+    expect(buildEmbeddedSandboxInfo(sandbox)).toEqual({
+      enabled: true,
+      workspaceDir: "/tmp/moltbot-sandbox",
+      workspaceAccess: "ro",
+      agentWorkspaceMount: "/agent",
+      hostBrowserAllowed: false,
+    });
+  });
   it("includes elevated info when allowed", () => {
     const sandbox = {
       enabled: true,

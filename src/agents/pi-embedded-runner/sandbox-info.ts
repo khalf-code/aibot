@@ -10,11 +10,20 @@ export function buildEmbeddedSandboxInfo(
     return undefined;
   }
   const elevatedAllowed = Boolean(execElevated?.enabled && execElevated.allowed);
+  // For rw access, the agent workspace is mounted at containerWorkdir (typically /workspace).
+  // For ro access, the agent workspace is mounted read-only at /agent.
+  // For none access, there is no agent workspace mount.
+  const agentWorkspaceMount =
+    sandbox.workspaceAccess === "rw"
+      ? sandbox.containerWorkdir
+      : sandbox.workspaceAccess === "ro"
+        ? "/agent"
+        : undefined;
   return {
     enabled: true,
     workspaceDir: sandbox.workspaceDir,
     workspaceAccess: sandbox.workspaceAccess,
-    agentWorkspaceMount: sandbox.workspaceAccess === "ro" ? "/agent" : undefined,
+    agentWorkspaceMount,
     browserBridgeUrl: sandbox.browser?.bridgeUrl,
     browserNoVncUrl: sandbox.browser?.noVncUrl,
     hostBrowserAllowed: sandbox.browserAllowHostControl,
