@@ -77,6 +77,11 @@
   - changed-files:
       - any-glob-to-any-file:
           - "extensions/voice-call/**"
+"channel: mezon":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/mezon/**"
+          - "docs/channels/mezon.md"
 "channel: whatsapp-web":
   - changed-files:
       - any-glob-to-any-file:
