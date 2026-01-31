@@ -75,6 +75,57 @@ const TEXT_EXT_MIME = new Map<string, string>([
   [".xml", "application/xml"],
 ]);
 
+/**
+ * Audio file extensions where the textLike heuristic should be skipped.
+ * For these extensions, we rely on magic byte detection to avoid false positives.
+ */
+const AUDIO_MAGIC_CHECK_EXTENSIONS = new Set([
+  ".ogg",
+  ".opus",
+  ".mp3",
+  ".wav",
+  ".aac",
+  ".flac",
+  ".m4a",
+  ".oga",
+  ".webm",
+  ".weba",
+]);
+
+/**
+ * Audio file magic byte signatures.
+ * If a buffer starts with any of these, it's actual audio binary, not text.
+ */
+const AUDIO_MAGIC_SIGNATURES: Array<{ bytes: Buffer; name: string }> = [
+  { bytes: Buffer.from([0x4f, 0x67, 0x67, 0x53]), name: "OGG" }, // OggS
+  { bytes: Buffer.from([0x49, 0x44, 0x33]), name: "MP3-ID3" }, // ID3 tag
+  { bytes: Buffer.from([0xff, 0xfb]), name: "MP3" }, // MP3 frame sync
+  { bytes: Buffer.from([0xff, 0xfa]), name: "MP3" }, // MP3 frame sync
+  { bytes: Buffer.from([0xff, 0xf3]), name: "MP3" }, // MP3 frame sync
+  { bytes: Buffer.from([0xff, 0xf2]), name: "MP3" }, // MP3 frame sync
+  { bytes: Buffer.from([0x52, 0x49, 0x46, 0x46]), name: "WAV/RIFF" }, // RIFF
+  { bytes: Buffer.from([0x66, 0x4c, 0x61, 0x43]), name: "FLAC" }, // fLaC
+  { bytes: Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), name: "WebM/MKV" }, // EBML
+];
+
+/**
+ * Checks if buffer starts with known audio magic bytes.
+ */
+function hasAudioMagicBytes(buffer?: Buffer): boolean {
+  if (!buffer || buffer.length < 4) {
+    return false;
+  }
+  for (const sig of AUDIO_MAGIC_SIGNATURES) {
+    if (
+      buffer.length >= sig.bytes.length &&
+      buffer.subarray(0, sig.bytes.length).equals(sig.bytes)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const XML_ESCAPE_MAP: Record<string, string> = {
   "<": "&lt;",
   ">": "&gt;",
@@ -256,6 +307,20 @@ async function extractFileBlocks(params: {
     const forcedTextMimeResolved = forcedTextMime ?? resolveTextMimeFromName(nameHint ?? "");
     const utf16Charset = resolveUtf16Charset(bufferResult?.buffer);
     const textSample = decodeTextSample(bufferResult?.buffer);
+
+    // For audio files with known extensions, check magic bytes to detect actual audio binary.
+    // This prevents false positives from looksLikeUtf8Text() on compressed audio.
+    const attachmentExt = path.extname(nameHint ?? "").toLowerCase();
+    if (
+      AUDIO_MAGIC_CHECK_EXTENSIONS.has(attachmentExt) &&
+      hasAudioMagicBytes(bufferResult?.buffer)
+    ) {
+      if (shouldLogVerbose()) {
+        logVerbose(`media: file attachment skipped (audio magic bytes) index=${attachment.index}`);
+      }
+      continue;
+    }
+
     const textLike = Boolean(utf16Charset) || looksLikeUtf8Text(bufferResult?.buffer);
     if (!forcedTextMimeResolved && kind === "audio" && !textLike) {
       continue;
