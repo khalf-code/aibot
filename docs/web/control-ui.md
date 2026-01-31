@@ -125,8 +125,10 @@ See [Tailscale](/gateway/tailscale) for HTTPS setup guidance.
 The Gateway serves static files from `dist/control-ui`. Build them with:
 
 ```bash
-pnpm ui:build # auto-installs UI deps on first run
+pnpm ui:build
 ```
+
+`pnpm ui:build` auto-installs UI deps on first run.
 
 Optional absolute base (when you want fixed asset URLs):
 

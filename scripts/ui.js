@@ -108,6 +108,24 @@ if (!runner) {
   process.exit(1);
 }
 
+/**
+ * In interactive zsh, `#` isn't always treated as a comment (depends on the
+ * `interactivecomments` option). Our docs sometimes annotate commands like:
+ *
+ *   pnpm ui:build # auto-installs UI deps on first run
+ *
+ * If a user copy/pastes that line verbatim and `#` isn't a comment, pnpm will
+ * forward `# ...` as extra args and Vite will treat `#` as the project root,
+ * failing with "#/index.html".
+ *
+ * To make this robust across shells, strip any args after a literal `#`.
+ */
+function stripInlineCommentArgs(args) {
+  const idx = args.indexOf("#");
+  if (idx === -1) return args;
+  return args.slice(0, idx);
+}
+
 const script =
   action === "install"
     ? null
@@ -125,7 +143,7 @@ if (action !== "install" && !script) {
 }
 
 if (action === "install") {
-  run(runner.cmd, ["install", ...rest]);
+  run(runner.cmd, ["install", ...stripInlineCommentArgs(rest)]);
 } else {
   if (!depsInstalled(action === "test" ? "test" : "build")) {
     const installEnv =
@@ -133,5 +151,5 @@ if (action === "install") {
     const installArgs = action === "build" ? ["install", "--prod"] : ["install"];
     runSync(runner.cmd, installArgs, installEnv);
   }
-  run(runner.cmd, ["run", script, ...rest]);
+  run(runner.cmd, ["run", script, ...stripInlineCommentArgs(rest)]);
 }
