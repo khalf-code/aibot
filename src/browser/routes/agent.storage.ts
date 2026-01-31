@@ -3,14 +3,19 @@ import { handleRouteError, readBody, requirePwAi, resolveProfileContext } from "
 import { jsonError, toBoolean, toNumber, toStringOrEmpty } from "./utils.js";
 import type { BrowserRouteRegistrar } from "./types.js";
 
+function isRtrvrDriver(driver?: string) {
+  return driver === "rtrvr" || driver === "rtrvr-cloud";
+}
+
 export function registerBrowserAgentStorageRoutes(
   app: BrowserRouteRegistrar,
   ctx: BrowserRouteContext,
 ) {
   app.get("/cookies", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Cookies are not supported for rtrvr.ai profiles");
     }
     const targetId = typeof req.query.targetId === "string" ? req.query.targetId.trim() : "";
     try {
@@ -31,8 +36,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/cookies/set", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Cookies are not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -75,8 +81,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/cookies/clear", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Cookies are not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -98,8 +105,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.get("/storage/:kind", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Storage APIs are not supported for rtrvr.ai profiles");
     }
     const kind = toStringOrEmpty(req.params.kind);
     if (kind !== "local" && kind !== "session") {
@@ -127,8 +135,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/storage/:kind/set", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Storage APIs are not supported for rtrvr.ai profiles");
     }
     const kind = toStringOrEmpty(req.params.kind);
     if (kind !== "local" && kind !== "session") {
@@ -162,8 +171,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/storage/:kind/clear", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Storage APIs are not supported for rtrvr.ai profiles");
     }
     const kind = toStringOrEmpty(req.params.kind);
     if (kind !== "local" && kind !== "session") {
@@ -190,8 +200,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/offline", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Offline mode is not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -218,8 +229,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/headers", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Extra headers are not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -255,8 +267,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/credentials", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "HTTP credentials are not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -284,8 +297,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/geolocation", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Geolocation overrides are not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -317,8 +331,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/media", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Media emulation is not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -351,8 +366,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/timezone", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Timezone overrides are not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -379,8 +395,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/locale", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Locale overrides are not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
@@ -407,8 +424,9 @@ export function registerBrowserAgentStorageRoutes(
 
   app.post("/set/device", async (req, res) => {
     const profileCtx = resolveProfileContext(req, res, ctx);
-    if (!profileCtx) {
-      return;
+    if (!profileCtx) return;
+    if (isRtrvrDriver(profileCtx.profile.driver)) {
+      return jsonError(res, 501, "Device emulation is not supported for rtrvr.ai profiles");
     }
     const body = readBody(req);
     const targetId = toStringOrEmpty(body.targetId) || undefined;
