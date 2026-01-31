@@ -49,6 +49,7 @@ moltbot onboard --auth-choice maple-api-key
 ```
 
 This will:
+
 1. Prompt for your API key
 2. Ask for the proxy URL (defaults to `http://127.0.0.1:8080/v1`)
 3. Configure the provider automatically
@@ -76,15 +77,15 @@ moltbot chat --model maple/llama-3.3-70b "Hello, are you working?"
 
 ## Available Models
 
-| Model ID | Name | Use Case | Pricing |
-|----------|------|----------|---------|
-| `kimi-k2-thinking` | Kimi K2 Thinking | Complex agentic workflows, multi-step coding, web research | $4/$4 per M tokens |
-| `gpt-oss-120b` | GPT OSS 120B | Creative writing, structured data | $4/$4 |
-| `deepseek-r1-0528` | DeepSeek R1 | Research, advanced math, coding | $4/$4 |
-| `qwen3-coder-480b` | Qwen3 Coder 480B | Agentic coding, large codebase analysis, browser automation | $4/$4 |
-| `qwen3-vl-30b` | Qwen3 VL 30B | Image and video analysis, screenshot-to-code, OCR, GUI automation | $4/$4 |
-| `llama-3.3-70b` | Llama 3.3 70B | General reasoning, conversation | $4/$4 |
-| `gemma-3-27b` | Gemma 3 27B | General purpose, efficient | $10/$10 |
+| Model ID           | Name             | Use Case                                                          | Pricing            |
+| ------------------ | ---------------- | ----------------------------------------------------------------- | ------------------ |
+| `kimi-k2-thinking` | Kimi K2 Thinking | Complex agentic workflows, multi-step coding, web research        | $4/$4 per M tokens |
+| `gpt-oss-120b`     | GPT OSS 120B     | Creative writing, structured data                                 | $4/$4              |
+| `deepseek-r1-0528` | DeepSeek R1      | Research, advanced math, coding                                   | $4/$4              |
+| `qwen3-coder-480b` | Qwen3 Coder 480B | Agentic coding, large codebase analysis, browser automation       | $4/$4              |
+| `qwen3-vl-30b`     | Qwen3 VL 30B     | Image and video analysis, screenshot-to-code, OCR, GUI automation | $4/$4              |
+| `llama-3.3-70b`    | Llama 3.3 70B    | General reasoning, conversation                                   | $4/$4              |
+| `gemma-3-27b`      | Gemma 3 27B      | General purpose, efficient                                        | $10/$10            |
 
 ## Model Selection
 
@@ -119,11 +120,11 @@ models:
 
 ### Docker Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MAPLE_BACKEND_URL` | TEE enclave URL | `https://enclave.trymaple.ai` |
-| `MAPLE_ENABLE_CORS` | Enable CORS headers | `false` |
-| `RUST_LOG` | Log level | `info` |
+| Variable            | Description         | Default                       |
+| ------------------- | ------------------- | ----------------------------- |
+| `MAPLE_BACKEND_URL` | TEE enclave URL     | `https://enclave.trymaple.ai` |
+| `MAPLE_ENABLE_CORS` | Enable CORS headers | `false`                       |
+| `RUST_LOG`          | Log level           | `info`                        |
 
 ## Usage Examples
 
