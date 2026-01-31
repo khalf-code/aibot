@@ -130,10 +130,10 @@ For a full list, see the [Chutes Models API](https://llm.chutes.ai/v1/models).
 
 Chutes applies fair-use rate limiting:
 
-| Tier    | Requests/min | Tokens/min | Notes                    |
-| ------- | ------------ | ---------- | ------------------------ |
-| Free    | 60           | 100k       | Subject to availability  |
-| Pro     | 300          | 1M         | Contact for higher needs |
+| Tier | Requests/min | Tokens/min | Notes                    |
+| ---- | ------------ | ---------- | ------------------------ |
+| Free | 60           | 100k       | Subject to availability  |
+| Pro  | 300          | 1M         | Contact for higher needs |
 
 Rate limit headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
@@ -164,13 +164,13 @@ openclaw models list | grep chutes
 
 ## Error Handling
 
-| HTTP Code | Meaning           | Resolution                              |
-| --------- | ----------------- | --------------------------------------- |
-| 401       | Invalid API key   | Verify key, re-run onboard              |
-| 403       | Insufficient scope| Re-auth with required scopes            |
-| 429       | Rate limited      | Back off, check X-RateLimit-Reset       |
-| 500       | Server error      | Retry with exponential backoff          |
-| 503       | Model unavailable | Try alternative model or wait           |
+| HTTP Code | Meaning            | Resolution                        |
+| --------- | ------------------ | --------------------------------- |
+| 401       | Invalid API key    | Verify key, re-run onboard        |
+| 403       | Insufficient scope | Re-auth with required scopes      |
+| 429       | Rate limited       | Back off, check X-RateLimit-Reset |
+| 500       | Server error       | Retry with exponential backoff    |
+| 503       | Model unavailable  | Try alternative model or wait     |
 
 OpenClaw automatically retries on 429/5xx with exponential backoff (max 3 retries).
 
