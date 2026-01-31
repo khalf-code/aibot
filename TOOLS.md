@@ -6,10 +6,20 @@ Skills define *how* tools work. This file is for *your* specifics — the stuff 
 
 Local semantic + keyword search across memory, workspace, and session transcripts.
 
+**⚠️ USE THIS** for searching past conversations (sessions collection) — the built-in `memory_search` tool only searches memory files, not transcripts.
+
 **Collections:**
 - `memory` — daily notes, decisions (`/Users/steve/clawd/memory/`)
 - `workspace` — MEMORY.md, AGENTS.md, SOUL.md, etc. (`/Users/steve/clawd/*.md`)
-- `sessions` — all conversation transcripts (`~/.openclaw/agents/main/sessions/*.jsonl`)
+- `sessions` — ALL conversation transcripts (`~/.openclaw/agents/main/sessions/*.jsonl`) — **968+ files!**
+
+**When to use which:**
+| Need | Tool |
+|------|------|
+| Quick memory recall | `memory_search` (built-in, OpenAI embeddings) |
+| Search past conversations | `qmd search -c sessions` |
+| Find what David said about X | `qmd query "David [topic]" -c sessions` |
+| Comprehensive search | `qmd query` (hybrid + reranking) |
 
 **Commands:**
 ```bash
@@ -36,7 +46,7 @@ qmd multi-get "memory/2026-01*.md"
 # Re-index after changes
 qmd update
 
-# Generate new embeddings
+# Generate new embeddings (run periodically to catch new files)
 qmd embed
 
 # Check status
@@ -50,6 +60,8 @@ qmd status
 - `-n 10` — limit results
 
 **Index location:** `~/.cache/qmd/index.sqlite`
+
+**Maintenance:** Run `qmd update && qmd embed` periodically to index new files and generate embeddings.
 
 ## System Cron Jobs (launchd)
 
