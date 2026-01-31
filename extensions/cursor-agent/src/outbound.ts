@@ -23,7 +23,10 @@ function isAccountConfigured(account: CursorAgentAccountConfig | null): boolean 
  * - "Fix bug in https://github.com/user/repo"
  * - "@repo:https://github.com/user/repo Fix bug"
  */
-function extractRepository(body: string, defaultRepo?: string): { repo: string; cleanBody: string } {
+function extractRepository(
+  body: string,
+  defaultRepo?: string,
+): { repo: string; cleanBody: string } {
   // Try to extract repo from message
   const repoMatch = body.match(/@repo:(\S+)/i);
   if (repoMatch) {
@@ -55,7 +58,10 @@ function extractRepository(body: string, defaultRepo?: string): { repo: string; 
  * Extract branch from message or use default.
  * Supports format: @branch:feature-branch
  */
-function extractBranch(body: string, defaultBranch: string = "main"): { branch: string; cleanBody: string } {
+function extractBranch(
+  body: string,
+  defaultBranch: string = "main",
+): { branch: string; cleanBody: string } {
   const branchMatch = body.match(/@branch:(\S+)/i);
   if (branchMatch) {
     return {
@@ -83,7 +89,9 @@ export const cursorAgentOutbound: ChannelOutboundAdapter<CursorAgentAccountConfi
       ? `${account.defaultInstructions}\n\n${instructions}`
       : instructions;
 
-    runtime.log(`Sending task to Cursor Agent (${repo}@${branch}): ${instructions.substring(0, 80)}...`);
+    runtime.log(
+      `Sending task to Cursor Agent (${repo}@${branch}): ${instructions.substring(0, 80)}...`,
+    );
 
     try {
       const options: LaunchAgentOptions = {

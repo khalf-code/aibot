@@ -68,9 +68,9 @@ describe("processWebhookEvent", () => {
   it("should reject invalid signature", async () => {
     const payload = JSON.stringify({ event: "statusChange", id: "bc_test" });
 
-    await expect(
-      processWebhookEvent(payload, "sha256=invalid", secret)
-    ).rejects.toThrow("Invalid webhook signature");
+    await expect(processWebhookEvent(payload, "sha256=invalid", secret)).rejects.toThrow(
+      "Invalid webhook signature",
+    );
   });
 
   it("should process payload without signature when no secret", async () => {

@@ -191,8 +191,7 @@ export function verifyWebhookSignature(
     return false;
   }
 
-  const expectedSignature =
-    "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expectedSignature = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
 
   // Constant-time comparison to prevent timing attacks
   if (signature.length !== expectedSignature.length) {

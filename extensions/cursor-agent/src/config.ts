@@ -7,12 +7,8 @@ export const DEFAULT_ACCOUNT_ID = "default";
 /**
  * Get Cursor Agent configuration from OpenClaw config.
  */
-export function getCursorAgentConfig(
-  cfg: OpenClawConfig,
-): CursorAgentConfig | null {
-  const channels = (cfg as Record<string, unknown>).channels as
-    | Record<string, unknown>
-    | undefined;
+export function getCursorAgentConfig(cfg: OpenClawConfig): CursorAgentConfig | null {
+  const channels = (cfg as Record<string, unknown>).channels as Record<string, unknown> | undefined;
   const cursorAgent = channels?.cursorAgent as unknown;
   if (!cursorAgent) return null;
 
@@ -44,9 +40,7 @@ export function getAccountConfig(
 /**
  * Check if account is configured and valid.
  */
-export function isAccountConfigured(
-  account: CursorAgentAccountConfig | null,
-): boolean {
+export function isAccountConfigured(account: CursorAgentAccountConfig | null): boolean {
   if (!account) return false;
   return !!account.apiKey && account.apiKey.length > 0;
 }

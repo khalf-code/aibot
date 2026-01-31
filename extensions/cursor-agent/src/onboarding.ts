@@ -11,7 +11,9 @@ export const cursorAgentOnboardingAdapter: ChannelOnboardingAdapter = {
   async runSetup(prompter: WizardPrompter): Promise<Partial<CursorAgentAccountConfig> | null> {
     console.log("\n📦 Cursor Agent Setup\n");
     console.log("This will configure Cursor Background Agents integration.");
-    console.log("You'll need an API key from: https://cursor.com/dashboard?tab=background-agents\n");
+    console.log(
+      "You'll need an API key from: https://cursor.com/dashboard?tab=background-agents\n",
+    );
 
     // Prompt for API key
     const apiKey = await prompter.text({
@@ -102,7 +104,9 @@ export const cursorAgentOnboardingAdapter: ChannelOnboardingAdapter = {
 
     console.log("\n✅ Cursor Agent configuration complete!\n");
     console.log("Add the following to your openclaw.json:");
-    console.log(JSON.stringify({ channels: { cursorAgent: { accounts: { default: config } } } }, null, 2));
+    console.log(
+      JSON.stringify({ channels: { cursorAgent: { accounts: { default: config } } } }, null, 2),
+    );
 
     return config;
   },

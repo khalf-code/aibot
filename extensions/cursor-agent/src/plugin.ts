@@ -22,7 +22,12 @@ import type {
   ChannelPlugin,
 } from "openclaw/plugin-sdk";
 import { cursorAgentConfigSchema } from "./config-schema.js";
-import { DEFAULT_ACCOUNT_ID, getAccountConfig, listAccountIds, isAccountConfigured } from "./config.js";
+import {
+  DEFAULT_ACCOUNT_ID,
+  getAccountConfig,
+  listAccountIds,
+  isAccountConfigured,
+} from "./config.js";
 import { cursorAgentOutbound } from "./outbound.js";
 import { cursorAgentOnboardingAdapter } from "./onboarding.js";
 import { listAgents } from "./api.js";

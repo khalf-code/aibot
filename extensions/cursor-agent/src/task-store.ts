@@ -46,7 +46,10 @@ export function setTask(task: CursorAgentTask): void {
 /**
  * Update a task.
  */
-export function updateTask(taskId: string, updates: Partial<CursorAgentTask>): CursorAgentTask | null {
+export function updateTask(
+  taskId: string,
+  updates: Partial<CursorAgentTask>,
+): CursorAgentTask | null {
   const existing = taskStore.get(taskId);
   if (!existing) return null;
 
