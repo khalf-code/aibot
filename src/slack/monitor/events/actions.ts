@@ -9,8 +9,12 @@ import type { SlackMonitorContext } from "../context.js";
 export function registerSlackBlockActions(params: { ctx: SlackMonitorContext }) {
   const { ctx } = params;
 
+  // Check if action() method is available on the app instance
+  if (typeof (ctx.app as { action?: unknown }).action !== "function") {
+    return;
+  }
+
   // Match all action_ids with "clawdbot_" prefix from our skills
-  // Type cast required because ctx.app type doesn't include action() method
   (
     ctx.app as unknown as {
       action: (
@@ -20,7 +24,7 @@ export function registerSlackBlockActions(params: { ctx: SlackMonitorContext }) 
     }
   ).action(/^clawdbot_/, async (args: SlackActionMiddlewareArgs) => {
     const { ack, body } = args;
-    const action = args.action as { action_id?: string; value?: string };
+    const action = args.action as { action_id?: string; value?: string; action_ts?: string };
 
     try {
       await ack(); // Must acknowledge within 3 seconds
@@ -32,9 +36,10 @@ export function registerSlackBlockActions(params: { ctx: SlackMonitorContext }) 
       // Channel ID can be in body.channel.id or body.container.channel_id depending on context
       const typedBody = body as {
         channel?: { id?: string };
-        container?: { channel_id?: string };
+        container?: { channel_id?: string; message_ts?: string };
       };
       const channelId = typedBody.channel?.id ?? typedBody.container?.channel_id;
+      const messageTs = typedBody.container?.message_ts;
       const channelInfo = channelId ? await ctx.resolveChannelName(channelId) : undefined;
       const channelType = channelInfo?.type;
 
@@ -68,9 +73,12 @@ export function registerSlackBlockActions(params: { ctx: SlackMonitorContext }) 
         channelType,
       });
 
+      // Use message_ts or action_ts for stable dedupe key (trigger_id is per-interaction and often absent)
+      const dedupeTs = messageTs ?? action.action_ts ?? "";
+
       enqueueSystemEvent(text, {
         sessionKey,
-        contextKey: `slack:block_action:${actionId}:${channelId}:${(body as { trigger_id?: string }).trigger_id}`,
+        contextKey: `slack:block_action:${actionId}:${channelId ?? ""}:${dedupeTs}`,
       });
     } catch (err) {
       ctx.runtime.error?.(danger(`slack block action handler failed: ${String(err)}`));
