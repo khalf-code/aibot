@@ -129,7 +129,7 @@ upsert_env() {
   local -a keys=("$@")
   local tmp
   tmp="$(mktemp)"
-  declare -A seen=()
+  local seen=""
 
   if [[ -f "$file" ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -138,7 +138,7 @@ upsert_env() {
       for k in "${keys[@]}"; do
         if [[ "$key" == "$k" ]]; then
           printf '%s=%s\n' "$k" "${!k-}" >>"$tmp"
-          seen["$k"]=1
+          seen="$seen $k "
           replaced=true
           break
         fi
@@ -150,7 +150,7 @@ upsert_env() {
   fi
 
   for k in "${keys[@]}"; do
-    if [[ -z "${seen[$k]:-}" ]]; then
+    if [[ "$seen" != *" $k "* ]]; then
       printf '%s=%s\n' "$k" "${!k-}" >>"$tmp"
     fi
   done
@@ -187,6 +187,20 @@ echo "  - Tailscale exposure: Off"
 echo "  - Install Gateway daemon: No"
 echo ""
 docker compose "${COMPOSE_ARGS[@]}" run --rm openclaw-cli onboard --no-install-daemon
+
+echo ""
+echo "==> Configuring gateway for Docker"
+# Sync the token from .env to config (onboard may generate a different one)
+# Also enable controlUi.dangerouslyDisableDeviceAuth for Docker (container sees Docker bridge IP, not localhost)
+CONFIG_FILE="$OPENCLAW_CONFIG_DIR/openclaw.json"
+if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
+  jq --arg token "$OPENCLAW_GATEWAY_TOKEN" \
+    '.gateway.auth.token = $token | .gateway.controlUi = {"dangerouslyDisableDeviceAuth": true}' \
+    "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  echo "Token synced and controlUi device auth disabled for Docker networking."
+else
+  echo "Warning: Could not update config. Ensure gateway token matches: $OPENCLAW_GATEWAY_TOKEN"
+fi
 
 echo ""
 echo "==> Provider setup (optional)"
