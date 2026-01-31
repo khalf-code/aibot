@@ -167,7 +167,7 @@ export async function searchKeyword(params: {
         `       c.updated_at\n` +
         `  FROM ${params.ftsTable} f\n` +
         `  LEFT JOIN chunks c ON c.id = f.id\n` +
-        ` WHERE ${params.ftsTable} MATCH ? AND f.model = ?${params.sourceFilter.sql.replaceAll("source", "f.source")}\n` +
+        ` WHERE ${params.ftsTable} MATCH ? AND f.model = ?${params.sourceFilter.sql}\n` +
         ` ORDER BY rank ASC\n` +
         ` LIMIT ?`,
     )

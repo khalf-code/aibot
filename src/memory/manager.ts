@@ -348,7 +348,7 @@ export class MemoryIndexManager {
     if (!this.fts.enabled || !this.fts.available) {
       return [];
     }
-    const sourceFilter = this.buildSourceFilter();
+    const sourceFilter = this.buildSourceFilter("f");
     const results = await searchKeyword({
       db: this.db,
       ftsTable: FTS_TABLE,
