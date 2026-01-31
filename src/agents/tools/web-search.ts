@@ -32,6 +32,7 @@ const SEARCH_CACHE = new Map<string, CacheEntry<Record<string, unknown>>>();
 const BRAVE_FRESHNESS_SHORTCUTS = new Set(["pd", "pw", "pm", "py"]);
 
 let lastSearchRequestTime = 0;
+let throttleQueue: Promise<void> = Promise.resolve();
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -41,12 +42,23 @@ async function throttleRequest(rateLimitMs: number): Promise<void> {
   if (rateLimitMs <= 0) {
     return;
   }
-  const now = Date.now();
-  const elapsed = now - lastSearchRequestTime;
-  if (elapsed < rateLimitMs) {
-    await sleep(rateLimitMs - elapsed);
+  // Chain requests through a queue to prevent concurrent bypass
+  const previousRequest = throttleQueue;
+  let resolve: () => void;
+  throttleQueue = new Promise<void>((r) => {
+    resolve = r;
+  });
+  try {
+    await previousRequest;
+    const now = Date.now();
+    const elapsed = now - lastSearchRequestTime;
+    if (elapsed < rateLimitMs) {
+      await sleep(rateLimitMs - elapsed);
+    }
+    lastSearchRequestTime = Date.now();
+  } finally {
+    resolve!();
   }
-  lastSearchRequestTime = Date.now();
 }
 
 function resolveRateLimitMs(search?: WebSearchConfig): number {
@@ -572,5 +584,6 @@ export const __testing = {
   throttleRequest,
   resetLastSearchRequestTime: () => {
     lastSearchRequestTime = 0;
+    throttleQueue = Promise.resolve();
   },
 } as const;

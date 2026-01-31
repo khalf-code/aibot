@@ -125,4 +125,18 @@ describe("web_search rate limiting", () => {
     const elapsed = Date.now() - start;
     expect(elapsed).toBeLessThan(20);
   });
+
+  it("enforces spacing for concurrent requests", async () => {
+    const rateLimitMs = 50;
+    const start = Date.now();
+    // Fire 3 concurrent requests
+    await Promise.all([
+      throttleRequest(rateLimitMs),
+      throttleRequest(rateLimitMs),
+      throttleRequest(rateLimitMs),
+    ]);
+    const elapsed = Date.now() - start;
+    // Should take at least 2 * rateLimitMs (first is immediate, 2nd and 3rd wait)
+    expect(elapsed).toBeGreaterThanOrEqual(90);
+  });
 });
