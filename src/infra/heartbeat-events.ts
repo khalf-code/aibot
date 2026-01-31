@@ -5,6 +5,8 @@ export type HeartbeatEventPayload = {
   status: "sent" | "ok-empty" | "ok-token" | "skipped" | "failed";
   to?: string;
   preview?: string;
+  /** Full message text for webchat display. */
+  message?: string;
   durationMs?: number;
   hasMedia?: boolean;
   reason?: string;
