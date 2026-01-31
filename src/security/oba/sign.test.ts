@@ -15,7 +15,7 @@ import {
   saveObaKey,
   signPayload,
 } from "./keys.js";
-import { signPluginManifest, signSkillMetadata } from "./sign.js";
+import { parseSkillMetadataObject, signPluginManifest, signSkillMetadata } from "./sign.js";
 import { clearJwksCache, verifyObaContainer } from "./verify.js";
 
 // Helper: generate a test keypair.
@@ -82,6 +82,35 @@ describe("OBA key management", () => {
     // Verify with public key.
     const valid = crypto.verify(null, payload, publicKeyPem, sig);
     expect(valid).toBe(true);
+  });
+
+  it("saveObaKey + loadObaKey round-trips", () => {
+    const key = generateObaKeyPair("https://example.com/jwks.json");
+    saveObaKey(key);
+    const loaded = loadObaKey(key.kid);
+    expect(loaded.kid).toBe(key.kid);
+    expect(loaded.publicKeyPem).toBe(key.publicKeyPem);
+    expect(loaded.privateKeyPem).toBe(key.privateKeyPem);
+    expect(loaded.owner).toBe(key.owner);
+    expect(loaded.createdAt).toBe(key.createdAt);
+  });
+
+  it("listObaKeys returns saved keys", () => {
+    const before = listObaKeys();
+    const key1 = generateObaKeyPair("https://example.com/jwks1.json");
+    const key2 = generateObaKeyPair("https://example.com/jwks2.json");
+    saveObaKey(key1);
+    saveObaKey(key2);
+    const after = listObaKeys();
+    expect(after.length).toBe(before.length + 2);
+    const kids = after.map((k) => k.kid);
+    expect(kids).toContain(key1.kid);
+    expect(kids).toContain(key2.kid);
+  });
+
+  it("loadObaKey rejects path traversal", () => {
+    expect(() => loadObaKey("../../../etc/passwd")).toThrow("Invalid key ID");
+    expect(() => loadObaKey("foo/bar")).toThrow("Invalid key ID");
   });
 });
 
@@ -250,6 +279,47 @@ describe("OBA sign + verify round-trip", () => {
 
     const signed = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as Record<string, unknown>;
     const result = await verifyObaContainer(signed);
+    expect(result.status).toBe("verified");
+  });
+
+  it("signed skill verifies successfully with mocked JWKS", async () => {
+    const skillContent = `---
+metadata: {
+  openclaw: {
+    emoji: "test"
+  }
+}
+---
+
+# Test Skill
+
+This is a test skill.
+`;
+    const skillPath = path.join(tmpDir, "SKILL.md");
+    fs.writeFileSync(skillPath, skillContent);
+
+    const key = generateObaKeyPair("https://test.openbotauth.org/jwks/test.json");
+    signSkillMetadata({ skillPath, key });
+
+    // Build JWK from the public key for mock JWKS response.
+    const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+    const pubKeyObj = crypto.createPublicKey(key.publicKeyPem);
+    const spki = pubKeyObj.export({ type: "spki", format: "der" }) as Buffer;
+    const rawPub = spki.subarray(ED25519_SPKI_PREFIX.length);
+    const xValue = base64UrlEncode(rawPub);
+    const jwk = { kty: "OKP", crv: "Ed25519", kid: key.kid, x: xValue, use: "sig", alg: "EdDSA" };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ keys: [jwk] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    // Parse the signed skill metadata and verify.
+    const content = fs.readFileSync(skillPath, "utf-8");
+    const parsed = parseSkillMetadataObject(content);
+    const result = await verifyObaContainer(parsed);
     expect(result.status).toBe("verified");
   });
 

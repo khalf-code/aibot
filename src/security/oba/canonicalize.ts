@@ -30,7 +30,7 @@ function serializeValue(value: unknown): string {
       throw new CanonicalizeError("Function is not valid JSON");
     case "object": {
       if (Array.isArray(value)) {
-        const items = value.map((item, i) => {
+        const items = value.map((item) => {
           if (item === undefined) return "null";
           return serializeValue(item);
         });

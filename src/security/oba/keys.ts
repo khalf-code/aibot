@@ -44,7 +44,7 @@ export function getObaKeysDir(): string {
 
 function ensureKeysDir(): void {
   const dir = getObaKeysDir();
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
 }
 
 export function generateObaKeyPair(owner?: string): ObaKeyFile {
@@ -73,6 +73,10 @@ export function saveObaKey(key: ObaKeyFile): void {
 }
 
 export function loadObaKey(kid: string): ObaKeyFile {
+  // Reject path traversal attempts (kid must be base64url-safe characters only).
+  if (!/^[A-Za-z0-9_-]+$/.test(kid)) {
+    throw new Error(`Invalid key ID: ${kid}`);
+  }
   const filePath = path.join(getObaKeysDir(), `${kid}.json`);
   const raw = fs.readFileSync(filePath, "utf-8");
   return JSON.parse(raw) as ObaKeyFile;

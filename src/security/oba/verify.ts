@@ -63,6 +63,10 @@ export function findKeyByKid(keys: JwkEntry[], kid: string): JwkEntry | null {
  * Verify an Ed25519 signature against a JWK.
  */
 export function verifyObaSignature(payload: Buffer, sigB64Url: string, jwk: JwkEntry): boolean {
+  // Validate JWK curve before importing to prevent unexpected key types.
+  if (jwk.kty !== "OKP" || jwk.crv !== "Ed25519") {
+    throw new Error(`unsupported JWK: kty=${jwk.kty}, crv=${jwk.crv}`);
+  }
   const sigBytes = base64UrlDecode(sigB64Url);
   const publicKey = crypto.createPublicKey({
     key: jwk as unknown as JsonWebKey,

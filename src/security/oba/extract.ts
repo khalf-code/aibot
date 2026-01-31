@@ -19,6 +19,16 @@ export function extractObaBlock(value: unknown): { oba?: ObaBlock; error?: strin
     return { error: "malformed oba block: owner must be a non-empty string" };
   }
 
+  // Reject non-HTTPS owner URLs to prevent SSRF during verification.
+  try {
+    const parsed = new URL(obj.owner);
+    if (parsed.protocol !== "https:") {
+      return { error: "malformed oba block: owner must be an HTTPS URL" };
+    }
+  } catch {
+    return { error: "malformed oba block: owner is not a valid URL" };
+  }
+
   if (typeof obj.kid !== "string" || obj.kid.length === 0) {
     return { error: "malformed oba block: kid must be a non-empty string" };
   }

@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Command } from "commander";
 
 import { defaultRuntime } from "../runtime.js";
+import { getObaKeysDir } from "../security/oba/keys.js";
 import {
   generateObaKeyPair,
   listObaKeys,
@@ -13,7 +14,11 @@ import {
   type ObaKeyFile,
 } from "../security/oba/keys.js";
 import { registerPublicKey } from "../security/oba/register.js";
-import { signPluginManifest, signSkillMetadata } from "../security/oba/sign.js";
+import {
+  parseSkillMetadataObject,
+  signPluginManifest,
+  signSkillMetadata,
+} from "../security/oba/sign.js";
 import { verifyObaContainer } from "../security/oba/verify.js";
 import { formatDocsLink } from "../terminal/links.js";
 import { isRich, theme } from "../terminal/theme.js";
@@ -33,16 +38,9 @@ function resolveToken(tokenOpt?: string): string {
   if (tokenOpt) return tokenOpt;
   const envToken = process.env.OPENBOTAUTH_TOKEN?.trim();
   if (envToken) return envToken;
-  // Check local token file.
+  // Fallback: read from ~/.openclaw/oba/token (respects OPENCLAW_STATE_DIR).
   try {
-    const tokenPath = path.join(
-      path.dirname(path.dirname(new URL(import.meta.url).pathname)),
-      "..",
-      "..",
-    );
-    // Fallback: read from ~/.openclaw/oba/token if it exists.
-    const homedir = process.env.HOME ?? process.env.USERPROFILE ?? "";
-    const tokenFile = path.join(homedir, ".openclaw", "oba", "token");
+    const tokenFile = path.join(path.dirname(getObaKeysDir()), "token");
     if (fs.existsSync(tokenFile)) {
       return fs.readFileSync(tokenFile, "utf-8").trim();
     }
@@ -236,20 +234,13 @@ export function registerObaCli(program: Command): void {
 
         let verification: string | undefined;
         if (opts.verify) {
-          const JSON5 = (await import("json5")).default;
-          const content = fs.readFileSync(resolved, "utf-8");
-          const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-          if (fmMatch) {
-            const metaMatch = fmMatch[1].match(/^metadata:\s*([\s\S]*)$/m);
-            if (metaMatch) {
-              try {
-                const parsed = JSON5.parse(metaMatch[1].trim()) as Record<string, unknown>;
-                const result = await verifyObaContainer(parsed);
-                verification = result.status;
-              } catch {
-                verification = "invalid";
-              }
-            }
+          try {
+            const content = fs.readFileSync(resolved, "utf-8");
+            const parsed = parseSkillMetadataObject(content);
+            const result = await verifyObaContainer(parsed);
+            verification = result.status;
+          } catch {
+            verification = "invalid";
           }
         }
 

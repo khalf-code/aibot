@@ -21,19 +21,21 @@ function signContainer(
   key: ObaKeyFile,
   ownerOverride?: string,
 ): { container: Record<string, unknown>; kid: string; sig: string } {
+  // Deep-clone to avoid mutating the caller's object.
+  const clone = structuredClone(container);
   const obaPartial = buildObaBlock(key, ownerOverride);
 
   // Inject oba block without sig for payload preparation.
-  container.oba = { ...obaPartial };
+  clone.oba = { ...obaPartial };
 
-  const payload = preparePayloadForSigning(container);
+  const payload = preparePayloadForSigning(clone);
   const sigBytes = signPayload(payload, key.privateKeyPem);
   const sig = base64UrlEncode(sigBytes);
 
   // Inject final oba block with sig.
-  container.oba = { ...obaPartial, sig };
+  clone.oba = { ...obaPartial, sig };
 
-  return { container, kid: key.kid, sig };
+  return { container: clone, kid: key.kid, sig };
 }
 
 export function signPluginManifest(params: {
@@ -42,44 +44,43 @@ export function signPluginManifest(params: {
   ownerOverride?: string;
 }): { kid: string; sig: string } {
   const raw = fs.readFileSync(params.manifestPath, "utf-8");
-  const container = JSON.parse(raw) as Record<string, unknown>;
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
 
-  const { kid, sig } = signContainer(container, params.key, params.ownerOverride);
+  const { container, kid, sig } = signContainer(parsed, params.key, params.ownerOverride);
 
   fs.writeFileSync(params.manifestPath, `${JSON.stringify(container, null, 2)}\n`, "utf-8");
   return { kid, sig };
 }
 
-/**
- * Sign a SKILL.md file. The metadata is in the frontmatter block between `---` markers.
- * We parse the metadata JSON5 object, sign it, then replace it back in the file.
- */
-export function signSkillMetadata(params: {
-  skillPath: string;
-  key: ObaKeyFile;
-  ownerOverride?: string;
-}): { kid: string; sig: string } {
-  const content = fs.readFileSync(params.skillPath, "utf-8");
+// Frontmatter regex — normalize CRLF before matching.
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
 
-  // Extract frontmatter block.
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+/**
+ * Extract the metadata JSON5 string and its byte offsets from a SKILL.md frontmatter block.
+ * Exported so the verify-after-sign path in oba-cli.ts can reuse it.
+ */
+export function extractSkillMetadata(content: string): {
+  metadataRaw: string;
+  fmStart: number;
+  fmEnd: number;
+  metaStart: number;
+  metaEnd: number;
+} {
+  // Normalize CRLF to LF for consistent parsing.
+  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const fmMatch = normalized.match(FRONTMATTER_RE);
   if (!fmMatch) {
-    throw new Error(`No frontmatter block found in ${params.skillPath}`);
+    throw new Error("No frontmatter block found");
   }
   const fmBlock = fmMatch[1];
+  const fmBlockStart = normalized.indexOf(fmMatch[1]);
 
-  // Find the metadata value within the frontmatter.
-  // Frontmatter format: "metadata: { ... }" where the value can be multi-line.
-  const metaMatch = fmBlock.match(/^metadata:\s*([\s\S]*)$/m);
-  if (!metaMatch) {
-    throw new Error(`No metadata field found in frontmatter of ${params.skillPath}`);
+  const metaKeyIndex = fmBlock.indexOf("metadata:");
+  if (metaKeyIndex === -1) {
+    throw new Error("No metadata field found in frontmatter");
   }
 
-  // The metadata value is the rest after "metadata:" up to the end of frontmatter.
-  // Extract just the metadata value by finding everything after "metadata:" key.
-  const metaStartIndex = fmBlock.indexOf("metadata:");
-  const metaValueStart = fmBlock.indexOf(":", metaStartIndex) + 1;
-  // Find where this value ends - next top-level key or end of block.
+  const metaValueStart = metaKeyIndex + "metadata:".length;
   const remainingLines = fmBlock.slice(metaValueStart).split("\n");
   const valueLines: string[] = [];
   let firstLine = true;
@@ -96,23 +97,59 @@ export function signSkillMetadata(params: {
     valueLines.push(line);
   }
   const metadataRaw = valueLines.join("\n").trim();
+  const metaAbsStart = fmBlockStart + metaKeyIndex;
+  const metaAbsEnd = fmBlockStart + metaValueStart + valueLines.join("\n").length;
+
+  return {
+    metadataRaw,
+    fmStart: fmBlockStart,
+    fmEnd: fmBlockStart + fmBlock.length,
+    metaStart: metaAbsStart,
+    metaEnd: metaAbsEnd,
+  };
+}
+
+/**
+ * Parse skill metadata JSON5 from a SKILL.md content string.
+ * Shared between sign and verify paths to avoid parser divergence.
+ */
+export function parseSkillMetadataObject(content: string): Record<string, unknown> {
+  const { metadataRaw } = extractSkillMetadata(content);
+  const parsed = JSON5.parse(metadataRaw) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Invalid metadata JSON5");
+  }
+  return parsed as Record<string, unknown>;
+}
+
+/**
+ * Sign a SKILL.md file. The metadata is in the frontmatter block between `---` markers.
+ * We parse the metadata JSON5 object, sign it, then replace it back in the file.
+ */
+export function signSkillMetadata(params: {
+  skillPath: string;
+  key: ObaKeyFile;
+  ownerOverride?: string;
+}): { kid: string; sig: string } {
+  const content = fs.readFileSync(params.skillPath, "utf-8");
+  // Normalize CRLF for consistent handling.
+  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  const { metadataRaw, metaStart, metaEnd } = extractSkillMetadata(normalized);
 
   const parsed = JSON5.parse(metadataRaw) as Record<string, unknown>;
   if (!parsed || typeof parsed !== "object") {
     throw new Error(`Invalid metadata JSON5 in ${params.skillPath}`);
   }
 
-  const { kid, sig } = signContainer(parsed, params.key, params.ownerOverride);
+  const { container: signed, kid, sig } = signContainer(parsed, params.key, params.ownerOverride);
 
-  // Serialize back. Use JSON with 2-space indent for readability in frontmatter.
-  const serialized = JSON.stringify(parsed, null, 2);
+  // Serialize back as JSON with 2-space indent.
+  const serialized = JSON.stringify(signed, null, 2);
 
-  // Replace the metadata value in the original content.
-  const beforeMeta = fmBlock.slice(0, metaStartIndex);
-  const afterValueEnd = metaStartIndex + "metadata:".length + valueLines.join("\n").length;
-  const afterMeta = fmBlock.slice(afterValueEnd);
-  const newFmBlock = `${beforeMeta}metadata: ${serialized}${afterMeta}`;
-  const newContent = content.replace(fmMatch[1], newFmBlock);
+  // Index-based splice to avoid String.replace pitfalls with $ sequences.
+  const newContent =
+    normalized.slice(0, metaStart) + `metadata: ${serialized}` + normalized.slice(metaEnd);
 
   fs.writeFileSync(params.skillPath, newContent, "utf-8");
   return { kid, sig };
