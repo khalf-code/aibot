@@ -1,6 +1,7 @@
 import { html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
+import { virtualize } from "@lit-labs/virtualizer/virtualize.js";
 import type { SessionsListResult } from "../types";
 import type { ChatAttachment, ChatQueueItem } from "../ui-types";
 import type { ChatItem, MessageGroup } from "../types/chat-types";
@@ -193,6 +194,7 @@ export function renderChat(props: ChatProps) {
 
   const splitRatio = props.splitRatio ?? 0.6;
   const sidebarOpen = Boolean(props.sidebarOpen && props.onCloseSidebar);
+  const chatItems = buildChatItems(props);
   const thread = html`
     <div
       class="chat-thread"
@@ -207,10 +209,10 @@ export function renderChat(props: ChatProps) {
             `
           : nothing
       }
-      ${repeat(
-        buildChatItems(props),
-        (item) => item.key,
-        (item) => {
+      ${virtualize({
+        items: chatItems,
+        keyFunction: (item) => item.key,
+        renderItem: (item) => {
           if (item.kind === "reading-indicator") {
             return renderReadingIndicatorGroup(assistantIdentity);
           }
@@ -235,7 +237,8 @@ export function renderChat(props: ChatProps) {
 
           return nothing;
         },
-      )}
+        scroller: true,
+      })}
     </div>
   `;
 
@@ -376,7 +379,8 @@ export function renderChat(props: ChatProps) {
   `;
 }
 
-const CHAT_HISTORY_RENDER_LIMIT = 200;
+// Virtualization handles large lists - no render limit needed
+const CHAT_HISTORY_RENDER_LIMIT = Infinity;
 
 function groupMessages(items: ChatItem[]): Array<ChatItem | MessageGroup> {
   const result: Array<ChatItem | MessageGroup> = [];
@@ -419,19 +423,8 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
   const items: ChatItem[] = [];
   const history = Array.isArray(props.messages) ? props.messages : [];
   const tools = Array.isArray(props.toolMessages) ? props.toolMessages : [];
-  const historyStart = Math.max(0, history.length - CHAT_HISTORY_RENDER_LIMIT);
-  if (historyStart > 0) {
-    items.push({
-      kind: "message",
-      key: "chat:history:notice",
-      message: {
-        role: "system",
-        content: `Showing last ${CHAT_HISTORY_RENDER_LIMIT} messages (${historyStart} hidden).`,
-        timestamp: Date.now(),
-      },
-    });
-  }
-  for (let i = historyStart; i < history.length; i++) {
+  // Render all messages - virtualization handles performance
+  for (let i = 0; i < history.length; i++) {
     const msg = history[i];
     const normalized = normalizeMessage(msg);
 
