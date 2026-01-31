@@ -40,6 +40,7 @@ import {
 } from "../../pi-settings.js";
 import { createMoltbotCodingTools } from "../../pi-tools.js";
 import { resolveSandboxContext } from "../../sandbox.js";
+import { fetchMCPTools } from "../../../mcp/integration.js";
 import { guardSessionManager } from "../../session-tool-result-guard-wrapper.js";
 import { resolveTranscriptPolicy } from "../../transcript-policy.js";
 import { acquireSessionWriteLock } from "../../session-write-lock.js";
@@ -410,7 +411,7 @@ export async function runEmbeddedAttempt(
 
     // Check if the model supports native image input
     const modelHasVision = params.model.input?.includes("image") ?? false;
-    const toolsRaw = params.disableTools
+    const builtInTools = params.disableTools
       ? []
       : createMoltbotCodingTools({
           exec: {
@@ -444,6 +445,18 @@ export async function runEmbeddedAttempt(
           hasRepliedRef: params.hasRepliedRef,
           modelHasVision,
         });
+
+    // Fetch MCP tools if configured
+    const mcpTools = await fetchMCPTools(
+      (params.config as any)?.mcpServers,
+      params.sessionKey ?? params.sessionId,
+      effectiveWorkspace,
+      params.sessionId,
+      log,
+    );
+
+    // Merge built-in and MCP tools
+    const toolsRaw = [...builtInTools, ...mcpTools];
     const tools = sanitizeToolsForGoogle({ tools: toolsRaw, provider: params.provider });
     logToolSchemasForGoogle({ tools, provider: params.provider });
 
