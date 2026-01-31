@@ -1,6 +1,6 @@
-# Moltbot on Termux
+# OpenClaw on Termux
 
-This is a patched version of Moltbot that works on Termux (Android).
+This is a patched version of OpenClaw that works on Termux (Android).
 
 ## What was patched
 
@@ -18,7 +18,7 @@ The original `pnpm moltbot` command uses `@typescript/native-preview` (tsgo) whi
 
 **Solution**: Use the pre-built JavaScript in `dist/`:
 ```bash
-node moltbot.mjs [command]
+node openclaw.mjs [command]
 # Or use the wrapper:
 ./termux-run.sh [command]
 ```
@@ -63,7 +63,7 @@ Core functionality works fine:
 ### Direct node (alternative)
 
 ```bash
-node moltbot.mjs [command]
+node openclaw.mjs [command]
 ```
 
 ## Re-applying patches after reinstall
@@ -108,7 +108,7 @@ bash scripts/patch-termux.sh
 
 ### "Cannot find module '@typescript/native-preview-...'"
 
-The Termux wrapper doesn't use this. Use `./termux-run.sh` or `node moltbot.mjs` instead of `pnpm moltbot`.
+The Termux wrapper doesn't use this. Use `./termux-run.sh` or `node openclaw.mjs` instead of `pnpm openclaw`.
 
 ### Gateway fails to start
 

@@ -1,8 +1,8 @@
-# Moltbot Termux 快速入门指南
+# OpenClaw Termux 快速入门指南
 
 ## 🎉 补丁完成！
 
-Moltbot 现在可以在 Termux 上运行了！
+OpenClaw 现在可以在 Termux 上运行了！
 
 ## 📋 已应用的补丁
 
@@ -107,7 +107,7 @@ bash scripts/patch-termux.sh
 
 ### 问题：权限错误
 
-确保使用 `./termux-run.sh` 而不是直接运行 `pnpm moltbot`
+确保使用 `./termux-run.sh` 而不是直接运行 `pnpm openclaw`
 
 ### 问题：需要重新构建
 
@@ -129,4 +129,4 @@ pnpm build
 3. 连接你想要的频道（WhatsApp/Telegram/Discord 等）
 4. 启动网关并开始使用！
 
-享受在 Android 上运行 Moltbot！🦞
+享受在 Android 上运行 OpenClaw！🦞
