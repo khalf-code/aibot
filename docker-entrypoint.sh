@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${OPENCLAW_CONFIG_PATH:=/data/.openclaw/openclaw.json}"
+# Force OpenClaw to use /data as HOME (Railway volume)
+export HOME=/data
+
+: "${OPENCLAW_CONFIG_PATH:=${HOME}/.openclaw/openclaw.json}"
 
 # Unlock /data directory (run as root before switching to node user)
 # These operations are non-fatal to handle cases where /data is read-only or already configured
@@ -47,5 +50,5 @@ export HOST="0.0.0.0"
 # Ensure gateway process receives config path explicitly
 export OPENCLAW_CONFIG_PATH
 
-# Run the gateway server with --allow-unconfigured for Railway deployments
-exec node openclaw.mjs gateway run --bind 0.0.0.0 --port "$OPENCLAW_GATEWAY_PORT" --allow-unconfigured
+# Run the gateway server as node user with HOME=/data for Railway deployments
+exec su node -c "HOME=$HOME node openclaw.mjs gateway run --bind 0.0.0.0 --port $OPENCLAW_GATEWAY_PORT --allow-unconfigured"
