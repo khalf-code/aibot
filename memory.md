@@ -2,15 +2,14 @@
 
 ## DBH Ventures File Storage
 
-**Pitch Decks & Presentations:** `/Users/steve/Dropbox/DBH-Ventures/`
+**Pitch Decks & Presentations:** `/Users/steve/Library/CloudStorage/Dropbox/DBH-Ventures/`
 
 ```
 DBH-Ventures/
-├── MeshGuard/       # one-pager.pdf ✓
+├── MeshGuard/       # pitch-deck.pdf, pitch-deck.pptx, one-pager.pdf ✓
 ├── SaveState/
 ├── UndercoverAgent/
-├── AgentConsole/
-└── README.md
+└── AgentConsole/
 ```
 
 Use for: pitch decks, investor materials, large presentation files.
