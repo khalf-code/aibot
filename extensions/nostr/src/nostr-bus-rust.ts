@@ -23,6 +23,9 @@ import {
   PublicKey,
   SecretKey,
   Metadata,
+  RelayMessage,
+  type Event as NostrEvent,
+  type AbortHandle,
 } from "@rust-nostr/nostr-sdk";
 
 import {
@@ -59,9 +62,6 @@ const STATE_PERSIST_DEBOUNCE_MS = 5000;
 const TYPING_KIND = 20001;
 const TYPING_TTL_SEC = 30;
 const TYPING_THROTTLE_MS = 5000;
-
-// Profile publish timeout per relay
-const RELAY_PUBLISH_TIMEOUT_MS = 5000;
 
 // ============================================================================
 // Types
@@ -118,6 +118,29 @@ export interface RustNostrBusHandle {
     lastPublishedEventId: string | null;
     lastPublishResults: Record<string, "ok" | "failed" | "timeout"> | null;
   }>;
+}
+
+/**
+ * Nostr relay message types (per NIP-01)
+ * The JSON format is ["TYPE", ...args]
+ */
+type RelayMessageType = "EVENT" | "EOSE" | "OK" | "NOTICE" | "CLOSED" | "AUTH" | "COUNT";
+
+/**
+ * Parse the type from a RelayMessage
+ * Returns the message type string or null if parsing fails
+ */
+function parseRelayMessageType(message: RelayMessage): RelayMessageType | null {
+  try {
+    const json = message.asJson();
+    const parsed: unknown = JSON.parse(json);
+    if (Array.isArray(parsed) && typeof parsed[0] === "string") {
+      return parsed[0] as RelayMessageType;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // Track WASM initialization
@@ -236,9 +259,9 @@ export async function startRustNostrBus(
     }, STATE_PERSIST_DEBOUNCE_MS);
   }
 
-  // Handle incoming events
-  client.handleNotifications({
-    handleEvent: async (relayUrl: string, subscriptionId: string, event: any) => {
+  // Handle incoming events - store abort handle for cleanup
+  const notificationHandle: AbortHandle = client.handleNotifications({
+    handleEvent: async (relayUrl: string, subscriptionId: string, event: NostrEvent): Promise<boolean> => {
       try {
         const eventId = event.id.toHex();
         const eventPubkey = event.author.toHex();
@@ -249,19 +272,19 @@ export async function startRustNostrBus(
         // Dedupe
         if (seen.peek(eventId)) {
           metrics.emit("event.duplicate");
-          return;
+          return false;
         }
 
         // Skip self-messages
         if (eventPubkey === pkHex) {
           metrics.emit("event.rejected.self_message");
-          return;
+          return false;
         }
 
         // Skip stale events
         if (createdAt < since) {
           metrics.emit("event.rejected.stale");
-          return;
+          return false;
         }
 
         seen.add(eventId);
@@ -277,7 +300,7 @@ export async function startRustNostrBus(
           metrics.emit("decrypt.failure");
           metrics.emit("event.rejected.decrypt_failed");
           onError?.(err as Error, `decrypt from ${eventPubkey}`);
-          return;
+          return false;
         }
 
         // Create reply function
@@ -294,15 +317,19 @@ export async function startRustNostrBus(
 
         metrics.emit("event.processed");
         scheduleStatePersist(createdAt, eventId);
+        return false;
       } catch (err) {
         onError?.(err as Error, `event handling`);
+        return false;
       }
     },
-    handleMsg: async (relayUrl: string, message: any) => {
-      // Handle relay messages (EOSE, etc.)
-      if (message.toString().includes("EOSE")) {
+    handleMsg: async (relayUrl: string, message: RelayMessage): Promise<boolean> => {
+      // Detect EOSE using proper type parsing instead of string matching
+      const messageType = parseRelayMessageType(message);
+      if (messageType === "EOSE") {
         onEose?.(relayUrl);
       }
+      return false;
     },
   });
 
@@ -341,9 +368,9 @@ export async function startRustNostrBus(
       await client.sendEventBuilder(typingEvent);
 
       const metricName = action === "start" ? "typing.start.sent" : "typing.stop.sent";
-      metrics.emit(metricName as any);
+      metrics.emit(metricName);
     } catch (err) {
-      metrics.emit("typing.error" as any);
+      metrics.emit("typing.error");
       onError?.(err as Error, `typing ${action}`);
       // Don't throw - typing failures are non-critical
     }
@@ -430,6 +457,9 @@ export async function startRustNostrBus(
 
   return {
     close: async () => {
+      // Abort the notification handler to stop processing events
+      notificationHandle.abort();
+
       if (pendingWrite) {
         clearTimeout(pendingWrite);
         await writeNostrBusState({
