@@ -44,4 +44,4 @@ export OPENCLAW_CONFIG_PATH
 
 # Run the gateway server in lan mode for Railway deployments
 # "lan" mode binds to 0.0.0.0 making the service reachable from Railway proxy
-exec su node -c "HOME=$HOME node openclaw.mjs gateway run --bind lan --port $OPENCLAW_GATEWAY_PORT --allow-unconfigured --health-path /"
+exec su node -c "HOME=$HOME node openclaw.mjs gateway run --bind lan --port $OPENCLAW_GATEWAY_PORT --allow-unconfigured"
