@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
 import type { PluginRecord } from "../plugins/registry.js";
+import type { ObaVerificationResult } from "../security/oba/types.js";
 import { loadConfig, writeConfigFile } from "../config/config.js";
 import { resolveArchiveKind } from "../infra/archive.js";
 import { installPluginFromNpmSpec, installPluginFromPath } from "../plugins/install.js";
@@ -11,6 +12,7 @@ import { applyExclusiveSlotSelection } from "../plugins/slots.js";
 import { buildPluginStatusReport } from "../plugins/status.js";
 import { updateNpmInstalledPlugins } from "../plugins/update.js";
 import { defaultRuntime } from "../runtime.js";
+import { verifyObaContainer, mapLimit } from "../security/oba/verify.js";
 import { formatDocsLink } from "../terminal/links.js";
 import { renderTable } from "../terminal/table.js";
 import { theme } from "../terminal/theme.js";
@@ -20,10 +22,12 @@ export type PluginsListOptions = {
   json?: boolean;
   enabled?: boolean;
   verbose?: boolean;
+  verify?: boolean;
 };
 
 export type PluginInfoOptions = {
   json?: boolean;
+  verify?: boolean;
 };
 
 export type PluginUpdateOptions = {
@@ -66,7 +70,51 @@ function formatPluginLine(plugin: PluginRecord, verbose = false): string {
   if (plugin.error) {
     parts.push(theme.error(`  error: ${plugin.error}`));
   }
+  if (plugin.obaVerification && plugin.obaVerification.status !== "unsigned") {
+    const badge = formatObaBadge(plugin.obaVerification);
+    parts.push(`  oba: ${badge}`);
+    if (plugin.obaVerification.ownerUrl) {
+      parts.push(`  oba owner: ${theme.muted(plugin.obaVerification.ownerUrl)}`);
+    }
+    if (plugin.obaVerification.reason) {
+      parts.push(`  oba reason: ${theme.muted(plugin.obaVerification.reason)}`);
+    }
+  }
   return parts.join("\n");
+}
+
+function formatObaBadge(verification?: ObaVerificationResult): string {
+  if (!verification || verification.status === "unsigned") {
+    return "";
+  }
+  switch (verification.status) {
+    case "signed":
+      return theme.muted("signed");
+    case "verified":
+      return theme.success("verified");
+    case "invalid":
+      return theme.error("invalid");
+    default:
+      return "";
+  }
+}
+
+async function runPluginVerification(plugins: PluginRecord[]): Promise<void> {
+  const verifiable = plugins.filter((p) => p.manifestPath && p.oba);
+  await mapLimit(verifiable, 4, async (plugin) => {
+    if (!plugin.manifestPath) {
+      return;
+    }
+    try {
+      const raw = JSON.parse(fs.readFileSync(plugin.manifestPath, "utf-8")) as Record<
+        string,
+        unknown
+      >;
+      plugin.obaVerification = await verifyObaContainer(raw);
+    } catch {
+      plugin.obaVerification = { status: "invalid", reason: "failed to read manifest" };
+    }
+  });
 }
 
 function applySlotSelectionForPlugin(
@@ -112,11 +160,16 @@ export function registerPluginsCli(program: Command) {
     .option("--json", "Print JSON")
     .option("--enabled", "Only show enabled plugins", false)
     .option("--verbose", "Show detailed entries", false)
-    .action((opts: PluginsListOptions) => {
+    .option("--verify", "Verify OBA signatures (requires network)", false)
+    .action(async (opts: PluginsListOptions) => {
       const report = buildPluginStatusReport();
       const list = opts.enabled
         ? report.plugins.filter((p) => p.status === "loaded")
         : report.plugins;
+
+      if (opts.verify) {
+        await runPluginVerification(list);
+      }
 
       if (opts.json) {
         const payload = {
@@ -143,15 +196,17 @@ export function registerPluginsCli(program: Command) {
         const rows = list.map((plugin) => {
           const desc = plugin.description ? theme.muted(plugin.description) : "";
           const sourceLine = desc ? `${plugin.source}\n${desc}` : plugin.source;
+          const statusBase =
+            plugin.status === "loaded"
+              ? theme.success("loaded")
+              : plugin.status === "disabled"
+                ? theme.warn("disabled")
+                : theme.error("error");
+          const obaBadge = formatObaBadge(plugin.obaVerification);
           return {
             Name: plugin.name || plugin.id,
             ID: plugin.name && plugin.name !== plugin.id ? plugin.id : "",
-            Status:
-              plugin.status === "loaded"
-                ? theme.success("loaded")
-                : plugin.status === "disabled"
-                  ? theme.warn("disabled")
-                  : theme.error("error"),
+            Status: obaBadge ? `${statusBase} ${obaBadge}` : statusBase,
             Source: sourceLine,
             Version: plugin.version ?? "",
           };
@@ -185,7 +240,8 @@ export function registerPluginsCli(program: Command) {
     .description("Show plugin details")
     .argument("<id>", "Plugin id")
     .option("--json", "Print JSON")
-    .action((id: string, opts: PluginInfoOptions) => {
+    .option("--verify", "Verify OBA signature (requires network)", false)
+    .action(async (id: string, opts: PluginInfoOptions) => {
       const report = buildPluginStatusReport();
       const plugin = report.plugins.find((p) => p.id === id || p.name === id);
       if (!plugin) {
@@ -194,6 +250,18 @@ export function registerPluginsCli(program: Command) {
       }
       const cfg = loadConfig();
       const install = cfg.plugins?.installs?.[plugin.id];
+
+      if (opts.verify && plugin.manifestPath && plugin.oba) {
+        try {
+          const raw = JSON.parse(fs.readFileSync(plugin.manifestPath, "utf-8")) as Record<
+            string,
+            unknown
+          >;
+          plugin.obaVerification = await verifyObaContainer(raw);
+        } catch {
+          plugin.obaVerification = { status: "invalid", reason: "failed to read manifest" };
+        }
+      }
 
       if (opts.json) {
         defaultRuntime.log(JSON.stringify(plugin, null, 2));
@@ -235,6 +303,15 @@ export function registerPluginsCli(program: Command) {
       }
       if (plugin.error) {
         lines.push(`${theme.error("Error:")} ${plugin.error}`);
+      }
+      if (plugin.obaVerification && plugin.obaVerification.status !== "unsigned") {
+        lines.push(`${theme.muted("OBA:")} ${formatObaBadge(plugin.obaVerification)}`);
+        if (plugin.obaVerification.ownerUrl) {
+          lines.push(`${theme.muted("OBA owner:")} ${plugin.obaVerification.ownerUrl}`);
+        }
+        if (plugin.obaVerification.reason) {
+          lines.push(`${theme.muted("OBA reason:")} ${plugin.obaVerification.reason}`);
+        }
       }
       if (install) {
         lines.push("");
