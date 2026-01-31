@@ -1,6 +1,7 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import { estimateTokens } from "@mariozechner/pi-coding-agent";
-import { estimateMessagesTokens } from "../compaction.js";
+import { estimateMessagesTokens as _estimateMessagesTokens } from "../compaction.js";
+export const estimateMessagesTokens = _estimateMessagesTokens;
 import type { SessionEntry } from "../../config/sessions/types.js";
 import { log } from "./logger.js";
 
@@ -258,7 +259,11 @@ export function canCompactFurther(
 
   // Check if last entry is already a compaction summary
   const lastMessage = messages[messages.length - 1];
-  if (lastMessage.role === "summary" || (lastMessage as { type?: string }).type === "compaction") {
+  if (
+    (lastMessage.role as string) === "summary" ||
+    lastMessage.role === "compactionSummary" ||
+    (lastMessage as { type?: string }).type === "compaction"
+  ) {
     return { canCompact: false, reason: "already compacted" };
   }
 
