@@ -63,6 +63,7 @@ export type ResolvedMemorySearchConfig = {
       vectorWeight: number;
       textWeight: number;
       candidateMultiplier: number;
+      fusionMethod: "weighted" | "rrf" | "normalized";
     };
   };
   cache: {
@@ -84,6 +85,7 @@ const DEFAULT_HYBRID_ENABLED = true;
 const DEFAULT_HYBRID_VECTOR_WEIGHT = 0.7;
 const DEFAULT_HYBRID_TEXT_WEIGHT = 0.3;
 const DEFAULT_HYBRID_CANDIDATE_MULTIPLIER = 4;
+const DEFAULT_HYBRID_FUSION_METHOD = "weighted" as const;
 const DEFAULT_CACHE_ENABLED = true;
 const DEFAULT_SOURCES: Array<"memory" | "sessions"> = ["memory"];
 
@@ -222,6 +224,10 @@ function mergeConfig(
       overrides?.query?.hybrid?.candidateMultiplier ??
       defaults?.query?.hybrid?.candidateMultiplier ??
       DEFAULT_HYBRID_CANDIDATE_MULTIPLIER,
+    fusionMethod:
+      overrides?.query?.hybrid?.fusionMethod ??
+      defaults?.query?.hybrid?.fusionMethod ??
+      DEFAULT_HYBRID_FUSION_METHOD,
   };
   const cache = {
     enabled: overrides?.cache?.enabled ?? defaults?.cache?.enabled ?? DEFAULT_CACHE_ENABLED,
@@ -267,6 +273,7 @@ function mergeConfig(
         vectorWeight: normalizedVectorWeight,
         textWeight: normalizedTextWeight,
         candidateMultiplier,
+        fusionMethod: hybrid.fusionMethod,
       },
     },
     cache: {

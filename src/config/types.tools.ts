@@ -312,6 +312,13 @@ export type MemorySearchConfig = {
       textWeight?: number;
       /** Multiplier for candidate pool size (default: 4). */
       candidateMultiplier?: number;
+      /**
+       * Fusion method for combining vector and keyword results:
+       * - "weighted": Simple weighted sum of scores (default, backward compatible)
+       * - "rrf": Reciprocal Rank Fusion - rank-based, no score normalization needed
+       * - "normalized": Weighted sum with min-max normalized BM25 scores
+       */
+      fusionMethod?: "weighted" | "rrf" | "normalized";
     };
   };
   /** Index cache behavior. */

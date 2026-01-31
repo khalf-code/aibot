@@ -142,7 +142,7 @@ export async function searchKeyword(params: {
   sourceFilter: { sql: string; params: SearchSource[] };
   buildFtsQuery: (raw: string) => string | null;
   bm25RankToScore: (rank: number) => number;
-}): Promise<Array<SearchRowResult & { textScore: number }>> {
+}): Promise<Array<SearchRowResult & { textScore: number; rawBm25Score: number }>> {
   if (params.limit <= 0) return [];
   const ftsQuery = params.buildFtsQuery(params.query);
   if (!ftsQuery) return [];
@@ -175,6 +175,7 @@ export async function searchKeyword(params: {
       endLine: row.end_line,
       score: textScore,
       textScore,
+      rawBm25Score: row.rank,
       snippet: truncateUtf16Safe(row.text, params.snippetMaxChars),
       source: row.source,
     };
