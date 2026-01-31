@@ -360,8 +360,12 @@ export async function applyNonInteractiveAuthChoice(params: {
       envVar: "NANOGPT_API_KEY",
       runtime,
     });
-    if (!resolved) return null;
-    if (resolved.source !== "profile") await setNanoGptApiKey(resolved.key);
+    if (!resolved) {
+      return null;
+    }
+    if (resolved.source !== "profile") {
+      await setNanoGptApiKey(resolved.key);
+    }
     nextConfig = applyAuthProfileConfig(nextConfig, {
       profileId: "nanogpt:default",
       provider: "nanogpt",
