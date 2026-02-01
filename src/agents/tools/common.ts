@@ -198,6 +198,40 @@ export function jsonResult(payload: unknown): AgentToolResult<unknown> {
   };
 }
 
+export const DEFAULT_TOOL_RESULT_MAX_CHARS = 50_000;
+
+export function truncatedJsonResult(
+  payload: unknown,
+  options?: {
+    maxChars?: number;
+    truncationNote?: string;
+  },
+): AgentToolResult<unknown> {
+  const maxChars = options?.maxChars ?? DEFAULT_TOOL_RESULT_MAX_CHARS;
+  const text = JSON.stringify(payload, null, 2);
+
+  if (text.length <= maxChars) {
+    return {
+      content: [{ type: "text", text }],
+      details: payload,
+    };
+  }
+
+  const truncated = text.slice(0, maxChars);
+  const note =
+    options?.truncationNote ??
+    `\n\n[Result truncated: ${text.length.toLocaleString()} chars → ${maxChars.toLocaleString()} chars]`;
+
+  return {
+    content: [{ type: "text", text: truncated + note }],
+    details: {
+      _truncated: true,
+      _originalLength: text.length,
+      _maxChars: maxChars,
+    },
+  };
+}
+
 export async function imageResult(params: {
   label: string;
   path: string;

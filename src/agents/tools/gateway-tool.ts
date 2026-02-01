@@ -9,7 +9,7 @@ import {
 } from "../../infra/restart-sentinel.js";
 import { scheduleGatewaySigusr1Restart } from "../../infra/restart.js";
 import { stringEnum } from "../schema/typebox.js";
-import { type AnyAgentTool, jsonResult, readStringParam } from "./common.js";
+import { type AnyAgentTool, jsonResult, readStringParam, truncatedJsonResult } from "./common.js";
 import { callGatewayTool } from "./gateway.js";
 
 function resolveBaseHashFromSnapshot(snapshot: unknown): string | undefined {
@@ -164,11 +164,33 @@ export function createGatewayTool(opts?: {
 
       if (action === "config.get") {
         const result = await callGatewayTool("config.get", gatewayOpts, {});
-        return jsonResult({ ok: true, result });
+        return truncatedJsonResult({ ok: true, result }, { maxChars: 30_000 });
       }
       if (action === "config.schema") {
-        const result = await callGatewayTool("config.schema", gatewayOpts, {});
-        return jsonResult({ ok: true, result });
+        const schema = await callGatewayTool("config.schema", gatewayOpts, {});
+        // Summarize schema to avoid 400KB+ responses bloating session files
+        const schemaObj = schema?.schema as Record<string, unknown> | undefined;
+        const schemaProperties = (schemaObj?.properties ?? {}) as Record<string, unknown>;
+
+        const sectionSummary: Record<string, { type?: string; keys: string[] }> = {};
+        for (const [section, def] of Object.entries(schemaProperties)) {
+          const sectionDef = def as { type?: string; properties?: Record<string, unknown> };
+          sectionSummary[section] = {
+            type: sectionDef.type,
+            keys: Object.keys(sectionDef.properties ?? {}),
+          };
+        }
+
+        const summary = {
+          ok: true,
+          version: schema?.version,
+          generatedAt: schema?.generatedAt,
+          sections: Object.keys(schemaProperties),
+          sectionSummary,
+          uiHintCount: Object.keys((schema?.uiHints ?? {}) as Record<string, unknown>).length,
+          note: "Schema summarized to reduce context size. Use config.get to see current values or ask about specific sections.",
+        };
+        return jsonResult(summary);
       }
       if (action === "config.apply") {
         const raw = readStringParam(params, "raw", { required: true });
@@ -194,7 +216,7 @@ export function createGatewayTool(opts?: {
           note,
           restartDelayMs,
         });
-        return jsonResult({ ok: true, result });
+        return truncatedJsonResult({ ok: true, result }, { maxChars: 30_000 });
       }
       if (action === "config.patch") {
         const raw = readStringParam(params, "raw", { required: true });
@@ -220,7 +242,7 @@ export function createGatewayTool(opts?: {
           note,
           restartDelayMs,
         });
-        return jsonResult({ ok: true, result });
+        return truncatedJsonResult({ ok: true, result }, { maxChars: 30_000 });
       }
       if (action === "update.run") {
         const sessionKey =
@@ -239,7 +261,7 @@ export function createGatewayTool(opts?: {
           restartDelayMs,
           timeoutMs,
         });
-        return jsonResult({ ok: true, result });
+        return truncatedJsonResult({ ok: true, result }, { maxChars: 30_000 });
       }
 
       throw new Error(`Unknown action: ${action}`);

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   createActionGate,
+  DEFAULT_TOOL_RESULT_MAX_CHARS,
   readNumberParam,
   readReactionParams,
   readStringOrNumberParam,
+  truncatedJsonResult,
 } from "./common.js";
 
 type TestActions = {
@@ -87,5 +89,54 @@ describe("readReactionParams", () => {
     });
     expect(result.remove).toBe(true);
     expect(result.emoji).toBe("✅");
+  });
+});
+
+describe("truncatedJsonResult", () => {
+  it("returns full result when under default limit", () => {
+    const payload = { ok: true, message: "hello" };
+    const result = truncatedJsonResult(payload);
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]).toEqual({
+      type: "text",
+      text: JSON.stringify(payload, null, 2),
+    });
+    expect(result.details).toEqual(payload);
+  });
+
+  it("returns full result when under custom limit", () => {
+    const payload = { ok: true };
+    const result = truncatedJsonResult(payload, { maxChars: 100 });
+    expect(result.content[0]).toEqual({
+      type: "text",
+      text: JSON.stringify(payload, null, 2),
+    });
+  });
+
+  it("truncates and adds note when over limit", () => {
+    const largePayload = { data: "x".repeat(1000) };
+    const result = truncatedJsonResult(largePayload, { maxChars: 100 });
+    const text = (result.content[0] as { type: "text"; text: string }).text;
+    expect(text.length).toBeLessThanOrEqual(200); // 100 + note
+    expect(text).toContain("[Result truncated:");
+    expect(result.details).toEqual({
+      _truncated: true,
+      _originalLength: expect.any(Number),
+      _maxChars: 100,
+    });
+  });
+
+  it("uses custom truncation note", () => {
+    const largePayload = { data: "x".repeat(1000) };
+    const result = truncatedJsonResult(largePayload, {
+      maxChars: 100,
+      truncationNote: "[CUSTOM NOTE]",
+    });
+    const text = (result.content[0] as { type: "text"; text: string }).text;
+    expect(text).toContain("[CUSTOM NOTE]");
+  });
+
+  it("uses default max chars constant", () => {
+    expect(DEFAULT_TOOL_RESULT_MAX_CHARS).toBe(50_000);
   });
 });
