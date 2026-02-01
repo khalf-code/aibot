@@ -191,7 +191,7 @@ function processLine(
     return null;
   }
 
-  const match = line.match(/^(\s*-\s*)(\w+)(?:\s+"([^"]*)")?(.*)$/);
+  const match = line.match(/^(\s*-\s*)([\w-]+)(?:\s+"((?:[^"\\]|\\.)*)")?(.*)$/);
   if (!match) {
     return options.interactive ? null : line;
   }
@@ -276,7 +276,7 @@ export function buildRoleSnapshotFromAriaSnapshot(
         continue;
       }
 
-      const match = line.match(/^(\s*-\s*)(\w+)(?:\s+"([^"]*)")?(.*)$/);
+      const match = line.match(/^(\s*-\s*)([\w-]+)(?:\s+"((?:[^"\\]|\\.)*)")?(.*)$/);
       if (!match) {
         continue;
       }
@@ -361,7 +361,7 @@ export function buildRoleSnapshotFromAiSnapshot(
       if (options.maxDepth !== undefined && depth > options.maxDepth) {
         continue;
       }
-      const match = line.match(/^(\s*-\s*)(\w+)(?:\s+"([^"]*)")?(.*)$/);
+      const match = line.match(/^(\s*-\s*)([\w-]+)(?:\s+"((?:[^"\\]|\\.)*)")?(.*)$/);
       if (!match) {
         continue;
       }
@@ -393,7 +393,7 @@ export function buildRoleSnapshotFromAiSnapshot(
       continue;
     }
 
-    const match = line.match(/^(\s*-\s*)(\w+)(?:\s+"([^"]*)")?(.*)$/);
+    const match = line.match(/^(\s*-\s*)([\w-]+)(?:\s+"((?:[^"\\]|\\.)*)")?(.*)$/);
     if (!match) {
       out.push(line);
       continue;
