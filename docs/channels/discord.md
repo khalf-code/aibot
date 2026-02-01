@@ -204,7 +204,7 @@ Notes:
 - **DMs don’t work**: `channels.discord.dm.enabled=false`, `channels.discord.dm.policy="disabled"`, or you haven’t been approved yet (`channels.discord.dm.policy="pairing"`).
 
 ### Exec approvals in Discord
-Discord supports a **button UI** for exec approvals in DMs (Allow once / Always allow / Deny). Other chat surfaces resolve forwarded approvals with `/approve`.
+Discord supports a **button UI** for exec approvals in DMs (Allow once / Always allow / Deny). Other chat surfaces resolve forwarded approvals with the `/approve` [slash command](/tools/slash-commands#command-list).
 
 If you see `❌ Failed to submit approval: Error: unknown approval id` or the UI never shows up, check:
 - `channels.discord.execApprovals.enabled: true` in your config.
