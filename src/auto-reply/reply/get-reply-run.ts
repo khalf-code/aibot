@@ -18,6 +18,7 @@ import { logVerbose } from "../../globals.js";
 import { clearCommandLane, getQueueSize } from "../../process/command-queue.js";
 import { normalizeMainKey } from "../../routing/session-key.js";
 import { isReasoningTagProvider } from "../../utils/provider-utils.js";
+import { resolveModelRoutingDecision } from "../../agents/model-routing.js";
 import { hasControlCommand } from "../command-detection.js";
 import { buildInboundMediaNote } from "../media-note.js";
 import type { MsgContext, TemplateContext } from "../templating.js";
@@ -349,6 +350,33 @@ export async function runPreparedReply(
     isNewSession,
   });
   const authProfileIdSource = sessionEntry?.authProfileOverrideSource;
+  // Apply model routing rules (if configured).
+  const routingDecision = resolveModelRoutingDecision({
+    cfg,
+    defaultProvider,
+    ctx: {
+      channel: ctx.OriginatingChannel ?? sessionCtx.Provider,
+      lane: sessionLaneKey,
+      sessionKey,
+      agentId,
+      isCron: false,
+      isGroup:
+        Boolean(params.ctx.ChatType && params.ctx.ChatType !== "direct") ||
+        Boolean(resolveGroupSessionKey(sessionCtx)),
+    },
+  });
+
+  const applyModelKey = (key?: string): { provider?: string; model?: string } => {
+    const trimmed = key?.trim();
+    if (!trimmed) return {};
+    const slash = trimmed.indexOf("/");
+    if (slash === -1) return {};
+    return { provider: trimmed.slice(0, slash), model: trimmed.slice(slash + 1) };
+  };
+  const routedPrimary = applyModelKey(routingDecision.modelPrimary);
+  const routedProvider = routedPrimary.provider ?? provider;
+  const routedModel = routedPrimary.model ?? model;
+
   const followupRun = {
     prompt: queuedBody,
     messageId: sessionCtx.MessageSidFull ?? sessionCtx.MessageSid,
@@ -362,6 +390,7 @@ export async function runPreparedReply(
     originatingChatType: ctx.ChatType,
     run: {
       agentId,
+      lane: sessionLaneKey,
       agentDir,
       sessionId: sessionIdFinal,
       sessionKey,
@@ -378,8 +407,10 @@ export async function runPreparedReply(
       workspaceDir,
       config: cfg,
       skillsSnapshot,
-      provider,
-      model,
+      provider: routedProvider,
+      model: routedModel,
+      modelFallbacksOverride: routingDecision.modelFallbacksOverride,
+      usageReceiptMode: routingDecision.receipt,
       authProfileId,
       authProfileIdSource,
       thinkLevel: resolvedThinkLevel,

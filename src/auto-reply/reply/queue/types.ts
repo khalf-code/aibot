@@ -43,6 +43,8 @@ export type FollowupRun = {
   originatingChatType?: string;
   run: {
     agentId: string;
+    /** Logical lane for diagnostics/routing (e.g. "chat", "cron", "heartbeat"). */
+    lane?: string;
     agentDir: string;
     sessionId: string;
     sessionKey?: string;
@@ -61,6 +63,10 @@ export type FollowupRun = {
     skillsSnapshot?: SkillSnapshot;
     provider: string;
     model: string;
+    /** Optional explicit fallbacks list (provider/model strings) overriding config defaults. */
+    modelFallbacksOverride?: string[];
+    /** Optional per-run usage/cost receipt mode (overrides session /usage). */
+    usageReceiptMode?: "off" | "tokens" | "cost" | "full";
     authProfileId?: string;
     authProfileIdSource?: "auto" | "user";
     thinkLevel?: ThinkLevel;

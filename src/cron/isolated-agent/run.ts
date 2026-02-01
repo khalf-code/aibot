@@ -25,6 +25,9 @@ import { buildWorkspaceSkillSnapshot } from "../../agents/skills.js";
 import { getSkillsSnapshotVersion } from "../../agents/skills/refresh.js";
 import { resolveAgentTimeoutMs } from "../../agents/timeout.js";
 import { hasNonzeroUsage } from "../../agents/usage.js";
+import { estimateUsageCost, resolveModelCostConfig } from "../../utils/usage-format.js";
+import { resolveModelRoutingDecision } from "../../agents/model-routing.js";
+import { appendRunUsageEvent } from "../../infra/run-usage-log.js";
 import { ensureAgentWorkspace } from "../../agents/workspace.js";
 import {
   formatUserTime,
@@ -243,6 +246,34 @@ export async function runCronIsolatedAgentTurn(params: {
     to: agentPayload?.to,
   });
 
+  // Apply model routing rules (if configured).
+  const cronLane = (params.lane ?? "cron").trim();
+  const routingDecision = resolveModelRoutingDecision({
+    cfg: cfgWithAgentDefaults,
+    defaultProvider: DEFAULT_PROVIDER,
+    ctx: {
+      channel: resolvedDelivery.channel,
+      lane: cronLane,
+      sessionKey: agentSessionKey,
+      agentId,
+      isCron: true,
+      isGroup: false,
+    },
+  });
+
+  const applyModelKey = (key?: string): { provider?: string; model?: string } => {
+    const trimmed = key?.trim();
+    if (!trimmed) return {};
+    const slash = trimmed.indexOf("/");
+    if (slash === -1) return {};
+    return { provider: trimmed.slice(0, slash), model: trimmed.slice(slash + 1) };
+  };
+  const routedPrimary = applyModelKey(routingDecision.modelPrimary);
+  if (routedPrimary.provider && routedPrimary.model) {
+    provider = routedPrimary.provider;
+    model = routedPrimary.model;
+  }
+
   const userTimezone = resolveUserTimezone(params.cfg.agents?.defaults?.userTimezone);
   const userTimeFormat = resolveUserTimeFormat(params.cfg.agents?.defaults?.timeFormat);
   const formattedTime =
@@ -337,7 +368,9 @@ export async function runCronIsolatedAgentTurn(params: {
       provider,
       model,
       agentDir,
-      fallbacksOverride: resolveAgentModelFallbacksOverride(params.cfg, agentId),
+      fallbacksOverride:
+        routingDecision.modelFallbacksOverride ??
+        resolveAgentModelFallbacksOverride(params.cfg, agentId),
       run: (providerOverride, modelOverride) => {
         if (isCliProvider(providerOverride, cfgWithAgentDefaults)) {
           const cliSessionId = getCliSessionId(cronSession.sessionEntry, providerOverride);
@@ -410,6 +443,32 @@ export async function runCronIsolatedAgentTurn(params: {
       cronSession.sessionEntry.outputTokens = output;
       cronSession.sessionEntry.totalTokens =
         promptTokens > 0 ? promptTokens : (usage.total ?? input);
+
+      const costConfig = resolveModelCostConfig({
+        provider: providerUsed,
+        model: modelUsed,
+        config: cfgWithAgentDefaults,
+      });
+      const costUsd = estimateUsageCost({ usage, cost: costConfig });
+      await appendRunUsageEvent({
+        cfg: cfgWithAgentDefaults,
+        event: {
+          ts: Date.now(),
+          kind: "cron",
+          sessionKey: agentSessionKey,
+          sessionId: cronSession.sessionEntry.sessionId,
+          lane: cronLane,
+          channel: resolvedDelivery.channel,
+          accountId: resolvedDelivery.accountId,
+          to: resolvedDelivery.to,
+          jobId: params.job.id,
+          jobName: params.job.name,
+          provider: providerUsed,
+          model: modelUsed,
+          usage,
+          costUsd,
+        },
+      });
     }
     cronSession.store[agentSessionKey] = cronSession.sessionEntry;
     await updateSessionStore(cronSession.storePath, (store) => {

@@ -41,6 +41,7 @@ import { incrementCompactionCount } from "./session-updates.js";
 import type { TypingController } from "./typing.js";
 import { createTypingSignaler } from "./typing-mode.js";
 import { emitDiagnosticEvent, isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
+import { appendRunUsageEvent } from "../../infra/run-usage-log.js";
 
 const BLOCK_REPLY_SEND_TIMEOUT_MS = 15_000;
 
@@ -463,11 +464,43 @@ export async function runReplyAgent(params: {
       });
     }
 
+    if (hasNonzeroUsage(usage)) {
+      const costConfig = resolveModelCostConfig({
+        provider: providerUsed,
+        model: modelUsed,
+        config: cfg,
+      });
+      const costUsd = estimateUsageCost({ usage, cost: costConfig });
+      await appendRunUsageEvent({
+        cfg,
+        event: {
+          ts: Date.now(),
+          kind: "chat",
+          sessionKey,
+          sessionId: followupRun.run.sessionId,
+          lane: followupRun.run.lane,
+          channel: replyToChannel,
+          accountId: sessionCtx.AccountId,
+          to: sessionCtx.OriginatingTo ?? sessionCtx.To,
+          provider: providerUsed,
+          model: modelUsed,
+          usage,
+          costUsd,
+          durationMs: Date.now() - runStartedAt,
+        },
+      });
+    }
+
     const responseUsageRaw =
       activeSessionEntry?.responseUsage ??
       (sessionKey ? activeSessionStore?.[sessionKey]?.responseUsage : undefined);
     const responseUsageMode = resolveResponseUsageMode(responseUsageRaw);
-    if (responseUsageMode !== "off" && hasNonzeroUsage(usage)) {
+    const effectiveUsageMode =
+      followupRun.run.usageReceiptMode && followupRun.run.usageReceiptMode !== "off"
+        ? followupRun.run.usageReceiptMode
+        : responseUsageMode;
+
+    if (effectiveUsageMode !== "off" && hasNonzeroUsage(usage)) {
       const authMode = resolveModelAuthMode(providerUsed, cfg);
       const showCost = authMode === "api-key";
       const costConfig = showCost
@@ -482,7 +515,7 @@ export async function runReplyAgent(params: {
         showCost,
         costConfig,
       });
-      if (formatted && responseUsageMode === "full" && sessionKey) {
+      if (formatted && effectiveUsageMode === "full" && sessionKey) {
         formatted = `${formatted} · session ${sessionKey}`;
       }
       if (formatted) {

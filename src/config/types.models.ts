@@ -52,8 +52,44 @@ export type BedrockDiscoveryConfig = {
   defaultMaxTokens?: number;
 };
 
+export type ModelRoutingConfig = {
+  /**
+   * Rule-based model routing.
+   *
+   * Rules are evaluated in order; first match wins.
+   */
+  rules?: Array<{
+    name?: string;
+    match?: {
+      channel?: string;
+      lane?: string;
+      sessionKeyPrefix?: string;
+      agentId?: string;
+      isCron?: boolean;
+      isGroup?: boolean;
+    };
+    model?: {
+      /** provider/model or alias */
+      primary?: string;
+      /** provider/model or alias */
+      fallbacks?: string[];
+    };
+    thinking?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+    receipt?: "off" | "tokens" | "cost" | "full";
+  }>;
+  receipts?: {
+    /** Optional global default receipt mode applied when no rule matches. */
+    defaultMode?: "off" | "tokens" | "cost" | "full";
+  };
+  usageLog?: {
+    /** When enabled, persist per-run usage+cost events for rollups. */
+    enabled?: boolean;
+  };
+};
+
 export type ModelsConfig = {
   mode?: "merge" | "replace";
   providers?: Record<string, ModelProviderConfig>;
   bedrockDiscovery?: BedrockDiscoveryConfig;
+  routing?: ModelRoutingConfig;
 };

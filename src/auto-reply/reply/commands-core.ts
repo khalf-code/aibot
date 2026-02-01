@@ -26,6 +26,7 @@ import {
   handleStopCommand,
   handleUsageCommand,
 } from "./commands-session.js";
+import { handleUsageRollupCommand } from "./commands-usage-rollup.js";
 import { handlePluginCommand } from "./commands-plugin.js";
 import type {
   CommandHandler,
@@ -39,6 +40,7 @@ const HANDLERS: CommandHandler[] = [
   handleBashCommand,
   handleActivationCommand,
   handleSendPolicyCommand,
+  handleUsageRollupCommand,
   handleUsageCommand,
   handleRestartCommand,
   handleTtsCommands,
