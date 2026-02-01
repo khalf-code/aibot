@@ -9,6 +9,7 @@ import type { TtsAutoMode } from "../../config/types.tts.js";
 import {
   DEFAULT_RESET_TRIGGERS,
   deriveSessionMetaPatch,
+  ensureSessionHeader,
   evaluateSessionFreshness,
   type GroupKeyResolution,
   loadSessionStore,
@@ -334,6 +335,21 @@ export async function initSessionState(params: {
     // Preserve per-session overrides while resetting compaction state on /new.
     store[sessionKey] = { ...store[sessionKey], ...sessionEntry };
   });
+
+  // P3 persistence fix: Write JSONL header immediately on session creation
+  // to prevent data loss if the gateway crashes before the first message is appended.
+  // Skip if session is ephemeral (privacy mode - intentionally memory-only).
+  if (isNewSession && sessionEntry.sessionFile && !sessionEntry.ephemeral) {
+    try {
+      await ensureSessionHeader({
+        sessionFile: sessionEntry.sessionFile,
+        sessionId: sessionEntry.sessionId,
+      });
+    } catch {
+      // Log warning but don't block session initialization
+      // The file will be created on first message append as fallback
+    }
+  }
 
   const sessionCtx: TemplateContext = {
     ...ctx,

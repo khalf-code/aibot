@@ -89,6 +89,11 @@ Text + native (when enabled):
 - `/queue <mode>` (plus options like `debounce:2s cap:25 drop:summarize`; send `/queue` to see current settings)
 - `/bash <command>` (host-only; alias for `! <command>`; requires `commands.bash: true` + `tools.elevated` allowlists)
 
+Privacy commands:
+- `/forget` (delete this session from local storage; creates recovery checkpoint)
+- `/private on|off` (toggle ephemeral mode; when on, conversation won't be saved locally)
+- `/dont-remember` (alias: `/dontremember`) (exclude session from memory indexing)
+
 Text-only:
 - `/compact [instructions]` (see [/concepts/compaction](/concepts/compaction))
 - `! <command>` (host-only; one at a time; use `!poll` + `!stop` for long-running jobs)

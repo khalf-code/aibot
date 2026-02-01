@@ -99,6 +99,14 @@ export type SessionEntry = {
   lastThreadId?: string | number;
   skillsSnapshot?: SessionSkillSnapshot;
   systemPromptReport?: SessionSystemPromptReport;
+  /** Privacy: If true, session is ephemeral and won't be written to JSONL */
+  ephemeral?: boolean;
+  /** Privacy: If true, session won't be indexed into memory search */
+  excludeFromMemory?: boolean;
+  /** Privacy: Ally mode privacy choice pending */
+  allyPrivacyPending?: boolean;
+  /** Privacy: Ally mode privacy choice made */
+  allyPrivacyChoice?: "save" | "private";
 };
 
 export function mergeSessionEntry(

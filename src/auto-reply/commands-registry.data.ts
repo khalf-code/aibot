@@ -445,6 +445,38 @@ function buildChatCommands(): ChatCommandDefinition[] {
         },
       ],
     }),
+    // Privacy commands
+    defineChatCommand({
+      key: "forget",
+      nativeName: "forget",
+      description: "Delete this session from local storage.",
+      textAlias: "/forget",
+      category: "session",
+    }),
+    defineChatCommand({
+      key: "private",
+      nativeName: "private",
+      description: "Toggle private/ephemeral mode.",
+      textAlias: "/private",
+      category: "session",
+      args: [
+        {
+          name: "mode",
+          description: "on or off",
+          type: "string",
+          choices: ["on", "off"],
+        },
+      ],
+      argsMenu: "auto",
+    }),
+    defineChatCommand({
+      key: "dont-remember",
+      description: "Exclude session from memory indexing.",
+      textAlias: "/dont-remember",
+      textAliases: ["/dont-remember", "/dontremember"],
+      scope: "text",
+      category: "session",
+    }),
     defineChatCommand({
       key: "think",
       nativeName: "think",

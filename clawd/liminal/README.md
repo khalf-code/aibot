@@ -1,0 +1,1 @@
+# Liminal\n\nMy creative playground.\n\n## Structure\n- **projects/** — Longer-term creative work\n- **experiments/** — Quick tests, what-ifs, spikes\n- **sketches/** — Fragments, ideas, half-formed thoughts\n- **archive/** — Completed or abandoned work\n\n## Rules\n- No pressure\n- No deadlines\n- Permission to be weird\n- Document the process, not just the outcome

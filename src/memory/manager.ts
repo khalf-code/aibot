@@ -2178,4 +2178,51 @@ export class MemoryIndexManager {
       )
       .run(entry.path, options.source, entry.hash, entry.mtimeMs, entry.size);
   }
+
+  /**
+   * Delete all memory index entries for a specific file path.
+   * Used by /forget command to remove session data from memory.
+   */
+  deleteByPath(filePath: string): { deleted: boolean; chunksDeleted: number } {
+    if (!this.db) return { deleted: false, chunksDeleted: 0 };
+
+    let chunksDeleted = 0;
+    try {
+      // Count chunks before deletion
+      const countResult = this.db
+        .prepare(`SELECT COUNT(*) as count FROM chunks WHERE path = ?`)
+        .get(filePath) as { count: number } | undefined;
+      chunksDeleted = countResult?.count ?? 0;
+
+      // Delete from vector table
+      try {
+        this.db
+          .prepare(`DELETE FROM ${VECTOR_TABLE} WHERE id IN (SELECT id FROM chunks WHERE path = ?)`)
+          .run(filePath);
+      } catch {
+        // Vector table may not exist
+      }
+
+      // Delete from FTS table
+      if (this.fts.enabled && this.fts.available) {
+        try {
+          this.db.prepare(`DELETE FROM ${FTS_TABLE} WHERE path = ?`).run(filePath);
+        } catch {
+          // FTS table may not exist
+        }
+      }
+
+      // Delete from chunks table
+      this.db.prepare(`DELETE FROM chunks WHERE path = ?`).run(filePath);
+
+      // Delete from files table
+      this.db.prepare(`DELETE FROM files WHERE path = ?`).run(filePath);
+
+      log.info(`[memory] deleted ${chunksDeleted} chunks for path: ${filePath}`);
+      return { deleted: true, chunksDeleted };
+    } catch (err) {
+      log.warn(`[memory] failed to delete path ${filePath}: ${String(err)}`);
+      return { deleted: false, chunksDeleted: 0 };
+    }
+  }
 }

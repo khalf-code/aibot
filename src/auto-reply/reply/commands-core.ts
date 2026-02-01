@@ -22,6 +22,9 @@ import { handleVoiceCommands } from "./commands-voice.js";
 import {
   handleAbortTrigger,
   handleActivationCommand,
+  handleDontRememberCommand,
+  handleForgetCommand,
+  handlePrivateCommand,
   handleRestartCommand,
   handleSendPolicyCommand,
   handleStopCommand,
@@ -57,6 +60,10 @@ const HANDLERS: CommandHandler[] = [
   handleModelsCommand,
   handleStopCommand,
   handleCompactCommand,
+  // Privacy commands
+  handleForgetCommand,
+  handlePrivateCommand,
+  handleDontRememberCommand,
   handleAbortTrigger,
 ];
 

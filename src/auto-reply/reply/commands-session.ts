@@ -1,6 +1,8 @@
 import { abortEmbeddedPiRun } from "../../agents/pi-embedded.js";
+import { resolveSessionAgentId } from "../../agents/agent-scope.js";
 import type { SessionEntry } from "../../config/sessions.js";
 import { updateSessionStore } from "../../config/sessions.js";
+import { forgetSession } from "../../config/sessions/forget.js";
 import { logVerbose } from "../../globals.js";
 import { createInternalHookEvent, triggerInternalHook } from "../../hooks/internal-hooks.js";
 import { scheduleGatewaySigusr1Restart, triggerMoltbotRestart } from "../../infra/restart.js";
@@ -343,4 +345,195 @@ export const handleAbortTrigger: CommandHandler = async (params, allowTextComman
     setAbortMemory(params.command.abortKey, true);
   }
   return { shouldContinue: false, reply: { text: "⚙️ Agent was aborted." } };
+};
+
+/**
+ * Handle /forget command - completely delete the current session from all storage.
+ */
+export const handleForgetCommand: CommandHandler = async (params, allowTextCommands) => {
+  if (!allowTextCommands) return null;
+  if (params.command.commandBodyNormalized !== "/forget") return null;
+  if (!params.command.isAuthorizedSender) {
+    logVerbose(
+      `Ignoring /forget from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
+    );
+    return { shouldContinue: false };
+  }
+
+  const { sessionKey, sessionEntry, sessionStore, storePath, cfg } = params;
+  if (!sessionKey || !sessionEntry || !storePath) {
+    return {
+      shouldContinue: false,
+      reply: { text: "⚠️ No active session to forget." },
+    };
+  }
+
+  // 1. Abort any running agent
+  if (sessionEntry.sessionId) {
+    abortEmbeddedPiRun(sessionEntry.sessionId);
+  }
+  clearSessionQueues([sessionKey, sessionEntry.sessionId]);
+
+  // 2. Resolve agent ID for memory deletion
+  const agentId = resolveSessionAgentId({ sessionKey, config: cfg });
+
+  // 3. Forget the session (delete from all storage)
+  const result = await forgetSession({
+    agentId,
+    sessionKey,
+    sessionEntry,
+    storePath,
+    createCheckpointBeforeDelete: true,
+  });
+
+  // 4. Clear from in-memory store
+  if (sessionStore) {
+    delete sessionStore[sessionKey];
+  }
+
+  // 5. Trigger internal hook
+  const hookEvent = createInternalHookEvent("command", "forget", sessionKey, {
+    sessionEntry,
+    sessionId: sessionEntry.sessionId,
+    commandSource: params.command.surface,
+    senderId: params.command.senderId,
+    forgetResult: result,
+  });
+  await triggerInternalHook(hookEvent);
+
+  // 6. Build response
+  if (result.success) {
+    const checkpointNote = result.checkpointId
+      ? `\nCheckpoint: ${result.checkpointId} (recoverable via CLI)`
+      : "";
+    return {
+      shouldContinue: false,
+      reply: {
+        text: `🗑️ Session deleted from local storage.${checkpointNote}\n\nNote: Messages still exist in Telegram and may exist in LLM provider logs.`,
+      },
+    };
+  } else {
+    return {
+      shouldContinue: false,
+      reply: {
+        text: `⚠️ Failed to completely delete session.\nErrors: ${result.errors.join(", ")}`,
+      },
+    };
+  }
+};
+
+/**
+ * Handle /private command - toggle ephemeral mode for the session.
+ */
+export const handlePrivateCommand: CommandHandler = async (params, allowTextCommands) => {
+  if (!allowTextCommands) return null;
+  const normalized = params.command.commandBodyNormalized;
+  if (normalized !== "/private" && !normalized.startsWith("/private ")) return null;
+  if (!params.command.isAuthorizedSender) {
+    logVerbose(
+      `Ignoring /private from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
+    );
+    return { shouldContinue: false };
+  }
+
+  const { sessionEntry, sessionStore, sessionKey, storePath } = params;
+  if (!sessionEntry || !sessionStore || !sessionKey) {
+    return {
+      shouldContinue: false,
+      reply: { text: "⚠️ No active session." },
+    };
+  }
+
+  // Parse argument: /private, /private on, /private off
+  const arg =
+    normalized === "/private" ? "" : normalized.slice("/private".length).trim().toLowerCase();
+
+  let newState: boolean;
+  if (arg === "on" || arg === "true" || arg === "1") {
+    newState = true;
+  } else if (arg === "off" || arg === "false" || arg === "0") {
+    newState = false;
+  } else if (arg === "") {
+    // Toggle
+    newState = !sessionEntry.ephemeral;
+  } else {
+    return {
+      shouldContinue: false,
+      reply: { text: "⚙️ Usage: /private [on|off]" },
+    };
+  }
+
+  // Update session entry
+  sessionEntry.ephemeral = newState;
+  if (newState) {
+    // Also exclude from memory when ephemeral
+    sessionEntry.excludeFromMemory = true;
+  }
+  sessionEntry.updatedAt = Date.now();
+  sessionStore[sessionKey] = sessionEntry;
+
+  if (storePath) {
+    await updateSessionStore(storePath, (store) => {
+      store[sessionKey] = sessionEntry;
+    });
+  }
+
+  if (newState) {
+    return {
+      shouldContinue: false,
+      reply: {
+        text: "🔒 Private mode ON. This conversation won't be saved locally.\n⚠️ If I restart, I'll lose all context from this session.",
+      },
+    };
+  } else {
+    return {
+      shouldContinue: false,
+      reply: { text: "🔓 Private mode OFF. Conversation will be saved normally." },
+    };
+  }
+};
+
+/**
+ * Handle /dont-remember command - exclude session from memory indexing.
+ */
+export const handleDontRememberCommand: CommandHandler = async (params, allowTextCommands) => {
+  if (!allowTextCommands) return null;
+  const normalized = params.command.commandBodyNormalized;
+  if (normalized !== "/dont-remember" && normalized !== "/dontremember") return null;
+  if (!params.command.isAuthorizedSender) {
+    logVerbose(
+      `Ignoring /dont-remember from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
+    );
+    return { shouldContinue: false };
+  }
+
+  const { sessionEntry, sessionStore, sessionKey, storePath } = params;
+  if (!sessionEntry || !sessionStore || !sessionKey) {
+    return {
+      shouldContinue: false,
+      reply: { text: "⚠️ No active session." },
+    };
+  }
+
+  // Mark session as excluded from memory
+  sessionEntry.excludeFromMemory = true;
+  sessionEntry.updatedAt = Date.now();
+  sessionStore[sessionKey] = sessionEntry;
+
+  if (storePath) {
+    await updateSessionStore(storePath, (store) => {
+      store[sessionKey] = sessionEntry;
+    });
+  }
+
+  // Note: Existing memory entries will be cleaned up on next memory sync
+  // when the session file is no longer found or the excludeFromMemory flag is checked
+  const memoryNote = "\nExisting memory entries will be cleaned up on next sync.";
+
+  return {
+    shouldContinue: false,
+    reply: {
+      text: `🧠 Memory exclusion enabled. This session won't appear in memory search.${memoryNote}`,
+    },
+  };
 };

@@ -51,7 +51,14 @@ export function resolveMirroredTranscriptText(params: {
   return trimmed ? trimmed : null;
 }
 
-async function ensureSessionHeader(params: {
+/**
+ * Ensure the session JSONL file exists with a proper header.
+ * Creates the file if it doesn't exist.
+ *
+ * This is used to persist sessions immediately on creation (P3 persistence fix),
+ * rather than waiting for the first message to be appended.
+ */
+export async function ensureSessionHeader(params: {
   sessionFile: string;
   sessionId: string;
 }): Promise<void> {
@@ -74,7 +81,9 @@ export async function appendAssistantMessageToSessionTranscript(params: {
   mediaUrls?: string[];
   /** Optional override for store path (mostly for tests). */
   storePath?: string;
-}): Promise<{ ok: true; sessionFile: string } | { ok: false; reason: string }> {
+}): Promise<
+  { ok: true; sessionFile: string } | { ok: false; reason: string; ephemeral?: boolean }
+> {
   const sessionKey = params.sessionKey.trim();
   if (!sessionKey) return { ok: false, reason: "missing sessionKey" };
 
@@ -88,6 +97,11 @@ export async function appendAssistantMessageToSessionTranscript(params: {
   const store = loadSessionStore(storePath, { skipCache: true });
   const entry = store[sessionKey] as SessionEntry | undefined;
   if (!entry?.sessionId) return { ok: false, reason: `unknown sessionKey: ${sessionKey}` };
+
+  // Skip JSONL write if session is ephemeral (privacy mode)
+  if (entry.ephemeral) {
+    return { ok: false, reason: "session is ephemeral", ephemeral: true };
+  }
 
   const sessionFile =
     entry.sessionFile?.trim() || resolveSessionTranscriptPath(entry.sessionId, params.agentId);
