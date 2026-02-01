@@ -1,13 +1,13 @@
 # SMRP (Smart Model Routing Protocol)
 
 ## 1. Overview
-The Smart Model Routing Protocol (SMRP) is a strategy designed to optimize AI Agent performance by dynamically allocating tasks to different model tiers based on computational complexity, creative requirement, and cost efficiency.
+The Smart Model Routing Protocol (SMRP) is a strategy designed to optimize AI Agent performance by dynamically allocating tasks to different model tiers based on computational complexity, creative requirements, and cost efficiency.
 
 ## 2. Model Tiers
 
 ### Tier 1: Edge Gateway (Flash)
 - **Target Models**: `gemini-3-flash`, `gpt-4o-mini`, `haiku`
-- **Use Cases**: 
+- **Use Cases**:
   - Real-time chat interaction
   - Simple file CRUD operations
   - Web searches and data retrieval
@@ -34,4 +34,4 @@ The Smart Model Routing Protocol (SMRP) is a strategy designed to optimize AI Ag
 If a task fails at a lower tier more than twice, the protocol dictates an automatic escalation to the next higher tier to ensure reliability and task completion.
 
 ## 4. Implementation in OpenClaw
-SMRP is implemented using the `sessions_spawn` tool to trigger specialized sub-agents while maintaining a responsive primary session.
+SMRP is implemented using the [`sessions_spawn`](../tools/subagents.md) tool to trigger specialized sub-agents while maintaining a responsive primary session.
