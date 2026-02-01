@@ -233,9 +233,10 @@ export function createSlackActions(providerId: string): ChannelMessageActionAdap
         // Resolve channel: to is used as-is, channelId and context need prefix
         const toParam = readStringParam(params, "to");
         const channelIdParam = readStringParam(params, "channelId");
-        const channelId = toParam
-          ?? (channelIdParam ? `channel:${channelIdParam}` : undefined)
-          ?? (toolContext?.currentChannelId ? `channel:${toolContext.currentChannelId}` : undefined);
+        const channelId =
+          toParam ??
+          (channelIdParam ? `channel:${channelIdParam}` : undefined) ??
+          (toolContext?.currentChannelId ? `channel:${toolContext.currentChannelId}` : undefined);
         if (!channelId) {
           throw new Error("thread-reply requires channelId or to parameter");
         }
