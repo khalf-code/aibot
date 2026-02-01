@@ -51,21 +51,23 @@ See [DISTILLATION.md](./DISTILLATION.md) for the full principles. The key ones:
 komatachi/
 ├── CLAUDE.md           # This file - project context
 ├── DISTILLATION.md     # Distillation principles and process
-└── scouting/           # Analysis of OpenClaw components
-    ├── context-management.md
-    ├── long-term-memory-search.md
-    ├── agent-alignment.md
-    └── session-management.md
+├── PROGRESS.md         # Progress tracking - READ THIS FIRST
+├── scouting/           # Analysis of OpenClaw components
+│   ├── context-management.md
+│   ├── long-term-memory-search.md
+│   ├── agent-alignment.md
+│   └── session-management.md
+└── src/
+    └── compaction/     # First distilled module (trial)
+        ├── index.ts
+        └── DECISIONS.md
 ```
 
 ## Current Status
 
-**Phase 1: Study** - In progress
+See [PROGRESS.md](./PROGRESS.md) for detailed status. **Read PROGRESS.md first** when starting a new session—it contains context that prevents re-discovering what we already know.
 
-We are analyzing OpenClaw's core components to understand:
-- Essential behaviors that must be preserved
-- Accidental complexity that can be discarded
-- Hard-won lessons embedded in edge cases
+**Update PROGRESS.md before each commit.** This is essential infrastructure for maintaining continuity across sessions.
 
 ## Working with This Codebase
 
