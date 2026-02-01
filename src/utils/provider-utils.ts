@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Utility functions for provider-specific logic and capabilities.
  */
 
