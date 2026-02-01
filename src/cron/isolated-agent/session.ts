@@ -36,10 +36,11 @@ export async function resolveCronSession(params: {
     skillsSnapshot: entry?.skillsSnapshot,
   };
 
-  store[params.sessionKey] = sessionEntry;
   await updateSessionStore(storePath, (currentStore) => {
     currentStore[params.sessionKey] = sessionEntry;
   });
 
-  return { storePath, store, sessionEntry, systemSent, isNewSession: true };
+  const updatedStore = loadSessionStore(storePath);
+
+  return { storePath, store: updatedStore, sessionEntry, systemSent, isNewSession: true };
 }
