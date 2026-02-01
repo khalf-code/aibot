@@ -1,12 +1,15 @@
 const ANSI_SGR_PATTERN = "\\x1b\\[[0-9;]*m";
-// OSC-8 hyperlinks: ESC ] 8 ; ; url ST ... text ... ESC ] 8 ; ; ST
+// OSC-8 hyperlinks: ESC ] 8 ; params ST text ESC ] 8 ; ST
 // Format: \x1b]8;;<params><ST>text\x1b]8;;<ST>
-// ST can be either: ESC \ (0x1B 0x5C) or BEL (0x07)
+// where params is typically "id=<id>;url=<url>" and ST is either ESC \ (0x1B 0x5C) or BEL (0x07)
 //
-// Match the opening sequence: \x1b]8;;<params><ST>
-// This also matches the closing sequence \x1b]8;;<ST> (with empty params)
-// Multiple passes will strip both opening and closing sequences, leaving the text intact
-const OSC8_PATTERN = "\\x1b\\]8;;[^\\x07]*?(?:\\x1b\\x5c|\\x07)";
+// Match both opening and closing sequences:
+// - Opening: \x1b]8;; followed by any chars up to ST (the params)
+// - Closing: \x1b]8;; immediately followed by ST (no params)
+//
+// The pattern matches either form, preserving the text between them.
+// Multiple passes handle both the opening and closing sequences.
+const OSC8_PATTERN = "\\x1b\\]8;;(?:[^\\x1b\\x07]|\\x1b(?!\\x5c))*(?:\\x1b\\x5c|\\x07)";
 
 const ANSI_REGEX = new RegExp(ANSI_SGR_PATTERN, "g");
 const OSC8_REGEX = new RegExp(OSC8_PATTERN, "g");
