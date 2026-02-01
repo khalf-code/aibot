@@ -13,18 +13,32 @@ import { formatForLog } from "./ws-log.js";
  * This ensures webchat history is preserved when using claude-cli or similar backends.
  * Fixes: #5660, #2977
  */
-function saveAssistantToTranscript(sessionKey: string, text: string): void {
+function saveAssistantToTranscript(chatLink: ChatRunEntry | undefined, text: string): void {
+  // Only persist for CLI providers - chatLink only exists for CLI runs
+  // Embedded backends handle their own persistence via the session manager
+  if (!chatLink) {
+    return;
+  }
+
+  const { sessionId, storePath, sessionFile } = chatLink;
+  if (!sessionId || !storePath) {
+    return;
+  }
+
   try {
-    const { storePath, entry } = loadSessionEntry(sessionKey);
-    const sessionId = entry?.sessionId;
-    if (!sessionId || !storePath) {
-      return;
-    }
-    const transcriptPath = entry?.sessionFile
-      ? entry.sessionFile
+    const transcriptPath = sessionFile
+      ? sessionFile
       : path.join(path.dirname(storePath), `${sessionId}.jsonl`);
+
+    // Create transcript file if missing (first message scenario)
     if (!fs.existsSync(transcriptPath)) {
-      return;
+      const header = {
+        type: "session",
+        sessionId,
+        createdAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(transcriptPath, JSON.stringify(header) + "
+", "utf-8");
     }
     const now = Date.now();
     const messageId = randomUUID().slice(0, 8);
@@ -67,6 +81,12 @@ function shouldSuppressHeartbeatBroadcast(runId: string): boolean {
 }
 
 export type ChatRunEntry = {
+  /** Session ID for transcript path resolution (CLI runs only) */
+  sessionId?: string;
+  /** Store path for transcript path resolution (CLI runs only) */
+  storePath?: string;
+  /** Direct session file path if available (CLI runs only) */
+  sessionFile?: string;
   sessionKey: string;
   clientRunId: string;
 };
@@ -213,6 +233,7 @@ export function createAgentEventHandler({
   };
 
   const emitChatFinal = (
+    chatLink: ChatRunEntry | undefined,
     sessionKey: string,
     clientRunId: string,
     seq: number,
@@ -223,9 +244,9 @@ export function createAgentEventHandler({
     chatRunState.buffers.delete(clientRunId);
     chatRunState.deltaSentAt.delete(clientRunId);
     if (jobState === "done") {
-      // Persist assistant message to transcript for CLI backends
-      if (text && sessionKey) {
-        saveAssistantToTranscript(sessionKey, text);
+      // Persist assistant message to transcript for CLI backends only
+      if (text) {
+        saveAssistantToTranscript(chatLink, text);
       }
       const payload = {
         runId: clientRunId,
@@ -324,6 +345,7 @@ export function createAgentEventHandler({
             return;
           }
           emitChatFinal(
+            finished,
             finished.sessionKey,
             finished.clientRunId,
             evt.seq,
@@ -332,6 +354,7 @@ export function createAgentEventHandler({
           );
         } else {
           emitChatFinal(
+            undefined,
             sessionKey,
             evt.runId,
             evt.seq,

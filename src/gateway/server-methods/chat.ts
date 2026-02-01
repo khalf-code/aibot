@@ -368,7 +368,7 @@ export const chatHandlers: GatewayRequestHandlers = {
         return;
       }
     }
-    const { cfg, entry } = loadSessionEntry(p.sessionKey);
+    const { cfg, storePath, entry } = loadSessionEntry(p.sessionKey);
     const timeoutMs = resolveAgentTimeoutMs({
       cfg,
       overrideMs: p.timeoutMs,
@@ -511,7 +511,13 @@ export const chatHandlers: GatewayRequestHandlers = {
           onAgentRunStart: (agentRunId) => {
             agentRunStarted = true;
             // Register link between agent runId and client runId for proper event routing
-            context.addChatRun(agentRunId, { clientRunId, sessionKey: p.sessionKey });
+            context.addChatRun(agentRunId, {
+              clientRunId,
+              sessionKey: p.sessionKey,
+              sessionId: entry?.sessionId,
+              storePath,
+              sessionFile: entry?.sessionFile,
+            });
           },
           onModelSelected: (ctx) => {
             prefixContext.provider = ctx.provider;
