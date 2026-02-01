@@ -92,7 +92,7 @@ Gateway RPC ──► Controller ──► State ──► View (props) ──�
 ### 3.1 Providers（提供商管理）
 
 
-![](https://fastly.jsdelivr.net/gh/bucketio/img14@main/2026/01/30/1769739854704-11fe00ba-4faf-469e-b276-9a0a7f1f1bb8.png)
+![UI Overview](../../docs/assets/ui-overview.png)
 
 **文件**：`components/providers-content.ts`
 
@@ -136,7 +136,7 @@ interface ModelConfig {
 ### 3.2 Agent（代理设置）
 
 
-![](https://fastly.jsdelivr.net/gh/bucketio/img7@main/2026/01/30/1769739910169-a2a59d26-dba2-48a5-b698-5992ce03ec3b.png)
+![Providers Config](../../docs/assets/providers-config.png)
 
 
 **文件**：`components/agent-content.ts`
@@ -169,7 +169,7 @@ interface ModelConfig {
 ### 3.3 Gateway（网关配置）
 
 
-![](https://fastly.jsdelivr.net/gh/bucketio/img17@main/2026/01/30/1769740158099-b9932a50-3046-4be8-af71-afe7cbeb0d23.png)
+![Gateway Config](../../docs/assets/gateway-config.png)
 
 
 **文件**：`components/gateway-content.ts`
@@ -194,7 +194,7 @@ interface ModelConfig {
 
 ### 3.4 Channels（通道配置）
 
-![](https://fastly.jsdelivr.net/gh/bucketio/img6@main/2026/01/30/1769739948515-cbda86e3-289a-41c6-8c17-3339fa11566e.png)
+![Channels Config](../../docs/assets/channels-config.png)
 
 **文件**：`components/channels-content.ts`、`types/channel-config.ts`
 
@@ -235,7 +235,7 @@ interface TelegramChannelConfig {
 
 ### 3.5 Workspace（工作区文件）
 
-![](https://fastly.jsdelivr.net/gh/bucketio/img4@main/2026/01/30/1769739977362-785d8a48-1241-4df0-8ac7-14400192a473.png)
+![Workspace Config](../../docs/assets/cron-config.png)
 
 **文件**：`components/workspace-content.ts`、`controllers/workspace.ts`
 
@@ -280,7 +280,7 @@ interface TelegramChannelConfig {
 
 #### 3.6.1 命令执行权限（Exec Tab）
 
-![](https://fastly.jsdelivr.net/gh/bucketio/img0@main/2026/01/30/1769740071716-0ef49eb2-2dd8-41b2-af6c-151d287f0d56.png)
+![Permissions Exec](../../docs/assets/permissions-config.png)
 
 
 **目标选择**：
@@ -325,7 +325,7 @@ interface ExecApprovalsAgent {
 
 #### 3.6.2 工具权限（Tools Tab）
 
-![](https://fastly.jsdelivr.net/gh/bucketio/img11@main/2026/01/30/1769740023072-45c45c88-5198-435b-8382-7178450f3ca8.png)
+![Permissions Tools](../../docs/assets/skills-config.png)
 **预设配置档案**：
 
 | 档案 | 说明 |
