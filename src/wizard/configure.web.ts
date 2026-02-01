@@ -197,6 +197,7 @@ export async function runConfigureWizardWeb(
       [
         "This stores API keys in openclaw.json under env.vars.",
         "That is convenient, but it is plaintext on disk.",
+        "Option: paste a 1Password reference like op://Vault/Item/field to avoid plaintext (requires op CLI signed in).",
         "If you prefer, set these as real environment variables instead.",
       ].join("\n"),
       "Model API keys",
