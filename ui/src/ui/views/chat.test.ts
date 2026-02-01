@@ -109,7 +109,7 @@ describe("chat view", () => {
     render(renderChat(createProps({ messages })), container);
 
     const text = container.textContent ?? "";
-    expect(text).toContain("hidden");
+    expect(text).toMatch(/Showing last \d+ messages \(\d+ hidden\)/);
   });
 
   it("shows a new session button when aborting is unavailable", () => {
