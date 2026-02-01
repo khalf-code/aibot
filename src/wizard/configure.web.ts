@@ -7,6 +7,7 @@ import { setupSkills } from "../commands/onboard-skills.js";
 import { readConfigFileSnapshot, writeConfigFile, resolveGatewayPort } from "../config/config.js";
 import { logConfigUpdated } from "../config/logging.js";
 import { defaultRuntime } from "../runtime.js";
+import { unifiedDiff } from "../utils/unified-diff.js";
 
 type WebConfigureSection =
   | "gateway"
@@ -600,6 +601,26 @@ export async function runConfigureWizardWeb(
         },
       },
     };
+  }
+
+  // Preview changes (git-style)
+  try {
+    const before = JSON.stringify(baseConfig ?? {}, null, 2);
+    const after = JSON.stringify(next ?? {}, null, 2);
+    const diff = unifiedDiff(before, after, { context: 3, maxLines: 450 });
+    await prompter.note(diff, "Config diff");
+  } catch {
+    // best-effort preview
+  }
+
+  const ok = await prompter.confirm({
+    message: "Apply these changes to openclaw.json?",
+    initialValue: true,
+  });
+  if (!ok) {
+    await prompter.outro("Cancelled. No changes were written.");
+    runtime.exit(0);
+    return;
   }
 
   await writeConfigFile(next);
