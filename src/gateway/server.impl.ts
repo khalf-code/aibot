@@ -260,7 +260,16 @@ export async function startGatewayServer(
   let hooksConfig = runtimeConfig.hooksConfig;
   const canvasHostEnabled = runtimeConfig.canvasHostEnabled;
 
-  const wizardRunner = opts.wizardRunner ?? runOnboardingWizard;
+  const wizardRunner =
+    opts.wizardRunner ??
+    (async (wizardOpts, runtime, prompter) => {
+      const wizardId = (wizardOpts as any).wizard as "onboarding" | "configure" | undefined;
+      if (wizardId === "configure") {
+        const mod = await import("../wizard/configure.web.js");
+        return mod.runConfigureWizardWeb(wizardOpts as any, runtime, prompter);
+      }
+      return runOnboardingWizard(wizardOpts as any, runtime, prompter);
+    });
   const { wizardSessions, findRunningWizard, purgeWizardSession } = createWizardSessionTracker();
 
   const deps = createDefaultDeps();

@@ -52,6 +52,7 @@ import {
   handleUpdated,
 } from "./app-lifecycle";
 import { renderApp } from "./app-render";
+import { cancelWizard, nextWizard, startConfigureWizard } from "./app-wizard";
 import {
   exportLogs as exportLogsInternal,
   handleChatScroll as handleChatScrollInternal,
@@ -149,6 +150,13 @@ export class OpenClawApp extends LitElement {
   @state() execApprovalBusy = false;
   @state() execApprovalError: string | null = null;
   @state() pendingGatewayUrl: string | null = null;
+
+  @state() wizardLoading = false;
+  @state() wizardSessionId: string | null = null;
+  @state() wizardStep: import("./controllers/wizard").WizardStep | null = null;
+  @state() wizardError: string | null = null;
+  @state() wizardDone = false;
+  @state() wizardAnswer: unknown = undefined;
 
   @state() configLoading = false;
   @state() configRaw = "{\n}\n";
@@ -286,6 +294,18 @@ export class OpenClawApp extends LitElement {
 
   connect() {
     connectGatewayInternal(this as unknown as Parameters<typeof connectGatewayInternal>[0]);
+  }
+
+  startConfigureWizard() {
+    return startConfigureWizard(this);
+  }
+
+  nextWizard() {
+    return nextWizard(this);
+  }
+
+  cancelWizard() {
+    return cancelWizard(this);
   }
 
   handleChatScroll(event: Event) {
