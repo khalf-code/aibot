@@ -3,14 +3,12 @@ import os from "node:os";
 import path from "node:path";
 
 import type { Api, Model } from "@mariozechner/pi-ai";
-import {
-  createAgentSession,
-  discoverAuthStorage,
-  discoverModels,
-} from "@mariozechner/pi-coding-agent";
+import { createAgentSession } from "@mariozechner/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 
-import type { MoltbotConfig } from "../../../config/config.js";
+import { discoverAuthStorage, discoverModels } from "../../pi-model-discovery.js";
+
+import type { OpenClawConfig } from "../../../config/config.js";
 import { runEmbeddedAttempt } from "./attempt.js";
 
 vi.mock("@mariozechner/pi-coding-agent", async () => {
@@ -70,7 +68,7 @@ describe("runEmbeddedAttempt (openai-completions tool routing)", () => {
         sessionFile,
         workspaceDir,
         agentDir,
-        config: {} satisfies MoltbotConfig,
+        config: {} satisfies OpenClawConfig,
         prompt: "hi",
         provider: "vllm",
         modelId: model.id,
@@ -117,7 +115,7 @@ describe("runEmbeddedAttempt (openai-completions tool routing)", () => {
         sessionFile,
         workspaceDir,
         agentDir,
-        config: {} satisfies MoltbotConfig,
+        config: {} satisfies OpenClawConfig,
         prompt: "hi",
         provider: "vllm",
         modelId: model.id,
