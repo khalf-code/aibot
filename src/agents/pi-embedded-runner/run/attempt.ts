@@ -56,6 +56,7 @@ import {
 } from "../../skills.js";
 import { buildSystemPromptParams } from "../../system-prompt-params.js";
 import { buildSystemPromptReport } from "../../system-prompt-report.js";
+import { sanitizeToolUseResultPairing } from "../../session-transcript-repair.js";
 import { resolveTranscriptPolicy } from "../../transcript-policy.js";
 import { DEFAULT_BOOTSTRAP_FILENAME } from "../../workspace.js";
 import { isAbortError } from "../abort.js";
@@ -545,9 +546,15 @@ export async function runEmbeddedAttempt(
           validated,
           getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
         );
-        cacheTrace?.recordStage("session:limited", { messages: limited });
-        if (limited.length > 0) {
-          activeSession.agent.replaceMessages(limited);
+        // Re-run tool_use/tool_result pairing repair after limiting, as limiting can
+        // cut off tool_use blocks while keeping their orphaned tool_result blocks.
+        // See: https://github.com/openclaw/openclaw/issues/4650
+        const repaired = transcriptPolicy.repairToolUseResultPairing
+          ? sanitizeToolUseResultPairing(limited)
+          : limited;
+        cacheTrace?.recordStage("session:limited", { messages: repaired });
+        if (repaired.length > 0) {
+          activeSession.agent.replaceMessages(repaired);
         }
       } catch (err) {
         sessionManager.flushPendingToolResults?.();
