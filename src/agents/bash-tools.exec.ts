@@ -760,7 +760,7 @@ export function createExecTool(
   );
   const allowBackground = defaults?.allowBackground ?? true;
   const defaultTimeoutSec =
-    typeof defaults?.timeoutSec === "number" && defaults.timeoutSec > 0
+    typeof defaults?.timeoutSec === "number" && defaults.timeoutSec >= 0
       ? defaults.timeoutSec
       : 1800;
   const defaultPathPrepend = normalizePathPrepend(defaults?.pathPrepend);
@@ -1243,7 +1243,11 @@ export function createExecTool(
           const noticeSeconds = Math.max(1, Math.round(approvalRunningNoticeMs / 1000));
           const commandText = params.command;
           const effectiveTimeout =
-            typeof params.timeout === "number" ? params.timeout : defaultTimeoutSec;
+            typeof params.timeout === "number"
+              ? params.timeout
+              : params.background
+                ? 0
+                : defaultTimeoutSec;
           const warningText = warnings.length ? `${warnings.join("\n")}\n\n` : "";
 
           void (async () => {
@@ -1438,7 +1442,11 @@ export function createExecTool(
       }
 
       const effectiveTimeout =
-        typeof params.timeout === "number" ? params.timeout : defaultTimeoutSec;
+        typeof params.timeout === "number"
+          ? params.timeout
+          : params.background
+            ? 0
+            : defaultTimeoutSec;
       const getWarningText = () => (warnings.length ? `${warnings.join("\n")}\n\n` : "");
       const usePty = params.pty === true && !sandbox;
       const run = await runExecProcess({
