@@ -508,8 +508,10 @@ export const chatHandlers: GatewayRequestHandlers = {
           abortSignal: abortController.signal,
           images: parsedImages.length > 0 ? parsedImages : undefined,
           disableBlockStreaming: true,
-          onAgentRunStart: () => {
+          onAgentRunStart: (agentRunId) => {
             agentRunStarted = true;
+            // Register link between agent runId and client runId for proper event routing
+            context.addChatRun(agentRunId, { clientRunId, sessionKey: p.sessionKey });
           },
           onModelSelected: (ctx) => {
             prefixContext.provider = ctx.provider;

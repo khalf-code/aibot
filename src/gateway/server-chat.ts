@@ -1,9 +1,50 @@
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { normalizeVerboseLevel } from "../auto-reply/thinking.js";
 import { loadConfig } from "../config/config.js";
 import { type AgentEventPayload, getAgentRunContext } from "../infra/agent-events.js";
 import { resolveHeartbeatVisibility } from "../infra/heartbeat-visibility.js";
 import { loadSessionEntry } from "./session-utils.js";
 import { formatForLog } from "./ws-log.js";
+
+/**
+ * Persist assistant message to transcript for CLI backend responses.
+ * This ensures webchat history is preserved when using claude-cli or similar backends.
+ * Fixes: #5660, #2977
+ */
+function saveAssistantToTranscript(sessionKey: string, text: string): void {
+  try {
+    const { storePath, entry } = loadSessionEntry(sessionKey);
+    const sessionId = entry?.sessionId;
+    if (!sessionId || !storePath) {
+      return;
+    }
+    const transcriptPath = entry?.sessionFile
+      ? entry.sessionFile
+      : path.join(path.dirname(storePath), `${sessionId}.jsonl`);
+    if (!fs.existsSync(transcriptPath)) {
+      return;
+    }
+    const now = Date.now();
+    const messageId = randomUUID().slice(0, 8);
+    const transcriptEntry = {
+      type: "message",
+      id: messageId,
+      timestamp: new Date(now).toISOString(),
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text }],
+        timestamp: now,
+        stopReason: "end_turn",
+        usage: { input: 0, output: 0, totalTokens: 0 },
+      },
+    };
+    fs.appendFileSync(transcriptPath, JSON.stringify(transcriptEntry) + "\n", "utf-8");
+  } catch {
+    // Silently ignore persistence errors to avoid disrupting the chat flow
+  }
+}
 
 /**
  * Check if webchat broadcasts should be suppressed for heartbeat runs.
@@ -182,6 +223,10 @@ export function createAgentEventHandler({
     chatRunState.buffers.delete(clientRunId);
     chatRunState.deltaSentAt.delete(clientRunId);
     if (jobState === "done") {
+      // Persist assistant message to transcript for CLI backends
+      if (text && sessionKey) {
+        saveAssistantToTranscript(sessionKey, text);
+      }
       const payload = {
         runId: clientRunId,
         sessionKey,
