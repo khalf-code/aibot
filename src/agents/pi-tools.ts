@@ -226,6 +226,16 @@ export function createOpenClawCodingTools(options?: {
   const workspaceRoot = options?.workspaceDir ?? process.cwd();
   // Check if filesystem restriction is enabled (restricts read/write/edit to workspace)
   const fsRestrictToWorkspace = options?.config?.tools?.fs?.restrictToWorkspace === true;
+
+  // Warn if both sandbox and fs restriction are enabled (sandbox takes precedence for write/edit)
+  if (sandboxRoot && fsRestrictToWorkspace) {
+    logWarn(
+      "Both Docker sandbox and tools.fs.restrictToWorkspace are enabled. " +
+        "Docker sandbox takes precedence: write/edit tools will be disabled (not restricted to workspace). " +
+        "Use one setting or the other, not both."
+    );
+  }
+
   // Use sandbox path guards when Docker sandbox OR fs restriction is enabled
   const effectiveFsRoot = sandboxRoot ?? (fsRestrictToWorkspace ? workspaceRoot : undefined);
   const applyPatchConfig = options?.config?.tools?.exec?.applyPatch;
