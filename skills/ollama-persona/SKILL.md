@@ -82,8 +82,33 @@ Edit the generated Modelfile at `~/.ollama/<name>.modelfile` to tune:
 - `PARAMETER top_p` - Nucleus sampling (0.9 default)
 - System prompt - Add catchphrases, topics, forbidden words
 
+## Interactive Chat
+
+For multi-turn conversations, use the chat script:
+
+```bash
+python3 scripts/chat.py myagent
+```
+
+Commands in chat:
+- `quit` - Exit the chat
+- `clear` - Reset conversation history
+
+## Persona Templates
+
+Pre-built templates for common use cases in `templates/`:
+
+| Template | Use Case |
+|----------|----------|
+| `shitposter.md` | Social media, meme content, greentext |
+| `shopkeeper.md` | In-game NPCs, service providers |
+| `tinfoil.md` | Conspiracy-adjacent humor, pattern finding |
+
+Copy relevant sections from templates into your system prompt for quick persona creation.
+
 ## Troubleshooting
 
 - **Model too slow**: Try `llama3.2:1b` or enable GPU offloading
 - **Out of memory**: Set `OLLAMA_NUM_GPU=0` for CPU-only
 - **Server not running**: `ollama serve &` or check port 11434
+- **Chat history too long**: Use `clear` command to reset context
