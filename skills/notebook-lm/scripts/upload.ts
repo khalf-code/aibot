@@ -2,8 +2,8 @@
 
 import { chromium, type Page } from "playwright";
 import { resolve } from "path";
-import { homedir } from "os";
 import { existsSync } from "fs";
+import { expandHome, requireSecureProfile, logAccess } from "./security.js";
 
 type Config = {
   user_data_dir?: string;
@@ -21,13 +21,6 @@ type Args = {
 const DEFAULT_USER_DATA_DIR = "~/.config/moltbot/notebook-lm-chrome";
 const DEFAULT_UPLOAD_TIMEOUT_MS = 60000;
 const configPath = resolve(import.meta.dir, "../references/config.json");
-
-function expandHome(inputPath: string): string {
-  if (inputPath.startsWith("~/")) {
-    return resolve(homedir(), inputPath.slice(2));
-  }
-  return inputPath;
-}
 
 async function loadConfig(): Promise<Config> {
   const file = Bun.file(configPath);
@@ -164,6 +157,8 @@ async function main() {
     throw new Error(`Chrome profile not found at ${userDataDir}. Run 'notebook.sh auth' first.`);
   }
 
+  requireSecureProfile(userDataDir, "upload");
+
   const uploadTimeoutMs = config.upload_timeout_ms ?? DEFAULT_UPLOAD_TIMEOUT_MS;
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: true,
@@ -190,6 +185,12 @@ async function main() {
 
   await waitForProcessing(page, uploadTimeoutMs);
   await context.close();
+
+  logAccess({
+    action: "upload",
+    profilePath: userDataDir,
+    success: true,
+  });
 
   console.log("Upload completed.");
 }

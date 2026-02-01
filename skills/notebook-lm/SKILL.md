@@ -2,6 +2,23 @@
 
 Automate Google NotebookLM uploads using Playwright (Bun runtime).
 
+## Security Notice
+
+This skill stores a persistent Chrome profile containing Google session cookies.
+
+**Security measures implemented:**
+- Directory permissions enforced to 700 (owner-only)
+- Runtime permission validation before accessing profile
+- Access logging to `~/.config/moltbot/notebook-lm-access.log`
+- Fail-fast if permissions are insecure
+
+**Security requirements:**
+- Profile directory: `~/.config/moltbot/notebook-lm-chrome/` (mode 700)
+- Config directory: `~/.config/moltbot/` (mode 700)
+- Run `tests/test-security.sh` to verify security posture
+
+**WARNING**: The Chrome profile contains Google authentication cookies that could allow full account access if stolen. Ensure proper file permissions are maintained.
+
 ## Usage
 
 ```bash

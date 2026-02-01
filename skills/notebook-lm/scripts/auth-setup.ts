@@ -3,8 +3,13 @@
 import { chromium } from "playwright";
 import { mkdir } from "fs/promises";
 import { resolve } from "path";
-import { homedir } from "os";
 import { existsSync } from "fs";
+import {
+  expandHome,
+  setSecurePermissions,
+  requireSecureProfile,
+  logAccess,
+} from "./security.js";
 
 type Config = {
   auth_state_path?: string;
@@ -15,13 +20,6 @@ const DEFAULT_USER_DATA_DIR = "~/.config/moltbot/notebook-lm-chrome";
 const NOTEBOOKLM_URL = "https://notebooklm.google.com/";
 
 const configPath = resolve(import.meta.dir, "../references/config.json");
-
-function expandHome(inputPath: string): string {
-  if (inputPath.startsWith("~/")) {
-    return resolve(homedir(), inputPath.slice(2));
-  }
-  return inputPath;
-}
 
 async function loadConfig(): Promise<Config> {
   const file = Bun.file(configPath);
@@ -48,9 +46,18 @@ async function main() {
   const config = await loadConfig();
   const userDataDir = expandHome(config.user_data_dir ?? DEFAULT_USER_DATA_DIR);
 
-  await mkdir(userDataDir, { recursive: true });
+  await mkdir(userDataDir, { recursive: true, mode: 0o700 });
+
+  const permResult = setSecurePermissions(userDataDir);
+  if (!permResult.success) {
+    console.error(`Security warning: ${permResult.error}`);
+  }
 
   const isFirstRun = !existsSync(resolve(userDataDir, "Default"));
+
+  if (!isFirstRun) {
+    requireSecureProfile(userDataDir, "auth");
+  }
 
   // Use persistent context with real Chrome profile
   // This bypasses Google's bot detection since it's a real profile
@@ -79,7 +86,19 @@ async function main() {
 
   await context.close();
 
+  const finalPermResult = setSecurePermissions(userDataDir);
+  if (!finalPermResult.success) {
+    console.error(`Warning: Could not secure profile: ${finalPermResult.error}`);
+  }
+
+  logAccess({
+    action: "auth",
+    profilePath: userDataDir,
+    success: true,
+  });
+
   console.log(`\nProfile saved to ${userDataDir}`);
+  console.log("Permissions secured (700).");
   console.log("You can now use 'notebook.sh upload' commands.");
 }
 
