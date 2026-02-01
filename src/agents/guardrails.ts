@@ -330,6 +330,13 @@ const GRAYSWAN_DEFAULT_TIMEOUT_MS = 30_000;
 
 const grayswanLogger = createSubsystemLogger("guardrails/grayswan");
 
+function makeGrayswanMessage(
+  role: GrayswanMonitorMessage["role"],
+  content: string,
+): GrayswanMonitorMessage {
+  return { role, content };
+}
+
 function resolveGrayswanConfig(context: GuardrailContext): GrayswanGuardrailConfig | undefined {
   const cfg = context.config?.guardrails?.grayswan;
   if (!cfg) {
@@ -711,9 +718,9 @@ function createGrayswanGuardrail(): Guardrail {
         return;
       }
       const includeHistory = stageCfg?.includeHistory !== false;
-      const messages = includeHistory
-        ? [...toGrayswanMessages(input.messages), { role: "user", content: prompt }]
-        : [{ role: "user", content: prompt }];
+      const messages: GrayswanMonitorMessage[] = includeHistory
+        ? [...toGrayswanMessages(input.messages), makeGrayswanMessage("user", prompt)]
+        : [makeGrayswanMessage("user", prompt)];
       if (messages.length === 0) {
         return;
       }
@@ -765,9 +772,9 @@ function createGrayswanGuardrail(): Guardrail {
       }
       const toolSummary = buildToolCallSummary(input);
       const includeHistory = stageCfg?.includeHistory !== false;
-      const messages = includeHistory
-        ? [...toGrayswanMessages(input.messages), { role: "assistant", content: toolSummary }]
-        : [{ role: "assistant", content: toolSummary }];
+      const messages: GrayswanMonitorMessage[] = includeHistory
+        ? [...toGrayswanMessages(input.messages), makeGrayswanMessage("assistant", toolSummary)]
+        : [makeGrayswanMessage("assistant", toolSummary)];
       if (messages.length === 0) {
         return;
       }
@@ -819,9 +826,9 @@ function createGrayswanGuardrail(): Guardrail {
       }
       const toolText = extractToolResultText(input.result).trim();
       const includeHistory = stageCfg?.includeHistory !== false;
-      const messages = includeHistory
-        ? [...toGrayswanMessages(input.messages), { role: "tool", content: toolText }]
-        : [{ role: "tool", content: toolText }];
+      const messages: GrayswanMonitorMessage[] = includeHistory
+        ? [...toGrayswanMessages(input.messages), makeGrayswanMessage("tool", toolText)]
+        : [makeGrayswanMessage("tool", toolText)];
       if (!toolText || messages.length === 0) {
         return;
       }
@@ -886,7 +893,10 @@ function createGrayswanGuardrail(): Guardrail {
       }
       const includeHistory = stageCfg?.includeHistory !== false;
       const historyMessages = includeHistory ? toGrayswanMessages(input.messages) : [];
-      const messages = [...historyMessages, { role: "assistant", content: assistantText }];
+      const messages: GrayswanMonitorMessage[] = [
+        ...historyMessages,
+        makeGrayswanMessage("assistant", assistantText),
+      ];
       let response: GrayswanMonitorResponse | null = null;
       try {
         response = await callGrayswanMonitor({ cfg, messages });

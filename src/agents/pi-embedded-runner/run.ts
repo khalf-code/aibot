@@ -370,6 +370,13 @@ export async function runEmbeddedPiAgent(
 
           const { aborted, promptError, timedOut, sessionIdUsed, lastAssistant, guardrailBlock } =
             attempt;
+          const guardrailBlockSummary = guardrailBlock
+            ? {
+                stage: guardrailBlock.stage,
+                guardrailId: guardrailBlock.guardrailId,
+                reason: guardrailBlock.reason,
+              }
+            : undefined;
 
           if (guardrailBlock) {
             const isBeforeRequest = guardrailBlock.stage === "before_request";
@@ -420,11 +427,7 @@ export async function runEmbeddedPiAgent(
                 agentMeta,
                 aborted,
                 systemPromptReport: attempt.systemPromptReport,
-                guardrailBlock: {
-                  stage: guardrailBlock.stage,
-                  guardrailId: guardrailBlock.guardrailId,
-                  reason: guardrailBlock.reason,
-                },
+                guardrailBlock: guardrailBlockSummary,
               },
               didSendViaMessagingTool: attempt.didSendViaMessagingTool,
               messagingToolSentTexts: attempt.messagingToolSentTexts,
@@ -730,13 +733,7 @@ export async function runEmbeddedPiAgent(
               agentMeta,
               aborted,
               systemPromptReport: attempt.systemPromptReport,
-              guardrailBlock: guardrailBlock
-                ? {
-                    stage: guardrailBlock.stage,
-                    guardrailId: guardrailBlock.guardrailId,
-                    reason: guardrailBlock.reason,
-                  }
-                : undefined,
+              guardrailBlock: guardrailBlockSummary,
               // Handle client tool calls (OpenResponses hosted tools)
               stopReason: attempt.clientToolCall ? "tool_calls" : undefined,
               pendingToolCalls: attempt.clientToolCall
