@@ -96,3 +96,8 @@ workspace/projects/*/src/**
 
 # Contention lock file (runtime artifact from conflict-detector)
 .sharps-edge-active.json
+
+# Recursive learning data (picks, lessons, model weights - runtime generated)
+workspace/data/picks/**
+workspace/data/lessons/**
+workspace/data/model-weights.json

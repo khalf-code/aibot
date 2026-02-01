@@ -11,11 +11,22 @@ they combine into a final edge score.
 ```
 The Odds API (500/mo)     → Lines from multiple books → Line comparison engine
 ESPN Public Endpoints      → Injuries, lineups, stats  → Context engine
+ESPN News/Headlines        → Team drama, coaching, motivation → Social intel engine
 Open-Meteo                → Wind, rain, temp, humidity → Weather impact engine
                                     ↓
-                          Edge Detection Models
+                          Edge Detection Models (6)
                                     ↓
                      Confidence-weighted edge score
+                                    ↓
+                          track_pick → CLV tracking
+                                    ↓
+                     review_accuracy → weight adjustments
+                                    ↓
+                         ┌──── RECURSIVE LOOP ────┐
+                         │  Every pick teaches.    │
+                         │  Every review sharpens. │
+                         │  System gets smarter.   │
+                         └─────────────────────────┘
 ```
 
 ## Model 1: Reverse Line Movement (RLM)
@@ -92,6 +103,37 @@ opening vs current lines from multiple books.
 
 **Weight**: Moderate as standalone. High when confirming other signals.
 
+## Model 6: Social / Locker Room Intelligence
+
+**Signal**: Team chemistry, coaching conflicts, player drama, motivation factors.
+
+**Logic**:
+- Coaching instability (fired, interim coach) = strong negative signal
+- Locker room rifts, player trade requests = moderate negative
+- Contract disputes, suspensions, off-field legal = moderate negative
+- Revenge games, playoff implications, elimination = positive motivation
+- Winning/losing streaks = momentum context
+- Key player returns from injury = positive signal
+
+**Categories tracked**:
+- `coaching_change` (weight: 8) - New/interim coach disrupts schemes
+- `locker_room` (weight: 7) - Team chemistry breakdown
+- `player_wants_out` (weight: 7) - Distracted, disengaged star
+- `effort_concerns` (weight: 7) - Team quit signals
+- `suspension` (weight: 6) - Missing key player, unpriced if role player
+- `coaching_frustration` (weight: 5) - Scheme/play-calling conflicts
+- `contract_dispute` (weight: 5) - Holdout, unhappy player
+- `high_stakes` (weight: 4) - Playoff implications boost effort
+- `momentum` (weight: 3) - Streaks matter for confidence
+
+**Data needed**: ESPN team news headlines, scanned for sentiment patterns.
+
+**Weight**: Moderate. The market systematically underprices team dysfunction
+because it's "soft" data. That's exactly why it's valuable.
+
+**Edge insight**: A team with 3+ negative social signals trading at a neutral
+line is likely overvalued. The public bets names and records, not chemistry.
+
 ## Combining Models → Edge Score
 
 Each model outputs:
@@ -121,7 +163,7 @@ edge_score = Σ (model_confidence × model_weight) / Σ weights_of_active_models
 |----------|---------------|---------------------|
 | `/quick-check` | Line Value + RLM | <2s |
 | `/line-check` | Line Value + RLM + Stale Line | <3s |
-| `/full-analysis` | All 5 models | <5s |
+| `/full-analysis` | All 6 models | <5s |
 
 ## CLV Tracking
 
@@ -152,3 +194,54 @@ Every Sunday:
 7. Update this document's weight table if significant shifts occur
 
 This is a living document. It improves as the system learns.
+
+## Recursive Learning System
+
+The system has two dedicated tools for continuous improvement:
+
+### track_pick
+Records every recommendation with full context:
+- Game, sport, pick type, direction, line at pick
+- Edge score, which models fired, reasoning
+- Later backfilled: closing line, CLV, outcome
+
+Every pick the system makes is stored. No exceptions. This is the training data.
+
+### review_accuracy
+The brain. Analyzes stored picks and generates actionable insights:
+
+- **weekly**: Full review - win rate, CLV, edge calibration, lessons learned
+- **model_performance**: Which models contribute to wins vs losses
+- **sport_breakdown**: Where are we sharp, where are we leaking
+- **lessons**: View accumulated lessons from past reviews
+- **weights**: Suggest and apply model weight adjustments (±5% max per cycle)
+
+### The Learning Loop
+
+```
+1. Danno analyzes game using check_edge (runs models)
+2. If edge found → track_pick records the recommendation
+3. After game → track_pick result backfills outcome + CLV
+4. Sunday → review_accuracy weekly runs full analysis
+5. review_accuracy weights adjusts model weights based on performance
+6. Lessons stored in data/lessons/ for long-term memory
+7. Next check_edge uses updated weights
+8. Repeat forever. Each cycle makes the system sharper.
+```
+
+### Key Learning Metrics
+
+| Metric | Meaning | Target |
+|--------|---------|--------|
+| CLV | Are we finding value before the market? | Positive average |
+| Edge calibration | Do high scores win more than low scores? | Yes |
+| Model contribution | Which models drive wins? | Weight up winners |
+| Sport efficiency | Where do we have an actual edge? | Focus resources |
+
+### Anti-Overfitting Safeguards
+
+- Maximum ±5% weight change per review cycle
+- Minimum 5 picks per model before adjusting its weight
+- High/medium/low confidence labels on weight suggestions
+- Sample size warnings when data is insufficient
+- Lessons stored with evidence chain for auditability

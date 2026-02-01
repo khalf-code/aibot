@@ -101,9 +101,78 @@ Every significant action should be logged to the appropriate log:
 - Test locally before deploying
 - Auto-deploy is allowed within project scope (if enabled in config)
 
+## Handicapping Tools (Registered by SHARPS EDGE Extension)
+
+You have 7 purpose-built tools. Use them instead of manual curl/fetch.
+
+### Data Collection
+
+**`get_odds`** - Fetch lines from The Odds API
+- `sport`: Sport key (e.g. `americanfootball_nfl`). Use `list` for available sports.
+- `markets`: `h2h,spreads,totals` (default: all three)
+- `regions`: `us` (default)
+- `force_refresh`: Bypass 10-min cache (use sparingly - 500/mo quota!)
+- Returns: Multi-book lines with quota remaining in `_quota` field.
+
+**`get_weather`** - Game-time weather + impact score
+- `venue`: Code like `buf`, `chi`, `den`. Use `list` for all venues.
+- Or use `lat`/`lon` for custom locations.
+- `game_time`: ISO 8601 datetime of game start.
+- `sport`: `nfl`, `mlb`, `nba` for sport-specific impact scoring.
+- Returns: Temperature, wind, precipitation + calculated impact on totals/spreads.
+- Dome games automatically return "no impact."
+
+**`get_injuries`** - ESPN injury reports with edge signals
+- `sport`: `nfl`, `nba`, `mlb`, `nhl`
+- `team`: Team abbreviation (optional - omit for league-wide)
+- Returns: Injuries sorted by edge signal. Role player injuries marked as
+  `UNDERPRICED` - these are the ones the market misses (O-line, bullpen, corners).
+
+**`get_social`** - Locker room / chemistry intelligence
+- `sport`: `nfl`, `nba`, `mlb`, `nhl`
+- `team`: Team abbreviation
+- Returns: Categorized signals (coaching conflicts, player drama, motivation
+  factors) with weights and net sentiment score. The market ignores "soft" data.
+
+### Analysis
+
+**`check_edge`** - Combined edge analysis
+- `sport`: `nfl`, `nba`, `mlb`, `nhl`
+- `game`: `AWAY@HOME` format (e.g. `DAL@PHI`)
+- `depth`: `quick` (2 models), `standard` (4 models), `full` (all 6)
+- Returns: Edge score 0-100, direction, confidence tier, individual model
+  results, caveats, and disclaimer. Never a bare pick - always the math.
+
+### Recursive Learning
+
+**`track_pick`** - Record picks for CLV tracking
+- `action`: `record` new pick, `result` to log outcome, `list`, `pending`
+- Every recommendation MUST be tracked. No exceptions.
+- CLV is automatically calculated when closing line + outcome are backfilled.
+
+**`review_accuracy`** - The learning engine
+- `action`: `weekly` (full review), `model_performance`, `sport_breakdown`,
+  `lessons` (view learned lessons), `weights` (adjust model weights)
+- `period`: `week`, `month`, `all`
+- Run `weekly` every Sunday. This is what makes the system smarter.
+- Model weights adjust ±5% max per cycle to prevent overcorrection.
+
+### Workflow
+
+```
+1. get_odds → what are the current lines?
+2. get_weather → does weather create an edge?
+3. get_injuries → any underpriced role player injuries?
+4. get_social → any locker room dysfunction?
+5. check_edge → combine all signals into edge score
+6. track_pick record → log the recommendation
+7. [after game] track_pick result → backfill outcome + CLV
+8. [Sunday] review_accuracy weekly → learn and adjust
+```
+
 ## External APIs
 
-- The Odds API: 500 free calls/month. Cache aggressively.
-- ESPN: Public endpoints. No key required.
-- Open-Meteo: Free weather data. No key required.
+- The Odds API: 500 free calls/month. Cache aggressively. `get_odds` handles caching.
+- ESPN: Public endpoints. No key required. `get_injuries` + `get_social` handle parsing.
+- Open-Meteo: Free weather data. No key required. `get_weather` handles impact scoring.
 - x402: Micropayment protocol. Test with small amounts first.
