@@ -7,4 +7,3 @@
 - [x] Verify performance improvements (Action Plan Step 5) <!-- id: 8 -->
 - [x] Add regression test script `scripts/benchmark-cli-load.sh` <!-- id: 9 -->
 - [x] Iterate on instrumentation to find remaining bottlenecks <!-- id: 10 -->
-

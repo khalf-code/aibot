@@ -4,10 +4,7 @@ import { defaultRuntime } from "../../runtime.js";
 import { theme } from "../../terminal/theme.js";
 
 export function registerGitCommand(program: Command) {
-  const gitCmd = program
-    .command("git")
-    .description("Git utilities")
-    .summary("git status wrapper");
+  const gitCmd = program.command("git").description("Git utilities").summary("git status wrapper");
 
   gitCmd
     .command("status")

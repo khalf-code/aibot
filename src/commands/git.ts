@@ -1,5 +1,5 @@
-import { runCommandWithTimeout } from "../process/exec.js";
 import type { RuntimeEnv } from "../runtime.js";
+import { runCommandWithTimeout } from "../process/exec.js";
 
 type GitStatusJson = {
   branch: {
@@ -23,7 +23,7 @@ export async function gitStatusCommand(
   runtime: RuntimeEnv,
 ) {
   const args = ["git"];
-  
+
   // If JSON is requested, use porcelain v2 for easier parsing
   if (opts.json) {
     args.push("status", "--porcelain=v2", "--branch");
@@ -82,35 +82,35 @@ export async function gitStatusCommand(
         // "If a field contains a SP or other special characters, it is quoted using C-style quoting."
         // Implementing a full parser is complex.
         // For now, let's just capture the basics or fallback to simple string if parsing is hard.
-        
+
         // Let's assume standard paths for now or just take the line.
-        // A safer bet for this task is to provide the raw lines if we can't parse perfectly, 
+        // A safer bet for this task is to provide the raw lines if we can't parse perfectly,
         // but let's try to do a best-effort parse.
-        
+
         const code = parts[0];
         const xy = parts[1];
         const sub = parts[2];
         // Skip hashes
         const pathStart = parts.slice(8).join(" "); // This is wrong if there are spaces
-        
+
         // Let's just store the line for now as we don't strictly need structured path in the requirement
         result.entries.push({
-            code,
-            xy,
-            sub,
-            path: line.substring(line.indexOf(parts[8] ?? "")), // Hacky
+          code,
+          xy,
+          sub,
+          path: line.substring(line.indexOf(parts[8] ?? "")), // Hacky
         });
       } else if (line.startsWith("? ")) {
         result.entries.push({
-            code: "?",
-            xy: "??",
-            path: line.slice(2)
+          code: "?",
+          xy: "??",
+          path: line.slice(2),
         });
       } else if (line.startsWith("u ")) {
-         result.entries.push({
-            code: "u",
-            xy: "uu", // Unmerged
-            path: line.slice(2)
+        result.entries.push({
+          code: "u",
+          xy: "uu", // Unmerged
+          path: line.slice(2),
         });
       }
     }

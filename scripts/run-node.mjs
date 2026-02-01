@@ -144,8 +144,7 @@ if (!shouldBuild()) {
   } else {
     const pnpmArgs = ["exec", compiler, ...projectArgs];
     buildCmd = process.platform === "win32" ? "cmd.exe" : "pnpm";
-    buildArgs =
-      process.platform === "win32" ? ["/d", "/s", "/c", "pnpm", ...pnpmArgs] : pnpmArgs;
+    buildArgs = process.platform === "win32" ? ["/d", "/s", "/c", "pnpm", ...pnpmArgs] : pnpmArgs;
   }
 
   const build = spawn(buildCmd, buildArgs, {
