@@ -6,8 +6,8 @@
 
 | Aspect | State |
 |--------|-------|
-| **Phase** | Trial distillation complete; ready for next component |
-| **Last completed** | Compaction module distilled (666 → 275 LOC) |
+| **Phase** | Architectural decisions clarified; ready for next component |
+| **Last completed** | Gateway analysis, scope narrowing, tech strategy decisions |
 | **Next action** | Choose next component to distill (see "Next Steps" below) |
 | **Blockers** | None |
 
@@ -15,13 +15,14 @@
 - [x] Scouting reports for 4 core areas (~20k LOC analyzed)
 - [x] Distillation principles documented (8 principles)
 - [x] Trial distillation: `src/compaction/` working
+- [x] Key architectural decisions (TypeScript+Rust, minimal viable agent, no gateway)
 
 ### Open Decision Needed
 **Which component to distill next?** Candidates ranked by isolation:
 1. Long-term Memory & Search (most isolated)
 2. Context Management (builds on compaction)
 3. Agent Alignment (defines behavior)
-4. Session Management (largest, most interconnected)
+4. Session Management (largest, most interconnected—deferred per decision #7)
 
 ---
 
