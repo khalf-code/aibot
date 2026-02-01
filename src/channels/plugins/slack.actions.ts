@@ -42,6 +42,7 @@ export function createSlackActions(providerId: string): ChannelMessageActionAdap
         actions.add("read");
         actions.add("edit");
         actions.add("delete");
+        actions.add("thread-reply");
       }
       if (isActionEnabled("pins")) {
         actions.add("pin");
@@ -213,6 +214,43 @@ export function createSlackActions(providerId: string): ChannelMessageActionAdap
         return await handleSlackAction(
           { action: "emojiList", accountId: accountId ?? undefined },
           cfg,
+        );
+      }
+
+      if (action === "thread-reply") {
+        const content = readStringParam(params, "message", {
+          required: true,
+          allowEmpty: true,
+        });
+        const mediaUrl = readStringParam(params, "media", { trim: false });
+        // Prefer threadId, fall back to replyTo, then context
+        const threadId = readStringParam(params, "threadId");
+        const replyTo = readStringParam(params, "replyTo");
+        const threadTs = threadId ?? replyTo ?? toolContext?.currentThreadTs;
+        if (!threadTs) {
+          throw new Error("thread-reply requires threadId, replyTo, or thread context");
+        }
+        // Resolve channel: to is used as-is, channelId and context need prefix
+        const toParam = readStringParam(params, "to");
+        const channelIdParam = readStringParam(params, "channelId");
+        const channelId =
+          toParam ??
+          (channelIdParam ? `channel:${channelIdParam}` : undefined) ??
+          (toolContext?.currentChannelId ? `channel:${toolContext.currentChannelId}` : undefined);
+        if (!channelId) {
+          throw new Error("thread-reply requires channelId or to parameter");
+        }
+        return await handleSlackAction(
+          {
+            action: "sendMessage",
+            to: channelId,
+            content,
+            mediaUrl: mediaUrl ?? undefined,
+            accountId: accountId ?? undefined,
+            threadTs,
+          },
+          cfg,
+          toolContext,
         );
       }
 
