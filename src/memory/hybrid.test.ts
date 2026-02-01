@@ -8,11 +8,26 @@ describe("memory hybrid helpers", () => {
     expect(buildFtsQuery("   ")).toBeNull();
   });
 
-  it("bm25RankToScore is monotonic and clamped", () => {
-    expect(bm25RankToScore(0)).toBeCloseTo(1);
-    expect(bm25RankToScore(1)).toBeCloseTo(0.5);
-    expect(bm25RankToScore(10)).toBeLessThan(bm25RankToScore(1));
-    expect(bm25RankToScore(-100)).toBeCloseTo(1);
+  it("bm25RankToScore handles negative BM25 scores correctly", () => {
+    // SQLite FTS5 bm25() returns negative values; more negative = more relevant
+    // More negative should produce higher scores
+    expect(bm25RankToScore(-4.2)).toBeGreaterThan(bm25RankToScore(-2.1));
+    expect(bm25RankToScore(-2.1)).toBeGreaterThan(bm25RankToScore(-0.5));
+    expect(bm25RankToScore(-0.5)).toBeGreaterThan(bm25RankToScore(0));
+
+    // Verify specific values using formula: positive / (1 + positive)
+    expect(bm25RankToScore(-4.2)).toBeCloseTo(4.2 / 5.2);
+    expect(bm25RankToScore(-1)).toBeCloseTo(0.5);
+    expect(bm25RankToScore(0)).toBeCloseTo(0);
+
+    // Invalid inputs should return 0
+    expect(bm25RankToScore(NaN)).toBe(0);
+    expect(bm25RankToScore(Infinity)).toBe(0);
+    expect(bm25RankToScore(-Infinity)).toBe(0);
+
+    // Positive inputs (unexpected but handled) should clamp to 0
+    expect(bm25RankToScore(1)).toBe(0);
+    expect(bm25RankToScore(10)).toBe(0);
   });
 
   it("mergeHybridResults unions by id and combines weighted scores", () => {

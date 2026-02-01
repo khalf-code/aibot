@@ -34,8 +34,15 @@ export function buildFtsQuery(raw: string): string | null {
 }
 
 export function bm25RankToScore(rank: number): number {
-  const normalized = Number.isFinite(rank) ? Math.max(0, rank) : 999;
-  return 1 / (1 + normalized);
+  // SQLite FTS5 bm25() returns negative values; more negative = more relevant
+  if (!Number.isFinite(rank)) {
+    return 0;
+  }
+  // Negate to get positive value (more negative → larger positive)
+  // Clamp to handle any unexpected positive inputs
+  const positive = Math.max(0, -rank);
+  // Normalize to 0-1 where higher positive → higher score
+  return positive / (1 + positive);
 }
 
 export function mergeHybridResults(params: {
