@@ -4,7 +4,7 @@ import { streamSimple } from "@mariozechner/pi-ai";
 
 import type { OpenClawConfig } from "../../config/config.js";
 import { log } from "./logger.js";
-import { createOllamaAwareStreamFn } from "./ollama-stream.js";
+import { createOllamaAwareStreamFn, shouldDisableStreamingForTools } from "./ollama-stream.js";
 
 /**
  * Resolve provider-specific extra params from model config.
@@ -93,13 +93,14 @@ export function applyExtraParamsToAgent(
   modelId: string,
   extraParamsOverride?: Record<string, unknown>,
 ): void {
-  // First, apply Ollama-aware stream handling for providers that need non-streaming tool calls
-  const ollamaAwareStreamFn = createOllamaAwareStreamFn({
-    cfg,
-    provider,
-    baseStreamFn: agent.streamFn,
-  });
-  agent.streamFn = ollamaAwareStreamFn;
+  // Only wrap with Ollama-aware stream handling if provider has streamToolCalls disabled
+  if (shouldDisableStreamingForTools({ cfg, provider })) {
+    agent.streamFn = createOllamaAwareStreamFn({
+      cfg,
+      provider,
+      baseStreamFn: agent.streamFn,
+    });
+  }
 
   const extraParams = resolveExtraParams({
     cfg,

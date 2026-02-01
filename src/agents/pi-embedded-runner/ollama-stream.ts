@@ -1,6 +1,10 @@
 import type { StreamFn } from "@mariozechner/pi-agent-core";
 import type { Api, Model } from "@mariozechner/pi-ai";
-import { complete, createAssistantMessageEventStream, streamSimple } from "@mariozechner/pi-ai";
+import {
+  completeSimple,
+  createAssistantMessageEventStream,
+  streamSimple,
+} from "@mariozechner/pi-ai";
 
 import type { OpenClawConfig } from "../../config/config.js";
 import { log } from "./logger.js";
@@ -81,28 +85,16 @@ export function createOllamaAwareStreamFn(params: {
     // Call complete() and emit the result as a stream event
     void (async () => {
       try {
-        const completeOptions: Parameters<typeof complete>[2] = {};
-        if (options?.apiKey) {
-          completeOptions.apiKey = options.apiKey;
-        }
-        if (options?.maxTokens) {
-          completeOptions.maxTokens = options.maxTokens;
-        }
-        if (options?.temperature !== undefined) {
-          completeOptions.temperature = options.temperature;
-        }
-        if (options?.signal) {
-          completeOptions.signal = options.signal;
-        }
-        if (options?.headers) {
-          completeOptions.headers = options.headers;
-        }
-
-        const message = await complete(model, context, completeOptions);
+        // Pass through all options to completeSimple() - it accepts SimpleStreamOptions like streamSimple()
+        const message = await completeSimple(model, context, options);
 
         // Emit the complete message as a stream event
-        // Note: pi-ai uses "toolUse" (camelCase) not "tool_use"
-        const reason = message.stopReason === "toolUse" ? "toolUse" : "stop";
+        // Map stopReason to valid "done" event reasons (stop, length, toolUse)
+        const validDoneReasons = ["stop", "length", "toolUse"] as const;
+        type DoneReason = (typeof validDoneReasons)[number];
+        const reason: DoneReason = validDoneReasons.includes(message.stopReason as DoneReason)
+          ? (message.stopReason as DoneReason)
+          : "stop";
         stream.push({
           type: "done",
           reason,
@@ -112,7 +104,7 @@ export function createOllamaAwareStreamFn(params: {
       } catch (error) {
         // For errors, emit an error event and end the stream
         const errorMessage = error instanceof Error ? error.message : String(error);
-        log.error(`complete() failed for ${model.provider}/${model.id}: ${errorMessage}`);
+        log.error(`completeSimple() failed for ${model.provider}/${model.id}: ${errorMessage}`);
         // Create an error assistant message to signal the failure
         const errorAssistantMessage = {
           role: "assistant" as const,
