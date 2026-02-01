@@ -204,7 +204,8 @@ export async function runOnboardingWizard(
       bindRaw === "lan" ||
       bindRaw === "auto" ||
       bindRaw === "custom" ||
-      bindRaw === "tailnet"
+      bindRaw === "tailnet" ||
+      bindRaw === "dualstack"
         ? bindRaw
         : "loopback";
 
