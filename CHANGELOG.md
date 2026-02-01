@@ -6,6 +6,8 @@ Docs: https://docs.openclaw.ai
 
 ### Changes
 
+- Docs: add direct BotFather link and verification reminder in Telegram setup. (#4064) Thanks @shatner.
+
 ### Fixes
 
 - Auto-reply: avoid referencing workspace files in /new greeting prompt. (#5706) Thanks @bravostation.
