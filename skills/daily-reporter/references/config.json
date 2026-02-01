@@ -1,0 +1,8 @@
+{
+  "obsidian_vault": "~/Dev/BrainFucked",
+  "daily_folder": "95-Daily",
+  "calendar_script": "~/moltbot/skills/calendar-schedule/scripts/get-today.sh",
+  "newsletter_output": "~/moltbot/output/newsletter-digest/",
+  "web_scraper_output": "~/moltbot/output/web-scraper/",
+  "filename_format": "{date}-daily.md"
+}

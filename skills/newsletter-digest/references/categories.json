@@ -1,0 +1,78 @@
+[
+  {
+    "name": "🔌 vibe everything",
+    "keywords": ["vibe coding", "cursor", "windsurf", "ai coding", "copilot", "aider", "cline"]
+  },
+  {
+    "name": "🤖 clawd bot",
+    "keywords": ["claude", "anthropic", "mcp", "moltbot", "ai agent", "llm agent"]
+  },
+  {
+    "name": "🐳 orbstack",
+    "keywords": ["orbstack", "docker", "container", "kubernetes", "k8s"]
+  },
+  {
+    "name": "💳 Crypto",
+    "keywords": ["crypto", "blockchain", "bitcoin", "ethereum", "defi", "web3", "nft", "token"]
+  },
+  {
+    "name": "🔑 Marketing Insight",
+    "keywords": ["marketing", "growth", "seo", "ads", "광고", "마케팅", "conversion"]
+  },
+  {
+    "name": "📉 미래 관련 인사이트",
+    "keywords": ["future", "prediction", "trend", "forecast", "미래", "전망", "2030", "2040"]
+  },
+  {
+    "name": "💸 fuul",
+    "keywords": ["fuul.xyz", "fuul", "referral program", "affiliate web3"]
+  },
+  {
+    "name": "⚡ Engineering knowledge",
+    "keywords": ["architecture", "system design", "database", "scalability", "performance", "backend"]
+  },
+  {
+    "name": "🇳🇱 디자인 + 예술",
+    "keywords": ["design", "art", "typography", "illustration", "디자인", "예술", "ui design"]
+  },
+  {
+    "name": "🍾 Engineering Managing",
+    "keywords": ["engineering manager", "tech lead", "team lead", "1on1", "팀 관리", "leadership"]
+  },
+  {
+    "name": "🚀 1인 비즈니스 창업",
+    "keywords": ["solo founder", "indie hacker", "bootstrapping", "solopreneur", "1인 창업", "side project"]
+  },
+  {
+    "name": "📈 인수창업",
+    "keywords": ["acquisition", "acquire", "buy business", "인수", "m&a", "buying a company"]
+  },
+  {
+    "name": "🧠 사회 경제 이슈",
+    "keywords": ["economy", "society", "policy", "경제", "사회", "정책", "regulation"]
+  },
+  {
+    "name": "🎨 Grandpa",
+    "keywords": ["inspiration", "story", "영감", "동기부여", "motivat", "founder story", "interview"]
+  },
+  {
+    "name": "🐙 PM",
+    "keywords": ["product management", "product manager", "roadmap", "pm", "프로덕트", "prd", "user research"]
+  },
+  {
+    "name": "🥾 패션 스터디",
+    "keywords": ["fashion", "style", "clothing", "패션", "스타일", "옷"]
+  },
+  {
+    "name": "📔 UX 스터디",
+    "keywords": ["ux", "user experience", "usability", "ux research", "ux design"]
+  },
+  {
+    "name": "⛓️ 4 pillars",
+    "keywords": ["4pillar", "fourpillar"]
+  },
+  {
+    "name": "🎼 클래식 음악 공부",
+    "keywords": ["classical music", "orchestra", "symphony", "클래식", "오케스트라", "concerto"]
+  }
+]

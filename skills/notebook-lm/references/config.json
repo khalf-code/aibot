@@ -1,0 +1,5 @@
+{
+  "user_data_dir": "~/.config/moltbot/notebook-lm-chrome",
+  "default_notebook_url": "",
+  "upload_timeout_ms": 60000
+}

@@ -1,0 +1,20 @@
+{
+  "output_paths": {
+    "digest_markdown": "~/.moltbot/output/digest.md",
+    "digest_json": "~/.moltbot/output/digest.json"
+  },
+  "summarize": {
+    "max_key_points": 5,
+    "min_sentence_length": 20,
+    "max_sentence_length": 300
+  },
+  "html_sanitization": {
+    "skip_tags": ["script", "style", "iframe", "form", "noscript"],
+    "block_tags": ["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote"]
+  },
+  "date_patterns": [
+    "YYYY-MM-DD",
+    "Month DD, YYYY",
+    "DD Month YYYY"
+  ]
+}

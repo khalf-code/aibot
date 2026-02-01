@@ -1,0 +1,24 @@
+{
+  "download_dir": "~/Downloads",
+  "backup_target": "/Volumes/External/backups",
+  "log_dirs": [
+    "~/.local/share/moltbot/logs",
+    "~/Library/Logs",
+    "/var/log"
+  ],
+  "retention_days": 30,
+  "file_type_mappings": {
+    "documents": [".pdf", ".doc", ".docx", ".txt", ".xlsx", ".xls", ".ppt", ".pptx"],
+    "images": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp"],
+    "videos": [".mp4", ".mov", ".avi", ".mkv", ".flv", ".wmv"],
+    "audio": [".mp3", ".wav", ".flac", ".aac", ".m4a", ".ogg"],
+    "archives": [".zip", ".tar", ".gz", ".rar", ".7z", ".bz2"],
+    "code": [".js", ".ts", ".py", ".java", ".cpp", ".c", ".go", ".rs", ".rb", ".php"],
+    "data": [".json", ".xml", ".csv", ".sql", ".db"]
+  },
+  "cleanup_rules": {
+    "min_file_size_bytes": 0,
+    "exclude_patterns": [".*", "node_modules", ".git"],
+    "organize_by_date": false
+  }
+}

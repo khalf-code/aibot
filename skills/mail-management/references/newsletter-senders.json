@@ -1,0 +1,55 @@
+{
+  "newsletter_patterns": {
+    "substack": {
+      "description": "Substack newsletters",
+      "patterns": ["substack.com", "substack"]
+    },
+    "morning_brew": {
+      "description": "Morning Brew daily newsletter",
+      "patterns": ["morningbrew.com", "morning.brew", "morning brew"]
+    },
+    "medium": {
+      "description": "Medium digest and newsletters",
+      "patterns": ["medium.com", "medium digest", "medium newsletter"]
+    },
+    "pragmatic_engineer": {
+      "description": "Pragmatic Engineer newsletter",
+      "patterns": ["pragmatic", "pragmaticengineer"]
+    },
+    "hacker_news": {
+      "description": "Hacker News digest",
+      "patterns": ["news.ycombinator.com", "hacker news"]
+    },
+    "product_hunt": {
+      "description": "Product Hunt digest",
+      "patterns": ["producthunt.com", "product hunt"]
+    },
+    "github": {
+      "description": "GitHub notifications and digests",
+      "patterns": ["github.com", "github notifications"]
+    },
+    "newsletter_generic": {
+      "description": "Generic newsletter patterns",
+      "patterns": ["newsletter", "digest", "weekly", "daily", "뉴스레터"]
+    }
+  },
+  "subject_keywords": [
+    "newsletter",
+    "digest",
+    "weekly",
+    "daily",
+    "reading",
+    "뉴스레터",
+    "morning",
+    "brew",
+    "substack",
+    "medium"
+  ],
+  "sender_keywords": [
+    "newsletter",
+    "digest",
+    "noreply",
+    "no-reply",
+    "notifications"
+  ]
+}

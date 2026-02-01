@@ -1,0 +1,14 @@
+{
+  "calendar": {
+    "exclude_calendars": [
+      "대한민국의 휴일",
+      "대한민국 공휴일",
+      "Holidays in South Korea",
+      "Birthdays",
+      "Reminders"
+    ]
+  },
+  "output_format": "text",
+  "time_format": "%H:%M",
+  "date_format": "%Y-%m-%d"
+}

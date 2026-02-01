@@ -1,0 +1,24 @@
+{
+  "description": "Default playlist names for music-collection skill",
+  "note": "This is a reference file. Actual playlists are managed by Apple Music.",
+  "commonPlaylists": [
+    "Favorites",
+    "Liked Songs",
+    "Recently Played",
+    "Workout",
+    "Chill",
+    "Focus",
+    "Party",
+    "Sleep",
+    "Driving",
+    "Dinner",
+    "Classics",
+    "New Music",
+    "Discover Weekly",
+    "Release Radar"
+  ],
+  "usage": {
+    "listPlaylists": "Use --list-playlists to get actual playlists from Music app",
+    "addToPlaylist": "Use --add TRACK --playlist NAME to add tracks"
+  }
+}
