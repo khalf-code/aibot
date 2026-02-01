@@ -190,18 +190,27 @@ function decodeTextSample(buffer?: Buffer): string {
 }
 
 function guessDelimitedMime(text: string): string | undefined {
-  if (!text) {
-    return undefined;
-  }
+  if (!text) return undefined;
+
   const line = text.split(/\r?\n/)[0] ?? "";
   const tabs = (line.match(/\t/g) ?? []).length;
   const commas = (line.match(/,/g) ?? []).length;
-  if (commas > 0) {
+
+  // Only commas → CSV
+  if (commas > 0 && tabs === 0) {
     return "text/csv";
   }
-  if (tabs > 0) {
+
+  // Only tabs → TSV
+  if (tabs > 0 && commas === 0) {
     return "text/tab-separated-values";
   }
+
+  // Both present → ambiguous, keep old behavior (comma wins)
+  if (commas > 0 && tabs > 0) {
+    return "text/csv";
+  }
+
   return undefined;
 }
 
