@@ -1,29 +1,48 @@
 services:
+  # Docker socket proxy - only exposes container restart capability
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    environment:
+      CONTAINERS: 1
+      POST: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - openclaw-internal
+    restart: unless-stopped
+
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
     user: root
+    depends_on:
+      - docker-socket-proxy
     environment:
-      HOME: /home/node
+      HOME: /root
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
       GH_TOKEN: ${GH_TOKEN}
-      CLAUDE_CONFIG_DIR: /home/node/.claude
+      CLAUDE_CONFIG_DIR: /root/.claude
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      CODEX_HOME: /home/node/.codex
+      CODEX_HOME: /root/.codex
+      DOCKER_PROXY_HOST: docker-socket-proxy
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
-      - ${HOME}/.claude:/home/node/.claude
-      - ${HOME}/.codex:/home/node/.codex
+      # Single home directory mount for full persistence
+      - ${HOME}/.openclaw/docker-home:/root
+      # OpenClaw config and workspace (symlinked or overlaid)
+      - ${OPENCLAW_CONFIG_DIR}:/root/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/root/.openclaw/workspace
+      # Cache volumes for faster rebuilds
       - openclaw-npm-global:/usr/local/lib/node_modules
       - openclaw-apt-cache:/var/cache/apt
       - openclaw-apt-lib:/var/lib/apt
     ports:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
       - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+    networks:
+      - openclaw-internal
     init: true
     restart: unless-stopped
     command:
@@ -37,8 +56,9 @@ services:
 
   openclaw-cli:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    user: root
     environment:
-      HOME: /home/node
+      HOME: /root
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       BROWSER: echo
@@ -46,15 +66,21 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      CODEX_HOME: /home/node/.codex
+      CODEX_HOME: /root/.codex
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
-      - ${HOME}/.codex:/home/node/.codex
+      # Single home directory mount for full persistence
+      - ${HOME}/.openclaw/docker-home:/root
+      # OpenClaw config and workspace
+      - ${OPENCLAW_CONFIG_DIR}:/root/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/root/.openclaw/workspace
     stdin_open: true
     tty: true
     init: true
     entrypoint: ["node", "dist/index.js"]
+
+networks:
+  openclaw-internal:
+    driver: bridge
 
 volumes:
   openclaw-npm-global:
