@@ -8,6 +8,7 @@
 
 import * as fs from "fs/promises";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { getLogger } from "../logging/logger.js";
 import { CONFIG_PATH, STATE_DIR } from "./paths.js";
 
@@ -21,7 +22,8 @@ const FAILED_CONFIG_PATH = path.join(CONFIG_DIR, "openclaw.json.failed");
 const ROLLBACK_HISTORY_PATH = path.join(CONFIG_DIR, "config-rollback-history.json");
 
 // Dist backup paths (for code/schema rollback)
-const DIST_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../");
+// Use fileURLToPath for cross-platform compatibility (Windows paths)
+const DIST_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../");
 const DIST_BACKUP_DIR = path.join(CONFIG_DIR, "dist.bak");
 
 export interface ConfigPendingMarker {
