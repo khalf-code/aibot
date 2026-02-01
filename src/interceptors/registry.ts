@@ -1,4 +1,8 @@
-import type { InterceptorName, InterceptorRegistration } from "./types.js";
+import type {
+  InterceptorEventCallback,
+  InterceptorName,
+  InterceptorRegistration,
+} from "./types.js";
 import { KNOWN_TOOL_NAMES } from "./types.js";
 
 // Internal storage uses the base union type
@@ -20,6 +24,7 @@ function validateToolMatcher(id: string, matcher: RegExp): void {
 
 export function createInterceptorRegistry() {
   const entries: AnyInterceptorRegistration[] = [];
+  let onEvent: InterceptorEventCallback | null = null;
 
   return {
     add<N extends InterceptorName>(reg: InterceptorRegistration<N>): void {
@@ -68,6 +73,14 @@ export function createInterceptorRegistry() {
 
     clear(): void {
       entries.length = 0;
+    },
+
+    setOnEvent(cb: InterceptorEventCallback | null): void {
+      onEvent = cb;
+    },
+
+    getOnEvent(): InterceptorEventCallback | null {
+      return onEvent;
     },
   };
 }

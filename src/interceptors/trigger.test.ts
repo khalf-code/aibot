@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type {
+  InterceptorEvent,
   MessageBeforeOutput,
   ParamsBeforeOutput,
   ToolAfterOutput,
@@ -258,5 +259,100 @@ describe("trigger", () => {
       { provider: "anthropic", model: "claude-3", thinkLevel: "off" } as ParamsBeforeOutput,
     );
     expect(paramsResult.thinkLevel).toBe("high");
+  });
+
+  it("onEvent fires when tool.before blocks", async () => {
+    const registry = createInterceptorRegistry();
+    const events: InterceptorEvent[] = [];
+    registry.setOnEvent((evt) => events.push(evt));
+    registry.add({
+      id: "blocker",
+      name: "tool.before",
+      handler: (_input, output) => {
+        output.block = true;
+        output.blockReason = "denied";
+      },
+    });
+    await trigger(registry, "tool.before", { toolName: "exec", toolCallId: "c1" }, { args: {} });
+    expect(events).toHaveLength(1);
+    expect(events[0].blocked).toBe(true);
+    expect(events[0].blockReason).toBe("denied");
+    expect(events[0].matchContext).toBe("exec");
+    expect(events[0].interceptorId).toBe("blocker");
+  });
+
+  it("onEvent fires with mutations for message.before", async () => {
+    const registry = createInterceptorRegistry();
+    const events: InterceptorEvent[] = [];
+    registry.setOnEvent((evt) => events.push(evt));
+    registry.add({
+      id: "enricher",
+      name: "message.before",
+      handler: (_input, output) => {
+        output.message = "changed";
+        output.metadata.tag = true;
+      },
+    });
+    await trigger(
+      registry,
+      "message.before",
+      { agentId: "main", provider: "anthropic", model: "claude-3" },
+      { message: "original", metadata: {} } as MessageBeforeOutput,
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0].mutations).toContain("message mutated");
+    expect(events[0].mutations?.some((m) => m.includes("tag"))).toBe(true);
+  });
+
+  it("onEvent fires with param changes for params.before", async () => {
+    const registry = createInterceptorRegistry();
+    const events: InterceptorEvent[] = [];
+    registry.setOnEvent((evt) => events.push(evt));
+    registry.add({
+      id: "booster",
+      name: "params.before",
+      handler: (_input, output) => {
+        output.thinkLevel = "high";
+      },
+    });
+    await trigger(registry, "params.before", { agentId: "main", message: "hi", metadata: {} }, {
+      provider: "anthropic",
+      model: "claude-3",
+      thinkLevel: "off",
+    } as ParamsBeforeOutput);
+    expect(events).toHaveLength(1);
+    expect(events[0].mutations).toContain("thinkLevel → high");
+  });
+
+  it("onEvent not called when no changes occur", async () => {
+    const registry = createInterceptorRegistry();
+    const events: InterceptorEvent[] = [];
+    registry.setOnEvent((evt) => events.push(evt));
+    registry.add({
+      id: "noop",
+      name: "tool.before",
+      handler: () => {},
+    });
+    await trigger(registry, "tool.before", { toolName: "exec", toolCallId: "c1" }, { args: {} });
+    expect(events).toHaveLength(0);
+  });
+
+  it("works when onEvent is null", async () => {
+    const registry = createInterceptorRegistry();
+    registry.add({
+      id: "blocker",
+      name: "tool.before",
+      handler: (_input, output) => {
+        output.block = true;
+      },
+    });
+    // Should not throw even though no onEvent is set
+    const result = await trigger(
+      registry,
+      "tool.before",
+      { toolName: "exec", toolCallId: "c1" },
+      { args: {} },
+    );
+    expect(result.block).toBe(true);
   });
 });

@@ -116,3 +116,14 @@ export type InterceptorRegistration<N extends InterceptorName = InterceptorName>
   toolMatcher?: RegExp;
   agentMatcher?: RegExp;
 };
+
+export type InterceptorEvent = {
+  name: InterceptorName;
+  interceptorId: string;
+  matchContext?: string;
+  blocked?: boolean;
+  blockReason?: string;
+  mutations?: string[];
+};
+
+export type InterceptorEventCallback = (event: InterceptorEvent) => void;

@@ -1,5 +1,6 @@
 export { createInterceptorRegistry, type InterceptorRegistry } from "./registry.js";
 export { trigger } from "./trigger.js";
+export { formatInterceptorEvent } from "./format.js";
 export {
   initializeGlobalInterceptors,
   getGlobalInterceptorRegistry,
@@ -20,4 +21,6 @@ export type {
   MessageBeforeOutput,
   ParamsBeforeInput,
   ParamsBeforeOutput,
+  InterceptorEvent,
+  InterceptorEventCallback,
 } from "./types.js";

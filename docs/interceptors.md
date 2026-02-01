@@ -491,6 +491,7 @@ resetGlobalInterceptors();
 - `src/interceptors/registry.ts` — Array-backed registry with add/remove/get/clear + toolMatcher validation
 - `src/interceptors/trigger.ts` — Runs matched interceptors sequentially
 - `src/interceptors/global.ts` — Global singleton + built-in interceptor registration
+- `src/interceptors/format.ts` — Event formatting for verbose output
 - `src/interceptors/index.ts` — Public re-exports
 - `src/interceptors/builtin/command-safety-guard.ts` — Blocks dangerous bash commands
 - `src/interceptors/builtin/security-audit.ts` — Blocks access to sensitive files
@@ -517,6 +518,43 @@ Each agent run:
   -> createAgentSession() with effective parameters
   -> Agent prompts the LLM
   -> Each tool.execute() runs: tool.before -> real execute -> tool.after
+```
+
+## Verbose Observability
+
+When verbose mode is on (`verboseLevel: "on"` or `"full"`), interceptor activity is surfaced as status lines in the channel output — the same way tool calls appear.
+
+### What you see
+
+```
+🛡️ builtin:command-safety-guard · blocked exec — "rm -rf is not allowed"
+🛡️ builtin:security-audit · blocked read — "Access denied: ~/.ssh/id_rsa"
+📨 message.before · message mutated, metadata: complexity
+⚙️ params.before · thinkLevel → high
+```
+
+### When events are emitted
+
+| Event | Emits when |
+|-------|-----------|
+| `tool.before` | An interceptor **blocks** execution |
+| `message.before` | Message text is mutated or metadata is set |
+| `params.before` | thinkLevel, reasoningLevel, or temperature changes |
+| `tool.after` | Not emitted (too noisy for normal use) |
+
+### How it works
+
+The registry has an `onEvent` callback set at the start of each agent run when verbose mode is on. The `trigger()` function detects changes after each handler and emits events through this callback. Events are formatted by `formatInterceptorEvent()` and delivered via the same `onToolResult` path used for tool status lines.
+
+```typescript
+// Set callback (done automatically in attempt.ts)
+registry.setOnEvent((evt) => {
+  const line = formatInterceptorEvent(evt);
+  if (line) onToolResult({ text: line });
+});
+
+// Clean up after run
+registry.setOnEvent(null);
 ```
 
 ## Testing

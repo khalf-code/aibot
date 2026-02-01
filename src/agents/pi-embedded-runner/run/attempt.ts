@@ -13,6 +13,7 @@ import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types
 import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
+import { formatInterceptorEvent } from "../../../interceptors/format.js";
 import {
   initializeGlobalInterceptors,
   getGlobalInterceptorRegistry,
@@ -147,9 +148,29 @@ export async function runEmbeddedAttempt(
   // Ensure the global interceptor registry exists (idempotent).
   initializeGlobalInterceptors();
 
-  // --- message.before / params.before interceptors ---
+  // --- interceptor verbose event callback ---
   const interceptorRegistry = getGlobalInterceptorRegistry();
   const agentId = params.sessionKey?.split(":")[0] ?? "main";
+
+  if (interceptorRegistry && params.onToolResult) {
+    const shouldEmit =
+      params.shouldEmitToolResult?.() ??
+      (params.verboseLevel === "on" || params.verboseLevel === "full");
+    if (shouldEmit) {
+      interceptorRegistry.setOnEvent((evt) => {
+        const line = formatInterceptorEvent(evt);
+        if (line) {
+          try {
+            void params.onToolResult?.({ text: line });
+          } catch {
+            /* ignore delivery errors */
+          }
+        }
+      });
+    }
+  }
+
+  // --- message.before / params.before interceptors ---
 
   let interceptedPrompt = params.prompt;
   let interceptorMetadata: Record<string, unknown> = {};
@@ -959,6 +980,7 @@ export async function runEmbeddedAttempt(
       await sessionLock.release();
     }
   } finally {
+    interceptorRegistry?.setOnEvent(null);
     restoreSkillEnv?.();
     process.chdir(prevCwd);
   }
