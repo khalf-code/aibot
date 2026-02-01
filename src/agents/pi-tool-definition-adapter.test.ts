@@ -7,9 +7,18 @@ vi.mock("../plugins/hook-runner-global.js", () => ({
   getGlobalHookRunner: vi.fn(() => null),
 }));
 
+// Mock the logger so we can verify warn/error calls
+vi.mock("../logger.js", () => ({
+  logDebug: vi.fn(),
+  logError: vi.fn(),
+  logWarn: vi.fn(),
+}));
+
+import { logWarn } from "../logger.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 
 const mockGetGlobalHookRunner = vi.mocked(getGlobalHookRunner);
+const mockLogWarn = vi.mocked(logWarn);
 
 function makeTool(
   overrides: Partial<AgentTool<unknown, unknown>> = {},
@@ -24,10 +33,28 @@ function makeTool(
   };
 }
 
+/** Helper: create a mock hook runner with configurable hooks */
+function mockHookRunner(opts: {
+  hooks?: string[];
+  runBeforeToolCall?: (...args: unknown[]) => unknown;
+  runAfterToolCall?: (...args: unknown[]) => unknown;
+}) {
+  const hooks = opts.hooks ?? [];
+  return {
+    hasHooks: (name: string) => hooks.includes(name),
+    runBeforeToolCall: vi.fn(opts.runBeforeToolCall ?? (async () => undefined)),
+    runAfterToolCall: vi.fn(opts.runAfterToolCall ?? (async () => {})),
+  } as any;
+}
+
 describe("pi tool definition adapter", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  // =========================================================================
+  // Original tests (pre-existing)
+  // =========================================================================
 
   it("wraps tool errors into a tool result", async () => {
     const tool = {
@@ -73,7 +100,7 @@ describe("pi tool definition adapter", () => {
   });
 
   // =========================================================================
-  // before_tool_call hook tests
+  // before_tool_call hook
   // =========================================================================
 
   describe("before_tool_call hook", () => {
@@ -81,13 +108,15 @@ describe("pi tool definition adapter", () => {
       const executeSpy = vi.fn(async () => ({ details: { ok: true }, resultForAssistant: "ok" }));
       const tool = makeTool({ name: "exec", execute: executeSpy });
 
-      mockGetGlobalHookRunner.mockReturnValue({
-        hasHooks: (name: string) => name === "before_tool_call",
-        runBeforeToolCall: vi.fn(async () => ({
-          block: true,
-          blockReason: "Security policy: blocked",
-        })),
-      } as any);
+      mockGetGlobalHookRunner.mockReturnValue(
+        mockHookRunner({
+          hooks: ["before_tool_call"],
+          runBeforeToolCall: async () => ({
+            block: true,
+            blockReason: "Security policy: blocked",
+          }),
+        }),
+      );
 
       const defs = toToolDefinitions([tool], { agentId: "main", sessionKey: "main:abc" });
       const result = await defs[0].execute("call1", { command: "gog inbox" }, undefined, undefined);
@@ -100,17 +129,59 @@ describe("pi tool definition adapter", () => {
       });
     });
 
-    it("allows tool execution when hook does not block", async () => {
+    it("uses default blockReason when hook omits it", async () => {
+      const executeSpy = vi.fn(async () => ({ details: {}, resultForAssistant: "" }));
+      const tool = makeTool({ name: "exec", execute: executeSpy });
+
+      mockGetGlobalHookRunner.mockReturnValue(
+        mockHookRunner({
+          hooks: ["before_tool_call"],
+          runBeforeToolCall: async () => ({ block: true }),
+        }),
+      );
+
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      const result = await defs[0].execute("call1", {}, undefined, undefined);
+
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(result.details).toMatchObject({
+        status: "blocked",
+        tool: "exec",
+        error: "Blocked by plugin hook",
+      });
+    });
+
+    it("allows execution when hook returns block: false explicitly", async () => {
+      const executeSpy = vi.fn(async () => ({ details: { ran: true }, resultForAssistant: "ok" }));
+      const tool = makeTool({ name: "exec", execute: executeSpy });
+
+      mockGetGlobalHookRunner.mockReturnValue(
+        mockHookRunner({
+          hooks: ["before_tool_call"],
+          runBeforeToolCall: async () => ({ block: false }),
+        }),
+      );
+
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      const result = await defs[0].execute("call1", { command: "ls" }, undefined, undefined);
+
+      expect(executeSpy).toHaveBeenCalled();
+      expect(result.details).toMatchObject({ ran: true });
+    });
+
+    it("allows tool execution when hook returns undefined", async () => {
       const executeSpy = vi.fn(async () => ({
         details: { ran: true },
         resultForAssistant: "done",
       }));
       const tool = makeTool({ name: "read", execute: executeSpy });
 
-      mockGetGlobalHookRunner.mockReturnValue({
-        hasHooks: (name: string) => name === "before_tool_call",
-        runBeforeToolCall: vi.fn(async () => undefined),
-      } as any);
+      mockGetGlobalHookRunner.mockReturnValue(
+        mockHookRunner({
+          hooks: ["before_tool_call"],
+          runBeforeToolCall: async () => undefined,
+        }),
+      );
 
       const defs = toToolDefinitions([tool], { agentId: "main" });
       const result = await defs[0].execute("call1", { path: "/tmp/f" }, undefined, undefined);
@@ -126,12 +197,14 @@ describe("pi tool definition adapter", () => {
       }));
       const tool = makeTool({ name: "exec", execute: executeSpy });
 
-      mockGetGlobalHookRunner.mockReturnValue({
-        hasHooks: (name: string) => name === "before_tool_call",
-        runBeforeToolCall: vi.fn(async () => ({
-          params: { command: "echo safe" },
-        })),
-      } as any);
+      mockGetGlobalHookRunner.mockReturnValue(
+        mockHookRunner({
+          hooks: ["before_tool_call"],
+          runBeforeToolCall: async () => ({
+            params: { command: "echo safe" },
+          }),
+        }),
+      );
 
       const defs = toToolDefinitions([tool], { agentId: "main" });
       await defs[0].execute("call1", { command: "rm -rf /" }, undefined, undefined);
@@ -145,41 +218,75 @@ describe("pi tool definition adapter", () => {
     });
 
     it("provides correct context to before_tool_call hook", async () => {
-      const runBeforeToolCall = vi.fn(async () => undefined);
+      const runner = mockHookRunner({ hooks: ["before_tool_call"] });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
       const tool = makeTool({ name: "exec" });
-
-      mockGetGlobalHookRunner.mockReturnValue({
-        hasHooks: (name: string) => name === "before_tool_call",
-        runBeforeToolCall,
-      } as any);
-
       const defs = toToolDefinitions([tool], { agentId: "reader", sessionKey: "reader:xyz" });
       await defs[0].execute("call1", { command: "ls" }, undefined, undefined);
 
-      expect(runBeforeToolCall).toHaveBeenCalledWith(
+      expect(runner.runBeforeToolCall).toHaveBeenCalledWith(
         { toolName: "exec", params: { command: "ls" } },
         { agentId: "reader", sessionKey: "reader:xyz", toolName: "exec" },
+      );
+    });
+
+    it("normalizes tool name in hook event (bash → exec)", async () => {
+      const runner = mockHookRunner({ hooks: ["before_tool_call"] });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
+      const tool = makeTool({ name: "bash" });
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      await defs[0].execute("call1", { command: "ls" }, undefined, undefined);
+
+      expect(runner.runBeforeToolCall).toHaveBeenCalledWith(
+        expect.objectContaining({ toolName: "exec" }),
+        expect.objectContaining({ toolName: "exec" }),
+      );
+    });
+
+    it("continues execution when before_tool_call hook throws", async () => {
+      const executeSpy = vi.fn(async () => ({
+        details: { ran: true },
+        resultForAssistant: "ok",
+      }));
+      const tool = makeTool({ name: "exec", execute: executeSpy });
+
+      mockGetGlobalHookRunner.mockReturnValue(
+        mockHookRunner({
+          hooks: ["before_tool_call"],
+          runBeforeToolCall: async () => {
+            throw new Error("hook crashed");
+          },
+        }),
+      );
+
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      const result = await defs[0].execute("call1", { command: "ls" }, undefined, undefined);
+
+      // Tool should still execute despite hook failure
+      expect(executeSpy).toHaveBeenCalled();
+      expect(result.details).toMatchObject({ ran: true });
+      // Warning should be logged
+      expect(mockLogWarn).toHaveBeenCalledWith(
+        expect.stringContaining("before_tool_call hook error for exec"),
       );
     });
   });
 
   // =========================================================================
-  // after_tool_call hook tests
+  // after_tool_call hook
   // =========================================================================
 
   describe("after_tool_call hook", () => {
-    it("fires after_tool_call on successful execution", async () => {
-      const runAfterToolCall = vi.fn(async () => {});
+    it("fires after_tool_call on successful execution with result and duration", async () => {
+      const runner = mockHookRunner({ hooks: ["after_tool_call"] });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
       const tool = makeTool({
         name: "read",
         execute: async () => ({ details: { content: "hello" }, resultForAssistant: "hello" }),
       });
-
-      mockGetGlobalHookRunner.mockReturnValue({
-        hasHooks: (name: string) => name === "after_tool_call",
-        runBeforeToolCall: vi.fn(async () => undefined),
-        runAfterToolCall,
-      } as any);
 
       const defs = toToolDefinitions([tool], { agentId: "main" });
       await defs[0].execute("call1", { path: "/tmp/f" }, undefined, undefined);
@@ -187,7 +294,7 @@ describe("pi tool definition adapter", () => {
       // Wait for the fire-and-forget promise
       await new Promise((r) => setTimeout(r, 10));
 
-      expect(runAfterToolCall).toHaveBeenCalledWith(
+      expect(runner.runAfterToolCall).toHaveBeenCalledWith(
         expect.objectContaining({
           toolName: "read",
           params: { path: "/tmp/f" },
@@ -195,11 +302,16 @@ describe("pi tool definition adapter", () => {
         }),
         expect.objectContaining({ agentId: "main", toolName: "read" }),
       );
-      expect(runAfterToolCall.mock.calls[0][0].durationMs).toBeGreaterThanOrEqual(0);
+      // durationMs should be a non-negative number
+      const event = runner.runAfterToolCall.mock.calls[0][0];
+      expect(event.durationMs).toBeGreaterThanOrEqual(0);
+      expect(typeof event.durationMs).toBe("number");
     });
 
     it("fires after_tool_call on error path with error message", async () => {
-      const runAfterToolCall = vi.fn(async () => {});
+      const runner = mockHookRunner({ hooks: ["after_tool_call"] });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
       const tool = makeTool({
         name: "exec",
         execute: async () => {
@@ -207,24 +319,133 @@ describe("pi tool definition adapter", () => {
         },
       });
 
-      mockGetGlobalHookRunner.mockReturnValue({
-        hasHooks: (name: string) => name === "after_tool_call",
-        runBeforeToolCall: vi.fn(async () => undefined),
-        runAfterToolCall,
-      } as any);
-
       const defs = toToolDefinitions([tool], { agentId: "main" });
       await defs[0].execute("call1", { command: "fail" }, undefined, undefined);
 
       await new Promise((r) => setTimeout(r, 10));
 
-      expect(runAfterToolCall).toHaveBeenCalledWith(
+      expect(runner.runAfterToolCall).toHaveBeenCalledWith(
         expect.objectContaining({
           toolName: "exec",
           error: "boom",
         }),
         expect.objectContaining({ agentId: "main", toolName: "exec" }),
       );
+      // Error path should not include result
+      const event = runner.runAfterToolCall.mock.calls[0][0];
+      expect(event.result).toBeUndefined();
+    });
+
+    it("does NOT fire after_tool_call when before_tool_call blocks", async () => {
+      const runner = mockHookRunner({
+        hooks: ["before_tool_call", "after_tool_call"],
+        runBeforeToolCall: async () => ({
+          block: true,
+          blockReason: "denied",
+        }),
+      });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
+      const tool = makeTool({ name: "exec" });
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      await defs[0].execute("call1", { command: "gog" }, undefined, undefined);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      // after_tool_call should NOT be called — execution was blocked before it started
+      expect(runner.runAfterToolCall).not.toHaveBeenCalled();
+    });
+
+    it("swallows after_tool_call rejection without breaking execution", async () => {
+      const runner = mockHookRunner({
+        hooks: ["after_tool_call"],
+        runAfterToolCall: async () => {
+          throw new Error("after hook exploded");
+        },
+      });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
+      const tool = makeTool({
+        name: "read",
+        execute: async () => ({ details: { ok: true }, resultForAssistant: "ok" }),
+      });
+
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      // Should not throw despite after_tool_call rejecting
+      const result = await defs[0].execute("call1", {}, undefined, undefined);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(result.details).toMatchObject({ ok: true });
+      // Warning should be logged about the hook error
+      expect(mockLogWarn).toHaveBeenCalledWith(
+        expect.stringContaining("after_tool_call hook error for read"),
+      );
+    });
+
+    it("swallows after_tool_call rejection on error path too", async () => {
+      const runner = mockHookRunner({
+        hooks: ["after_tool_call"],
+        runAfterToolCall: async () => {
+          throw new Error("after hook exploded");
+        },
+      });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
+      const tool = makeTool({
+        name: "exec",
+        execute: async () => {
+          throw new Error("tool failed");
+        },
+      });
+
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      // Should return error result, not throw
+      const result = await defs[0].execute("call1", {}, undefined, undefined);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(result.details).toMatchObject({ status: "error", error: "tool failed" });
+    });
+  });
+
+  // =========================================================================
+  // Hook runner exists but has no relevant hooks
+  // =========================================================================
+
+  describe("hook runner with no matching hooks", () => {
+    it("skips before_tool_call when hasHooks returns false", async () => {
+      const runner = mockHookRunner({ hooks: [] }); // no hooks registered
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
+      const executeSpy = vi.fn(async () => ({
+        details: { ran: true },
+        resultForAssistant: "ok",
+      }));
+      const tool = makeTool({ name: "exec", execute: executeSpy });
+
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      await defs[0].execute("call1", { command: "ls" }, undefined, undefined);
+
+      expect(executeSpy).toHaveBeenCalled();
+      expect(runner.runBeforeToolCall).not.toHaveBeenCalled();
+      expect(runner.runAfterToolCall).not.toHaveBeenCalled();
+    });
+
+    it("skips after_tool_call when only before_tool_call is registered", async () => {
+      const runner = mockHookRunner({
+        hooks: ["before_tool_call"], // only before, not after
+      });
+      mockGetGlobalHookRunner.mockReturnValue(runner);
+
+      const tool = makeTool({ name: "read" });
+      const defs = toToolDefinitions([tool], { agentId: "main" });
+      await defs[0].execute("call1", {}, undefined, undefined);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(runner.runBeforeToolCall).toHaveBeenCalled();
+      expect(runner.runAfterToolCall).not.toHaveBeenCalled();
     });
   });
 
