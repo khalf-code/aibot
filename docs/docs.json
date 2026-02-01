@@ -856,7 +856,8 @@
           "start/showcase",
           "start/hubs",
           "start/onboarding",
-          "start/lore"
+          "start/lore",
+          "protocols/SMRP"
         ]
       },
       {
