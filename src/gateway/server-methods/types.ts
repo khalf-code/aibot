@@ -79,9 +79,7 @@ export type GatewayRequestContext = {
     accountId?: string,
   ) => void;
   wizardRunner: (
-    opts: import("../../commands/onboard-types.js").OnboardOptions & {
-      wizard?: "onboarding" | "configure";
-    },
+    opts: import("../../commands/onboard-types.js").OnboardOptions,
     runtime: import("../../runtime.js").RuntimeEnv,
     prompter: import("../../wizard/prompts.js").WizardPrompter,
   ) => Promise<void>;

@@ -263,12 +263,11 @@ export async function startGatewayServer(
   const wizardRunner =
     opts.wizardRunner ??
     (async (wizardOpts, runtime, prompter) => {
-      const wizardId = (wizardOpts as any).wizard as "onboarding" | "configure" | undefined;
-      if (wizardId === "configure") {
+      if (wizardOpts.wizard === "configure") {
         const mod = await import("../wizard/configure.web.js");
-        return mod.runConfigureWizardWeb(wizardOpts as any, runtime, prompter);
+        return mod.runConfigureWizardWeb(wizardOpts, runtime, prompter);
       }
-      return runOnboardingWizard(wizardOpts as any, runtime, prompter);
+      return runOnboardingWizard(wizardOpts, runtime, prompter);
     });
   const { wizardSessions, findRunningWizard, purgeWizardSession } = createWizardSessionTracker();
 
