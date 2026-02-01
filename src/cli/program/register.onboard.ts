@@ -82,6 +82,7 @@ export function registerOnboardCommand(program: Command) {
     .option("--minimax-api-key <key>", "MiniMax API key")
     .option("--synthetic-api-key <key>", "Synthetic API key")
     .option("--venice-api-key <key>", "Venice API key")
+    .option("--baseten-api-key <key>", "Baseten API key")
     .option("--opencode-zen-api-key <key>", "OpenCode Zen API key")
     .option("--gateway-port <port>", "Gateway port")
     .option("--gateway-bind <mode>", "Gateway bind: loopback|tailnet|lan|auto|custom")

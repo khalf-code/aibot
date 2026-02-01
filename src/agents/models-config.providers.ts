@@ -76,6 +76,17 @@ const OLLAMA_DEFAULT_COST = {
   cacheWrite: 0,
 };
 
+const BASETEN_BASE_URL = "https://inference.baseten.co/v1";
+const BASETEN_DEFAULT_CONTEXT_WINDOW = 128000;
+const BASETEN_DEFAULT_MAX_TOKENS = 8192;
+// Baseten pricing varies by model; override in models.json for accurate costs.
+const BASETEN_DEFAULT_COST = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+};
+
 interface OllamaModel {
   name: string;
   modified_at: string;
@@ -394,6 +405,72 @@ async function buildOllamaProvider(): Promise<ProviderConfig> {
   };
 }
 
+function buildBasetenProvider(): ProviderConfig {
+  return {
+    baseUrl: BASETEN_BASE_URL,
+    api: "openai-completions",
+    models: [
+      // GLM models (Zhipu AI)
+      {
+        id: "zai-org/GLM-4.6",
+        name: "GLM 4.6",
+        reasoning: false,
+        input: ["text"],
+        cost: BASETEN_DEFAULT_COST,
+        contextWindow: 200000,
+        maxTokens: BASETEN_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "zai-org/GLM-4.7",
+        name: "GLM 4.7",
+        reasoning: false,
+        input: ["text"],
+        cost: BASETEN_DEFAULT_COST,
+        contextWindow: 200000,
+        maxTokens: BASETEN_DEFAULT_MAX_TOKENS,
+      },
+      // DeepSeek models
+      {
+        id: "deepseek-ai/DeepSeek-V3-0324",
+        name: "DeepSeek V3 0324",
+        reasoning: true,
+        input: ["text"],
+        cost: BASETEN_DEFAULT_COST,
+        contextWindow: BASETEN_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: BASETEN_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V3.1",
+        name: "DeepSeek V3.1",
+        reasoning: true,
+        input: ["text"],
+        cost: BASETEN_DEFAULT_COST,
+        contextWindow: BASETEN_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: BASETEN_DEFAULT_MAX_TOKENS,
+      },
+      // Kimi models (Moonshot)
+      {
+        id: "moonshotai/Kimi-K2-0905",
+        name: "Kimi K2 0905",
+        reasoning: false,
+        input: ["text"],
+        cost: BASETEN_DEFAULT_COST,
+        contextWindow: BASETEN_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: BASETEN_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "moonshotai/Kimi-K2-Thinking",
+        name: "Kimi K2 Thinking",
+        reasoning: true,
+        input: ["text"],
+        cost: BASETEN_DEFAULT_COST,
+        contextWindow: BASETEN_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: BASETEN_DEFAULT_MAX_TOKENS,
+      },
+    ],
+  };
+}
+
 export async function resolveImplicitProviders(params: {
   agentDir: string;
 }): Promise<ModelsConfig["providers"]> {
@@ -459,6 +536,14 @@ export async function resolveImplicitProviders(params: {
     resolveApiKeyFromProfiles({ provider: "ollama", store: authStore });
   if (ollamaKey) {
     providers.ollama = { ...(await buildOllamaProvider()), apiKey: ollamaKey };
+  }
+
+  // Baseten provider - supports many open source models via OpenAI-compatible API
+  const basetenKey =
+    resolveEnvApiKeyVarName("baseten") ??
+    resolveApiKeyFromProfiles({ provider: "baseten", store: authStore });
+  if (basetenKey) {
+    providers.baseten = { ...buildBasetenProvider(), apiKey: basetenKey };
   }
 
   return providers;

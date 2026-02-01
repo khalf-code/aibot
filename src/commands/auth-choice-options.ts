@@ -21,6 +21,7 @@ export type AuthChoiceGroupId =
   | "minimax"
   | "synthetic"
   | "venice"
+  | "baseten"
   | "qwen";
 
 export type AuthChoiceGroup = {
@@ -120,6 +121,12 @@ const AUTH_CHOICE_GROUP_DEFS: {
     hint: "Privacy-focused (uncensored models)",
     choices: ["venice-api-key"],
   },
+  {
+    value: "baseten",
+    label: "Baseten",
+    hint: "Open source models (DeepSeek, GLM, Kimi)",
+    choices: ["baseten-api-key"],
+  },
 ];
 
 export function buildAuthChoiceOptions(params: {
@@ -153,6 +160,11 @@ export function buildAuthChoiceOptions(params: {
     value: "venice-api-key",
     label: "Venice AI API key",
     hint: "Privacy-focused inference (uncensored models)",
+  });
+  options.push({
+    value: "baseten-api-key",
+    label: "Baseten API key",
+    hint: "Open source models (DeepSeek, GLM, Kimi)",
   });
   options.push({
     value: "github-copilot",

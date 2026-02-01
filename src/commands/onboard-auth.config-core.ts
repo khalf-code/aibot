@@ -13,6 +13,7 @@ import {
   VENICE_MODEL_CATALOG,
 } from "../agents/venice-models.js";
 import {
+  BASETEN_DEFAULT_MODEL_REF,
   OPENROUTER_DEFAULT_MODEL_REF,
   VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
   XIAOMI_DEFAULT_MODEL_REF,
@@ -451,6 +452,57 @@ export function applyVeniceConfig(cfg: OpenClawConfig): OpenClawConfig {
               }
             : undefined),
           primary: VENICE_DEFAULT_MODEL_REF,
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Apply Baseten provider configuration without changing the default model.
+ * Baseten uses implicit provider discovery, so no explicit provider config is needed.
+ */
+export function applyBasetenProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
+  // Baseten models are auto-discovered via resolveImplicitProviders when BASETEN_API_KEY is set.
+  // No explicit provider config needed; just register the model alias.
+  const models = { ...cfg.agents?.defaults?.models };
+  models[BASETEN_DEFAULT_MODEL_REF] = {
+    ...models[BASETEN_DEFAULT_MODEL_REF],
+    alias: models[BASETEN_DEFAULT_MODEL_REF]?.alias ?? "DeepSeek V3.1",
+  };
+
+  return {
+    ...cfg,
+    agents: {
+      ...cfg.agents,
+      defaults: {
+        ...cfg.agents?.defaults,
+        models,
+      },
+    },
+  };
+}
+
+/**
+ * Apply Baseten provider configuration AND set Baseten as the default model.
+ * Use this when Baseten is the primary provider choice during onboarding.
+ */
+export function applyBasetenConfig(cfg: OpenClawConfig): OpenClawConfig {
+  const next = applyBasetenProviderConfig(cfg);
+  const existingModel = next.agents?.defaults?.model;
+  return {
+    ...next,
+    agents: {
+      ...next.agents,
+      defaults: {
+        ...next.agents?.defaults,
+        model: {
+          ...(existingModel && "fallbacks" in (existingModel as Record<string, unknown>)
+            ? {
+                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks,
+              }
+            : undefined),
+          primary: BASETEN_DEFAULT_MODEL_REF,
         },
       },
     },
