@@ -17,13 +17,40 @@ export async function snapshotAriaViaPlaywright(opts: {
   cdpUrl: string;
   targetId?: string;
   limit?: number;
+  engine?: "chromium" | "firefox";
+  profileName?: string;
 }): Promise<{ nodes: AriaSnapshotNode[] }> {
   const limit = Math.max(1, Math.min(2000, Math.floor(opts.limit ?? 500)));
   const page = await getPageForTargetId({
     cdpUrl: opts.cdpUrl,
     targetId: opts.targetId,
+    engine: opts.engine,
+    profileName: opts.profileName,
   });
   ensurePageState(page);
+
+  // Firefox doesn't support CDP sessions; use Playwright's ariaSnapshot as fallback
+  if (opts.engine === "firefox") {
+    const snapshot = await page.locator(":root").ariaSnapshot();
+    const lines = String(snapshot ?? "")
+      .split("\n")
+      .slice(0, limit);
+    // Convert the text-based ariaSnapshot into AriaSnapshotNode[] format
+    const nodes: AriaSnapshotNode[] = lines
+      .filter((line) => line.trim())
+      .map((line, idx) => {
+        const trimmed = line.replace(/^[\s-]*/, "");
+        const match = trimmed.match(/^(\w+)\s*(?:"([^"]*)")?/);
+        return {
+          ref: `e${idx + 1}`,
+          role: match?.[1] ?? "generic",
+          name: match?.[2] ?? "",
+          depth: Math.floor((line.length - line.trimStart().length) / 2),
+        };
+      });
+    return { nodes: nodes.slice(0, limit) };
+  }
+
   const session = await page.context().newCDPSession(page);
   try {
     await session.send("Accessibility.enable").catch(() => {});
@@ -42,10 +69,14 @@ export async function snapshotAiViaPlaywright(opts: {
   targetId?: string;
   timeoutMs?: number;
   maxChars?: number;
+  engine?: "chromium" | "firefox";
+  profileName?: string;
 }): Promise<{ snapshot: string; truncated?: boolean; refs: RoleRefMap }> {
   const page = await getPageForTargetId({
     cdpUrl: opts.cdpUrl,
     targetId: opts.targetId,
+    engine: opts.engine,
+    profileName: opts.profileName,
   });
   ensurePageState(page);
 
@@ -88,6 +119,8 @@ export async function snapshotRoleViaPlaywright(opts: {
   frameSelector?: string;
   refsMode?: "role" | "aria";
   options?: RoleSnapshotOptions;
+  engine?: "chromium" | "firefox";
+  profileName?: string;
 }): Promise<{
   snapshot: string;
   refs: Record<string, { role: string; name?: string; nth?: number }>;
@@ -96,6 +129,8 @@ export async function snapshotRoleViaPlaywright(opts: {
   const page = await getPageForTargetId({
     cdpUrl: opts.cdpUrl,
     targetId: opts.targetId,
+    engine: opts.engine,
+    profileName: opts.profileName,
   });
   ensurePageState(page);
 
@@ -158,6 +193,8 @@ export async function navigateViaPlaywright(opts: {
   targetId?: string;
   url: string;
   timeoutMs?: number;
+  engine?: "chromium" | "firefox";
+  profileName?: string;
 }): Promise<{ url: string }> {
   const url = String(opts.url ?? "").trim();
   if (!url) {
@@ -176,6 +213,8 @@ export async function resizeViewportViaPlaywright(opts: {
   targetId?: string;
   width: number;
   height: number;
+  engine?: "chromium" | "firefox";
+  profileName?: string;
 }): Promise<void> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
@@ -188,6 +227,8 @@ export async function resizeViewportViaPlaywright(opts: {
 export async function closePageViaPlaywright(opts: {
   cdpUrl: string;
   targetId?: string;
+  engine?: "chromium" | "firefox";
+  profileName?: string;
 }): Promise<void> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
@@ -197,6 +238,8 @@ export async function closePageViaPlaywright(opts: {
 export async function pdfViaPlaywright(opts: {
   cdpUrl: string;
   targetId?: string;
+  engine?: "chromium" | "firefox";
+  profileName?: string;
 }): Promise<{ buffer: Buffer }> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);

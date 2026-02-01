@@ -315,6 +315,8 @@ describe("browser control server", () => {
       cdpUrl: cdpBaseUrl,
       targetId: "abcd1234",
       maxChars: DEFAULT_AI_SNAPSHOT_MAX_CHARS,
+      engine: "chromium",
+      profileName: "openclaw",
     });
   });
 
@@ -330,6 +332,8 @@ describe("browser control server", () => {
       cdpUrl: cdpBaseUrl,
       targetId: "abcd1234",
       url: "https://example.com",
+      engine: "chromium",
+      profileName: "openclaw",
     });
 
     const click = await postJson(`${base}/act`, {
@@ -346,6 +350,8 @@ describe("browser control server", () => {
       doubleClick: false,
       button: "left",
       modifiers: ["Shift"],
+      engine: "chromium",
+      profileName: "openclaw",
     });
 
     const clickSelector = await realFetch(`${base}/act`, {
@@ -371,6 +377,8 @@ describe("browser control server", () => {
       text: "",
       submit: false,
       slowly: false,
+      engine: "chromium",
+      profileName: "openclaw",
     });
 
     const press = await postJson(`${base}/act`, {
@@ -382,6 +390,8 @@ describe("browser control server", () => {
       cdpUrl: cdpBaseUrl,
       targetId: "abcd1234",
       key: "Enter",
+      engine: "chromium",
+      profileName: "openclaw",
     });
 
     const hover = await postJson(`${base}/act`, {
@@ -393,6 +403,8 @@ describe("browser control server", () => {
       cdpUrl: cdpBaseUrl,
       targetId: "abcd1234",
       ref: "2",
+      engine: "chromium",
+      profileName: "openclaw",
     });
 
     const scroll = await postJson(`${base}/act`, {
@@ -404,6 +416,8 @@ describe("browser control server", () => {
       cdpUrl: cdpBaseUrl,
       targetId: "abcd1234",
       ref: "2",
+      engine: "chromium",
+      profileName: "openclaw",
     });
 
     const drag = await postJson(`${base}/act`, {
@@ -417,6 +431,8 @@ describe("browser control server", () => {
       targetId: "abcd1234",
       startRef: "3",
       endRef: "4",
+      engine: "chromium",
+      profileName: "openclaw",
     });
   });
 });

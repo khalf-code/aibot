@@ -290,6 +290,8 @@ describe("browser control server", () => {
     expect(call).toEqual({
       cdpUrl: cdpBaseUrl,
       targetId: "abcd1234",
+      engine: "chromium",
+      profileName: "openclaw",
     });
   });
 
