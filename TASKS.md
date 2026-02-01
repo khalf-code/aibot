@@ -1,9 +1,9 @@
 # Tasks
 
-- [ ] Benchmark baseline load time <!-- id: 1 -->
-    - [ ] Run `time openclaw help`
-    - [ ] Run `time openclaw status`
-    - [ ] Create `docs/analysis/cli-bottlenecks/benchmarks.md`
+- [x] Benchmark baseline load time <!-- id: 1 -->
+    - [x] Run `time openclaw help`
+    - [x] Run `time openclaw status`
+    - [x] Create `docs/analysis/cli-bottlenecks/benchmarks.md`
 - [ ] Refactor command registry <!-- id: 7 -->
     - [ ] Convert `src/cli/program/command-registry.ts` to use lazy imports
     - [ ] Isolate `status` command dependencies
