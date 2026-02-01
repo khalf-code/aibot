@@ -519,35 +519,37 @@ export async function runReplyAgent(params: {
       finalPayloads = appendUsageLine(finalPayloads, responseUsageLine);
     }
 
-    // Trigger agent:response hook for post-response processing
-    const responseText = finalPayloads
-      .map((p) => (typeof p === "string" ? p : p.text))
-      .filter(Boolean)
-      .join("\n");
-    const agentId = sessionKey ? resolveAgentIdFromSessionKey(sessionKey) : undefined;
-    const workspaceDir =
-      cfg && agentId
-        ? (resolveAgentWorkspaceDir(cfg, agentId) ?? DEFAULT_AGENT_WORKSPACE_DIR)
-        : undefined;
-    const responseContext: AgentResponseHookContext = {
-      responseText: responseText || undefined,
-      payloads: finalPayloads,
-      model: modelUsed,
-      provider: providerUsed,
-      cfg,
-      sessionKey,
-      sessionId: followupRun.run.sessionId,
-      agentId,
-      workspaceDir,
-    };
-    const responseEvent = createInternalHookEvent(
-      "agent",
-      "response",
-      sessionKey ?? "unknown",
-      responseContext,
-    );
-    // Fire-and-forget to avoid blocking response delivery
-    void triggerInternalHook(responseEvent);
+    // Trigger agent:response hook for post-response processing (only with valid session)
+    if (sessionKey) {
+      const responseText = finalPayloads
+        .map((p) => p.text)
+        .filter(Boolean)
+        .join("\n");
+      const agentId = resolveAgentIdFromSessionKey(sessionKey);
+      const workspaceDir =
+        cfg && agentId
+          ? (resolveAgentWorkspaceDir(cfg, agentId) ?? DEFAULT_AGENT_WORKSPACE_DIR)
+          : undefined;
+      const responseContext: AgentResponseHookContext = {
+        responseText: responseText || undefined,
+        payloads: finalPayloads,
+        model: modelUsed,
+        provider: providerUsed,
+        cfg,
+        sessionKey,
+        sessionId: followupRun.run.sessionId,
+        agentId,
+        workspaceDir,
+      };
+      const responseEvent = createInternalHookEvent(
+        "agent",
+        "response",
+        sessionKey,
+        responseContext,
+      );
+      // Fire-and-forget to avoid blocking response delivery
+      void triggerInternalHook(responseEvent);
+    }
 
     return finalizeWithFollowup(
       finalPayloads.length === 1 ? finalPayloads[0] : finalPayloads,
