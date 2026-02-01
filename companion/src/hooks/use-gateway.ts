@@ -158,6 +158,7 @@ const SESSION_KEY = "agent:main:companion";
 
 export function useGateway() {
   const [connected, setConnected] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [stream, setStream] = useState<string | null>(null);
   const [streamParts, setStreamParts] = useState<MessagePart[]>([]);
@@ -244,18 +245,25 @@ export function useGateway() {
         }
         if (evt.event === "chat") {
           const result = handleChatEvent(s, evt.payload as ChatEventPayload | undefined);
-          if (result === "final" || result === "error" || result === "aborted") {
-            resetToolStream(s);
-          }
           if (result === "final") {
-            void loadChatHistory(s).then(() => syncReactState());
+            void loadChatHistory(s).then(() => {
+              resetToolStream(s);
+              syncReactState();
+            });
+            return;
+          }
+          if (result === "error" || result === "aborted") {
+            resetToolStream(s);
           }
           syncReactState();
         }
       },
-      onClose: () => {
+      onClose: ({ code, reason }) => {
         stateRef.current.connected = false;
         setConnected(false);
+        if (code !== 1012) {
+          setLastError(`disconnected (${code}): ${reason || "no reason"}`);
+        }
       },
     });
 
@@ -309,7 +317,30 @@ export function useGateway() {
     syncReactState();
   }, [syncReactState]);
 
+  const readFile = useCallback(async (filePath: string): Promise<string> => {
+    const s = stateRef.current;
+    if (!s.client) {
+      throw new Error("not connected");
+    }
+    const res = await s.client.request<{ content: string }>("file.read", { path: filePath });
+    return res.content;
+  }, []);
+
+  const readFileBinary = useCallback(async (filePath: string): Promise<ArrayBuffer> => {
+    const s = stateRef.current;
+    if (!s.client) {
+      throw new Error("not connected");
+    }
+    const res = await s.client.request<{ content: string }>("file.read", { path: filePath, encoding: "base64" });
+    const binary = atob(res.content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }, []);
+
   const busy = sending || stream !== null;
 
-  return { connected, messages, stream, streamParts, sending, busy, send, stop, newSession, historyLoaded };
+  return { connected, lastError, messages, stream, streamParts, sending, busy, send, stop, newSession, historyLoaded, readFile, readFileBinary };
 }

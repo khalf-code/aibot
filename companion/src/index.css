@@ -132,6 +132,21 @@
 
 [data-streamdown="code-block-body"] {
   background: white !important;
+  padding: 0.75rem !important;
+}
+
+[data-streamdown="code-block-body"] pre {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+[data-streamdown="code-block-body"] code {
+  display: block;
+}
+
+[data-streamdown="code-block-body"] code > span:last-child:empty,
+[data-streamdown="code-block-body"] code > span:last-child:has(> span:only-child:empty) {
+  display: none;
 }
 
 [data-streamdown="inline-code"] {

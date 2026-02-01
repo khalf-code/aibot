@@ -38,7 +38,7 @@ export function ChatComposer({ connected, busy, onSend, onStop }: Props) {
   );
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-6 pb-5">
+    <div className="mx-auto w-full max-w-3xl px-6 pb-5">
       <form
         onSubmit={(e) => {
           e.preventDefault();

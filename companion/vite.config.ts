@@ -3,9 +3,9 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss()],
-  base: "./",
+  base: command === "serve" ? "/" : "./",
   build: {
     outDir: "../dist/companion",
     sourcemap: true,
@@ -20,4 +20,4 @@ export default defineConfig({
       "@ui": path.resolve(__dirname, "../ui/src/ui"),
     },
   },
-})
+}))
