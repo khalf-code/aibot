@@ -126,6 +126,18 @@ function redactLogValue(value: unknown): unknown {
   return result;
 }
 
+function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    try {
+      return String(value);
+    } catch {
+      return "";
+    }
+  }
+}
+
 export function injectHistoryImagesIntoMessages(
   messages: AgentMessage[],
   historyImagesByIndex: Map<number, ImageContent[]>,
@@ -779,12 +791,13 @@ export async function runEmbeddedAttempt(
         }
 
         log.debug(`embedded run prompt start: runId=${params.runId} sessionId=${params.sessionId}`);
-        log.info(`[openresponses] prompt snapshot`, {
+        const promptSnapshot = {
           runId: params.runId,
           sessionId: params.sessionId,
           prompt: truncateLogValue(effectivePrompt),
           messages: redactLogValue(activeSession.messages),
-        });
+        };
+        log.info(`[openresponses] prompt snapshot ${safeJsonStringify(promptSnapshot)}`);
         cacheTrace?.recordStage("prompt:before", {
           prompt: effectivePrompt,
           messages: activeSession.messages,
