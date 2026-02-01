@@ -115,256 +115,50 @@ interface Session {
 
 ---
 
-## Pages & Layout
+## UI/UX Vision (from Mission Control reference)
 
-### 1. Dashboard (/)
-**Purpose:** Real-time overview of what's happening NOW
+**The core layout is a three-column dashboard that provides a comprehensive, at-a-glance view of the entire agent squad's operation.**
 
-- **Active Sessions Panel** — What agents are running right now
-  - Agent avatar, task title, duration, tokens, cost
-  - Quick actions: View, Pause, Inject, Kill
-  
-- **Quick Stats** — Today's numbers
-  - Active sessions, tasks completed, tokens used, cost
-  
-- **Recent Activity** — Timeline of agent events
-  - Task started, completed, errored, handed off
-  
-- **Alerts** — Things needing attention
-  - Stuck sessions, high cost, errors
+### Column 1: AGENTS
+- **Purpose:** Roster of all available agents.
+- **Content:**
+  - Agent Avatar, Name, and Role (e.g., "Developer Agent", "Content Writer").
+  - Current status with a colored dot/tag (e.g., WORKING, REVIEW, IDLE).
+  - "LEAD" tag for designated squad leads.
+  - A count of total active agents in the header.
 
-### 2. Projects (/projects)
-**Purpose:** Manage incubation projects
+### Column 2: MISSION QUEUE (Tasks)
+- **Purpose:** A Kanban board for all tasks.
+- **Content:**
+  - Columns: `INBOX`, `ASSIGNED`, `IN PROGRESS`, `REVIEW`, `DONE`.
+  - Each column header shows a count of tasks within it.
+  - Task cards display:
+    - Task Title.
+    - Tags for categorization (e.g., `research`, `writing`, `code`).
+    - Assigned agent's avatar.
+    - Timestamp or progress indicator (e.g., "1 day ago").
 
-- **Project Cards** — Visual grid of projects
-  - Emoji, name, task count, active sessions, total cost
-  - Click → project detail
+### Column 3: LIVE FEED
+- **Purpose:** A real-time, filterable stream of all agent activity.
+- **Content:**
+  - Filter tabs: `All`, `Tasks`, `Comments`, `Decisions`, `Status`.
+  - Dropdown to filter by a specific agent.
+  - Each feed item includes the agent's avatar, name, the action they took, and the subject of the action (e.g., "Quill commented on 'Write Customer Case Studies...'").
+  - Relative timestamp ("about 2 hours ago").
 
-- **Project Detail** (/projects/[id])
-  - Project header with stats
-  - Task list for this project (kanban or list view)
-  - Cost breakdown chart
-  - Activity timeline
+### Header
+- **Purpose:** High-level dashboard stats.
+- **Content:**
+  - `MISSION CONTROL` title.
+  - Key metrics: `XX AGENTS ACTIVE`, `XX TASKS IN QUEUE`.
+  - Quick links (e.g., `Docs`).
+  - Current Time/Date and `ONLINE` status indicator.
 
-- **Create/Edit Project** — Modal or slide-over
-
-### 3. Tasks (/tasks)
-**Purpose:** Kanban board of all work across projects
-
-- **Kanban Columns:**
-  - Inbox (unassigned)
-  - Assigned (has agent, not started)
-  - Running (active session)
-  - Blocked (needs input)
-  - Done (completed)
-
-- **Task Card:**
-  - Title, project tag, priority indicator
-  - Assigned agent avatar
-  - If running: live token count, duration
-  - Quick actions: Assign, Start, Pause, Complete
-
-- **Task Detail** (slide-over or modal)
-  - Full description
-  - Comments thread
-  - Linked sessions with cost
-  - Agent assignment
-  - Status transitions
-
-- **Create Task** — Quick add or full form
-
-### 4. Agents (/agents)
-**Purpose:** See and manage the sub-agent roster
-
-- **Agent Cards:**
-  - Avatar, name, status indicator
-  - Current task (if any)
-  - Capabilities tags
-  
-- **Agent Detail** (/agents/[id])
-  - Stats: tasks completed, tokens used, cost generated
-  - Recent tasks handled
-  - Session history
-
-### 5. Sessions (/sessions)
-**Purpose:** Real-time view of all sessions
-
-- **Session List:**
-  - Agent, task, status, duration, tokens, cost
-  - Expandable for more detail
-  
-- **Session Detail** (/sessions/[id])
-  - Full session info
-  - Live log tail (if active)
-  - Linked task
-  - Intervention controls
-
-### 6. Settings (/settings)
-- Gateway connection (URL, token)
-- Agent configuration
-- Cost thresholds for alerts
-- Theme preferences
+### Aesthetic
+- **Theme:** Light, clean, minimalist, professional.
+- **Density:** Data-rich but not cluttered, using whitespace effectively.
+- **Feel:** Like a professional project management tool (Linear, Asana) tailored specifically for orchestrating AI agents.
 
 ---
 
-## Key Interactions
-
-### Spawning an Agent for a Task
-1. User clicks "Start" on a task
-2. Modal: Select agent (or auto-assign based on task type)
-3. System calls `sessions_spawn` with task context
-4. Session links back to task
-5. Task status → "Running"
-6. Session appears in Active Sessions
-
-### Pausing/Resuming Work
-1. User clicks "Pause" on running session
-2. System sends pause signal to gateway
-3. Session status → "Paused"
-4. Task remains assigned, can resume later
-
-### Handoff Between Agents
-1. Builder finishes code, needs Scribe for docs
-2. Builder comments: "@scribe please document this"
-3. Task reassigns to Scribe
-4. New session spawns with context from Builder's work
-
-### Task Completion
-1. Agent finishes work
-2. Session ends (or user marks complete)
-3. Task status → "Done"
-4. Cost rolled up to task and project
-
----
-
-## Mobile-First Design
-
-### Bottom Nav (6 items max)
-- Dashboard (home icon)
-- Projects (folder icon)  
-- Tasks (checkbox icon)
-- Agents (users icon)
-- Sessions (activity icon)
-- Settings (gear icon)
-
-### Touch Targets
-- Minimum 44px height for all interactive elements
-- Proper safe area padding for iPhone notch/home indicator
-
-### Cards over Tables
-- Mobile: Stacked cards with key info
-- Desktop: Can show more detail, optional table view
-
----
-
-## CSS Architecture (Tailwind v4)
-
-**CRITICAL:** All custom styles MUST be in @layer to not override Tailwind utilities.
-
-```css
-@import "tailwindcss";
-
-@layer base {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #fafafa;
-    --accent: #14b8a6;
-    /* etc */
-  }
-}
-
-@layer components {
-  .card { /* ... */ }
-  .btn { /* ... */ }
-}
-
-/* NO unlayered CSS that could override utilities */
-```
-
----
-
-## Database
-
-**Option A: SQLite (Prisma)**
-- Simple, local-first
-- Good for single-user/single-server
-- Already have Prisma set up
-
-**Option B: Postgres (Neon)**
-- Already connected
-- Better for multi-device access
-- Scales if productized
-
-**Recommendation:** Stay with Postgres/Neon since it's already connected.
-
----
-
-## API Architecture
-
-### Internal DB (Projects, Tasks, Comments)
-- `/api/projects` — CRUD for projects
-- `/api/tasks` — CRUD for tasks
-- `/api/tasks/[id]/comments` — Comments on tasks
-- `/api/agents` — Agent registry (local config)
-
-### Gateway Proxy (Sessions, Real-time)
-- `/api/gateway/sessions` — List sessions from gateway
-- `/api/gateway/spawn` — Spawn new agent session
-- `/api/gateway/control` — Pause, resume, kill
-- `/api/events` — SSE stream for real-time updates
-
----
-
-## What's Different from v1
-
-| v1 (Wrong) | v2 (Correct) |
-|------------|--------------|
-| Vikunja viewer | Bespoke system |
-| Display only | Full CRUD |
-| Mock data fallbacks | Real data only |
-| Observability focus | Operational control |
-| Generic dashboard | Steve's command center |
-
----
-
-## Implementation Priority
-
-### Phase 1: Foundation (This Sprint)
-1. Fix CSS architecture (Tailwind v4 layers)
-2. Database schema (Prisma models)
-3. Projects CRUD
-4. Tasks CRUD with Kanban
-
-### Phase 2: Agent Integration
-5. Agent registry and status
-6. Session spawning from tasks
-7. Task ↔ Session linking
-8. Intervention controls
-
-### Phase 3: Polish
-9. Comments system
-10. Activity timeline
-11. Cost tracking and charts
-12. Alerts
-
----
-
-## Success Criteria
-
-**For Steve (AI Orchestrator):**
-- Can see all my sub-agents and their status
-- Can create tasks and assign to agents
-- Can spawn agent sessions directly from tasks
-- Can track cost per project/task
-- Can pause, resume, kill agents
-- Can hand off work between agents with context
-
-**For David (Human Owner):**
-- Single pane of glass for all agent activity
-- Clear cost attribution
-- Ability to intervene when needed
-- Mobile-friendly for on-the-go monitoring
-
----
-
-#projects #agentconsole #dbhventures #spec
+## Data Model (Bespoke, NOT Vikunja)
