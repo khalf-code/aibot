@@ -804,10 +804,14 @@ export async function createForumTopicTelegram(
     verbose: opts.verbose,
     shouldRetry: (err) => isRecoverableTelegramNetworkError(err, { context: "send" }),
   });
+  const logHttpError = createTelegramHttpLogger(cfg);
   const requestWithDiag = <T>(fn: () => Promise<T>, label?: string) =>
     withTelegramApiErrorLogging({
       operation: label ?? "request",
       fn: () => request(fn, label),
+    }).catch((err) => {
+      logHttpError(label ?? "request", err);
+      throw err;
     });
 
   const wrapForumError = (err: unknown) => {
