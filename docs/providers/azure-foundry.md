@@ -19,11 +19,12 @@ Azure AI Foundry is Microsoft's unified AI platform that provides access to Open
 3. Configure OpenClaw:
 
 ```bash
-# Set environment variable
+# Set environment variables
 export AZURE_FOUNDRY_API_KEY="your-azure-api-key"
+export AZURE_FOUNDRY_BASE_URL="https://your-resource.openai.azure.com"
 
-# Configure the provider in your config file
-moltbot config set models.providers.azure-foundry.baseUrl "https://your-resource.openai.azure.com"
+# Or configure the provider in your config file
+openclaw config set models.providers.azure-foundry.baseUrl "https://your-resource.openai.azure.com"
 ```
 
 4. Add your model deployment:
@@ -198,12 +199,18 @@ For Azure-hosted reasoning models (e.g., o1, o1-mini):
 
 ### Authentication failed
 
-Verify your API key:
+Verify your API key in the Azure Portal, or test with this command (optional, requires curl):
 
 ```bash
 curl -H "api-key: $AZURE_FOUNDRY_API_KEY" \
   "https://your-resource.openai.azure.com/openai/deployments?api-version=2024-02-01"
 ```
+
+Alternatively, check that:
+
+1. Your API key is correct in the Azure Portal under "Keys and Endpoint"
+2. The `AZURE_FOUNDRY_API_KEY` environment variable is set
+3. Your Azure resource is in an active state
 
 ### Model not found
 

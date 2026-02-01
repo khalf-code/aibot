@@ -503,6 +503,18 @@ export async function resolveImplicitProviders(params: {
     providers.ollama = { ...(await buildOllamaProvider()), apiKey: ollamaKey };
   }
 
+  // Azure AI Foundry provider - requires both API key and base URL
+  const azureFoundryKey =
+    resolveEnvApiKeyVarName("azure-foundry") ??
+    resolveApiKeyFromProfiles({ provider: "azure-foundry", store: authStore });
+  const azureFoundryBaseUrl = process.env.AZURE_FOUNDRY_BASE_URL?.trim();
+  if (azureFoundryKey && azureFoundryBaseUrl) {
+    providers["azure-foundry"] = {
+      ...buildAzureFoundryProvider({ baseUrl: azureFoundryBaseUrl }),
+      apiKey: azureFoundryKey,
+    };
+  }
+
   return providers;
 }
 
