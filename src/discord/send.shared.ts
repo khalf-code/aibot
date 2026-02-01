@@ -40,7 +40,7 @@ function sanitizeModelOutput(text: string): string {
   out = out.replace(/<think>[\s\S]*?<\/think>/gi, "");
 
   // Remove "Thought:" blocks (Grok, older reasoning models)
-  out = out.replace(/(^|\n)\s*Thoughts?:[\s\S]*?(?=\n\s*\n|$)/gi, "$1");
+  out = out.replace(/(^|\n)\s*Thoughts?:[\s\S]*?(?=\n\s*\n|$)/gim, "$1");
 
   // Remove "Thinking..." or "Thinking:" markers only
   // Only match when followed by ellipsis or colon to avoid breaking normal text
@@ -331,9 +331,8 @@ async function sendDiscordText(
   const sanitized = sanitizeModelOutput(text).trim();
 
   if (!sanitized) {
-    throw new Error(
-      "Message reduced to empty after sanitization (only reasoning content was present)",
-    );
+    // Only reasoning content - skip sending empty message
+    return { id: "", channel_id: channelId };
   }
 
   const messageReference = replyTo ? { message_id: replyTo, fail_if_not_exists: false } : undefined;
@@ -465,6 +464,7 @@ export {
   parseRecipient,
   resolveChannelId,
   resolveDiscordRest,
+  sanitizeModelOutput,
   sendDiscordMedia,
   sendDiscordText,
 };
