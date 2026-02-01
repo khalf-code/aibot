@@ -47,8 +47,8 @@ openclaw devices approve <requestId>
 ```
 
 Once approved, the device is remembered and won't require re-approval unless
-you revoke it with `openclaw devices revoke`. See [Devices CLI](/cli/devices)
-for token rotation and revocation.
+you revoke it with `openclaw devices revoke --device <id> --role <role>`. See
+[Devices CLI](/cli/devices) for token rotation and revocation.
 
 **Notes:**
 - Local connections (`127.0.0.1`) are auto-approved.
