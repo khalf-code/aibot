@@ -1,15 +1,15 @@
 import type { Command } from "commander";
+import type { CostUsageSummary } from "../../infra/session-cost-usage.js";
+import type { GatewayDiscoverOpts } from "./discover.js";
 import { gatewayStatusCommand } from "../../commands/gateway-status.js";
 import { formatHealthChannelLines, type HealthSummary } from "../../commands/health.js";
 import { loadConfig } from "../../config/config.js";
 import { discoverGatewayBeacons } from "../../infra/bonjour-discovery.js";
-import type { CostUsageSummary } from "../../infra/session-cost-usage.js";
 import { resolveWideAreaDiscoveryDomain } from "../../infra/widearea-dns.js";
 import { defaultRuntime } from "../../runtime.js";
 import { formatDocsLink } from "../../terminal/links.js";
 import { colorize, isRich, theme } from "../../terminal/theme.js";
 import { formatTokenCount, formatUsd } from "../../utils/usage-format.js";
-import { withProgress } from "../progress.js";
 import { runCommandWithRuntime } from "../cli-utils.js";
 import {
   DaemonInstallOptions,
@@ -21,8 +21,9 @@ import {
   runDaemonStop,
   runDaemonUninstall,
 } from "../daemon-cli.js";
+import { DaemonLifecycleOptions } from "../daemon-cli/types.js";
+import { withProgress } from "../progress.js";
 import { callGatewayCli, gatewayCallOpts, GatewayRpcOpts } from "./call.js";
-import type { GatewayDiscoverOpts } from "./discover.js";
 import {
   dedupeBeacons,
   parseDiscoverTimeoutMs,
@@ -31,7 +32,6 @@ import {
   renderBeaconLines,
 } from "./discover.js";
 import { addGatewayRunCommand } from "./run.js";
-import { DaemonLifecycleOptions } from "../daemon-cli/types.js";
 
 function styleHealthChannelLine(line: string, rich: boolean): string {
   if (!rich) {
@@ -147,7 +147,7 @@ export function registerGatewayCli(program: Command) {
     .option("--no-probe", "Skip RPC probe")
     .option("--deep", "Scan system-level services", false)
     .option("--json", "Output JSON", false)
-    .action(async (opts : DaemonStatusOptions) => {
+    .action(async (opts: DaemonStatusOptions) => {
       await runDaemonStatus({
         rpc: opts,
         probe: Boolean(opts.probe),
