@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/copilot-proxy",
+  "name": "@zoidbergbot/copilot-proxy",
   "version": "2026.1.30",
-  "description": "OpenClaw Copilot Proxy provider plugin",
+  "description": "ZoidbergBot Copilot Proxy provider plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "zoidbergbot": "workspace:*"
   },
-  "openclaw": {
+  "zoidbergbot": {
     "extensions": [
       "./index.ts"
     ]

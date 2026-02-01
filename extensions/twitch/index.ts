@@ -1,5 +1,5 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
+import type { ZoidbergBotPluginApi } from "zoidbergbot/plugin-sdk";
+import { emptyPluginConfigSchema } from "zoidbergbot/plugin-sdk";
 import { twitchPlugin } from "./src/plugin.js";
 import { setTwitchRuntime } from "./src/runtime.js";
 
@@ -10,7 +10,7 @@ const plugin = {
   name: "Twitch",
   description: "Twitch channel plugin",
   configSchema: emptyPluginConfigSchema(),
-  register(api: OpenClawPluginApi) {
+  register(api: ZoidbergBotPluginApi) {
     setTwitchRuntime(api.runtime);
     api.registerChannel({ plugin: twitchPlugin as any });
   },

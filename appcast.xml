@@ -1,15 +1,15 @@
 <?xml version="1.0" standalone="yes"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
-        <title>OpenClaw</title>
+        <title>ZoidbergBot</title>
         <item>
             <title>2026.1.30</title>
             <pubDate>Sat, 31 Jan 2026 14:29:57 +0100</pubDate>
-            <link>https://raw.githubusercontent.com/openclaw/openclaw/main/appcast.xml</link>
+            <link>https://raw.githubusercontent.com/zoidbergbot/zoidbergbot/main/appcast.xml</link>
             <sparkle:version>8469</sparkle:version>
             <sparkle:shortVersionString>2026.1.30</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>OpenClaw 2026.1.30</h2>
+            <description><![CDATA[<h2>ZoidbergBot 2026.1.30</h2>
 <h3>Changes</h3>
 <ul>
 <li>CLI: add <code>completion</code> command (Zsh/Bash/PowerShell/Fish) and auto-setup during postinstall/onboarding.</li>
@@ -21,7 +21,7 @@
 <li>Web UI: refresh sessions after chat commands and improve session display names.</li>
 <li>Build: move TypeScript builds to <code>tsdown</code> + <code>tsgo</code> (faster builds, CI typechecks), update tsconfig target, and clean up lint rules.</li>
 <li>Build: align npm tar override and bin metadata so the <code>openclaw</code> CLI entrypoint is preserved in npm publishes.</li>
-<li>Docs: add pi/pi-dev docs and update OpenClaw branding + install links.</li>
+<li>Docs: add pi/pi-dev docs and update ZoidbergBot branding + install links.</li>
 </ul>
 <h3>Fixes</h3>
 <ul>
@@ -43,22 +43,22 @@
 <li>OAuth: skip expired-token warnings when refresh tokens are still valid. (#4593)</li>
 <li>Build: skip redundant UI install step in Dockerfile. (#4584) Thanks @obviyus.</li>
 </ul>
-<p><a href="https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md">View full changelog</a></p>
+<p><a href="https://github.com/zoidbergbot/zoidbergbot/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/openclaw/openclaw/releases/download/v2026.1.30/OpenClaw-2026.1.30.zip" length="22458594" type="application/octet-stream" sparkle:edSignature="77/GuEcruKGgu2CJyMq+OVwzaJ2v1VzRQC9NmOirKO3uH5Nn5HaoouwrOHnOanrzlD4OvPW0FS5GH2E4Ntu4CQ=="/>
+            <enclosure url="https://github.com/zoidbergbot/zoidbergbot/releases/download/v2026.1.30/ZoidbergBot-2026.1.30.zip" length="22458594" type="application/octet-stream" sparkle:edSignature="77/GuEcruKGgu2CJyMq+OVwzaJ2v1VzRQC9NmOirKO3uH5Nn5HaoouwrOHnOanrzlD4OvPW0FS5GH2E4Ntu4CQ=="/>
         </item>
         <item>
             <title>2026.1.29</title>
             <pubDate>Fri, 30 Jan 2026 06:24:15 +0100</pubDate>
-            <link>https://raw.githubusercontent.com/openclaw/openclaw/main/appcast.xml</link>
+            <link>https://raw.githubusercontent.com/zoidbergbot/zoidbergbot/main/appcast.xml</link>
             <sparkle:version>8345</sparkle:version>
             <sparkle:shortVersionString>2026.1.29</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>OpenClaw 2026.1.29</h2>
+            <description><![CDATA[<h2>ZoidbergBot 2026.1.29</h2>
 Status: stable.
 <h3>Changes</h3>
 <ul>
-<li>Rebrand: rename the npm package/CLI to <code>openclaw</code>, add a <code>openclaw</code> compatibility shim, and move extensions to the <code>@openclaw/*</code> scope.</li>
+<li>Rebrand: rename the npm package/CLI to <code>openclaw</code>, add a <code>openclaw</code> compatibility shim, and move extensions to the <code>@zoidbergbot/*</code> scope.</li>
 <li>Onboarding: strengthen security warning copy for beta + access control expectations.</li>
 <li>Onboarding: add Venice API key to non-interactive flow. (#1893) Thanks @jonisjongithub.</li>
 <li>Config: auto-migrate legacy state/config paths and keep config resolution consistent across legacy filenames.</li>
@@ -95,7 +95,7 @@ Status: stable.
 <li>CLI: use Node's module compile cache for faster startup. (#2808) Thanks @pi0.</li>
 <li>Auth: show copyable Google auth URL after ASCII prompt. (#1787) Thanks @robbyczgw-cla.</li>
 <li>TUI: avoid width overflow when rendering selection lists. (#1686) Thanks @mossein.</li>
-<li>macOS: finish OpenClaw app rename for macOS sources, bundle identifiers, and shared kit paths. (#2844) Thanks @fal3.</li>
+<li>macOS: finish ZoidbergBot app rename for macOS sources, bundle identifiers, and shared kit paths. (#2844) Thanks @fal3.</li>
 <li>Branding: update launchd labels, mobile bundle IDs, and logging subsystems to bot.molt (legacy bundle ID migrations). Thanks @thewilloftheshadow.</li>
 <li>macOS: limit project-local <code>node_modules/.bin</code> PATH preference to debug builds (reduce PATH hijacking risk).</li>
 <li>macOS: keep custom SSH usernames in remote target. (#2046) Thanks @algal.</li>
@@ -118,7 +118,7 @@ Status: stable.
 <li>Docs: add LINE channel guide. Thanks @thewilloftheshadow.</li>
 <li>Docs: credit both contributors for Control UI refresh. (#1852) Thanks @EnzeD.</li>
 <li>Docs: keep docs header sticky so navbar stays visible while scrolling. (#2445) Thanks @chenyuan99.</li>
-<li>Docs: update exe.dev install instructions. (#https://github.com/openclaw/openclaw/pull/3047) Thanks @zackerthescar.</li>
+<li>Docs: update exe.dev install instructions. (#https://github.com/zoidbergbot/zoidbergbot/pull/3047) Thanks @zackerthescar.</li>
 </ul>
 <h3>Breaking</h3>
 <ul>
@@ -175,25 +175,25 @@ Status: stable.
 <li>Gateway: treat loopback + non-local Host connections as remote unless trusted proxy headers are present.</li>
 <li>Onboarding: remove unsupported gateway auth "off" choice from onboarding/configure flows and CLI flags.</li>
 </ul>
-<p><a href="https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md">View full changelog</a></p>
+<p><a href="https://github.com/zoidbergbot/zoidbergbot/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/openclaw/openclaw/releases/download/v2026.1.29/OpenClaw-2026.1.29.zip" length="22458204" type="application/octet-stream" sparkle:edSignature="HqHwZHQyG/CEfBuQnQ/RffJQPKpSbCVrho9C6rgt93S5ek4AH6hUhB3BBKY8sbX1IVFATKK5QZZNE0YPAf7eBw=="/>
+            <enclosure url="https://github.com/zoidbergbot/zoidbergbot/releases/download/v2026.1.29/ZoidbergBot-2026.1.29.zip" length="22458204" type="application/octet-stream" sparkle:edSignature="HqHwZHQyG/CEfBuQnQ/RffJQPKpSbCVrho9C6rgt93S5ek4AH6hUhB3BBKY8sbX1IVFATKK5QZZNE0YPAf7eBw=="/>
         </item>
         <item>
             <title>2026.1.24-1</title>
             <pubDate>Sun, 25 Jan 2026 14:05:25 +0000</pubDate>
-            <link>https://raw.githubusercontent.com/openclaw/openclaw/main/appcast.xml</link>
+            <link>https://raw.githubusercontent.com/zoidbergbot/zoidbergbot/main/appcast.xml</link>
             <sparkle:version>7952</sparkle:version>
             <sparkle:shortVersionString>2026.1.24-1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>OpenClaw 2026.1.24-1</h2>
+            <description><![CDATA[<h2>ZoidbergBot 2026.1.24-1</h2>
 <h3>Fixes</h3>
 <ul>
 <li>Packaging: include dist/shared output in npm tarball (fixes missing reasoning-tags import on install).</li>
 </ul>
-<p><a href="https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md">View full changelog</a></p>
+<p><a href="https://github.com/zoidbergbot/zoidbergbot/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/openclaw/openclaw/releases/download/v2026.1.24-1/OpenClaw-2026.1.24-1.zip" length="12396699" type="application/octet-stream" sparkle:edSignature="VaEdWIgEJBrZLIp2UmigoQ6vaq4P/jNFXpHYXvXHD5MsATS0CqBl6ugyyxRq+/GbpUqmdgdlht4dTUVbLRw6BA=="/>
+            <enclosure url="https://github.com/zoidbergbot/zoidbergbot/releases/download/v2026.1.24-1/ZoidbergBot-2026.1.24-1.zip" length="12396699" type="application/octet-stream" sparkle:edSignature="VaEdWIgEJBrZLIp2UmigoQ6vaq4P/jNFXpHYXvXHD5MsATS0CqBl6ugyyxRq+/GbpUqmdgdlht4dTUVbLRw6BA=="/>
         </item>
     </channel>
 </rss>

@@ -65,7 +65,7 @@ const DEFAULT_TIMEOUT_MS = 20 * 60_000;
 const MAX_LOG_CHARS = 8000;
 const PREFLIGHT_MAX_COMMITS = 10;
 const START_DIRS = ["cwd", "argv1", "process"];
-const DEFAULT_PACKAGE_NAME = "openclaw";
+const DEFAULT_PACKAGE_NAME = "zoidbergbot";
 const CORE_PACKAGE_NAMES = new Set([DEFAULT_PACKAGE_NAME]);
 
 function normalizeDir(value?: string | null) {
@@ -340,8 +340,8 @@ function normalizeTag(tag?: string) {
   if (!trimmed) {
     return "latest";
   }
-  if (trimmed.startsWith("openclaw@")) {
-    return trimmed.slice("openclaw@".length);
+  if (trimmed.startsWith("zoidbergbot@")) {
+    return trimmed.slice("zoidbergbot@".length);
   }
   if (trimmed.startsWith(`${DEFAULT_PACKAGE_NAME}@`)) {
     return trimmed.slice(`${DEFAULT_PACKAGE_NAME}@`.length);
@@ -553,7 +553,9 @@ export async function runGatewayUpdate(opts: UpdateRunnerOptions = {}): Promise<
       }
 
       const manager = await detectPackageManager(gitRoot);
-      const preflightRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-update-preflight-"));
+      const preflightRoot = await fs.mkdtemp(
+        path.join(os.tmpdir(), "zoidbergbot-update-preflight-"),
+      );
       const worktreeDir = path.join(preflightRoot, "worktree");
       const worktreeStep = await runStep(
         step(
@@ -748,10 +750,10 @@ export async function runGatewayUpdate(opts: UpdateRunnerOptions = {}): Promise<
 
     const doctorStep = await runStep(
       step(
-        "openclaw doctor",
-        managerScriptArgs(manager, "openclaw", ["doctor", "--non-interactive"]),
+        "zoidbergbot doctor",
+        managerScriptArgs(manager, "zoidbergbot", ["doctor", "--non-interactive"]),
         gitRoot,
-        { OPENCLAW_UPDATE_IN_PROGRESS: "1" },
+        { ZOIDBERGBOT_UPDATE_IN_PROGRESS: "1" },
       ),
     );
     steps.push(doctorStep);

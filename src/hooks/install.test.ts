@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 const tempDirs: string[] = [];
 
 function makeTempDir() {
-  const dir = path.join(os.tmpdir(), `openclaw-hook-install-${randomUUID()}`);
+  const dir = path.join(os.tmpdir(), `zoidbergbot-hook-install-${randomUUID()}`);
   fs.mkdirSync(dir, { recursive: true });
   tempDirs.push(dir);
   return dir;
@@ -35,9 +35,9 @@ describe("installHooksFromArchive", () => {
     zip.file(
       "package/package.json",
       JSON.stringify({
-        name: "@openclaw/zip-hooks",
+        name: "@zoidbergbot/zip-hooks",
         version: "0.0.1",
-        openclaw: { hooks: ["./hooks/zip-hook"] },
+        zoidbergbot: { hooks: ["./hooks/zip-hook"] },
       }),
     );
     zip.file(
@@ -46,7 +46,7 @@ describe("installHooksFromArchive", () => {
         "---",
         "name: zip-hook",
         "description: Zip hook",
-        'metadata: {"openclaw":{"events":["command:new"]}}',
+        'metadata: {"zoidbergbot":{"events":["command:new"]}}',
         "---",
         "",
         "# Zip Hook",
@@ -80,9 +80,9 @@ describe("installHooksFromArchive", () => {
     fs.writeFileSync(
       path.join(pkgDir, "package.json"),
       JSON.stringify({
-        name: "@openclaw/tar-hooks",
+        name: "@zoidbergbot/tar-hooks",
         version: "0.0.1",
-        openclaw: { hooks: ["./hooks/tar-hook"] },
+        zoidbergbot: { hooks: ["./hooks/tar-hook"] },
       }),
       "utf-8",
     );
@@ -92,7 +92,7 @@ describe("installHooksFromArchive", () => {
         "---",
         "name: tar-hook",
         "description: Tar hook",
-        'metadata: {"openclaw":{"events":["command:new"]}}',
+        'metadata: {"zoidbergbot":{"events":["command:new"]}}',
         "---",
         "",
         "# Tar Hook",
@@ -132,7 +132,7 @@ describe("installHooksFromPath", () => {
         "---",
         "name: my-hook",
         "description: My hook",
-        'metadata: {"openclaw":{"events":["command:new"]}}',
+        'metadata: {"zoidbergbot":{"events":["command:new"]}}',
         "---",
         "",
         "# My Hook",

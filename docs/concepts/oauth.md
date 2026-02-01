@@ -1,7 +1,7 @@
 ---
-summary: "OAuth in OpenClaw: token exchange, storage, and multi-account patterns"
+summary: "OAuth in ZoidbergBot: token exchange, storage, and multi-account patterns"
 read_when:
-  - You want to understand OpenClaw OAuth end-to-end
+  - You want to understand ZoidbergBot OAuth end-to-end
   - You hit token invalidation / logout issues
   - You want setup-token or OAuth auth flows
   - You want multiple accounts or profile routing
@@ -10,17 +10,17 @@ title: "OAuth"
 
 # OAuth
 
-OpenClaw supports “subscription auth” via OAuth for providers that offer it (notably **OpenAI Codex (ChatGPT OAuth)**). For Anthropic subscriptions, use the **setup-token** flow. This page explains:
+ZoidbergBot supports “subscription auth” via OAuth for providers that offer it (notably **OpenAI Codex (ChatGPT OAuth)**). For Anthropic subscriptions, use the **setup-token** flow. This page explains:
 
 - how the OAuth **token exchange** works (PKCE)
 - where tokens are **stored** (and why)
 - how to handle **multiple accounts** (profiles + per-session overrides)
 
-OpenClaw also supports **provider plugins** that ship their own OAuth or API‑key
+ZoidbergBot also supports **provider plugins** that ship their own OAuth or API‑key
 flows. Run them via:
 
 ```bash
-openclaw models auth login --provider <id>
+zoidbergbot models auth login --provider <id>
 ```
 
 ## The token sink (why it exists)
@@ -29,9 +29,9 @@ OAuth providers commonly mint a **new refresh token** during login/refresh flows
 
 Practical symptom:
 
-- you log in via OpenClaw _and_ via Claude Code / Codex CLI → one of them randomly gets “logged out” later
+- you log in via ZoidbergBot _and_ via Claude Code / Codex CLI → one of them randomly gets “logged out” later
 
-To reduce that, OpenClaw treats `auth-profiles.json` as a **token sink**:
+To reduce that, ZoidbergBot treats `auth-profiles.json` as a **token sink**:
 
 - the runtime reads credentials from **one place**
 - we can keep multiple profiles and route them deterministically
@@ -40,45 +40,45 @@ To reduce that, OpenClaw treats `auth-profiles.json` as a **token sink**:
 
 Secrets are stored **per-agent**:
 
-- Auth profiles (OAuth + API keys): `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`
-- Runtime cache (managed automatically; don’t edit): `~/.openclaw/agents/<agentId>/agent/auth.json`
+- Auth profiles (OAuth + API keys): `~/.zoidbergbot/agents/<agentId>/agent/auth-profiles.json`
+- Runtime cache (managed automatically; don’t edit): `~/.zoidbergbot/agents/<agentId>/agent/auth.json`
 
 Legacy import-only file (still supported, but not the main store):
 
-- `~/.openclaw/credentials/oauth.json` (imported into `auth-profiles.json` on first use)
+- `~/.zoidbergbot/credentials/oauth.json` (imported into `auth-profiles.json` on first use)
 
-All of the above also respect `$OPENCLAW_STATE_DIR` (state dir override). Full reference: [/gateway/configuration](/gateway/configuration#auth-storage-oauth--api-keys)
+All of the above also respect `$ZOIDBERGBOT_STATE_DIR` (state dir override). Full reference: [/gateway/configuration](/gateway/configuration#auth-storage-oauth--api-keys)
 
 ## Anthropic setup-token (subscription auth)
 
-Run `claude setup-token` on any machine, then paste it into OpenClaw:
+Run `claude setup-token` on any machine, then paste it into ZoidbergBot:
 
 ```bash
-openclaw models auth setup-token --provider anthropic
+zoidbergbot models auth setup-token --provider anthropic
 ```
 
 If you generated the token elsewhere, paste it manually:
 
 ```bash
-openclaw models auth paste-token --provider anthropic
+zoidbergbot models auth paste-token --provider anthropic
 ```
 
 Verify:
 
 ```bash
-openclaw models status
+zoidbergbot models status
 ```
 
 ## OAuth exchange (how login works)
 
-OpenClaw’s interactive login flows are implemented in `@mariozechner/pi-ai` and wired into the wizards/commands.
+ZoidbergBot’s interactive login flows are implemented in `@mariozechner/pi-ai` and wired into the wizards/commands.
 
 ### Anthropic (Claude Pro/Max) setup-token
 
 Flow shape:
 
 1. run `claude setup-token`
-2. paste the token into OpenClaw
+2. paste the token into ZoidbergBot
 3. store as a token auth profile (no refresh)
 
 The wizard path is `openclaw onboard` → auth choice `setup-token` (Anthropic).
@@ -116,8 +116,8 @@ Two patterns:
 If you want “personal” and “work” to never interact, use isolated agents (separate sessions + credentials + workspace):
 
 ```bash
-openclaw agents add work
-openclaw agents add personal
+zoidbergbot agents add work
+zoidbergbot agents add personal
 ```
 
 Then configure auth per-agent (wizard) and route chats to the right agent.
@@ -137,7 +137,7 @@ Example (session override):
 
 How to see what profile IDs exist:
 
-- `openclaw channels list --json` (shows `auth[]`)
+- `zoidbergbot channels list --json` (shows `auth[]`)
 
 Related docs:
 

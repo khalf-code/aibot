@@ -1,5 +1,5 @@
 ---
-summary: "Hubs that link to every OpenClaw doc"
+summary: "Hubs that link to every ZoidbergBot doc"
 read_when:
   - You want a complete map of the documentation
 title: "Docs Hubs"
@@ -20,7 +20,7 @@ Use these hubs to discover every page, including deep dives and reference docs t
 - [Help](/help)
 - [Configuration](/gateway/configuration)
 - [Configuration examples](/gateway/configuration-examples)
-- [OpenClaw assistant](/start/openclaw)
+- [ZoidbergBot assistant](/start/zoidbergbot)
 - [Showcase](/start/showcase)
 - [Lore](/start/lore)
 

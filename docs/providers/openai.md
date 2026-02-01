@@ -1,7 +1,7 @@
 ---
-summary: "Use OpenAI via API keys or Codex subscription in OpenClaw"
+summary: "Use OpenAI via API keys or Codex subscription in ZoidbergBot"
 read_when:
-  - You want to use OpenAI models in OpenClaw
+  - You want to use OpenAI models in ZoidbergBot
   - You want Codex subscription auth instead of API keys
 title: "OpenAI"
 ---
@@ -45,7 +45,7 @@ Codex cloud requires ChatGPT sign-in, while the Codex CLI supports ChatGPT or AP
 openclaw onboard --auth-choice openai-codex
 
 # Or run OAuth directly
-openclaw models auth login --provider openai-codex
+zoidbergbot models auth login --provider openai-codex
 ```
 
 ### Config snippet

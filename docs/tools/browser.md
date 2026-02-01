@@ -2,31 +2,31 @@
 summary: "Integrated browser control service + action commands"
 read_when:
   - Adding agent-controlled browser automation
-  - Debugging why openclaw is interfering with your own Chrome
+  - Debugging why zoidbergbot is interfering with your own Chrome
   - Implementing browser settings + lifecycle in the macOS app
-title: "Browser (OpenClaw-managed)"
+title: "Browser (ZoidbergBot-managed)"
 ---
 
-# Browser (openclaw-managed)
+# Browser (zoidbergbot-managed)
 
-OpenClaw can run a **dedicated Chrome/Brave/Edge/Chromium profile** that the agent controls.
+ZoidbergBot can run a **dedicated Chrome/Brave/Edge/Chromium profile** that the agent controls.
 It is isolated from your personal browser and is managed through a small local
 control service inside the Gateway (loopback only).
 
 Beginner view:
 
 - Think of it as a **separate, agent-only browser**.
-- The `openclaw` profile does **not** touch your personal browser profile.
+- The `zoidbergbot` profile does **not** touch your personal browser profile.
 - The agent can **open tabs, read pages, click, and type** in a safe lane.
 - The default `chrome` profile uses the **system default Chromium browser** via the
-  extension relay; switch to `openclaw` for the isolated managed browser.
+  extension relay; switch to `zoidbergbot` for the isolated managed browser.
 
 ## What you get
 
 - A separate browser profile named **openclaw** (orange accent by default).
 - Deterministic tab control (list/open/focus/close).
 - Agent actions (click/type/drag/select), snapshots, screenshots, PDFs.
-- Optional multi-profile support (`openclaw`, `work`, `remote`, ...).
+- Optional multi-profile support (`zoidbergbot`, `work`, `remote`, ...).
 
 This browser is **not** your daily driver. It is a safe, isolated surface for
 agent automation and verification.
@@ -34,26 +34,26 @@ agent automation and verification.
 ## Quick start
 
 ```bash
-openclaw browser --browser-profile openclaw status
-openclaw browser --browser-profile openclaw start
-openclaw browser --browser-profile openclaw open https://example.com
-openclaw browser --browser-profile openclaw snapshot
+zoidbergbot browser --browser-profile zoidbergbot status
+zoidbergbot browser --browser-profile zoidbergbot start
+zoidbergbot browser --browser-profile zoidbergbot open https://example.com
+zoidbergbot browser --browser-profile zoidbergbot snapshot
 ```
 
 If you get “Browser disabled”, enable it in config (see below) and restart the
 Gateway.
 
-## Profiles: `openclaw` vs `chrome`
+## Profiles: `zoidbergbot` vs `chrome`
 
-- `openclaw`: managed, isolated browser (no extension required).
-- `chrome`: extension relay to your **system browser** (requires the OpenClaw
+- `zoidbergbot`: managed, isolated browser (no extension required).
+- `chrome`: extension relay to your **system browser** (requires the ZoidbergBot
   extension to be attached to a tab).
 
-Set `browser.defaultProfile: "openclaw"` if you want managed mode by default.
+Set `browser.defaultProfile: "zoidbergbot"` if you want managed mode by default.
 
 ## Configuration
 
-Browser settings live in `~/.openclaw/openclaw.json`.
+Browser settings live in `~/.zoidbergbot/zoidbergbot.json`.
 
 ```json5
 {
@@ -69,7 +69,7 @@ Browser settings live in `~/.openclaw/openclaw.json`.
     attachOnly: false,
     executablePath: "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
     profiles: {
-      openclaw: { cdpPort: 18800, color: "#FF4500" },
+      zoidbergbot: { cdpPort: 18800, color: "#FF4500" },
       work: { cdpPort: 18801, color: "#0066CC" },
       remote: { cdpUrl: "http://10.0.0.42:9222", color: "#00AA00" },
     },
@@ -81,27 +81,27 @@ Notes:
 
 - The browser control service binds to loopback on a port derived from `gateway.port`
   (default: `18791`, which is gateway + 2). The relay uses the next port (`18792`).
-- If you override the Gateway port (`gateway.port` or `OPENCLAW_GATEWAY_PORT`),
+- If you override the Gateway port (`gateway.port` or `ZOIDBERGBOT_GATEWAY_PORT`),
   the derived browser ports shift to stay in the same “family”.
 - `cdpUrl` defaults to the relay port when unset.
 - `remoteCdpTimeoutMs` applies to remote (non-loopback) CDP reachability checks.
 - `remoteCdpHandshakeTimeoutMs` applies to remote CDP WebSocket reachability checks.
 - `attachOnly: true` means “never launch a local browser; only attach if it is already running.”
 - `color` + per-profile `color` tint the browser UI so you can see which profile is active.
-- Default profile is `chrome` (extension relay). Use `defaultProfile: "openclaw"` for the managed browser.
+- Default profile is `chrome` (extension relay). Use `defaultProfile: "zoidbergbot"` for the managed browser.
 - Auto-detect order: system default browser if Chromium-based; otherwise Chrome → Brave → Edge → Chromium → Chrome Canary.
-- Local `openclaw` profiles auto-assign `cdpPort`/`cdpUrl` — set those only for remote CDP.
+- Local `zoidbergbot` profiles auto-assign `cdpPort`/`cdpUrl` — set those only for remote CDP.
 
 ## Use Brave (or another Chromium-based browser)
 
 If your **system default** browser is Chromium-based (Chrome/Brave/Edge/etc),
-OpenClaw uses it automatically. Set `browser.executablePath` to override
+ZoidbergBot uses it automatically. Set `browser.executablePath` to override
 auto-detection:
 
 CLI example:
 
 ```bash
-openclaw config set browser.executablePath "/usr/bin/google-chrome"
+zoidbergbot config set browser.executablePath "/usr/bin/google-chrome"
 ```
 
 ```json5
@@ -132,20 +132,20 @@ openclaw config set browser.executablePath "/usr/bin/google-chrome"
 - **Local control (default):** the Gateway starts the loopback control service and can launch a local browser.
 - **Remote control (node host):** run a node host on the machine that has the browser; the Gateway proxies browser actions to it.
 - **Remote CDP:** set `browser.profiles.<name>.cdpUrl` (or `browser.cdpUrl`) to
-  attach to a remote Chromium-based browser. In this case, OpenClaw will not launch a local browser.
+  attach to a remote Chromium-based browser. In this case, ZoidbergBot will not launch a local browser.
 
 Remote CDP URLs can include auth:
 
 - Query tokens (e.g., `https://provider.example?token=<token>`)
 - HTTP Basic auth (e.g., `https://user:pass@provider.example`)
 
-OpenClaw preserves the auth when calling `/json/*` endpoints and when connecting
+ZoidbergBot preserves the auth when calling `/json/*` endpoints and when connecting
 to the CDP WebSocket. Prefer environment variables or secrets managers for
 tokens instead of committing them to config files.
 
 ## Node browser proxy (zero-config default)
 
-If you run a **node host** on the machine that has your browser, OpenClaw can
+If you run a **node host** on the machine that has your browser, ZoidbergBot can
 auto-route browser tool calls to that node without any extra browser config.
 This is the default path for remote gateways.
 
@@ -160,7 +160,7 @@ Notes:
 ## Browserless (hosted remote CDP)
 
 [Browserless](https://browserless.io) is a hosted Chromium service that exposes
-CDP endpoints over HTTPS. You can point a OpenClaw browser profile at a
+CDP endpoints over HTTPS. You can point a ZoidbergBot browser profile at a
 Browserless region endpoint and authenticate with your API key.
 
 Example:
@@ -202,7 +202,7 @@ Remote CDP tips:
 
 ## Profiles (multi-browser)
 
-OpenClaw supports multiple named profiles (routing configs). Profiles can be:
+ZoidbergBot supports multiple named profiles (routing configs). Profiles can be:
 
 - **openclaw-managed**: a dedicated Chromium-based browser instance with its own user data directory + CDP port
 - **remote**: an explicit CDP URL (Chromium-based browser running elsewhere)
@@ -210,7 +210,7 @@ OpenClaw supports multiple named profiles (routing configs). Profiles can be:
 
 Defaults:
 
-- The `openclaw` profile is auto-created if missing.
+- The `zoidbergbot` profile is auto-created if missing.
 - The `chrome` profile is built-in for the Chrome extension relay (points at `http://127.0.0.1:18792` by default).
 - Local CDP ports allocate from **18800–18899** by default.
 - Deleting a profile moves its local data directory to Trash.
@@ -219,7 +219,7 @@ All control endpoints accept `?profile=<name>`; the CLI uses `--browser-profile`
 
 ## Chrome extension relay (use your existing Chrome)
 
-OpenClaw can also drive **your existing Chrome tabs** (no separate “openclaw” Chrome instance) via a local CDP relay + a Chrome extension.
+ZoidbergBot can also drive **your existing Chrome tabs** (no separate “openclaw” Chrome instance) via a local CDP relay + a Chrome extension.
 
 Full guide: [Chrome extension](/tools/chrome-extension)
 
@@ -227,7 +227,7 @@ Flow:
 
 - The Gateway runs locally (same machine) or a node host runs on the browser machine.
 - A local **relay server** listens at a loopback `cdpUrl` (default: `http://127.0.0.1:18792`).
-- You click the **OpenClaw Browser Relay** extension icon on a tab to attach (it does not auto-attach).
+- You click the **ZoidbergBot Browser Relay** extension icon on a tab to attach (it does not auto-attach).
 - The agent controls that tab via the normal `browser` tool, by selecting the right profile.
 
 If the Gateway runs elsewhere, run a node host on the browser machine so the Gateway can proxy browser actions.
@@ -245,22 +245,22 @@ Chrome extension relay takeover requires host browser control, so either:
 1. Load the extension (dev/unpacked):
 
 ```bash
-openclaw browser extension install
+zoidbergbot browser extension install
 ```
 
 - Chrome → `chrome://extensions` → enable “Developer mode”
-- “Load unpacked” → select the directory printed by `openclaw browser extension path`
+- “Load unpacked” → select the directory printed by `zoidbergbot browser extension path`
 - Pin the extension, then click it on the tab you want to control (badge shows `ON`).
 
 2. Use it:
 
-- CLI: `openclaw browser --browser-profile chrome tabs`
+- CLI: `zoidbergbot browser --browser-profile chrome tabs`
 - Agent tool: `browser` with `profile="chrome"`
 
 Optional: if you want a different name or relay port, create your own profile:
 
 ```bash
-openclaw browser create-profile \
+zoidbergbot browser create-profile \
   --name my-chrome \
   --driver extension \
   --cdp-url http://127.0.0.1:18792 \
@@ -280,7 +280,7 @@ Notes:
 
 ## Browser selection
 
-When launching locally, OpenClaw picks the first available:
+When launching locally, ZoidbergBot picks the first available:
 
 1. Chrome
 2. Brave
@@ -324,7 +324,7 @@ For the Chrome extension relay driver, ARIA snapshots and screenshots require Pl
 
 If you see `Playwright is not available in this gateway build`, install the full
 Playwright package (not `playwright-core`) and restart the gateway, or reinstall
-OpenClaw with browser support.
+ZoidbergBot with browser support.
 
 ## How it works (internal)
 
@@ -346,79 +346,79 @@ All commands also accept `--json` for machine-readable output (stable payloads).
 
 Basics:
 
-- `openclaw browser status`
-- `openclaw browser start`
-- `openclaw browser stop`
-- `openclaw browser tabs`
-- `openclaw browser tab`
-- `openclaw browser tab new`
-- `openclaw browser tab select 2`
-- `openclaw browser tab close 2`
-- `openclaw browser open https://example.com`
-- `openclaw browser focus abcd1234`
-- `openclaw browser close abcd1234`
+- `zoidbergbot browser status`
+- `zoidbergbot browser start`
+- `zoidbergbot browser stop`
+- `zoidbergbot browser tabs`
+- `zoidbergbot browser tab`
+- `zoidbergbot browser tab new`
+- `zoidbergbot browser tab select 2`
+- `zoidbergbot browser tab close 2`
+- `zoidbergbot browser open https://example.com`
+- `zoidbergbot browser focus abcd1234`
+- `zoidbergbot browser close abcd1234`
 
 Inspection:
 
-- `openclaw browser screenshot`
-- `openclaw browser screenshot --full-page`
-- `openclaw browser screenshot --ref 12`
-- `openclaw browser screenshot --ref e12`
-- `openclaw browser snapshot`
-- `openclaw browser snapshot --format aria --limit 200`
-- `openclaw browser snapshot --interactive --compact --depth 6`
-- `openclaw browser snapshot --efficient`
-- `openclaw browser snapshot --labels`
-- `openclaw browser snapshot --selector "#main" --interactive`
-- `openclaw browser snapshot --frame "iframe#main" --interactive`
-- `openclaw browser console --level error`
-- `openclaw browser errors --clear`
-- `openclaw browser requests --filter api --clear`
-- `openclaw browser pdf`
-- `openclaw browser responsebody "**/api" --max-chars 5000`
+- `zoidbergbot browser screenshot`
+- `zoidbergbot browser screenshot --full-page`
+- `zoidbergbot browser screenshot --ref 12`
+- `zoidbergbot browser screenshot --ref e12`
+- `zoidbergbot browser snapshot`
+- `zoidbergbot browser snapshot --format aria --limit 200`
+- `zoidbergbot browser snapshot --interactive --compact --depth 6`
+- `zoidbergbot browser snapshot --efficient`
+- `zoidbergbot browser snapshot --labels`
+- `zoidbergbot browser snapshot --selector "#main" --interactive`
+- `zoidbergbot browser snapshot --frame "iframe#main" --interactive`
+- `zoidbergbot browser console --level error`
+- `zoidbergbot browser errors --clear`
+- `zoidbergbot browser requests --filter api --clear`
+- `zoidbergbot browser pdf`
+- `zoidbergbot browser responsebody "**/api" --max-chars 5000`
 
 Actions:
 
-- `openclaw browser navigate https://example.com`
-- `openclaw browser resize 1280 720`
-- `openclaw browser click 12 --double`
-- `openclaw browser click e12 --double`
-- `openclaw browser type 23 "hello" --submit`
-- `openclaw browser press Enter`
-- `openclaw browser hover 44`
-- `openclaw browser scrollintoview e12`
-- `openclaw browser drag 10 11`
-- `openclaw browser select 9 OptionA OptionB`
-- `openclaw browser download e12 /tmp/report.pdf`
-- `openclaw browser waitfordownload /tmp/report.pdf`
-- `openclaw browser upload /tmp/file.pdf`
-- `openclaw browser fill --fields '[{"ref":"1","type":"text","value":"Ada"}]'`
-- `openclaw browser dialog --accept`
-- `openclaw browser wait --text "Done"`
-- `openclaw browser wait "#main" --url "**/dash" --load networkidle --fn "window.ready===true"`
-- `openclaw browser evaluate --fn '(el) => el.textContent' --ref 7`
-- `openclaw browser highlight e12`
-- `openclaw browser trace start`
-- `openclaw browser trace stop`
+- `zoidbergbot browser navigate https://example.com`
+- `zoidbergbot browser resize 1280 720`
+- `zoidbergbot browser click 12 --double`
+- `zoidbergbot browser click e12 --double`
+- `zoidbergbot browser type 23 "hello" --submit`
+- `zoidbergbot browser press Enter`
+- `zoidbergbot browser hover 44`
+- `zoidbergbot browser scrollintoview e12`
+- `zoidbergbot browser drag 10 11`
+- `zoidbergbot browser select 9 OptionA OptionB`
+- `zoidbergbot browser download e12 /tmp/report.pdf`
+- `zoidbergbot browser waitfordownload /tmp/report.pdf`
+- `zoidbergbot browser upload /tmp/file.pdf`
+- `zoidbergbot browser fill --fields '[{"ref":"1","type":"text","value":"Ada"}]'`
+- `zoidbergbot browser dialog --accept`
+- `zoidbergbot browser wait --text "Done"`
+- `zoidbergbot browser wait "#main" --url "**/dash" --load networkidle --fn "window.ready===true"`
+- `zoidbergbot browser evaluate --fn '(el) => el.textContent' --ref 7`
+- `zoidbergbot browser highlight e12`
+- `zoidbergbot browser trace start`
+- `zoidbergbot browser trace stop`
 
 State:
 
-- `openclaw browser cookies`
-- `openclaw browser cookies set session abc123 --url "https://example.com"`
-- `openclaw browser cookies clear`
-- `openclaw browser storage local get`
-- `openclaw browser storage local set theme dark`
-- `openclaw browser storage session clear`
-- `openclaw browser set offline on`
-- `openclaw browser set headers --json '{"X-Debug":"1"}'`
-- `openclaw browser set credentials user pass`
-- `openclaw browser set credentials --clear`
-- `openclaw browser set geo 37.7749 -122.4194 --origin "https://example.com"`
-- `openclaw browser set geo --clear`
-- `openclaw browser set media dark`
-- `openclaw browser set timezone America/New_York`
-- `openclaw browser set locale en-US`
-- `openclaw browser set device "iPhone 14"`
+- `zoidbergbot browser cookies`
+- `zoidbergbot browser cookies set session abc123 --url "https://example.com"`
+- `zoidbergbot browser cookies clear`
+- `zoidbergbot browser storage local get`
+- `zoidbergbot browser storage local set theme dark`
+- `zoidbergbot browser storage session clear`
+- `zoidbergbot browser set offline on`
+- `zoidbergbot browser set headers --json '{"X-Debug":"1"}'`
+- `zoidbergbot browser set credentials user pass`
+- `zoidbergbot browser set credentials --clear`
+- `zoidbergbot browser set geo 37.7749 -122.4194 --origin "https://example.com"`
+- `zoidbergbot browser set geo --clear`
+- `zoidbergbot browser set media dark`
+- `zoidbergbot browser set timezone America/New_York`
+- `zoidbergbot browser set locale en-US`
+- `zoidbergbot browser set device "iPhone 14"`
 
 Notes:
 
@@ -439,16 +439,16 @@ Notes:
 
 ## Snapshots and refs
 
-OpenClaw supports two “snapshot” styles:
+ZoidbergBot supports two “snapshot” styles:
 
-- **AI snapshot (numeric refs)**: `openclaw browser snapshot` (default; `--format ai`)
+- **AI snapshot (numeric refs)**: `zoidbergbot browser snapshot` (default; `--format ai`)
   - Output: a text snapshot that includes numeric refs.
-  - Actions: `openclaw browser click 12`, `openclaw browser type 23 "hello"`.
+  - Actions: `zoidbergbot browser click 12`, `zoidbergbot browser type 23 "hello"`.
   - Internally, the ref is resolved via Playwright’s `aria-ref`.
 
-- **Role snapshot (role refs like `e12`)**: `openclaw browser snapshot --interactive` (or `--compact`, `--depth`, `--selector`, `--frame`)
+- **Role snapshot (role refs like `e12`)**: `zoidbergbot browser snapshot --interactive` (or `--compact`, `--depth`, `--selector`, `--frame`)
   - Output: a role-based list/tree with `[ref=e12]` (and optional `[nth=1]`).
-  - Actions: `openclaw browser click e12`, `openclaw browser highlight e12`.
+  - Actions: `zoidbergbot browser click e12`, `zoidbergbot browser highlight e12`.
   - Internally, the ref is resolved via `getByRole(...)` (plus `nth()` for duplicates).
   - Add `--labels` to include a viewport screenshot with overlayed `e12` labels.
 
@@ -462,18 +462,18 @@ Ref behavior:
 You can wait on more than just time/text:
 
 - Wait for URL (globs supported by Playwright):
-  - `openclaw browser wait --url "**/dash"`
+  - `zoidbergbot browser wait --url "**/dash"`
 - Wait for load state:
-  - `openclaw browser wait --load networkidle`
+  - `zoidbergbot browser wait --load networkidle`
 - Wait for a JS predicate:
-  - `openclaw browser wait --fn "window.ready===true"`
+  - `zoidbergbot browser wait --fn "window.ready===true"`
 - Wait for a selector to become visible:
-  - `openclaw browser wait "#main"`
+  - `zoidbergbot browser wait "#main"`
 
 These can be combined:
 
 ```bash
-openclaw browser wait "#main" \
+zoidbergbot browser wait "#main" \
   --url "**/dash" \
   --load networkidle \
   --fn "window.ready===true" \
@@ -484,16 +484,16 @@ openclaw browser wait "#main" \
 
 When an action fails (e.g. “not visible”, “strict mode violation”, “covered”):
 
-1. `openclaw browser snapshot --interactive`
+1. `zoidbergbot browser snapshot --interactive`
 2. Use `click <ref>` / `type <ref>` (prefer role refs in interactive mode)
-3. If it still fails: `openclaw browser highlight <ref>` to see what Playwright is targeting
+3. If it still fails: `zoidbergbot browser highlight <ref>` to see what Playwright is targeting
 4. If the page behaves oddly:
-   - `openclaw browser errors --clear`
-   - `openclaw browser requests --filter api --clear`
+   - `zoidbergbot browser errors --clear`
+   - `zoidbergbot browser requests --filter api --clear`
 5. For deep debugging: record a trace:
-   - `openclaw browser trace start`
+   - `zoidbergbot browser trace start`
    - reproduce the issue
-   - `openclaw browser trace stop` (prints `TRACE:<path>`)
+   - `zoidbergbot browser trace stop` (prints `TRACE:<path>`)
 
 ## JSON output
 
@@ -502,10 +502,10 @@ When an action fails (e.g. “not visible”, “strict mode violation”, “co
 Examples:
 
 ```bash
-openclaw browser status --json
-openclaw browser snapshot --interactive --json
-openclaw browser requests --filter api --json
-openclaw browser cookies --json
+zoidbergbot browser status --json
+zoidbergbot browser snapshot --interactive --json
+zoidbergbot browser requests --filter api --json
+zoidbergbot browser cookies --json
 ```
 
 Role snapshots in JSON include `refs` plus a small `stats` block (lines/chars/refs/interactive) so tools can reason about payload size and density.
@@ -528,8 +528,8 @@ These are useful for “make the site behave like X” workflows:
 
 ## Security & privacy
 
-- The openclaw browser profile may contain logged-in sessions; treat it as sensitive.
-- `browser act kind=evaluate` / `openclaw browser evaluate` and `wait --fn`
+- The zoidbergbot browser profile may contain logged-in sessions; treat it as sensitive.
+- `browser act kind=evaluate` / `zoidbergbot browser evaluate` and `wait --fn`
   execute arbitrary JavaScript in the page context. Prompt injection can steer
   this. Disable it with `browser.evaluateEnabled=false` if you do not need it.
 - For logins and anti-bot notes (X/Twitter, etc.), see [Browser login + X/Twitter posting](/tools/browser-login).
@@ -553,7 +553,7 @@ How it maps:
 - `browser act` uses the snapshot `ref` IDs to click/type/drag/select.
 - `browser screenshot` captures pixels (full page or element).
 - `browser` accepts:
-  - `profile` to choose a named browser profile (openclaw, chrome, or remote CDP).
+  - `profile` to choose a named browser profile (zoidbergbot, chrome, or remote CDP).
   - `target` (`sandbox` | `host` | `node`) to select where the browser lives.
   - In sandboxed sessions, `target: "host"` requires `agents.defaults.sandbox.browser.allowHostControl=true`.
   - If `target` is omitted: sandboxed sessions default to `sandbox`, non-sandbox sessions default to `host`.

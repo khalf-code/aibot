@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenClaw Canvas</title>
+    <title>ZoidbergBot Canvas</title>
     <script>
       (() => {
         try {
@@ -225,22 +225,22 @@
     </style>
   </head>
   <body>
-    <canvas id="openclaw-canvas"></canvas>
-    <div id="openclaw-status">
+    <canvas id="zoidbergbot-canvas"></canvas>
+    <div id="zoidbergbot-status">
       <div class="card">
-        <div class="title" id="openclaw-status-title">Ready</div>
-        <div class="subtitle" id="openclaw-status-subtitle">Waiting for agent</div>
+        <div class="title" id="zoidbergbot-status-title">Ready</div>
+        <div class="subtitle" id="zoidbergbot-status-subtitle">Waiting for agent</div>
       </div>
     </div>
-    <openclaw-a2ui-host></openclaw-a2ui-host>
+    <openclaw-a2ui-host></zoidbergbot-a2ui-host>
     <script src="a2ui.bundle.js"></script>
     <script>
       (() => {
-        const canvas = document.getElementById("openclaw-canvas");
+        const canvas = document.getElementById("zoidbergbot-canvas");
         const ctx = canvas.getContext("2d");
-        const statusEl = document.getElementById("openclaw-status");
-        const titleEl = document.getElementById("openclaw-status-title");
-        const subtitleEl = document.getElementById("openclaw-status-subtitle");
+        const statusEl = document.getElementById("zoidbergbot-status");
+        const titleEl = document.getElementById("zoidbergbot-status-title");
+        const subtitleEl = document.getElementById("zoidbergbot-status-subtitle");
         const debugStatusEnabledByQuery = (() => {
           try {
             const params = new URLSearchParams(window.location.search);

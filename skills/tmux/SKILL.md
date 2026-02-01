@@ -2,19 +2,19 @@
 name: tmux
 description: Remote-control tmux sessions for interactive CLIs by sending keystrokes and scraping pane output.
 metadata:
-  { "openclaw": { "emoji": "🧵", "os": ["darwin", "linux"], "requires": { "bins": ["tmux"] } } }
+  { "zoidbergbot": { "emoji": "🧵", "os": ["darwin", "linux"], "requires": { "bins": ["tmux"] } } }
 ---
 
-# tmux Skill (OpenClaw)
+# tmux Skill (ZoidbergBot)
 
 Use tmux only when you need an interactive TTY. Prefer exec background mode for long-running, non-interactive tasks.
 
 ## Quickstart (isolated socket, exec tool)
 
 ```bash
-SOCKET_DIR="${OPENCLAW_TMUX_SOCKET_DIR:-${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/openclaw-tmux-sockets}}"
+SOCKET_DIR="${ZOIDBERGBOT_TMUX_SOCKET_DIR:-${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/zoidbergbot-tmux-sockets}}"
 mkdir -p "$SOCKET_DIR"
-SOCKET="$SOCKET_DIR/openclaw.sock"
+SOCKET="$SOCKET_DIR/zoidbergbot.sock"
 SESSION=openclaw-python
 
 tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
@@ -32,8 +32,8 @@ To monitor:
 
 ## Socket convention
 
-- Use `OPENCLAW_TMUX_SOCKET_DIR` (legacy `CLAWDBOT_TMUX_SOCKET_DIR` also supported).
-- Default socket path: `"$OPENCLAW_TMUX_SOCKET_DIR/openclaw.sock"`.
+- Use `ZOIDBERGBOT_TMUX_SOCKET_DIR` (legacy `CLAWDBOT_TMUX_SOCKET_DIR` also supported).
+- Default socket path: `"$ZOIDBERGBOT_TMUX_SOCKET_DIR/zoidbergbot.sock"`.
 
 ## Targeting panes and naming
 
@@ -44,7 +44,7 @@ To monitor:
 ## Finding sessions
 
 - List sessions on your socket: `{baseDir}/scripts/find-sessions.sh -S "$SOCKET"`.
-- Scan all sockets: `{baseDir}/scripts/find-sessions.sh --all` (uses `OPENCLAW_TMUX_SOCKET_DIR`).
+- Scan all sockets: `{baseDir}/scripts/find-sessions.sh --all` (uses `ZOIDBERGBOT_TMUX_SOCKET_DIR`).
 
 ## Sending input safely
 

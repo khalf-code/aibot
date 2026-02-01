@@ -105,18 +105,18 @@ export function applyCliProfileEnv(params: {
   }
 
   // Convenience only: fill defaults, never override explicit env values.
-  env.OPENCLAW_PROFILE = profile;
+  env.ZOIDBERGBOT_PROFILE = profile;
 
-  const stateDir = env.OPENCLAW_STATE_DIR?.trim() || resolveProfileStateDir(profile, homedir);
-  if (!env.OPENCLAW_STATE_DIR?.trim()) {
-    env.OPENCLAW_STATE_DIR = stateDir;
+  const stateDir = env.ZOIDBERGBOT_STATE_DIR?.trim() || resolveProfileStateDir(profile, homedir);
+  if (!env.ZOIDBERGBOT_STATE_DIR?.trim()) {
+    env.ZOIDBERGBOT_STATE_DIR = stateDir;
   }
 
-  if (!env.OPENCLAW_CONFIG_PATH?.trim()) {
-    env.OPENCLAW_CONFIG_PATH = path.join(stateDir, "openclaw.json");
+  if (!env.ZOIDBERGBOT_CONFIG_PATH?.trim()) {
+    env.ZOIDBERGBOT_CONFIG_PATH = path.join(stateDir, "zoidbergbot.json");
   }
 
-  if (profile === "dev" && !env.OPENCLAW_GATEWAY_PORT?.trim()) {
-    env.OPENCLAW_GATEWAY_PORT = "19001";
+  if (profile === "dev" && !env.ZOIDBERGBOT_GATEWAY_PORT?.trim()) {
+    env.ZOIDBERGBOT_GATEWAY_PORT = "19001";
   }
 }

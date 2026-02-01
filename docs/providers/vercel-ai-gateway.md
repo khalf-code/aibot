@@ -2,7 +2,7 @@
 title: "Vercel AI Gateway"
 summary: "Vercel AI Gateway setup (auth + model selection)"
 read_when:
-  - You want to use Vercel AI Gateway with OpenClaw
+  - You want to use Vercel AI Gateway with ZoidbergBot
   - You need the API key env var or CLI auth choice
 ---
 
@@ -46,5 +46,5 @@ openclaw onboard --non-interactive \
 ## Environment note
 
 If the Gateway runs as a daemon (launchd/systemd), make sure `AI_GATEWAY_API_KEY`
-is available to that process (for example, in `~/.openclaw/.env` or via
+is available to that process (for example, in `~/.zoidbergbot/.env` or via
 `env.shellEnv`).

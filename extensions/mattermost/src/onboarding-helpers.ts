@@ -1,12 +1,12 @@
-import type { OpenClawConfig, WizardPrompter } from "openclaw/plugin-sdk";
-import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
+import type { ZoidbergBotConfig, WizardPrompter } from "zoidbergbot/plugin-sdk";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "zoidbergbot/plugin-sdk";
 
 type PromptAccountIdParams = {
-  cfg: OpenClawConfig;
+  cfg: ZoidbergBotConfig;
   prompter: WizardPrompter;
   label: string;
   currentId?: string;
-  listAccountIds: (cfg: OpenClawConfig) => string[];
+  listAccountIds: (cfg: ZoidbergBotConfig) => string[];
   defaultAccountId: string;
 };
 

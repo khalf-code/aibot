@@ -1,4 +1,4 @@
-import OpenClawKit
+import ZoidbergBotKit
 import Network
 import Observation
 import SwiftUI
@@ -90,7 +90,7 @@ final class NodeAppModel {
         }()
         guard !userAction.isEmpty else { return }
 
-        guard let name = OpenClawCanvasA2UIAction.extractActionName(userAction) else { return }
+        guard let name = ZoidbergBotCanvasA2UIAction.extractActionName(userAction) else { return }
         let actionId: String = {
             let id = (userAction["id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             return id.isEmpty ? UUID().uuidString : id
@@ -109,15 +109,15 @@ final class NodeAppModel {
 
         let host = UserDefaults.standard.string(forKey: "node.displayName") ?? UIDevice.current.name
         let instanceId = (UserDefaults.standard.string(forKey: "node.instanceId") ?? "ios-node").lowercased()
-        let contextJSON = OpenClawCanvasA2UIAction.compactJSON(userAction["context"])
+        let contextJSON = ZoidbergBotCanvasA2UIAction.compactJSON(userAction["context"])
         let sessionKey = self.mainSessionKey
 
-        let messageContext = OpenClawCanvasA2UIAction.AgentMessageContext(
+        let messageContext = ZoidbergBotCanvasA2UIAction.AgentMessageContext(
             actionName: name,
             session: .init(key: sessionKey, surfaceId: surfaceId),
             component: .init(id: sourceComponentId, host: host, instanceId: instanceId),
             contextJSON: contextJSON)
-        let message = OpenClawCanvasA2UIAction.formatAgentMessage(messageContext)
+        let message = ZoidbergBotCanvasA2UIAction.formatAgentMessage(messageContext)
 
         let ok: Bool
         var errorText: String?
@@ -142,7 +142,7 @@ final class NodeAppModel {
             }
         }
 
-        let js = OpenClawCanvasA2UIAction.jsDispatchA2UIActionStatus(actionId: actionId, ok: ok, error: errorText)
+        let js = ZoidbergBotCanvasA2UIAction.jsDispatchA2UIActionStatus(actionId: actionId, ok: ok, error: errorText)
         do {
             _ = try await self.screen.eval(javaScript: js)
         } catch {
@@ -154,7 +154,7 @@ final class NodeAppModel {
         guard let raw = await self.gateway.currentCanvasHostUrl() else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let base = URL(string: trimmed) else { return nil }
-        return base.appendingPathComponent("__openclaw__/a2ui/").absoluteString + "?platform=ios"
+        return base.appendingPathComponent("__zoidbergbot__/a2ui/").absoluteString + "?platform=ios"
     }
 
     private func showA2UIOnConnectIfNeeded() async {
@@ -190,7 +190,7 @@ final class NodeAppModel {
         self.talkMode.setEnabled(enabled)
     }
 
-    func requestLocationPermissions(mode: OpenClawLocationMode) async -> Bool {
+    func requestLocationPermissions(mode: ZoidbergBotLocationMode) async -> Bool {
         guard mode != .off else { return true }
         let status = await self.locationService.ensureAuthorization(mode: mode)
         switch status {
@@ -272,7 +272,7 @@ final class NodeAppModel {
                                 return BridgeInvokeResponse(
                                     id: req.id,
                                     ok: false,
-                                    error: OpenClawNodeError(
+                                    error: ZoidbergBotNodeError(
                                         code: .unavailable,
                                         message: "UNAVAILABLE: node not ready"))
                             }
@@ -487,7 +487,7 @@ final class NodeAppModel {
         }
 
         // iOS gateway forwards to the gateway; no local auth prompts here.
-        // (Key-based unattended auth is handled on macOS for openclaw:// links.)
+        // (Key-based unattended auth is handled on macOS for zoidbergbot:// links.)
         let data = try JSONEncoder().encode(link)
         guard let json = String(bytes: data, encoding: .utf8) else {
             throw NSError(domain: "NodeAppModel", code: 2, userInfo: [
@@ -508,7 +508,7 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(
+                error: ZoidbergBotNodeError(
                     code: .backgroundUnavailable,
                     message: "NODE_BACKGROUND_UNAVAILABLE: canvas/camera/screen commands require foreground"))
         }
@@ -517,36 +517,36 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(
+                error: ZoidbergBotNodeError(
                     code: .unavailable,
                     message: "CAMERA_DISABLED: enable Camera in iOS Settings → Camera → Allow Camera"))
         }
 
         do {
             switch command {
-            case OpenClawLocationCommand.get.rawValue:
+            case ZoidbergBotLocationCommand.get.rawValue:
                 return try await self.handleLocationInvoke(req)
-            case OpenClawCanvasCommand.present.rawValue,
-                 OpenClawCanvasCommand.hide.rawValue,
-                 OpenClawCanvasCommand.navigate.rawValue,
-                 OpenClawCanvasCommand.evalJS.rawValue,
-                 OpenClawCanvasCommand.snapshot.rawValue:
+            case ZoidbergBotCanvasCommand.present.rawValue,
+                 ZoidbergBotCanvasCommand.hide.rawValue,
+                 ZoidbergBotCanvasCommand.navigate.rawValue,
+                 ZoidbergBotCanvasCommand.evalJS.rawValue,
+                 ZoidbergBotCanvasCommand.snapshot.rawValue:
                 return try await self.handleCanvasInvoke(req)
-            case OpenClawCanvasA2UICommand.reset.rawValue,
-                 OpenClawCanvasA2UICommand.push.rawValue,
-                 OpenClawCanvasA2UICommand.pushJSONL.rawValue:
+            case ZoidbergBotCanvasA2UICommand.reset.rawValue,
+                 ZoidbergBotCanvasA2UICommand.push.rawValue,
+                 ZoidbergBotCanvasA2UICommand.pushJSONL.rawValue:
                 return try await self.handleCanvasA2UIInvoke(req)
-            case OpenClawCameraCommand.list.rawValue,
-                 OpenClawCameraCommand.snap.rawValue,
-                 OpenClawCameraCommand.clip.rawValue:
+            case ZoidbergBotCameraCommand.list.rawValue,
+                 ZoidbergBotCameraCommand.snap.rawValue,
+                 ZoidbergBotCameraCommand.clip.rawValue:
                 return try await self.handleCameraInvoke(req)
-            case OpenClawScreenCommand.record.rawValue:
+            case ZoidbergBotScreenCommand.record.rawValue:
                 return try await self.handleScreenRecordInvoke(req)
             default:
                 return BridgeInvokeResponse(
                     id: req.id,
                     ok: false,
-                    error: OpenClawNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
+                    error: ZoidbergBotNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
             }
         } catch {
             if command.hasPrefix("camera.") {
@@ -556,7 +556,7 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(code: .unavailable, message: error.localizedDescription))
+                error: ZoidbergBotNodeError(code: .unavailable, message: error.localizedDescription))
         }
     }
 
@@ -570,7 +570,7 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(
+                error: ZoidbergBotNodeError(
                     code: .unavailable,
                     message: "LOCATION_DISABLED: enable Location in Settings"))
         }
@@ -578,12 +578,12 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(
+                error: ZoidbergBotNodeError(
                     code: .backgroundUnavailable,
                     message: "LOCATION_BACKGROUND_UNAVAILABLE: background location requires Always"))
         }
-        let params = (try? Self.decodeParams(OpenClawLocationGetParams.self, from: req.paramsJSON)) ??
-            OpenClawLocationGetParams()
+        let params = (try? Self.decodeParams(ZoidbergBotLocationGetParams.self, from: req.paramsJSON)) ??
+            ZoidbergBotLocationGetParams()
         let desired = params.desiredAccuracy ??
             (self.isLocationPreciseEnabled() ? .precise : .balanced)
         let status = self.locationService.authorizationStatus()
@@ -591,7 +591,7 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(
+                error: ZoidbergBotNodeError(
                     code: .unavailable,
                     message: "LOCATION_PERMISSION_REQUIRED: grant Location permission"))
         }
@@ -599,7 +599,7 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(
+                error: ZoidbergBotNodeError(
                     code: .unavailable,
                     message: "LOCATION_PERMISSION_REQUIRED: enable Always for background access"))
         }
@@ -609,7 +609,7 @@ final class NodeAppModel {
             maxAgeMs: params.maxAgeMs,
             timeoutMs: params.timeoutMs)
         let isPrecise = self.locationService.accuracyAuthorization() == .fullAccuracy
-        let payload = OpenClawLocationPayload(
+        let payload = ZoidbergBotLocationPayload(
             lat: location.coordinate.latitude,
             lon: location.coordinate.longitude,
             accuracyMeters: location.horizontalAccuracy,
@@ -625,9 +625,9 @@ final class NodeAppModel {
 
     private func handleCanvasInvoke(_ req: BridgeInvokeRequest) async throws -> BridgeInvokeResponse {
         switch req.command {
-        case OpenClawCanvasCommand.present.rawValue:
-            let params = (try? Self.decodeParams(OpenClawCanvasPresentParams.self, from: req.paramsJSON)) ??
-                OpenClawCanvasPresentParams()
+        case ZoidbergBotCanvasCommand.present.rawValue:
+            let params = (try? Self.decodeParams(ZoidbergBotCanvasPresentParams.self, from: req.paramsJSON)) ??
+                ZoidbergBotCanvasPresentParams()
             let url = params.url?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if url.isEmpty {
                 self.screen.showDefaultCanvas()
@@ -635,19 +635,19 @@ final class NodeAppModel {
                 self.screen.navigate(to: url)
             }
             return BridgeInvokeResponse(id: req.id, ok: true)
-        case OpenClawCanvasCommand.hide.rawValue:
+        case ZoidbergBotCanvasCommand.hide.rawValue:
             return BridgeInvokeResponse(id: req.id, ok: true)
-        case OpenClawCanvasCommand.navigate.rawValue:
-            let params = try Self.decodeParams(OpenClawCanvasNavigateParams.self, from: req.paramsJSON)
+        case ZoidbergBotCanvasCommand.navigate.rawValue:
+            let params = try Self.decodeParams(ZoidbergBotCanvasNavigateParams.self, from: req.paramsJSON)
             self.screen.navigate(to: params.url)
             return BridgeInvokeResponse(id: req.id, ok: true)
-        case OpenClawCanvasCommand.evalJS.rawValue:
-            let params = try Self.decodeParams(OpenClawCanvasEvalParams.self, from: req.paramsJSON)
+        case ZoidbergBotCanvasCommand.evalJS.rawValue:
+            let params = try Self.decodeParams(ZoidbergBotCanvasEvalParams.self, from: req.paramsJSON)
             let result = try await self.screen.eval(javaScript: params.javaScript)
             let payload = try Self.encodePayload(["result": result])
             return BridgeInvokeResponse(id: req.id, ok: true, payloadJSON: payload)
-        case OpenClawCanvasCommand.snapshot.rawValue:
-            let params = try? Self.decodeParams(OpenClawCanvasSnapshotParams.self, from: req.paramsJSON)
+        case ZoidbergBotCanvasCommand.snapshot.rawValue:
+            let params = try? Self.decodeParams(ZoidbergBotCanvasSnapshotParams.self, from: req.paramsJSON)
             let format = params?.format ?? .jpeg
             let maxWidth: CGFloat? = {
                 if let raw = params?.maxWidth, raw > 0 { return CGFloat(raw) }
@@ -671,19 +671,19 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
+                error: ZoidbergBotNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
         }
     }
 
     private func handleCanvasA2UIInvoke(_ req: BridgeInvokeRequest) async throws -> BridgeInvokeResponse {
         let command = req.command
         switch command {
-        case OpenClawCanvasA2UICommand.reset.rawValue:
+        case ZoidbergBotCanvasA2UICommand.reset.rawValue:
             guard let a2uiUrl = await self.resolveA2UIHostURL() else {
                 return BridgeInvokeResponse(
                     id: req.id,
                     ok: false,
-                    error: OpenClawNodeError(
+                    error: ZoidbergBotNodeError(
                         code: .unavailable,
                         message: "A2UI_HOST_NOT_CONFIGURED: gateway did not advertise canvas host"))
             }
@@ -692,32 +692,32 @@ final class NodeAppModel {
                 return BridgeInvokeResponse(
                     id: req.id,
                     ok: false,
-                    error: OpenClawNodeError(
+                    error: ZoidbergBotNodeError(
                         code: .unavailable,
                         message: "A2UI_HOST_UNAVAILABLE: A2UI host not reachable"))
             }
 
             let json = try await self.screen.eval(javaScript: """
             (() => {
-              const host = globalThis.openclawA2UI;
-              if (!host) return JSON.stringify({ ok: false, error: "missing openclawA2UI" });
+              const host = globalThis.zoidbergbotA2UI;
+              if (!host) return JSON.stringify({ ok: false, error: "missing zoidbergbotA2UI" });
               return JSON.stringify(host.reset());
             })()
             """)
             return BridgeInvokeResponse(id: req.id, ok: true, payloadJSON: json)
-        case OpenClawCanvasA2UICommand.push.rawValue, OpenClawCanvasA2UICommand.pushJSONL.rawValue:
+        case ZoidbergBotCanvasA2UICommand.push.rawValue, ZoidbergBotCanvasA2UICommand.pushJSONL.rawValue:
             let messages: [AnyCodable]
-            if command == OpenClawCanvasA2UICommand.pushJSONL.rawValue {
-                let params = try Self.decodeParams(OpenClawCanvasA2UIPushJSONLParams.self, from: req.paramsJSON)
-                messages = try OpenClawCanvasA2UIJSONL.decodeMessagesFromJSONL(params.jsonl)
+            if command == ZoidbergBotCanvasA2UICommand.pushJSONL.rawValue {
+                let params = try Self.decodeParams(ZoidbergBotCanvasA2UIPushJSONLParams.self, from: req.paramsJSON)
+                messages = try ZoidbergBotCanvasA2UIJSONL.decodeMessagesFromJSONL(params.jsonl)
             } else {
                 do {
-                    let params = try Self.decodeParams(OpenClawCanvasA2UIPushParams.self, from: req.paramsJSON)
+                    let params = try Self.decodeParams(ZoidbergBotCanvasA2UIPushParams.self, from: req.paramsJSON)
                     messages = params.messages
                 } catch {
                     // Be forgiving: some clients still send JSONL payloads to `canvas.a2ui.push`.
-                    let params = try Self.decodeParams(OpenClawCanvasA2UIPushJSONLParams.self, from: req.paramsJSON)
-                    messages = try OpenClawCanvasA2UIJSONL.decodeMessagesFromJSONL(params.jsonl)
+                    let params = try Self.decodeParams(ZoidbergBotCanvasA2UIPushJSONLParams.self, from: req.paramsJSON)
+                    messages = try ZoidbergBotCanvasA2UIJSONL.decodeMessagesFromJSONL(params.jsonl)
                 }
             }
 
@@ -725,7 +725,7 @@ final class NodeAppModel {
                 return BridgeInvokeResponse(
                     id: req.id,
                     ok: false,
-                    error: OpenClawNodeError(
+                    error: ZoidbergBotNodeError(
                         code: .unavailable,
                         message: "A2UI_HOST_NOT_CONFIGURED: gateway did not advertise canvas host"))
             }
@@ -734,17 +734,17 @@ final class NodeAppModel {
                 return BridgeInvokeResponse(
                     id: req.id,
                     ok: false,
-                    error: OpenClawNodeError(
+                    error: ZoidbergBotNodeError(
                         code: .unavailable,
                         message: "A2UI_HOST_UNAVAILABLE: A2UI host not reachable"))
             }
 
-            let messagesJSON = try OpenClawCanvasA2UIJSONL.encodeMessagesJSONArray(messages)
+            let messagesJSON = try ZoidbergBotCanvasA2UIJSONL.encodeMessagesJSONArray(messages)
             let js = """
             (() => {
               try {
-                const host = globalThis.openclawA2UI;
-                if (!host) return JSON.stringify({ ok: false, error: "missing openclawA2UI" });
+                const host = globalThis.zoidbergbotA2UI;
+                if (!host) return JSON.stringify({ ok: false, error: "missing zoidbergbotA2UI" });
                 const messages = \(messagesJSON);
                 return JSON.stringify(host.applyMessages(messages));
               } catch (e) {
@@ -758,24 +758,24 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
+                error: ZoidbergBotNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
         }
     }
 
     private func handleCameraInvoke(_ req: BridgeInvokeRequest) async throws -> BridgeInvokeResponse {
         switch req.command {
-        case OpenClawCameraCommand.list.rawValue:
+        case ZoidbergBotCameraCommand.list.rawValue:
             let devices = await self.camera.listDevices()
             struct Payload: Codable {
                 var devices: [CameraController.CameraDeviceInfo]
             }
             let payload = try Self.encodePayload(Payload(devices: devices))
             return BridgeInvokeResponse(id: req.id, ok: true, payloadJSON: payload)
-        case OpenClawCameraCommand.snap.rawValue:
+        case ZoidbergBotCameraCommand.snap.rawValue:
             self.showCameraHUD(text: "Taking photo…", kind: .photo)
             self.triggerCameraFlash()
-            let params = (try? Self.decodeParams(OpenClawCameraSnapParams.self, from: req.paramsJSON)) ??
-                OpenClawCameraSnapParams()
+            let params = (try? Self.decodeParams(ZoidbergBotCameraSnapParams.self, from: req.paramsJSON)) ??
+                ZoidbergBotCameraSnapParams()
             let res = try await self.camera.snap(params: params)
 
             struct Payload: Codable {
@@ -791,9 +791,9 @@ final class NodeAppModel {
                 height: res.height))
             self.showCameraHUD(text: "Photo captured", kind: .success, autoHideSeconds: 1.6)
             return BridgeInvokeResponse(id: req.id, ok: true, payloadJSON: payload)
-        case OpenClawCameraCommand.clip.rawValue:
-            let params = (try? Self.decodeParams(OpenClawCameraClipParams.self, from: req.paramsJSON)) ??
-                OpenClawCameraClipParams()
+        case ZoidbergBotCameraCommand.clip.rawValue:
+            let params = (try? Self.decodeParams(ZoidbergBotCameraClipParams.self, from: req.paramsJSON)) ??
+                ZoidbergBotCameraClipParams()
 
             let suspended = (params.includeAudio ?? true) ? self.voiceWake.suspendForExternalAudioCapture() : false
             defer { self.voiceWake.resumeAfterExternalAudioCapture(wasSuspended: suspended) }
@@ -818,13 +818,13 @@ final class NodeAppModel {
             return BridgeInvokeResponse(
                 id: req.id,
                 ok: false,
-                error: OpenClawNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
+                error: ZoidbergBotNodeError(code: .invalidRequest, message: "INVALID_REQUEST: unknown command"))
         }
     }
 
     private func handleScreenRecordInvoke(_ req: BridgeInvokeRequest) async throws -> BridgeInvokeResponse {
-        let params = (try? Self.decodeParams(OpenClawScreenRecordParams.self, from: req.paramsJSON)) ??
-            OpenClawScreenRecordParams()
+        let params = (try? Self.decodeParams(ZoidbergBotScreenRecordParams.self, from: req.paramsJSON)) ??
+            ZoidbergBotScreenRecordParams()
         if let format = params.format, format.lowercased() != "mp4" {
             throw NSError(domain: "Screen", code: 30, userInfo: [
                 NSLocalizedDescriptionKey: "INVALID_REQUEST: screen format must be mp4",
@@ -862,9 +862,9 @@ final class NodeAppModel {
 }
 
 private extension NodeAppModel {
-    func locationMode() -> OpenClawLocationMode {
+    func locationMode() -> ZoidbergBotLocationMode {
         let raw = UserDefaults.standard.string(forKey: "location.enabledMode") ?? "off"
-        return OpenClawLocationMode(rawValue: raw) ?? .off
+        return ZoidbergBotLocationMode(rawValue: raw) ?? .off
     }
 
     func isLocationPreciseEnabled() -> Bool {

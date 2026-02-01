@@ -16,10 +16,10 @@ describe("config discord", () => {
 
   it("loads discord guild map + dm group settings", async () => {
     await withTempHome(async (home) => {
-      const configDir = path.join(home, ".openclaw");
+      const configDir = path.join(home, ".zoidbergbot");
       await fs.mkdir(configDir, { recursive: true });
       await fs.writeFile(
-        path.join(configDir, "openclaw.json"),
+        path.join(configDir, "zoidbergbot.json"),
         JSON.stringify(
           {
             channels: {
@@ -29,7 +29,7 @@ describe("config discord", () => {
                   enabled: true,
                   allowFrom: ["steipete"],
                   groupEnabled: true,
-                  groupChannels: ["openclaw-dm"],
+                  groupChannels: ["zoidbergbot-dm"],
                 },
                 actions: {
                   emojiUploads: true,
@@ -61,7 +61,7 @@ describe("config discord", () => {
 
       expect(cfg.channels?.discord?.enabled).toBe(true);
       expect(cfg.channels?.discord?.dm?.groupEnabled).toBe(true);
-      expect(cfg.channels?.discord?.dm?.groupChannels).toEqual(["openclaw-dm"]);
+      expect(cfg.channels?.discord?.dm?.groupChannels).toEqual(["zoidbergbot-dm"]);
       expect(cfg.channels?.discord?.actions?.emojiUploads).toBe(true);
       expect(cfg.channels?.discord?.actions?.stickerUploads).toBe(false);
       expect(cfg.channels?.discord?.actions?.channels).toBe(true);

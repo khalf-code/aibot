@@ -1,10 +1,10 @@
-import type { OpenClawConfig } from "../config/config.js";
-export function normalizeLegacyConfigValues(cfg: OpenClawConfig): {
-  config: OpenClawConfig;
+import type { ZoidbergBotConfig } from "../config/config.js";
+export function normalizeLegacyConfigValues(cfg: ZoidbergBotConfig): {
+  config: ZoidbergBotConfig;
   changes: string[];
 } {
   const changes: string[] = [];
-  let next: OpenClawConfig = cfg;
+  let next: ZoidbergBotConfig = cfg;
 
   const legacyAckReaction = cfg.messages?.ackReaction?.trim();
   const hasWhatsAppConfig = cfg.channels?.whatsapp !== undefined;

@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/llm-task",
+  "name": "@zoidbergbot/llm-task",
   "version": "2026.1.30",
-  "description": "OpenClaw JSON-only LLM task plugin",
+  "description": "ZoidbergBot JSON-only LLM task plugin",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "zoidbergbot": "workspace:*"
   },
-  "openclaw": {
+  "zoidbergbot": {
     "extensions": [
       "./index.ts"
     ]

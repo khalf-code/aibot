@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
 EXTRA_COMPOSE_FILE="$ROOT_DIR/docker-compose.extra.yml"
-IMAGE_NAME="${OPENCLAW_IMAGE:-openclaw:local}"
-EXTRA_MOUNTS="${OPENCLAW_EXTRA_MOUNTS:-}"
-HOME_VOLUME_NAME="${OPENCLAW_HOME_VOLUME:-}"
+IMAGE_NAME="${ZOIDBERGBOT_IMAGE:-zoidbergbot:local}"
+EXTRA_MOUNTS="${ZOIDBERGBOT_EXTRA_MOUNTS:-}"
+HOME_VOLUME_NAME="${ZOIDBERGBOT_HOME_VOLUME:-}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -21,34 +21,34 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-$HOME/.openclaw}"
-OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$HOME/.openclaw/workspace}"
+ZOIDBERGBOT_CONFIG_DIR="${ZOIDBERGBOT_CONFIG_DIR:-$HOME/.openclaw}"
+ZOIDBERGBOT_WORKSPACE_DIR="${ZOIDBERGBOT_WORKSPACE_DIR:-$HOME/.zoidbergbot/workspace}"
 
-mkdir -p "$OPENCLAW_CONFIG_DIR"
-mkdir -p "$OPENCLAW_WORKSPACE_DIR"
+mkdir -p "$ZOIDBERGBOT_CONFIG_DIR"
+mkdir -p "$ZOIDBERGBOT_WORKSPACE_DIR"
 
-export OPENCLAW_CONFIG_DIR
-export OPENCLAW_WORKSPACE_DIR
-export OPENCLAW_GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
-export OPENCLAW_BRIDGE_PORT="${OPENCLAW_BRIDGE_PORT:-18790}"
-export OPENCLAW_GATEWAY_BIND="${OPENCLAW_GATEWAY_BIND:-lan}"
-export OPENCLAW_IMAGE="$IMAGE_NAME"
-export OPENCLAW_DOCKER_APT_PACKAGES="${OPENCLAW_DOCKER_APT_PACKAGES:-}"
-export OPENCLAW_EXTRA_MOUNTS="$EXTRA_MOUNTS"
-export OPENCLAW_HOME_VOLUME="$HOME_VOLUME_NAME"
+export ZOIDBERGBOT_CONFIG_DIR
+export ZOIDBERGBOT_WORKSPACE_DIR
+export ZOIDBERGBOT_GATEWAY_PORT="${ZOIDBERGBOT_GATEWAY_PORT:-18789}"
+export ZOIDBERGBOT_BRIDGE_PORT="${ZOIDBERGBOT_BRIDGE_PORT:-18790}"
+export ZOIDBERGBOT_GATEWAY_BIND="${ZOIDBERGBOT_GATEWAY_BIND:-lan}"
+export ZOIDBERGBOT_IMAGE="$IMAGE_NAME"
+export ZOIDBERGBOT_DOCKER_APT_PACKAGES="${ZOIDBERGBOT_DOCKER_APT_PACKAGES:-}"
+export ZOIDBERGBOT_EXTRA_MOUNTS="$EXTRA_MOUNTS"
+export ZOIDBERGBOT_HOME_VOLUME="$HOME_VOLUME_NAME"
 
-if [[ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]]; then
+if [[ -z "${ZOIDBERGBOT_GATEWAY_TOKEN:-}" ]]; then
   if command -v openssl >/dev/null 2>&1; then
-    OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)"
+    ZOIDBERGBOT_GATEWAY_TOKEN="$(openssl rand -hex 32)"
   else
-    OPENCLAW_GATEWAY_TOKEN="$(python3 - <<'PY'
+    ZOIDBERGBOT_GATEWAY_TOKEN="$(python3 - <<'PY'
 import secrets
 print(secrets.token_hex(32))
 PY
 )"
   fi
 fi
-export OPENCLAW_GATEWAY_TOKEN
+export ZOIDBERGBOT_GATEWAY_TOKEN
 
 COMPOSE_FILES=("$COMPOSE_FILE")
 COMPOSE_ARGS=()
@@ -61,14 +61,14 @@ write_extra_compose() {
 
   cat >"$EXTRA_COMPOSE_FILE" <<'YAML'
 services:
-  openclaw-gateway:
+  zoidbergbot-gateway:
     volumes:
 YAML
 
   if [[ -n "$home_volume" ]]; then
     printf '      - %s:/home/node\n' "$home_volume" >>"$EXTRA_COMPOSE_FILE"
-    printf '      - %s:/home/node/.openclaw\n' "$OPENCLAW_CONFIG_DIR" >>"$EXTRA_COMPOSE_FILE"
-    printf '      - %s:/home/node/.openclaw/workspace\n' "$OPENCLAW_WORKSPACE_DIR" >>"$EXTRA_COMPOSE_FILE"
+    printf '      - %s:/home/node/.openclaw\n' "$ZOIDBERGBOT_CONFIG_DIR" >>"$EXTRA_COMPOSE_FILE"
+    printf '      - %s:/home/node/.zoidbergbot/workspace\n' "$ZOIDBERGBOT_WORKSPACE_DIR" >>"$EXTRA_COMPOSE_FILE"
   fi
 
   for mount in "${mounts[@]}"; do
@@ -76,14 +76,14 @@ YAML
   done
 
   cat >>"$EXTRA_COMPOSE_FILE" <<'YAML'
-  openclaw-cli:
+  zoidbergbot-cli:
     volumes:
 YAML
 
   if [[ -n "$home_volume" ]]; then
     printf '      - %s:/home/node\n' "$home_volume" >>"$EXTRA_COMPOSE_FILE"
-    printf '      - %s:/home/node/.openclaw\n' "$OPENCLAW_CONFIG_DIR" >>"$EXTRA_COMPOSE_FILE"
-    printf '      - %s:/home/node/.openclaw/workspace\n' "$OPENCLAW_WORKSPACE_DIR" >>"$EXTRA_COMPOSE_FILE"
+    printf '      - %s:/home/node/.openclaw\n' "$ZOIDBERGBOT_CONFIG_DIR" >>"$EXTRA_COMPOSE_FILE"
+    printf '      - %s:/home/node/.zoidbergbot/workspace\n' "$ZOIDBERGBOT_WORKSPACE_DIR" >>"$EXTRA_COMPOSE_FILE"
   fi
 
   for mount in "${mounts[@]}"; do
@@ -159,20 +159,20 @@ upsert_env() {
 }
 
 upsert_env "$ENV_FILE" \
-  OPENCLAW_CONFIG_DIR \
-  OPENCLAW_WORKSPACE_DIR \
-  OPENCLAW_GATEWAY_PORT \
-  OPENCLAW_BRIDGE_PORT \
-  OPENCLAW_GATEWAY_BIND \
-  OPENCLAW_GATEWAY_TOKEN \
-  OPENCLAW_IMAGE \
-  OPENCLAW_EXTRA_MOUNTS \
-  OPENCLAW_HOME_VOLUME \
-  OPENCLAW_DOCKER_APT_PACKAGES
+  ZOIDBERGBOT_CONFIG_DIR \
+  ZOIDBERGBOT_WORKSPACE_DIR \
+  ZOIDBERGBOT_GATEWAY_PORT \
+  ZOIDBERGBOT_BRIDGE_PORT \
+  ZOIDBERGBOT_GATEWAY_BIND \
+  ZOIDBERGBOT_GATEWAY_TOKEN \
+  ZOIDBERGBOT_IMAGE \
+  ZOIDBERGBOT_EXTRA_MOUNTS \
+  ZOIDBERGBOT_HOME_VOLUME \
+  ZOIDBERGBOT_DOCKER_APT_PACKAGES
 
 echo "==> Building Docker image: $IMAGE_NAME"
 docker build \
-  --build-arg "OPENCLAW_DOCKER_APT_PACKAGES=${OPENCLAW_DOCKER_APT_PACKAGES}" \
+  --build-arg "ZOIDBERGBOT_DOCKER_APT_PACKAGES=${ZOIDBERGBOT_DOCKER_APT_PACKAGES}" \
   -t "$IMAGE_NAME" \
   -f "$ROOT_DIR/Dockerfile" \
   "$ROOT_DIR"
@@ -182,33 +182,33 @@ echo "==> Onboarding (interactive)"
 echo "When prompted:"
 echo "  - Gateway bind: lan"
 echo "  - Gateway auth: token"
-echo "  - Gateway token: $OPENCLAW_GATEWAY_TOKEN"
+echo "  - Gateway token: $ZOIDBERGBOT_GATEWAY_TOKEN"
 echo "  - Tailscale exposure: Off"
 echo "  - Install Gateway daemon: No"
 echo ""
-docker compose "${COMPOSE_ARGS[@]}" run --rm openclaw-cli onboard --no-install-daemon
+docker compose "${COMPOSE_ARGS[@]}" run --rm zoidbergbot-cli onboard --no-install-daemon
 
 echo ""
 echo "==> Provider setup (optional)"
 echo "WhatsApp (QR):"
-echo "  ${COMPOSE_HINT} run --rm openclaw-cli providers login"
+echo "  ${COMPOSE_HINT} run --rm zoidbergbot-cli providers login"
 echo "Telegram (bot token):"
-echo "  ${COMPOSE_HINT} run --rm openclaw-cli providers add --provider telegram --token <token>"
+echo "  ${COMPOSE_HINT} run --rm zoidbergbot-cli providers add --provider telegram --token <token>"
 echo "Discord (bot token):"
-echo "  ${COMPOSE_HINT} run --rm openclaw-cli providers add --provider discord --token <token>"
-echo "Docs: https://docs.openclaw.ai/providers"
+echo "  ${COMPOSE_HINT} run --rm zoidbergbot-cli providers add --provider discord --token <token>"
+echo "Docs: https://docs.zoidbergbot.ai/providers"
 
 echo ""
 echo "==> Starting gateway"
-docker compose "${COMPOSE_ARGS[@]}" up -d openclaw-gateway
+docker compose "${COMPOSE_ARGS[@]}" up -d zoidbergbot-gateway
 
 echo ""
 echo "Gateway running with host port mapping."
 echo "Access from tailnet devices via the host's tailnet IP."
-echo "Config: $OPENCLAW_CONFIG_DIR"
-echo "Workspace: $OPENCLAW_WORKSPACE_DIR"
-echo "Token: $OPENCLAW_GATEWAY_TOKEN"
+echo "Config: $ZOIDBERGBOT_CONFIG_DIR"
+echo "Workspace: $ZOIDBERGBOT_WORKSPACE_DIR"
+echo "Token: $ZOIDBERGBOT_GATEWAY_TOKEN"
 echo ""
 echo "Commands:"
-echo "  ${COMPOSE_HINT} logs -f openclaw-gateway"
-echo "  ${COMPOSE_HINT} exec openclaw-gateway node dist/index.js health --token \"$OPENCLAW_GATEWAY_TOKEN\""
+echo "  ${COMPOSE_HINT} logs -f zoidbergbot-gateway"
+echo "  ${COMPOSE_HINT} exec zoidbergbot-gateway node dist/index.js health --token \"$ZOIDBERGBOT_GATEWAY_TOKEN\""

@@ -1,16 +1,16 @@
 {
-  "name": "@openclaw/zalo",
+  "name": "@zoidbergbot/zalo",
   "version": "2026.1.30",
-  "description": "OpenClaw Zalo channel plugin",
+  "description": "ZoidbergBot Zalo channel plugin",
   "type": "module",
   "dependencies": {
-    "openclaw": "workspace:*",
+    "zoidbergbot": "workspace:*",
     "undici": "7.19.2"
   },
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "zoidbergbot": "workspace:*"
   },
-  "openclaw": {
+  "zoidbergbot": {
     "extensions": [
       "./index.ts"
     ],
@@ -28,7 +28,7 @@
       "quickstartAllowFrom": true
     },
     "install": {
-      "npmSpec": "@openclaw/zalo",
+      "npmSpec": "@zoidbergbot/zalo",
       "localPath": "extensions/zalo",
       "defaultChoice": "npm"
     }

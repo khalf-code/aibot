@@ -1,27 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { OpenClawApp } from "./app";
+import { ZoidbergBotApp } from "./app";
 
-const originalConnect = OpenClawApp.prototype.connect;
+const originalConnect = ZoidbergBotApp.prototype.connect;
 
 function mountApp(pathname: string) {
   window.history.replaceState({}, "", pathname);
-  const app = document.createElement("openclaw-app") as OpenClawApp;
+  const app = document.createElement("zoidbergbot-app") as ZoidbergBotApp;
   document.body.append(app);
   return app;
 }
 
 beforeEach(() => {
-  OpenClawApp.prototype.connect = () => {
+  ZoidbergBotApp.prototype.connect = () => {
     // no-op: avoid real gateway WS connections in browser tests
   };
-  window.__OPENCLAW_CONTROL_UI_BASE_PATH__ = undefined;
+  window.__ZOIDBERGBOT_CONTROL_UI_BASE_PATH__ = undefined;
   localStorage.clear();
   document.body.innerHTML = "";
 });
 
 afterEach(() => {
-  OpenClawApp.prototype.connect = originalConnect;
-  window.__OPENCLAW_CONTROL_UI_BASE_PATH__ = undefined;
+  ZoidbergBotApp.prototype.connect = originalConnect;
+  window.__ZOIDBERGBOT_CONTROL_UI_BASE_PATH__ = undefined;
   localStorage.clear();
   document.body.innerHTML = "";
 });

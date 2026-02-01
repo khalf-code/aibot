@@ -1,5 +1,5 @@
 import chokidar from "chokidar";
-import type { OpenClawConfig, ConfigFileSnapshot, GatewayReloadMode } from "../config/config.js";
+import type { ZoidbergBotConfig, ConfigFileSnapshot, GatewayReloadMode } from "../config/config.js";
 import { type ChannelId, listChannelPlugins } from "../channels/plugins/index.js";
 import { getActivePluginRegistry } from "../plugins/runtime.js";
 
@@ -164,7 +164,7 @@ export function diffConfigPaths(prev: unknown, next: unknown, prefix = ""): stri
   return [prefix || "<root>"];
 }
 
-export function resolveGatewayReloadSettings(cfg: OpenClawConfig): GatewayReloadSettings {
+export function resolveGatewayReloadSettings(cfg: ZoidbergBotConfig): GatewayReloadSettings {
   const rawMode = cfg.gateway?.reload?.mode;
   const mode =
     rawMode === "off" || rawMode === "restart" || rawMode === "hot" || rawMode === "hybrid"
@@ -254,10 +254,10 @@ export type GatewayConfigReloader = {
 };
 
 export function startGatewayConfigReloader(opts: {
-  initialConfig: OpenClawConfig;
+  initialConfig: ZoidbergBotConfig;
   readSnapshot: () => Promise<ConfigFileSnapshot>;
-  onHotReload: (plan: GatewayReloadPlan, nextConfig: OpenClawConfig) => Promise<void>;
-  onRestart: (plan: GatewayReloadPlan, nextConfig: OpenClawConfig) => void;
+  onHotReload: (plan: GatewayReloadPlan, nextConfig: ZoidbergBotConfig) => Promise<void>;
+  onRestart: (plan: GatewayReloadPlan, nextConfig: ZoidbergBotConfig) => void;
   log: {
     info: (msg: string) => void;
     warn: (msg: string) => void;

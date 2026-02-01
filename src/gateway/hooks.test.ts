@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import type { ChannelPlugin } from "../channels/plugins/types.js";
-import type { OpenClawConfig } from "../config/config.js";
+import type { ZoidbergBotConfig } from "../config/config.js";
 import { setActivePluginRegistry } from "../plugins/runtime.js";
 import { createIMessageTestPlugin, createTestRegistry } from "../test-utils/channel-plugins.js";
 import {
@@ -26,7 +26,7 @@ describe("gateway hooks helpers", () => {
         token: "secret",
         path: "hooks///",
       },
-    } as OpenClawConfig;
+    } as ZoidbergBotConfig;
     const resolved = resolveHooksConfig(base);
     expect(resolved?.basePath).toBe("/hooks");
     expect(resolved?.token).toBe("secret");
@@ -35,7 +35,7 @@ describe("gateway hooks helpers", () => {
   test("resolveHooksConfig rejects root path", () => {
     const cfg = {
       hooks: { enabled: true, token: "x", path: "/" },
-    } as OpenClawConfig;
+    } as ZoidbergBotConfig;
     expect(() => resolveHooksConfig(cfg)).toThrow("hooks.path may not be '/'");
   });
 

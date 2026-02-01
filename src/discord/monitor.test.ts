@@ -130,14 +130,14 @@ describe("DiscordMessageListener", () => {
 
 describe("discord allowlist helpers", () => {
   it("normalizes slugs", () => {
-    expect(normalizeDiscordSlug("Friends of OpenClaw")).toBe("friends-of-openclaw");
+    expect(normalizeDiscordSlug("Friends of ZoidbergBot")).toBe("friends-of-openclaw");
     expect(normalizeDiscordSlug("#General")).toBe("general");
     expect(normalizeDiscordSlug("Dev__Chat")).toBe("dev-chat");
   });
 
   it("matches ids or names", () => {
     const allow = normalizeDiscordAllowList(
-      ["123", "steipete", "Friends of OpenClaw"],
+      ["123", "steipete", "Friends of ZoidbergBot"],
       ["discord:", "user:", "guild:", "channel:"],
     );
     expect(allow).not.toBeNull();
@@ -167,7 +167,7 @@ describe("discord guild/channel resolution", () => {
       "123": { slug: "friends-of-openclaw" },
     });
     const resolved = resolveDiscordGuildEntry({
-      guild: fakeGuild("123", "Friends of OpenClaw"),
+      guild: fakeGuild("123", "Friends of ZoidbergBot"),
       guildEntries,
     });
     expect(resolved?.id).toBe("123");
@@ -179,7 +179,7 @@ describe("discord guild/channel resolution", () => {
       "friends-of-openclaw": { slug: "friends-of-openclaw" },
     });
     const resolved = resolveDiscordGuildEntry({
-      guild: fakeGuild("123", "Friends of OpenClaw"),
+      guild: fakeGuild("123", "Friends of ZoidbergBot"),
       guildEntries,
     });
     expect(resolved?.id).toBe("123");
@@ -191,7 +191,7 @@ describe("discord guild/channel resolution", () => {
       "*": { requireMention: false },
     });
     const resolved = resolveDiscordGuildEntry({
-      guild: fakeGuild("123", "Friends of OpenClaw"),
+      guild: fakeGuild("123", "Friends of ZoidbergBot"),
       guildEntries,
     });
     expect(resolved?.id).toBe("123");
@@ -557,15 +557,15 @@ describe("discord group DM gating", () => {
   it("matches group DM allowlist", () => {
     expect(
       resolveGroupDmAllow({
-        channels: ["openclaw-dm"],
+        channels: ["zoidbergbot-dm"],
         channelId: "1",
-        channelName: "OpenClaw DM",
-        channelSlug: "openclaw-dm",
+        channelName: "ZoidbergBot DM",
+        channelSlug: "zoidbergbot-dm",
       }),
     ).toBe(true);
     expect(
       resolveGroupDmAllow({
-        channels: ["openclaw-dm"],
+        channels: ["zoidbergbot-dm"],
         channelId: "1",
         channelName: "Other",
         channelSlug: "other",

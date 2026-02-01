@@ -1,4 +1,4 @@
-import OpenClawKit
+import ZoidbergBotKit
 import Observation
 import SwiftUI
 import WebKit
@@ -13,7 +13,7 @@ final class ScreenController {
     var urlString: String = ""
     var errorText: String?
 
-    /// Callback invoked when an openclaw:// deep link is tapped in the canvas
+    /// Callback invoked when an zoidbergbot:// deep link is tapped in the canvas
     var onDeepLink: ((URL) -> Void)?
 
     /// Callback invoked when the user clicks an A2UI action (e.g. button) inside the canvas web UI.
@@ -124,7 +124,7 @@ final class ScreenController {
                 let res = try await self.eval(javaScript: """
                 (() => {
                   try {
-                    const host = globalThis.openclawA2UI;
+                    const host = globalThis.zoidbergbotA2UI;
                     return !!host && typeof host.applyMessages === 'function';
                   } catch (_) { return false; }
                 })()
@@ -185,7 +185,7 @@ final class ScreenController {
 
     func snapshotBase64(
         maxWidth: CGFloat? = nil,
-        format: OpenClawCanvasSnapshotFormat,
+        format: ZoidbergBotCanvasSnapshotFormat,
         quality: Double? = nil) async throws -> String
     {
         let config = WKSnapshotConfiguration()
@@ -230,7 +230,7 @@ final class ScreenController {
         subdirectory: String)
         -> URL?
     {
-        let bundle = OpenClawKitResources.bundle
+        let bundle = ZoidbergBotKitResources.bundle
         return bundle.url(forResource: name, withExtension: ext, subdirectory: subdirectory)
             ?? bundle.url(forResource: name, withExtension: ext)
     }
@@ -343,7 +343,7 @@ extension Double {
 
 // MARK: - Navigation Delegate
 
-/// Handles navigation policy to intercept openclaw:// deep links from canvas
+/// Handles navigation policy to intercept zoidbergbot:// deep links from canvas
 @MainActor
 private final class ScreenNavigationDelegate: NSObject, WKNavigationDelegate {
     weak var controller: ScreenController?
@@ -358,8 +358,8 @@ private final class ScreenNavigationDelegate: NSObject, WKNavigationDelegate {
             return
         }
 
-        // Intercept openclaw:// deep links.
-        if url.scheme?.lowercased() == "openclaw" {
+        // Intercept zoidbergbot:// deep links.
+        if url.scheme?.lowercased() == "zoidbergbot" {
             decisionHandler(.cancel)
             self.controller?.onDeepLink?(url)
             return

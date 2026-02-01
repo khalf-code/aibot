@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/lobster",
+  "name": "@zoidbergbot/lobster",
   "version": "2026.1.30",
   "description": "Lobster workflow tool plugin (typed pipelines + resumable approvals)",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "zoidbergbot": "workspace:*"
   },
-  "openclaw": {
+  "zoidbergbot": {
     "extensions": [
       "./index.ts"
     ]

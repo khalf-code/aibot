@@ -28,7 +28,7 @@ export type GatewayBonjourDiscoverOpts = {
 };
 
 const DEFAULT_TIMEOUT_MS = 2000;
-const GATEWAY_SERVICE_TYPE = "_openclaw-gw._tcp";
+const GATEWAY_SERVICE_TYPE = "_zoidbergbot-gw._tcp";
 
 function decodeDnsSdEscapes(value: string): string {
   let decoded = false;

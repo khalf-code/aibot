@@ -69,7 +69,7 @@ function createHarness() {
     channelsConfig: undefined,
     slashCommand: {
       enabled: true,
-      name: "openclaw",
+      name: "zoidbergbot",
       ephemeral: true,
       sessionPrefix: "slack:slash",
     },

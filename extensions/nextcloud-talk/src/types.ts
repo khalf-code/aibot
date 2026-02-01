@@ -3,7 +3,7 @@ import type {
   DmConfig,
   DmPolicy,
   GroupPolicy,
-} from "openclaw/plugin-sdk";
+} from "zoidbergbot/plugin-sdk";
 
 export type NextcloudTalkRoomConfig = {
   requireMention?: boolean;

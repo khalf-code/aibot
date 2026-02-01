@@ -198,7 +198,7 @@ describe("legacy config detection", () => {
         list: [
           {
             id: "work",
-            workspace: "~/openclaw-work",
+            workspace: "~/zoidbergbot-work",
             tools: {
               elevated: {
                 enabled: false,

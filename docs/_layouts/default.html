@@ -17,7 +17,7 @@
     <script>
       (() => {
         try {
-          const stored = localStorage.getItem("openclaw:theme");
+          const stored = localStorage.getItem("zoidbergbot:theme");
           if (stored === "light" || stored === "dark") document.documentElement.dataset.theme = stored;
         } catch {
           // ignore
@@ -35,7 +35,7 @@
     <header class="shell">
       <div class="shell__frame" role="banner">
         <div class="shell__titlebar">
-          <div class="brand" aria-label="OpenClaw docs terminal">
+          <div class="brand" aria-label="ZoidbergBot docs terminal">
             <img
               class="brand__logo"
               src="{{ "/assets/pixel-lobster.svg" | relative_url }}"
@@ -45,17 +45,17 @@
               decoding="async"
             />
             <div class="brand__text">
-              <div class="brand__name">OpenClaw</div>
+              <div class="brand__name">ZoidbergBot</div>
               <div class="brand__hint">docs // lobster terminal</div>
             </div>
           </div>
 
           <div class="titlebar__actions">
-            <a class="titlebar__cta" href="https://github.com/openclaw/openclaw">
+            <a class="titlebar__cta" href="https://github.com/zoidbergbot/zoidbergbot">
               <span class="titlebar__cta-label">GitHub</span>
               <span class="titlebar__cta-meta">repo</span>
             </a>
-            <a class="titlebar__cta titlebar__cta--accent" href="https://github.com/openclaw/openclaw/releases/latest">
+            <a class="titlebar__cta titlebar__cta--accent" href="https://github.com/zoidbergbot/zoidbergbot/releases/latest">
               <span class="titlebar__cta-label">Download</span>
               <span class="titlebar__cta-meta">latest</span>
             </a>
@@ -116,11 +116,11 @@
 
         <footer class="terminal__footer" role="contentinfo">
           <div class="footer__line">
-            <span class="footer__sig">openclaw.ai</span>
+            <span class="footer__sig">zoidbergbot.ai</span>
             <span class="footer__sep">·</span>
-            <a href="https://github.com/openclaw/openclaw">source</a>
+            <a href="https://github.com/zoidbergbot/zoidbergbot">source</a>
             <span class="footer__sep">·</span>
-            <a href="https://github.com/openclaw/openclaw/releases">releases</a>
+            <a href="https://github.com/zoidbergbot/zoidbergbot/releases">releases</a>
           </div>
           <div class="footer__hint" aria-hidden="true">
             tip: press <kbd>F2</kbd> (Mac: <kbd>fn</kbd>+<kbd>F2</kbd>) to flip

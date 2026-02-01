@@ -1,4 +1,4 @@
-const warningFilterKey = Symbol.for("openclaw.warning-filter");
+const warningFilterKey = Symbol.for("zoidbergbot.warning-filter");
 
 type Warning = Error & {
   code?: string;

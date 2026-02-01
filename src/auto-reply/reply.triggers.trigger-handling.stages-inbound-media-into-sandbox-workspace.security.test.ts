@@ -14,7 +14,9 @@ import { ensureSandboxWorkspaceForSession } from "../agents/sandbox.js";
 import { stageSandboxMedia } from "./reply/stage-sandbox-media.js";
 
 async function withTempHome<T>(fn: (home: string) => Promise<T>): Promise<T> {
-  return withTempHomeBase(async (home) => await fn(home), { prefix: "openclaw-triggers-bypass-" });
+  return withTempHomeBase(async (home) => await fn(home), {
+    prefix: "zoidbergbot-triggers-bypass-",
+  });
 }
 
 afterEach(() => {
@@ -54,7 +56,7 @@ describe("stageSandboxMedia security", () => {
           agents: {
             defaults: {
               model: "anthropic/claude-opus-4-5",
-              workspace: join(home, "openclaw"),
+              workspace: join(home, "zoidbergbot"),
               sandbox: {
                 mode: "non-main",
                 workspaceRoot: join(home, "sandboxes"),
@@ -65,7 +67,7 @@ describe("stageSandboxMedia security", () => {
           session: { store: join(home, "sessions.json") },
         },
         sessionKey: "agent:main:main",
-        workspaceDir: join(home, "openclaw"),
+        workspaceDir: join(home, "zoidbergbot"),
       });
 
       const stagedFullPath = join(sandboxDir, "media", "inbound", basename(sensitiveFile));

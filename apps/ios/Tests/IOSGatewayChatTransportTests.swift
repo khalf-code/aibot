@@ -1,6 +1,6 @@
-import OpenClawKit
+import ZoidbergBotKit
 import Testing
-@testable import OpenClaw
+@testable import ZoidbergBot
 
 @Suite struct IOSGatewayChatTransportTests {
     @Test func requestsFailFastWhenGatewayNotConnected() async {

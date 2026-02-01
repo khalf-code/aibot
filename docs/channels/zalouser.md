@@ -1,7 +1,7 @@
 ---
 summary: "Zalo personal account support via zca-cli (QR login), capabilities, and configuration"
 read_when:
-  - Setting up Zalo Personal for OpenClaw
+  - Setting up Zalo Personal for ZoidbergBot
   - Debugging Zalo Personal login or message flow
 title: "Zalo Personal"
 ---
@@ -16,8 +16,8 @@ Status: experimental. This integration automates a **personal Zalo account** via
 
 Zalo Personal ships as a plugin and is not bundled with the core install.
 
-- Install via CLI: `openclaw plugins install @openclaw/zalouser`
-- Or from a source checkout: `openclaw plugins install ./extensions/zalouser`
+- Install via CLI: `zoidbergbot plugins install @zoidbergbot/zalouser`
+- Or from a source checkout: `zoidbergbot plugins install ./extensions/zalouser`
 - Details: [Plugins](/plugin)
 
 ## Prerequisite: zca-cli
@@ -31,7 +31,7 @@ The Gateway machine must have the `zca` binary available in `PATH`.
 
 1. Install the plugin (see above).
 2. Login (QR, on the Gateway machine):
-   - `openclaw channels login --channel zalouser`
+   - `zoidbergbot channels login --channel zalouser`
    - Scan the QR code in the terminal with the Zalo mobile app.
 3. Enable the channel:
 
@@ -81,8 +81,8 @@ openclaw directory groups list --channel zalouser --query "work"
 
 Approve via:
 
-- `openclaw pairing list zalouser`
-- `openclaw pairing approve zalouser <code>`
+- `zoidbergbot pairing list zalouser`
+- `zoidbergbot pairing approve zalouser <code>`
 
 ## Group access (optional)
 
@@ -92,7 +92,7 @@ Approve via:
   - `channels.zalouser.groups` (keys are group IDs or names)
 - Block all groups: `channels.zalouser.groupPolicy = "disabled"`.
 - The configure wizard can prompt for group allowlists.
-- On startup, OpenClaw resolves group/user names in allowlists to IDs and logs the mapping; unresolved entries are kept as typed.
+- On startup, ZoidbergBot resolves group/user names in allowlists to IDs and logs the mapping; unresolved entries are kept as typed.
 
 Example:
 
@@ -136,5 +136,5 @@ Accounts map to zca profiles. Example:
 
 **Login doesn’t stick:**
 
-- `openclaw channels status --probe`
-- Re-login: `openclaw channels logout --channel zalouser && openclaw channels login --channel zalouser`
+- `zoidbergbot channels status --probe`
+- Re-login: `zoidbergbot channels logout --channel zalouser && zoidbergbot channels login --channel zalouser`

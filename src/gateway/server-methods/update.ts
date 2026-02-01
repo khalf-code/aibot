@@ -1,5 +1,4 @@
 import type { GatewayRequestHandlers } from "./types.js";
-import { resolveOpenClawPackageRoot } from "../../infra/openclaw-root.js";
 import {
   formatDoctorNonInteractiveHint,
   type RestartSentinelPayload,
@@ -7,6 +6,7 @@ import {
 } from "../../infra/restart-sentinel.js";
 import { scheduleGatewaySigusr1Restart } from "../../infra/restart.js";
 import { runGatewayUpdate } from "../../infra/update-runner.js";
+import { resolveZoidbergBotPackageRoot } from "../../infra/zoidbergbot-root.js";
 import {
   ErrorCodes,
   errorShape,
@@ -49,7 +49,7 @@ export const updateHandlers: GatewayRequestHandlers = {
     let result: Awaited<ReturnType<typeof runGatewayUpdate>>;
     try {
       const root =
-        (await resolveOpenClawPackageRoot({
+        (await resolveZoidbergBotPackageRoot({
           moduleUrl: import.meta.url,
           argv1: process.argv[1],
           cwd: process.cwd(),

@@ -15,11 +15,11 @@ For model selection rules, see [/concepts/models](/concepts/models).
 
 - Model refs use `provider/model` (example: `opencode/claude-opus-4-5`).
 - If you set `agents.defaults.models`, it becomes the allowlist.
-- CLI helpers: `openclaw onboard`, `openclaw models list`, `openclaw models set <provider/model>`.
+- CLI helpers: `openclaw onboard`, `zoidbergbot models list`, `zoidbergbot models set <provider/model>`.
 
 ## Built-in providers (pi-ai catalog)
 
-OpenClaw ships with the pi‑ai catalog. These providers require **no**
+ZoidbergBot ships with the pi‑ai catalog. These providers require **no**
 `models.providers` config; just set auth + pick a model.
 
 ### OpenAI
@@ -40,7 +40,7 @@ OpenClaw ships with the pi‑ai catalog. These providers require **no**
 - Provider: `anthropic`
 - Auth: `ANTHROPIC_API_KEY` or `claude setup-token`
 - Example model: `anthropic/claude-opus-4-5`
-- CLI: `openclaw onboard --auth-choice token` (paste setup-token) or `openclaw models auth paste-token --provider anthropic`
+- CLI: `openclaw onboard --auth-choice token` (paste setup-token) or `zoidbergbot models auth paste-token --provider anthropic`
 
 ```json5
 {
@@ -53,7 +53,7 @@ OpenClaw ships with the pi‑ai catalog. These providers require **no**
 - Provider: `openai-codex`
 - Auth: OAuth (ChatGPT)
 - Example model: `openai-codex/gpt-5.2`
-- CLI: `openclaw onboard --auth-choice openai-codex` or `openclaw models auth login --provider openai-codex`
+- CLI: `openclaw onboard --auth-choice openai-codex` or `zoidbergbot models auth login --provider openai-codex`
 
 ```json5
 {
@@ -86,12 +86,12 @@ OpenClaw ships with the pi‑ai catalog. These providers require **no**
 - Providers: `google-vertex`, `google-antigravity`, `google-gemini-cli`
 - Auth: Vertex uses gcloud ADC; Antigravity/Gemini CLI use their respective auth flows
 - Antigravity OAuth is shipped as a bundled plugin (`google-antigravity-auth`, disabled by default).
-  - Enable: `openclaw plugins enable google-antigravity-auth`
-  - Login: `openclaw models auth login --provider google-antigravity --set-default`
+  - Enable: `zoidbergbot plugins enable google-antigravity-auth`
+  - Login: `zoidbergbot models auth login --provider google-antigravity --set-default`
 - Gemini CLI OAuth is shipped as a bundled plugin (`google-gemini-cli-auth`, disabled by default).
-  - Enable: `openclaw plugins enable google-gemini-cli-auth`
-  - Login: `openclaw models auth login --provider google-gemini-cli --set-default`
-  - Note: you do **not** paste a client id or secret into `openclaw.json`. The CLI login flow stores
+  - Enable: `zoidbergbot plugins enable google-gemini-cli-auth`
+  - Login: `zoidbergbot models auth login --provider google-gemini-cli --set-default`
+  - Note: you do **not** paste a client id or secret into `zoidbergbot.json`. The CLI login flow stores
     tokens in auth profiles on the gateway host.
 
 ### Z.AI (GLM)
@@ -184,8 +184,8 @@ Qwen provides OAuth access to Qwen Coder + Vision via a device-code flow.
 Enable the bundled plugin, then log in:
 
 ```bash
-openclaw plugins enable qwen-portal-auth
-openclaw models auth login --provider qwen-portal --set-default
+zoidbergbot plugins enable qwen-portal-auth
+zoidbergbot models auth login --provider qwen-portal --set-default
 ```
 
 Model refs:
@@ -294,7 +294,7 @@ Example (OpenAI‑compatible):
 Notes:
 
 - For custom providers, `reasoning`, `input`, `cost`, `contextWindow`, and `maxTokens` are optional.
-  When omitted, OpenClaw defaults to:
+  When omitted, ZoidbergBot defaults to:
   - `reasoning: false`
   - `input: ["text"]`
   - `cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }`
@@ -306,8 +306,8 @@ Notes:
 
 ```bash
 openclaw onboard --auth-choice opencode-zen
-openclaw models set opencode/claude-opus-4-5
-openclaw models list
+zoidbergbot models set opencode/claude-opus-4-5
+zoidbergbot models list
 ```
 
 See also: [/gateway/configuration](/gateway/configuration) for full configuration examples.

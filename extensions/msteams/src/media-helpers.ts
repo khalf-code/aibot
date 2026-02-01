@@ -8,7 +8,7 @@ import {
   extensionForMime,
   extractOriginalFilename,
   getFileExtension,
-} from "openclaw/plugin-sdk";
+} from "zoidbergbot/plugin-sdk";
 
 /**
  * Detect MIME type from URL extension or data URL.

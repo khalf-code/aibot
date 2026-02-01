@@ -61,5 +61,5 @@ cat <<NOTE
 Built ${TARGET_IMAGE}.
 To use it, set agents.defaults.sandbox.docker.image to "${TARGET_IMAGE}" and restart.
 If you want a clean re-create, remove old sandbox containers:
-  docker rm -f \$(docker ps -aq --filter label=openclaw.sandbox=1)
+  docker rm -f \$(docker ps -aq --filter label=zoidbergbot.sandbox=1)
 NOTE

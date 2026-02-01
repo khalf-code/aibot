@@ -1,17 +1,17 @@
 ---
-summary: "OpenClaw on Raspberry Pi (budget self-hosted setup)"
+summary: "ZoidbergBot on Raspberry Pi (budget self-hosted setup)"
 read_when:
-  - Setting up OpenClaw on a Raspberry Pi
-  - Running OpenClaw on ARM devices
+  - Setting up ZoidbergBot on a Raspberry Pi
+  - Running ZoidbergBot on ARM devices
   - Building a cheap always-on personal AI
 title: "Raspberry Pi"
 ---
 
-# OpenClaw on Raspberry Pi
+# ZoidbergBot on Raspberry Pi
 
 ## Goal
 
-Run a persistent, always-on OpenClaw Gateway on a Raspberry Pi for **~$35-80** one-time cost (no monthly fees).
+Run a persistent, always-on ZoidbergBot Gateway on a Raspberry Pi for **~$35-80** one-time cost (no monthly fees).
 
 Perfect for:
 
@@ -107,18 +107,18 @@ echo 'vm.swappiness=10' | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 ```
 
-## 6) Install OpenClaw
+## 6) Install ZoidbergBot
 
 ### Option A: Standard Install (Recommended)
 
 ```bash
-curl -fsSL https://openclaw.ai/install.sh | bash
+curl -fsSL https://zoidbergbot.ai/install.sh | bash
 ```
 
 ### Option B: Hackable Install (For tinkering)
 
 ```bash
-git clone https://github.com/openclaw/openclaw.git
+git clone https://github.com/zoidbergbot/zoidbergbot.git
 cd openclaw
 npm install
 npm run build
@@ -144,13 +144,13 @@ Follow the wizard:
 
 ```bash
 # Check status
-openclaw status
+zoidbergbot status
 
 # Check service
 sudo systemctl status openclaw
 
 # View logs
-journalctl -u openclaw -f
+journalctl -u zoidbergbot -f
 ```
 
 ## 9) Access the Dashboard
@@ -173,7 +173,7 @@ curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 
 # Update config
-openclaw config set gateway.bind tailnet
+zoidbergbot config set gateway.bind tailnet
 sudo systemctl restart openclaw
 ```
 
@@ -221,7 +221,7 @@ htop
 
 ### Binary Compatibility
 
-Most OpenClaw features work on ARM64, but some external binaries may need ARM builds:
+Most ZoidbergBot features work on ARM64, but some external binaries may need ARM builds:
 
 | Tool               | ARM64 Status | Notes                               |
 | ------------------ | ------------ | ----------------------------------- |
@@ -304,10 +304,10 @@ free -h
 
 ```bash
 # Check logs
-journalctl -u openclaw --no-pager -n 100
+journalctl -u zoidbergbot --no-pager -n 100
 
 # Common fix: rebuild
-cd ~/openclaw  # if using hackable install
+cd ~/zoidbergbot  # if using hackable install
 npm run build
 sudo systemctl restart openclaw
 ```

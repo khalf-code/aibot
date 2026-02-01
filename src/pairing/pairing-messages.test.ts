@@ -5,16 +5,16 @@ describe("buildPairingReply", () => {
   let previousProfile: string | undefined;
 
   beforeEach(() => {
-    previousProfile = process.env.OPENCLAW_PROFILE;
-    process.env.OPENCLAW_PROFILE = "isolated";
+    previousProfile = process.env.ZOIDBERGBOT_PROFILE;
+    process.env.ZOIDBERGBOT_PROFILE = "isolated";
   });
 
   afterEach(() => {
     if (previousProfile === undefined) {
-      delete process.env.OPENCLAW_PROFILE;
+      delete process.env.ZOIDBERGBOT_PROFILE;
       return;
     }
-    process.env.OPENCLAW_PROFILE = previousProfile;
+    process.env.ZOIDBERGBOT_PROFILE = previousProfile;
   });
 
   const cases = [
@@ -50,9 +50,9 @@ describe("buildPairingReply", () => {
       const text = buildPairingReply(testCase);
       expect(text).toContain(testCase.idLine);
       expect(text).toContain(`Pairing code: ${testCase.code}`);
-      // CLI commands should respect OPENCLAW_PROFILE when set (most tests run with isolated profile)
+      // CLI commands should respect ZOIDBERGBOT_PROFILE when set (most tests run with isolated profile)
       const commandRe = new RegExp(
-        `(?:openclaw|openclaw) --profile isolated pairing approve ${testCase.channel} <code>`,
+        `(?:openclaw|zoidbergbot) --profile isolated pairing approve ${testCase.channel} <code>`,
       );
       expect(text).toMatch(commandRe);
     });

@@ -245,9 +245,9 @@ export async function ensureChromeExtensionRelayServer(opts: {
       case "Browser.getVersion":
         return {
           protocolVersion: "1.3",
-          product: "Chrome/OpenClaw-Extension-Relay",
+          product: "Chrome/ZoidbergBot-Extension-Relay",
           revision: "0",
-          userAgent: "OpenClaw-Extension-Relay",
+          userAgent: "ZoidbergBot-Extension-Relay",
           jsVersion: "V8",
         };
       case "Browser.setDownloadBehavior":
@@ -340,7 +340,7 @@ export async function ensureChromeExtensionRelayServer(opts: {
       (req.method === "GET" || req.method === "PUT")
     ) {
       const payload: Record<string, unknown> = {
-        Browser: "OpenClaw/extension-relay",
+        Browser: "ZoidbergBot/extension-relay",
         "Protocol-Version": "1.3",
       };
       // Only advertise the WS URL if a real extension is connected.

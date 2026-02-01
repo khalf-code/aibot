@@ -1,7 +1,7 @@
 {
-  "name": "@openclaw/voice-call",
+  "name": "@zoidbergbot/voice-call",
   "version": "2026.1.30",
-  "description": "OpenClaw voice-call plugin",
+  "description": "ZoidbergBot voice-call plugin",
   "type": "module",
   "dependencies": {
     "@sinclair/typebox": "0.34.48",
@@ -9,9 +9,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "zoidbergbot": "workspace:*"
   },
-  "openclaw": {
+  "zoidbergbot": {
     "extensions": [
       "./index.ts"
     ]

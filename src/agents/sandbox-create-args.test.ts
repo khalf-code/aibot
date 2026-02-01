@@ -4,8 +4,8 @@ import { buildSandboxCreateArgs, type SandboxDockerConfig } from "./sandbox.js";
 describe("buildSandboxCreateArgs", () => {
   it("includes hardening and resource flags", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
-      containerPrefix: "openclaw-sbx-",
+      image: "zoidbergbot-sandbox:bookworm-slim",
+      containerPrefix: "zoidbergbot-sbx-",
       workdir: "/workspace",
       readOnlyRoot: true,
       tmpfs: ["/tmp"],
@@ -23,32 +23,32 @@ describe("buildSandboxCreateArgs", () => {
         core: "0",
       },
       seccompProfile: "/tmp/seccomp.json",
-      apparmorProfile: "openclaw-sandbox",
+      apparmorProfile: "zoidbergbot-sandbox",
       dns: ["1.1.1.1"],
       extraHosts: ["internal.service:10.0.0.5"],
     };
 
     const args = buildSandboxCreateArgs({
-      name: "openclaw-sbx-test",
+      name: "zoidbergbot-sbx-test",
       cfg,
       scopeKey: "main",
       createdAtMs: 1700000000000,
-      labels: { "openclaw.sandboxBrowser": "1" },
+      labels: { "zoidbergbot.sandboxBrowser": "1" },
     });
 
     expect(args).toEqual(
       expect.arrayContaining([
         "create",
         "--name",
-        "openclaw-sbx-test",
+        "zoidbergbot-sbx-test",
         "--label",
-        "openclaw.sandbox=1",
+        "zoidbergbot.sandbox=1",
         "--label",
-        "openclaw.sessionKey=main",
+        "zoidbergbot.sessionKey=main",
         "--label",
-        "openclaw.createdAtMs=1700000000000",
+        "zoidbergbot.createdAtMs=1700000000000",
         "--label",
-        "openclaw.sandboxBrowser=1",
+        "zoidbergbot.sandboxBrowser=1",
         "--read-only",
         "--tmpfs",
         "/tmp",
@@ -95,8 +95,8 @@ describe("buildSandboxCreateArgs", () => {
 
   it("emits -v flags for custom binds", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
-      containerPrefix: "openclaw-sbx-",
+      image: "zoidbergbot-sandbox:bookworm-slim",
+      containerPrefix: "zoidbergbot-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
       tmpfs: [],
@@ -106,7 +106,7 @@ describe("buildSandboxCreateArgs", () => {
     };
 
     const args = buildSandboxCreateArgs({
-      name: "openclaw-sbx-binds",
+      name: "zoidbergbot-sbx-binds",
       cfg,
       scopeKey: "main",
       createdAtMs: 1700000000000,
@@ -128,8 +128,8 @@ describe("buildSandboxCreateArgs", () => {
 
   it("omits -v flags when binds is empty or undefined", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
-      containerPrefix: "openclaw-sbx-",
+      image: "zoidbergbot-sandbox:bookworm-slim",
+      containerPrefix: "zoidbergbot-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
       tmpfs: [],
@@ -139,7 +139,7 @@ describe("buildSandboxCreateArgs", () => {
     };
 
     const args = buildSandboxCreateArgs({
-      name: "openclaw-sbx-no-binds",
+      name: "zoidbergbot-sbx-no-binds",
       cfg,
       scopeKey: "main",
       createdAtMs: 1700000000000,

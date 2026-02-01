@@ -1,6 +1,6 @@
 import AVFAudio
-import OpenClawKit
-import OpenClawProtocol
+import ZoidbergBotKit
+import ZoidbergBotProtocol
 import Foundation
 import Observation
 import OSLog

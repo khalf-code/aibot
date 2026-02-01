@@ -1,12 +1,12 @@
 {
-  "name": "@openclaw/open-prose",
+  "name": "@zoidbergbot/open-prose",
   "version": "2026.1.30",
   "description": "OpenProse VM skill pack plugin (slash command + telemetry).",
   "type": "module",
   "devDependencies": {
-    "openclaw": "workspace:*"
+    "zoidbergbot": "workspace:*"
   },
-  "openclaw": {
+  "zoidbergbot": {
     "extensions": [
       "./index.ts"
     ]

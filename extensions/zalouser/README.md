@@ -1,6 +1,6 @@
-# @openclaw/zalouser
+# @zoidbergbot/zalouser
 
-OpenClaw extension for Zalo Personal Account messaging via [zca-cli](https://zca-cli.dev).
+ZoidbergBot extension for Zalo Personal Account messaging via [zca-cli](https://zca-cli.dev).
 
 > **Warning:** Using Zalo automation may result in account suspension or ban. Use at your own risk. This is an unofficial integration.
 
@@ -85,14 +85,14 @@ openclaw onboard
 ### Option 2: Login (QR, on the Gateway machine)
 
 ```bash
-openclaw channels login --channel zalouser
+zoidbergbot channels login --channel zalouser
 # Scan QR code with Zalo app
 ```
 
 ### Send a Message
 
 ```bash
-openclaw message send --channel zalouser --target <threadId> --message "Hello from OpenClaw!"
+zoidbergbot message send --channel zalouser --target <threadId> --message "Hello from ZoidbergBot!"
 ```
 
 ## Configuration
@@ -127,10 +127,10 @@ channels:
 ### Authentication
 
 ```bash
-openclaw channels login --channel zalouser              # Login via QR
-openclaw channels login --channel zalouser --account work
-openclaw channels status --probe
-openclaw channels logout --channel zalouser
+zoidbergbot channels login --channel zalouser              # Login via QR
+zoidbergbot channels login --channel zalouser --account work
+zoidbergbot channels status --probe
+zoidbergbot channels logout --channel zalouser
 ```
 
 ### Directory (IDs, contacts, groups)
@@ -156,16 +156,16 @@ zca account label <profile> "Work Account"
 
 ```bash
 # Text
-openclaw message send --channel zalouser --target <threadId> --message "message"
+zoidbergbot message send --channel zalouser --target <threadId> --message "message"
 
 # Media (URL)
-openclaw message send --channel zalouser --target <threadId> --message "caption" --media-url "https://example.com/img.jpg"
+zoidbergbot message send --channel zalouser --target <threadId> --message "caption" --media-url "https://example.com/img.jpg"
 ```
 
 ### Listener
 
 The listener runs inside the Gateway when the channel is enabled. For debugging,
-use `openclaw channels logs --channel zalouser` or run `zca listen` directly.
+use `zoidbergbot channels logs --channel zalouser` or run `zca listen` directly.
 
 ### Data Access
 
@@ -191,8 +191,8 @@ zca me id
 Use `--profile` or `-p` to work with multiple accounts:
 
 ```bash
-openclaw channels login --channel zalouser --account work
-openclaw message send --channel zalouser --account work --target <id> --message "Hello"
+zoidbergbot channels login --channel zalouser --account work
+zoidbergbot message send --channel zalouser --account work --target <id> --message "Hello"
 ZCA_PROFILE=work zca listen
 ```
 

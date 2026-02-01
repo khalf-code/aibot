@@ -34,7 +34,7 @@ export const TOOL_GROUPS: Record<string, string[]> = {
   "group:messaging": ["message"],
   // Nodes + device tools
   "group:nodes": ["nodes"],
-  // All OpenClaw native tools (excludes provider plugins).
+  // All ZoidbergBot native tools (excludes provider plugins).
   "group:openclaw": [
     "browser",
     "canvas",

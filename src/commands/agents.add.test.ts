@@ -24,7 +24,7 @@ const runtime: RuntimeEnv = {
 };
 
 const baseSnapshot = {
-  path: "/tmp/openclaw.json",
+  path: "/tmp/zoidbergbot.json",
   exists: true,
   raw: "{}",
   parsed: {},

@@ -81,43 +81,43 @@ vi.mock("./progress.js", () => ({
 
 describe("daemon-cli coverage", () => {
   const originalEnv = {
-    OPENCLAW_STATE_DIR: process.env.OPENCLAW_STATE_DIR,
-    OPENCLAW_CONFIG_PATH: process.env.OPENCLAW_CONFIG_PATH,
-    OPENCLAW_GATEWAY_PORT: process.env.OPENCLAW_GATEWAY_PORT,
-    OPENCLAW_PROFILE: process.env.OPENCLAW_PROFILE,
+    ZOIDBERGBOT_STATE_DIR: process.env.ZOIDBERGBOT_STATE_DIR,
+    ZOIDBERGBOT_CONFIG_PATH: process.env.ZOIDBERGBOT_CONFIG_PATH,
+    ZOIDBERGBOT_GATEWAY_PORT: process.env.ZOIDBERGBOT_GATEWAY_PORT,
+    ZOIDBERGBOT_PROFILE: process.env.ZOIDBERGBOT_PROFILE,
   };
 
   beforeEach(() => {
-    process.env.OPENCLAW_STATE_DIR = "/tmp/openclaw-cli-state";
-    process.env.OPENCLAW_CONFIG_PATH = "/tmp/openclaw-cli-state/openclaw.json";
-    delete process.env.OPENCLAW_GATEWAY_PORT;
-    delete process.env.OPENCLAW_PROFILE;
+    process.env.ZOIDBERGBOT_STATE_DIR = "/tmp/zoidbergbot-cli-state";
+    process.env.ZOIDBERGBOT_CONFIG_PATH = "/tmp/zoidbergbot-cli-state/zoidbergbot.json";
+    delete process.env.ZOIDBERGBOT_GATEWAY_PORT;
+    delete process.env.ZOIDBERGBOT_PROFILE;
     serviceReadCommand.mockResolvedValue(null);
   });
 
   afterEach(() => {
-    if (originalEnv.OPENCLAW_STATE_DIR !== undefined) {
-      process.env.OPENCLAW_STATE_DIR = originalEnv.OPENCLAW_STATE_DIR;
+    if (originalEnv.ZOIDBERGBOT_STATE_DIR !== undefined) {
+      process.env.ZOIDBERGBOT_STATE_DIR = originalEnv.ZOIDBERGBOT_STATE_DIR;
     } else {
-      delete process.env.OPENCLAW_STATE_DIR;
+      delete process.env.ZOIDBERGBOT_STATE_DIR;
     }
 
-    if (originalEnv.OPENCLAW_CONFIG_PATH !== undefined) {
-      process.env.OPENCLAW_CONFIG_PATH = originalEnv.OPENCLAW_CONFIG_PATH;
+    if (originalEnv.ZOIDBERGBOT_CONFIG_PATH !== undefined) {
+      process.env.ZOIDBERGBOT_CONFIG_PATH = originalEnv.ZOIDBERGBOT_CONFIG_PATH;
     } else {
-      delete process.env.OPENCLAW_CONFIG_PATH;
+      delete process.env.ZOIDBERGBOT_CONFIG_PATH;
     }
 
-    if (originalEnv.OPENCLAW_GATEWAY_PORT !== undefined) {
-      process.env.OPENCLAW_GATEWAY_PORT = originalEnv.OPENCLAW_GATEWAY_PORT;
+    if (originalEnv.ZOIDBERGBOT_GATEWAY_PORT !== undefined) {
+      process.env.ZOIDBERGBOT_GATEWAY_PORT = originalEnv.ZOIDBERGBOT_GATEWAY_PORT;
     } else {
-      delete process.env.OPENCLAW_GATEWAY_PORT;
+      delete process.env.ZOIDBERGBOT_GATEWAY_PORT;
     }
 
-    if (originalEnv.OPENCLAW_PROFILE !== undefined) {
-      process.env.OPENCLAW_PROFILE = originalEnv.OPENCLAW_PROFILE;
+    if (originalEnv.ZOIDBERGBOT_PROFILE !== undefined) {
+      process.env.ZOIDBERGBOT_PROFILE = originalEnv.ZOIDBERGBOT_PROFILE;
     } else {
-      delete process.env.OPENCLAW_PROFILE;
+      delete process.env.ZOIDBERGBOT_PROFILE;
     }
   });
 
@@ -148,10 +148,10 @@ describe("daemon-cli coverage", () => {
     serviceReadCommand.mockResolvedValueOnce({
       programArguments: ["/bin/node", "cli", "gateway", "--port", "19001"],
       environment: {
-        OPENCLAW_PROFILE: "dev",
-        OPENCLAW_STATE_DIR: "/tmp/openclaw-daemon-state",
-        OPENCLAW_CONFIG_PATH: "/tmp/openclaw-daemon-state/openclaw.json",
-        OPENCLAW_GATEWAY_PORT: "19001",
+        ZOIDBERGBOT_PROFILE: "dev",
+        ZOIDBERGBOT_STATE_DIR: "/tmp/zoidbergbot-daemon-state",
+        ZOIDBERGBOT_CONFIG_PATH: "/tmp/zoidbergbot-daemon-state/zoidbergbot.json",
+        ZOIDBERGBOT_GATEWAY_PORT: "19001",
       },
       sourcePath: "/tmp/bot.molt.gateway.plist",
     });

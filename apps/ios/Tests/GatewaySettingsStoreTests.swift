@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import OpenClaw
+@testable import ZoidbergBot
 
 private struct KeychainEntry: Hashable {
     let service: String

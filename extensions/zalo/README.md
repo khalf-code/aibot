@@ -1,17 +1,17 @@
-# @openclaw/zalo
+# @zoidbergbot/zalo
 
-Zalo channel plugin for OpenClaw (Bot API).
+Zalo channel plugin for ZoidbergBot (Bot API).
 
 ## Install (local checkout)
 
 ```bash
-openclaw plugins install ./extensions/zalo
+zoidbergbot plugins install ./extensions/zalo
 ```
 
 ## Install (npm)
 
 ```bash
-openclaw plugins install @openclaw/zalo
+zoidbergbot plugins install @zoidbergbot/zalo
 ```
 
 Onboarding: select Zalo and confirm the install prompt to fetch the plugin automatically.
