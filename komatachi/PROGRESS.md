@@ -6,8 +6,8 @@
 
 | Aspect | State |
 |--------|-------|
-| **Phase** | Trial distillation complete; ready for next component |
-| **Last completed** | Compaction module distilled (666 → 275 LOC) |
+| **Phase** | Architectural decisions clarified; ready for next component |
+| **Last completed** | Gateway analysis, scope narrowing, tech strategy decisions |
 | **Next action** | Choose next component to distill (see "Next Steps" below) |
 | **Blockers** | None |
 
@@ -15,13 +15,14 @@
 - [x] Scouting reports for 4 core areas (~20k LOC analyzed)
 - [x] Distillation principles documented (8 principles)
 - [x] Trial distillation: `src/compaction/` working
+- [x] Key architectural decisions (TypeScript+Rust, minimal viable agent, no gateway)
 
 ### Open Decision Needed
 **Which component to distill next?** Candidates ranked by isolation:
 1. Long-term Memory & Search (most isolated)
 2. Context Management (builds on compaction)
 3. Agent Alignment (defines behavior)
-4. Session Management (largest, most interconnected)
+4. Session Management (largest, most interconnected—deferred per decision #7)
 
 ---
 
@@ -97,7 +98,10 @@ Files created:
 1. **Single embedding provider** - One provider behind a clean interface
 2. **No plugin hooks for core behavior** - Static, predictable behavior
 3. **Vector-only search** - Modern embeddings are sufficient
-4. **Cross-agent session access preserved** - Essential user functionality
+4. **Cross-agent session access** - Deferred. Essential for power users, but not needed for minimal viable agent. Will add when requirements demand it.
+5. **TypeScript with Rust portability** - Distill into TypeScript, but write code that converts easily to Rust. Avoid TypeScript-only tricks; verify heavy dependencies have Rust ecosystem equivalents.
+6. **Minimal viable agent** - A CLI where an agent using a Claude subscription can read and write files via tools. We'll refine this definition as we go.
+7. **No gateway for minimal scope** - Single-process CLI doesn't need inter-process communication. Design session storage and tool execution so they *could* support multi-agent later, but don't build it until needed. If/when we need multi-agent communication, prefer local-first IPC (ZeroMQ, Unix sockets) over web-oriented tech (WebSocket, HTTP). Note: ZeroMQ supports broker-less patterns (direct peer-to-peer)—a central broker may not be required at all.
 
 ---
 
@@ -113,6 +117,18 @@ Files created:
 ### From OpenClaw AGENTS.md Analysis
 
 The original codebase had **no architectural principles documented**—only operational procedures. This absence likely contributed to complexity accumulation. The distilled system must embed principles alongside code.
+
+### From Gateway Analysis
+
+Traced cross-agent communication in OpenClaw. The gateway is a WebSocket-based JSON-RPC broker that:
+- Routes messages between agents via session key prefixes (`agent:<agentId>:...`)
+- Maintains combined view of all agent session stores
+- Handles multi-client streaming (web, mobile, CLI)
+- Enforces auth and access control
+
+**Key insight**: The gateway solves problems that emerge from multi-client and multi-agent requirements. A single-process CLI has none of these problems. The lesson isn't "always use a gateway"—it's "when you need multi-client or multi-agent, you need a broker."
+
+**Design implication**: Keep session storage and tool execution decoupled enough that a broker could be added later without rewriting core logic.
 
 ---
 
@@ -135,9 +151,7 @@ The original codebase had **no architectural principles documented**—only oper
 
 ## Open Questions
 
-1. Should we distill in TypeScript first, then port? Or go directly to target language?
-2. What's the minimal viable subset for a working agent?
-3. How do we handle cross-agent session access (marked as essential)?
+None currently. Cross-agent session access question resolved—deferred until requirements demand it (see decisions #4 and #7).
 
 ---
 
