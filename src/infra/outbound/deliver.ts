@@ -48,7 +48,7 @@ export type OutboundSendDeps = {
     text: string,
     opts?: { mediaUrl?: string },
   ) => Promise<{ messageId: string; conversationId: string }>;
-};
+} & Partial<ChannelHeartbeatDeps>;
 
 export type OutboundDeliveryResult = {
   channel: Exclude<OutboundChannel, "none">;
@@ -209,7 +209,9 @@ export async function deliverOutboundPayloads(params: {
     const readiness = await channelPlugin.heartbeat.checkReady({
       cfg,
       accountId: accountId ?? null,
-      deps: deps as ChannelHeartbeatDeps | undefined,
+      deps: deps
+        ? { webAuthExists: deps.webAuthExists, hasActiveWebListener: deps.hasActiveWebListener }
+        : undefined,
     });
     if (!readiness.ok) {
       const error = new Error(
