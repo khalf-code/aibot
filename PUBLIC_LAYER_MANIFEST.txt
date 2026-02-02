@@ -1,0 +1,118 @@
+# PUBLIC_LAYER_MANIFEST.txt
+# Generated: 2026-02-02
+# Purpose: Phase 0 Reconnaissance - Public Interaction Layer Files
+# Verification: sha256sum -c PUBLIC_LAYER_MANIFEST.txt
+#
+# Format: SHA256_HASH  PATH  LINES  CLASSIFICATION
+# Classifications: HTTP (HTTP endpoints), WS (WebSocket), API (API handlers),
+#                  CHANNEL (messaging channel handlers)
+
+# ============================================================================
+# GATEWAY SERVER (Primary Public Interface)
+# Main HTTP/WebSocket server that accepts external connections
+# ============================================================================
+
+5c99d5446670d87e3dfac0d3076687e410bf22e4d0ad882c2ce784409a14ac95  src/gateway/server.impl.ts  584  HTTP
+# Main gateway server implementation - binds to network interfaces
+
+f2965d9e570e8e04f9f2b09af7a3d5932c2a024b60764383cfc482d155e9552b  src/gateway/server-http.ts  307  HTTP
+# HTTP request handling
+
+f96ab623f6c9b423d4ec1cc5d65a5f08ba286a817b8d4676247a7d83e5374689  src/gateway/server/http-listen.ts  38  HTTP
+# HTTP listener setup
+
+612dd366bbf1dafd0e9dc7a80f8901df0deb0b16399379b69b1b1dda97e95392  src/gateway/server/ws-connection.ts  262  WS
+# WebSocket connection handler
+
+7e47d96a44f31b83cf61466f0271550dc8319a35dc84fc90deca6c65192aedb7  src/gateway/server/ws-connection/message-handler.ts  933  WS
+# WebSocket message handler - processes incoming user messages
+
+# ============================================================================
+# CHANNEL HANDLERS (Messaging Platforms)
+# Each channel accepts messages from external users
+# ============================================================================
+
+# Discord
+# extensions/discord/src/channel.ts - Discord message handling
+
+# Telegram
+# extensions/telegram/src/channel.ts - Telegram message handling
+# src/telegram/webhook.ts - Telegram webhook receiver
+
+# Slack
+# extensions/slack/src/channel.ts - Slack message handling
+
+# Signal
+# extensions/signal/src/channel.ts - Signal message handling
+
+# WhatsApp
+# extensions/whatsapp/src/channel.ts - WhatsApp message handling
+
+# iMessage
+# extensions/imessage/src/channel.ts - iMessage handling
+# extensions/bluebubbles/src/channel.ts - BlueBubbles iMessage bridge
+
+# Matrix
+# extensions/matrix/src/channel.ts - Matrix protocol handling
+
+# MS Teams
+# extensions/msteams/src/channel.ts - Microsoft Teams handling
+# extensions/msteams/src/monitor.ts - Teams event monitoring
+
+# Mattermost
+# extensions/mattermost/src/channel.ts - Mattermost handling
+
+# Google Chat
+# extensions/googlechat/src/channel.ts - Google Chat handling
+
+# Nostr
+# extensions/nostr/src/channel.ts - Nostr protocol handling
+
+# Line
+# extensions/line/src/channel.ts - Line messenger handling
+
+# Zalo
+# extensions/zalo/src/channel.ts - Zalo handling
+# extensions/zalouser/src/channel.ts - Zalo user handling
+
+# Tlon/Urbit
+# extensions/tlon/src/channel.ts - Tlon handling
+
+# Nextcloud Talk
+# extensions/nextcloud-talk/src/channel.ts - Nextcloud Talk handling
+
+# ============================================================================
+# WEB/BROWSER INTERFACE
+# ============================================================================
+
+# src/browser/server.ts - Browser control server
+# src/browser/bridge-server.ts - Browser bridge
+# ui/src/ui/gateway.ts - Web UI gateway integration
+
+# ============================================================================
+# VOICE INTERFACE
+# ============================================================================
+
+# extensions/voice-call/src/webhook.ts - Voice call webhook receiver
+# extensions/voice-call/src/media-stream.ts - Voice media streaming
+
+# ============================================================================
+# API/RPC ENDPOINTS
+# ============================================================================
+
+# src/cli/gateway-rpc.ts - Gateway RPC interface
+# src/gateway/client.ts - Gateway client connections
+# src/acp/server.ts - ACP protocol server
+
+# ============================================================================
+# INFRASTRUCTURE
+# ============================================================================
+
+# src/infra/ws.ts - WebSocket infrastructure
+# src/infra/ssh-tunnel.ts - SSH tunnel handling
+# src/infra/ports.ts - Port management
+
+# ============================================================================
+# END OF MANIFEST
+# Total public layer entry points: 30+ files across channels and servers
+# ============================================================================

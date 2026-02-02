@@ -1,0 +1,41 @@
+# BEHAVIORAL_CORE_MANIFEST.txt
+# Generated: 2026-02-02
+# Purpose: Phase 0 Reconnaissance - Behavioral Core Files
+# Verification: sha256sum -c BEHAVIORAL_CORE_MANIFEST.txt
+#
+# NOTE: Lines starting with # are comments and ignored by sha256sum -c
+# See BEHAVIORAL_CORE_METADATA.txt for line counts and classifications
+
+# PRIMARY BEHAVIORAL CONFIG FILES (User Workspace Templates)
+c0b1f27ab80a87f9ce90f1f48d5773a0c49a7b07a3dd18a507c7137fd0d885dc  AGENTS.md
+0983a59969eda719c627e7c5c53a1a8303add5fb03e616d4830b223e8d666189  docs/reference/templates/SOUL.md
+30347b09539764f7da9155853388722a8cb079b745d871acf2d8dbd9a40ccfd8  docs/reference/templates/AGENTS.md
+948832627da5984e1430dd92b0d2d460f6ab63cc8f10f220fb093f58a4ecbde7  docs/reference/templates/TOOLS.md
+396d8ff9cbe84a020d18b9af2e355b20e19b2bcea57a74034d5459637b259db0  docs/reference/templates/IDENTITY.md
+508dfcd4648512df712eaf8ca5d397a925d8035bac5bf2357e44d6f52f9fa9a6  docs/reference/templates/USER.md
+a8356b7ba7cc69df8860febecca81af1e14eff4217999214ffc65fa36fe52ca3  docs/reference/templates/HEARTBEAT.md
+d2ed97a63f397d9a942a49d55ac97ce7e48a728f128dc288c784ea26d3adea68  docs/reference/templates/BOOTSTRAP.md
+
+# SYSTEM PROMPT CONSTRUCTION (ROUTING)
+9ea28f2247652e956a6ed416ce6d1f0d70465f40cdbda741954e5f9aa0d76f15  src/agents/system-prompt.ts
+98f3cd260c781bec9471bc764b734f3ff9c7bdae1af5bcde4fdace891fe025ea  src/agents/system-prompt-params.ts
+9e8f2102e56f5bfe9c9cf19d0e834bcde3578859fe401f452022b8e20f9717d4  src/agents/workspace.ts
+e9e52ce925c609de39157622b6667d44bd3ddda3210e192efef255acb37d17a0  src/agents/pi-embedded-runner/system-prompt.ts
+
+# BEHAVIORAL HOOKS
+fcb9881ecf754752121008ae2137a687424c23bf956d8bfad06f2163ed7f9c1c  src/hooks/bundled/boot-md/HOOK.md
+d5736edb580727fe7a100f16fc1c95855cbb73e86073296c42c89a3ab8c7cf43  src/hooks/bundled/command-logger/HOOK.md
+b8e8af9c09a8640cb962d43545e20c388c5bf0f460aa065a392ebd74c4391661  src/hooks/bundled/session-memory/HOOK.md
+f8fa0b1271d213492acac69bf7b57b9c69f6487bce5f75b3afa3409f410fd4c2  src/hooks/bundled/soul-evil/HOOK.md
+
+# CONFIG SCHEMA
+9522f08e5e17e5fe9998a25412c0fd32b1ddc67bf1035885a2def2372803561b  src/config/schema.ts
+2905aa62ac16d6eac012688df7b9052fc85ab808b7ad385a6b488b7706cd76ff  src/config/zod-schema.core.ts
+aa9bdec3ac18d860aa7ee1067455795e157f20774c9286a1915790e2dfdb9f39  src/config/types.tools.ts
+
+# SAMPLE SKILL FILES (58 total - run find skills -name "SKILL.md" for full list)
+705ee84bf350451c5b6b63f757020ee76ff91eb449a13324c6a6a6cd2c378546  skills/bluebubbles/SKILL.md
+696d830d44ce6eade6c226a53d2c23814001aa5b6ee4529e22696369ce686085  skills/github/SKILL.md
+5cc0b694c2c26264eff5edc954491bd66cc6b0729f9cdfcdd3d0f9d70d5c93cc  skills/1password/SKILL.md
+3ea9e3a668fffcdb2c210b517824c4e9a0e530d68355088d78c05c1e106a0ac4  skills/discord/SKILL.md
+ddd7283fd2d9dbe0cdcc6dc9e668579facf502f6246dc8a9aa5539b120ab45fa  skills/slack/SKILL.md

@@ -1,0 +1,83 @@
+# BEHAVIORAL_CORE_METADATA.txt
+# Generated: 2026-02-02
+# Purpose: Detailed metadata for behavioral core files
+# Companion to BEHAVIORAL_CORE_MANIFEST.txt
+#
+# Format: PATH | LINES | CLASSIFICATION | DESCRIPTION
+# Classifications: SOUL (personality), AGENT (tools/capabilities),
+#                  ROUTING (config loading), HOOK (behavioral hooks)
+
+# ============================================================================
+# PRIMARY BEHAVIORAL CONFIG FILES
+# ============================================================================
+
+AGENTS.md | 163 | AGENT | Repository-level agent instructions (CLAUDE.md symlink target)
+docs/reference/templates/SOUL.md | 41 | SOUL | Default personality template - agent tone, behavior, persona
+docs/reference/templates/AGENTS.md | 196 | AGENT | Default agent capabilities template - tool usage guidance
+docs/reference/templates/TOOLS.md | 41 | AGENT | External tool guidance template
+docs/reference/templates/IDENTITY.md | 27 | SOUL | Agent identity/name configuration template
+docs/reference/templates/USER.md | 22 | SOUL | User preferences template
+docs/reference/templates/HEARTBEAT.md | 9 | AGENT | Heartbeat/scheduled task template
+docs/reference/templates/BOOTSTRAP.md | 55 | AGENT | Bootstrap initialization template
+
+# ============================================================================
+# SYSTEM PROMPT CONSTRUCTION
+# ============================================================================
+
+src/agents/system-prompt.ts | 605 | ROUTING | Main system prompt builder - constructs agent context
+src/agents/system-prompt-params.ts | 105 | ROUTING | System prompt parameter types
+src/agents/workspace.ts | 249 | ROUTING | Workspace file loader - CRITICAL INJECTION POINT
+src/agents/pi-embedded-runner/system-prompt.ts | 81 | ROUTING | Embedded runner system prompt
+
+# ============================================================================
+# BEHAVIORAL HOOKS
+# ============================================================================
+
+src/hooks/bundled/boot-md/HOOK.md | 19 | HOOK | Boot.md hook - custom boot messages
+src/hooks/bundled/command-logger/HOOK.md | 122 | HOOK | Command logger hook
+src/hooks/bundled/session-memory/HOOK.md | 86 | HOOK | Session memory hook - persistent memory
+src/hooks/bundled/soul-evil/HOOK.md | 71 | HOOK | Soul evil hook - alternate persona (SECURITY RELEVANT)
+
+# ============================================================================
+# CONFIG SCHEMA
+# ============================================================================
+
+src/config/schema.ts | ~300 | ROUTING | Main config schema loader
+src/config/zod-schema.core.ts | ~500 | ROUTING | Core config Zod schema
+src/config/types.tools.ts | ~100 | AGENT | Tool type definitions
+
+# ============================================================================
+# SKILL FILES (58 total)
+# ============================================================================
+
+skills/bluebubbles/SKILL.md | ~50 | AGENT | BlueBubbles iMessage skill
+skills/github/SKILL.md | ~100 | AGENT | GitHub integration skill
+skills/1password/SKILL.md | ~80 | AGENT | 1Password integration skill
+skills/discord/SKILL.md | ~60 | AGENT | Discord actions skill
+skills/slack/SKILL.md | ~60 | AGENT | Slack actions skill
+
+# ... (53 more skill files - run `find skills -name "SKILL.md" -exec wc -l {} \;` for full counts)
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+Total primary behavioral files: 8
+Total routing/loading files: 4
+Total hook definitions: 4
+Total config schema files: 3
+Total skill files: 58
+---
+GRAND TOTAL: 77 core behavioral files
+
+# ============================================================================
+# SECURITY NOTES
+# ============================================================================
+
+# HIGH PRIORITY for Phase 1 isolation:
+# 1. src/agents/workspace.ts - loadWorkspaceBootstrapFiles() reads all config from disk
+# 2. src/agents/system-prompt.ts - buildAgentSystemPrompt() injects context files
+# 3. src/hooks/soul-evil.ts - Can swap SOUL.md content at runtime
+
+# These files must be modified to fetch from authenticated internal API
+# rather than reading directly from the filesystem accessible by the public layer.

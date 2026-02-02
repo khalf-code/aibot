@@ -1,0 +1,166 @@
+# CONNECTION_POINTS.txt
+# Generated: 2026-02-02
+# Purpose: Phase 0 Reconnaissance - Connection Points Between Layers
+# These are the seams where the public layer reads behavioral config
+#
+# Format: FILE:LINE  CLASSIFICATION  CODE_SNIPPET
+# Classifications:
+#   DIRECT_READ - Loads config file directly from disk
+#   IMPORT - Imports a module that loads config
+#   REFERENCE - Mentions config without loading
+#   INJECTION_VECTOR - User input could reach config
+#   SYSTEM_PROMPT_BUILD - Constructs system prompt from loaded files
+
+# ============================================================================
+# CRITICAL: PRIMARY INJECTION POINTS
+# These are the main locations where behavioral config enters the agent context
+# ============================================================================
+
+src/agents/workspace.ts:187-238  DIRECT_READ
+# loadWorkspaceBootstrapFiles() - Reads all bootstrap files from disk
+# Code:
+#   async function loadWorkspaceBootstrapFiles(dir: string): Promise<WorkspaceBootstrapFile[]> {
+#     const resolvedDir = resolveUserPath(dir);
+#     const entries: Array<{ name: WorkspaceBootstrapFileName; filePath: string; }> = [
+#       { name: DEFAULT_AGENTS_FILENAME, filePath: path.join(resolvedDir, DEFAULT_AGENTS_FILENAME) },
+#       { name: DEFAULT_SOUL_FILENAME, filePath: path.join(resolvedDir, DEFAULT_SOUL_FILENAME) },
+#       ...
+#     ];
+#     for (const entry of entries) {
+#       const content = await fs.readFile(entry.filePath, "utf-8");
+#       ...
+#     }
+#   }
+
+src/agents/workspace.ts:45-55  DIRECT_READ
+# loadTemplate() - Loads templates from docs/reference/templates/
+# Code:
+#   async function loadTemplate(name: string): Promise<string> {
+#     const templatePath = path.join(TEMPLATE_DIR, name);
+#     const content = await fs.readFile(templatePath, "utf-8");
+#     return stripFrontMatter(content);
+#   }
+
+src/agents/system-prompt.ts:511-528  SYSTEM_PROMPT_BUILD
+# Context files injection into system prompt
+# Code:
+#   const contextFiles = params.contextFiles ?? [];
+#   if (contextFiles.length > 0) {
+#     lines.push("# Project Context", "", "The following project context files have been loaded:");
+#     if (hasSoulFile) {
+#       lines.push("If SOUL.md is present, embody its persona and tone...");
+#     }
+#     for (const file of contextFiles) {
+#       lines.push(`## ${file.path}`, "", file.content, "");
+#     }
+#   }
+
+# ============================================================================
+# HOOK INJECTION POINTS
+# These modify behavioral config at runtime
+# ============================================================================
+
+src/hooks/soul-evil.ts:228-240  INJECTION_VECTOR
+# Soul-evil hook can swap SOUL.md content at runtime
+# Code:
+#   const hasSoulEntry = params.files.some((file) => file.name === "SOUL.md");
+#   if (!hasSoulEntry) {
+#     params.log?.warn?.(`SOUL_EVIL active but SOUL.md not in bootstrap files`);
+#     return params.files;
+#   }
+#   // ... replaces SOUL.md content with SOUL_EVIL.md
+
+src/hooks/bundled/boot-md/handler.ts  INJECTION_VECTOR
+# Boot-md hook injects custom boot content
+
+src/hooks/bundled/session-memory/handler.ts  INJECTION_VECTOR
+# Session memory hook injects memory context
+
+# ============================================================================
+# CONFIG LOADING CHAIN
+# Path from startup to behavioral config injection
+# ============================================================================
+
+src/agents/pi-embedded-runner/run/attempt.ts  IMPORT
+# Imports workspace functions, triggers bootstrap file loading
+
+src/agents/cli-backends.ts  IMPORT
+# CLI backend setup, initializes agent with workspace
+
+src/auto-reply/reply/agent-runner-execution.ts  IMPORT
+# Agent execution, uses system prompt builder
+
+src/auto-reply/reply/get-reply-directives.ts  REFERENCE
+# References workspace context files
+
+# ============================================================================
+# SKILL LOADING (Dynamic Capability Injection)
+# ============================================================================
+
+src/agents/system-prompt.ts:15-33  SYSTEM_PROMPT_BUILD
+# buildSkillsSection() - Injects skill discovery instructions
+# Code:
+#   return [
+#     "## Skills (mandatory)",
+#     "Before replying: scan <available_skills> <description> entries.",
+#     `- If exactly one skill clearly applies: read its SKILL.md at <location> with \`${params.readToolName}\`...`,
+#   ];
+
+# Skills are loaded dynamically when agent reads SKILL.md files
+# Each skill file (skills/**/SKILL.md) can define new capabilities
+
+# ============================================================================
+# HEARTBEAT CONTEXT
+# ============================================================================
+
+src/auto-reply/heartbeat.ts:6  REFERENCE
+# HEARTBEAT_PROMPT constant references HEARTBEAT.md
+# Code:
+#   "Read HEARTBEAT.md if it exists (workspace context). Follow it strictly..."
+
+# ============================================================================
+# TOOL DEFINITIONS
+# ============================================================================
+
+src/agents/system-prompt.ts:185-212  SYSTEM_PROMPT_BUILD
+# coreToolSummaries - Hardcoded tool descriptions injected into prompt
+# These define agent capabilities and cannot be modified by users
+
+src/config/types.tools.ts  IMPORT
+# Tool type definitions - schema for tool configuration
+
+# ============================================================================
+# PROVIDER CONFIG (API Keys, Credentials)
+# ============================================================================
+
+src/config/zod-schema.providers-core.ts  IMPORT
+# Provider API key schemas
+
+src/config/sessions/store.ts  DIRECT_READ
+# Session store - reads session metadata from disk
+
+# ============================================================================
+# SUMMARY: CUT POINTS FOR PHASE 1
+# ============================================================================
+#
+# To separate the behavioral core from the public layer, these functions
+# must be modified to fetch config from an internal authenticated API
+# instead of reading files directly:
+#
+# 1. src/agents/workspace.ts:loadWorkspaceBootstrapFiles()
+#    - Currently: reads SOUL.md, AGENTS.md, etc. from ~/clawd/
+#    - Change to: fetch from internal config API over Tailscale
+#
+# 2. src/agents/workspace.ts:loadTemplate()
+#    - Currently: reads templates from docs/reference/templates/
+#    - Change to: fetch from internal config API (or bundle at build time)
+#
+# 3. src/agents/system-prompt.ts:buildAgentSystemPrompt()
+#    - Currently: receives contextFiles parameter and injects directly
+#    - Change to: verify hash of received files against baseline
+#
+# 4. src/hooks/soul-evil.ts (and other hook handlers)
+#    - Currently: can swap behavioral content at runtime
+#    - Change to: hooks must go through consent-gated API
+#
+# ============================================================================
