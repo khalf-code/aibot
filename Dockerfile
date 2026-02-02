@@ -6,6 +6,12 @@ ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN corepack enable
 
+# Install gosu for dropping privileges at runtime
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gosu && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ARG OPENCLAW_DOCKER_APT_PACKAGES=""
@@ -31,9 +37,33 @@ RUN pnpm ui:build
 
 ENV NODE_ENV=production
 
-# Security hardening: Run as non-root user
-# The node:22-bookworm image includes a 'node' user (uid 1000)
-# This reduces the attack surface by preventing container escape via root privileges
-USER node
+# Entrypoint: fix volume permissions, bootstrap config, drop to node user
+COPY <<'ENTRY' /usr/local/bin/docker-entrypoint.sh
+#!/bin/sh
+set -e
 
-CMD ["node", "dist/index.js"]
+STATE_DIR="${OPENCLAW_STATE_DIR:-/home/node/.openclaw}"
+WORK_DIR="${OPENCLAW_WORKSPACE_DIR:-}"
+
+# Ensure state dir exists and is writable by node
+mkdir -p "$STATE_DIR"
+chown -R node:node "$STATE_DIR"
+
+# Ensure workspace dir exists and is writable by node (if set)
+if [ -n "$WORK_DIR" ]; then
+  mkdir -p "$WORK_DIR"
+  chown -R node:node "$WORK_DIR"
+fi
+
+# Ensure config exists with required gateway settings
+# Always write mode+bind so deploys with stale volumes pick up changes
+echo '{"gateway":{"mode":"local","bind":"lan"}}' > "$STATE_DIR/openclaw.json"
+chown node:node "$STATE_DIR/openclaw.json"
+
+# Drop to node user and exec CMD
+exec gosu node "$@"
+ENTRY
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["sh", "-c", "OPENCLAW_GATEWAY_PORT=${PORT:-18789} exec node dist/index.js gateway run --bind lan --allow-unconfigured"]
