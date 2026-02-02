@@ -2,12 +2,13 @@ import {
   getChatChannelMeta,
   type ChannelPlugin,
   type ChannelGatewayContext,
+  buildChannelConfigSchema,
 } from "openclaw/plugin-sdk";
 import { getSpixiRuntime } from "./runtime.js";
 import { listSpixiAccountIds, resolveSpixiAccount } from "./accounts.js";
 import { type ResolvedSpixiAccount } from "./types.js";
+import { SpixiConfigSchema } from "./schema.js";
 import mqtt from "mqtt";
-import axios from "axios";
 
 const meta = getChatChannelMeta("spixi");
 
@@ -18,6 +19,7 @@ export const spixiPlugin: ChannelPlugin<ResolvedSpixiAccount> = {
     showConfigured: true,
     quickstartAllowFrom: true,
   },
+  configSchema: buildChannelConfigSchema(SpixiConfigSchema),
   config: {
     listAccountIds: (cfg) => listSpixiAccountIds(cfg),
     resolveAccount: (cfg, accountId) => resolveSpixiAccount({ cfg, accountId }),
