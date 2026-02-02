@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 
-export const QueueConfigSchema = z.object({
+export const MessageQueueConfigSchema = z.object({
   enabled: z.boolean().default(false),
   redis: z.object({
     url: z.string().url().default('redis://localhost:6379'),
