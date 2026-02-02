@@ -4,7 +4,7 @@
  * These hooks provide:
  * - Session listing with agent filtering
  * - Chat history for a session
- * - Real-time session updates via gateway events
+ * - Real-time session updates via gateway events (using subscription API)
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,6 @@ import {
   type AgentEventPayload,
 } from "@/lib/api/sessions";
 import { getGatewayClient, type GatewayEvent } from "@/lib/api";
-import { useUIStore } from "@/stores/useUIStore";
 
 // Query keys factory
 export const sessionKeys = {
@@ -31,7 +30,7 @@ export const sessionKeys = {
   history: (sessionKey: string) => [...sessionKeys.all, "history", sessionKey] as const,
 };
 
-// Mock sessions for development
+// Mock sessions for development (only used when VITE_MOCK_FALLBACK is set)
 const mockSessions: GatewaySessionRow[] = [
   {
     key: "agent:1:main",
@@ -103,8 +102,13 @@ const mockChatHistory: ChatHistoryResult = {
   thinkingLevel: "normal",
 };
 
-async function fetchSessions(liveMode: boolean): Promise<SessionsListResult> {
-  if (!liveMode) {
+// Check if mock mode is enabled via environment variable
+function isMockMode(): boolean {
+  return import.meta.env?.VITE_MOCK_FALLBACK === "true";
+}
+
+async function fetchSessions(): Promise<SessionsListResult> {
+  if (isMockMode()) {
     await new Promise((r) => setTimeout(r, 300));
     return {
       ts: Date.now(),
@@ -121,11 +125,8 @@ async function fetchSessions(liveMode: boolean): Promise<SessionsListResult> {
   });
 }
 
-async function fetchChatHistory(
-  sessionKey: string,
-  liveMode: boolean
-): Promise<ChatHistoryResult> {
-  if (!liveMode) {
+async function fetchChatHistory(sessionKey: string): Promise<ChatHistoryResult> {
+  if (isMockMode()) {
     await new Promise((r) => setTimeout(r, 200));
     return mockChatHistory;
   }
@@ -137,12 +138,9 @@ async function fetchChatHistory(
  * Hook to list all sessions
  */
 export function useSessions() {
-  const useLiveGateway = useUIStore((s) => s.useLiveGateway);
-  const liveMode = (import.meta.env?.DEV ?? false) && useLiveGateway;
-
   return useQuery({
-    queryKey: sessionKeys.list({ mode: liveMode ? "live" : "mock" }),
-    queryFn: () => fetchSessions(liveMode),
+    queryKey: sessionKeys.list({ mock: isMockMode() }),
+    queryFn: fetchSessions,
     staleTime: 1000 * 60, // 1 minute
   });
 }
@@ -170,19 +168,16 @@ export function useAgentSessions(agentId: string) {
  * Hook to get chat history for a session
  */
 export function useChatHistory(sessionKey: string | null) {
-  const useLiveGateway = useUIStore((s) => s.useLiveGateway);
-  const liveMode = (import.meta.env?.DEV ?? false) && useLiveGateway;
-
   return useQuery({
     queryKey: sessionKeys.history(sessionKey ?? ""),
-    queryFn: () => fetchChatHistory(sessionKey!, liveMode),
+    queryFn: () => fetchChatHistory(sessionKey!),
     enabled: !!sessionKey,
     staleTime: 1000 * 30, // 30 seconds
   });
 }
 
 /**
- * Hook to subscribe to real-time chat events
+ * Hook to subscribe to real-time chat events using the gateway subscription API.
  */
 export function useChatEventSubscription(
   sessionKey: string | null,
@@ -196,66 +191,60 @@ export function useChatEventSubscription(
 ) {
   const queryClient = useQueryClient();
 
-  const handleEvent = useCallback(
+  const handleChatEvent = useCallback(
     (event: GatewayEvent) => {
-      if (!sessionKey) {return;}
+      if (!sessionKey) return;
+      if (event.event !== "chat") return;
 
-      if (event.event === "chat") {
-        const payload = event.payload as ChatEventPayload;
-        if (payload.sessionKey !== sessionKey) {return;}
+      const payload = event.payload as ChatEventPayload;
+      if (payload.sessionKey !== sessionKey) return;
 
-        switch (payload.state) {
-          case "delta":
-            handlers.onDelta?.(payload);
-            break;
-          case "final":
-            handlers.onFinal?.(payload);
-            // Invalidate chat history to refetch
-            void queryClient.invalidateQueries({
-              queryKey: sessionKeys.history(sessionKey),
-            });
-            break;
-          case "aborted":
-            handlers.onAborted?.(payload);
-            break;
-          case "error":
-            handlers.onError?.(payload);
-            break;
-        }
-      }
-
-      if (event.event === "agent") {
-        const payload = event.payload as AgentEventPayload;
-        if (payload.sessionKey !== sessionKey) {return;}
-        handlers.onAgentEvent?.(payload);
+      switch (payload.state) {
+        case "delta":
+          handlers.onDelta?.(payload);
+          break;
+        case "final":
+          handlers.onFinal?.(payload);
+          // Invalidate chat history to refetch
+          void queryClient.invalidateQueries({
+            queryKey: sessionKeys.history(sessionKey),
+          });
+          break;
+        case "aborted":
+          handlers.onAborted?.(payload);
+          break;
+        case "error":
+          handlers.onError?.(payload);
+          break;
       }
     },
     [sessionKey, handlers, queryClient]
   );
 
+  const handleAgentEvent = useCallback(
+    (event: GatewayEvent) => {
+      if (!sessionKey) return;
+      if (event.event !== "agent") return;
+
+      const payload = event.payload as AgentEventPayload;
+      if (payload.sessionKey !== sessionKey) return;
+      handlers.onAgentEvent?.(payload);
+    },
+    [sessionKey, handlers]
+  );
+
   useEffect(() => {
-    if (!sessionKey) {return;}
+    if (!sessionKey) return;
 
     const client = getGatewayClient();
-    const originalOnEvent = client.isConnected()
-      ? (client as unknown as { config: { onEvent?: (e: GatewayEvent) => void } }).config
-          ?.onEvent
-      : undefined;
 
-    // Subscribe to events
-    // Note: wrappedHandler is prepared for future event subscription implementation
-    const _wrappedHandler = (event: GatewayEvent) => {
-      handleEvent(event);
-      originalOnEvent?.(event);
-    };
-    void _wrappedHandler; // Suppress unused variable warning
-
-    // Note: In a real implementation, you'd use a proper event subscription API
-    // For now, we just log that we'd subscribe
-    console.debug("[useChatEventSubscription] Would subscribe to events for:", sessionKey);
+    // Subscribe to chat events using the new subscription API
+    const unsubscribeChat = client.subscribe("chat", handleChatEvent);
+    const unsubscribeAgent = client.subscribe("agent", handleAgentEvent);
 
     return () => {
-      console.debug("[useChatEventSubscription] Would unsubscribe from events");
+      unsubscribeChat();
+      unsubscribeAgent();
     };
-  }, [sessionKey, handleEvent]);
+  }, [sessionKey, handleChatEvent, handleAgentEvent]);
 }

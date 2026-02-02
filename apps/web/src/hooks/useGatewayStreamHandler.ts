@@ -4,6 +4,8 @@
  * Processes gateway streaming events and routes them appropriately:
  * - Text deltas go to message content
  * - Tool outputs go ONLY to tool calls (not message content)
+ *
+ * Uses the gateway client subscription API for event handling.
  */
 
 import { useEffect, useCallback } from "react";
@@ -54,25 +56,25 @@ interface GatewayToolEvent {
 function isToolOutputText(text: string): boolean {
   // Common tool output patterns
   const toolOutputPatterns = [
-    /^exec\s*$/m,                    // "exec" command marker
-    /^```[\s\S]*?```$/m,             // Code blocks (often tool output)
-    /^total \d+\s*$/m,               // ls output
-    /^drwxr-xr-x/m,                  // File permissions (ls -la)
-    /^\w+@\w+:/m,                    // Terminal prompts
+    /^exec\s*$/m, // "exec" command marker
+    /^```[\s\S]*?```$/m, // Code blocks (often tool output)
+    /^total \d+\s*$/m, // ls output
+    /^drwxr-xr-x/m, // File permissions (ls -la)
+    /^\w+@\w+:/m, // Terminal prompts
   ];
 
-  return toolOutputPatterns.some(pattern => pattern.test(text));
+  return toolOutputPatterns.some((pattern) => pattern.test(text));
 }
 
 /**
  * Extracts text content from message structure
  */
 function extractTextContent(message: GatewayChatEvent["message"]): string {
-  if (!message?.content) {return "";}
+  if (!message?.content) return "";
 
   const textBlocks = message.content
-    .filter(block => block.type === "text")
-    .map(block => block.text || "");
+    .filter((block) => block.type === "text")
+    .map((block) => block.text || "");
 
   return textBlocks.join("\n");
 }
@@ -85,7 +87,7 @@ function extractToolCalls(message: GatewayChatEvent["message"]): ToolCall[] {
     return [];
   }
 
-  return message.toolUse.map(tool => ({
+  return message.toolUse.map((tool) => ({
     id: tool.id,
     name: tool.name,
     status: "done" as const,
@@ -102,118 +104,115 @@ export interface UseGatewayStreamHandlerOptions {
  * Hook that processes gateway streaming events and updates session store appropriately.
  *
  * Ensures tool outputs are NEVER added to message content - they only go to tool calls.
+ * Uses the gateway client subscription API for proper event handling.
  */
-export function useGatewayStreamHandler(
-  options: UseGatewayStreamHandlerOptions = {}
-) {
+export function useGatewayStreamHandler(options: UseGatewayStreamHandlerOptions = {}) {
   const { enabled = true } = options;
   const sessionStore = useSessionStore();
 
-  const handleChatEvent = useCallback((event: GatewayChatEvent) => {
-    const { sessionKey, state } = event;
+  const handleChatEvent = useCallback(
+    (event: GatewayChatEvent) => {
+      const { sessionKey, state } = event;
 
-    switch (state) {
-      case "delta": {
-        // Only append text deltas that are NOT tool outputs
-        if (event.delta?.type === "text" && event.delta.text) {
-          const text = event.delta.text;
+      switch (state) {
+        case "delta": {
+          // Only append text deltas that are NOT tool outputs
+          if (event.delta?.type === "text" && event.delta.text) {
+            const text = event.delta.text;
 
-          // Skip if this looks like tool output
-          if (isToolOutputText(text)) {
-            console.debug("[StreamHandler] Skipping tool output from message content:", text.substring(0, 50));
-            return;
+            // Skip if this looks like tool output
+            if (isToolOutputText(text)) {
+              console.debug(
+                "[StreamHandler] Skipping tool output from message content:",
+                text.substring(0, 50)
+              );
+              return;
+            }
+
+            sessionStore.appendStreamingContent(sessionKey, text);
           }
-
-          sessionStore.appendStreamingContent(sessionKey, text);
-        }
-        break;
-      }
-
-      case "final": {
-        // Extract text content and tool calls separately
-        if (event.message) {
-          const textContent = extractTextContent(event.message);
-          const toolCalls = extractToolCalls(event.message);
-
-          // Only set text content if it's not empty and not a tool output
-          if (textContent && !isToolOutputText(textContent)) {
-            sessionStore.appendStreamingContent(sessionKey, textContent);
-          }
-
-          // Add tool calls separately
-          toolCalls.forEach(toolCall => {
-            sessionStore.updateToolCall(sessionKey, toolCall);
-          });
+          break;
         }
 
-        sessionStore.finishStreaming(sessionKey);
-        break;
+        case "final": {
+          // Extract text content and tool calls separately
+          if (event.message) {
+            const textContent = extractTextContent(event.message);
+            const toolCalls = extractToolCalls(event.message);
+
+            // Only set text content if it's not empty and not a tool output
+            if (textContent && !isToolOutputText(textContent)) {
+              sessionStore.appendStreamingContent(sessionKey, textContent);
+            }
+
+            // Add tool calls separately
+            toolCalls.forEach((toolCall) => {
+              sessionStore.updateToolCall(sessionKey, toolCall);
+            });
+          }
+
+          sessionStore.finishStreaming(sessionKey);
+          break;
+        }
+
+        case "error": {
+          console.error("[StreamHandler] Chat error:", event.errorMessage);
+          sessionStore.finishStreaming(sessionKey);
+          break;
+        }
+
+        case "aborted": {
+          console.debug("[StreamHandler] Chat aborted");
+          sessionStore.clearStreaming(sessionKey);
+          break;
+        }
       }
+    },
+    [sessionStore]
+  );
 
-      case "error": {
-        console.error("[StreamHandler] Chat error:", event.errorMessage);
-        sessionStore.finishStreaming(sessionKey);
-        break;
-      }
+  const handleToolEvent = useCallback(
+    (event: GatewayToolEvent) => {
+      const { sessionKey, toolCallId, toolName, status, input, output, duration, error } = event;
 
-      case "aborted": {
-        console.debug("[StreamHandler] Chat aborted");
-        sessionStore.clearStreaming(sessionKey);
-        break;
-      }
-    }
-  }, [sessionStore]);
-
-  const handleToolEvent = useCallback((event: GatewayToolEvent) => {
-    const { sessionKey, toolCallId, toolName, status, input, output, duration, error } = event;
-
-    sessionStore.updateToolCall(sessionKey, {
-      id: toolCallId,
-      name: toolName,
-      status,
-      input,
-      output,
-      duration,
-      // Don't include error in the tool call - it's handled separately
-    });
-
-    if (error) {
-      console.error(`[StreamHandler] Tool error (${toolName}):`, error);
-    }
-  }, [sessionStore]);
-
-  const handleEvent = useCallback((event: GatewayEvent) => {
-    // Handle chat streaming events
-    if (event.event === "chat") {
-      handleChatEvent(event.payload as GatewayChatEvent);
-      return;
-    }
-
-    // Handle tool-specific events
-    if (event.event === "tool") {
-      handleToolEvent(event.payload as GatewayToolEvent);
-      return;
-    }
-  }, [handleChatEvent, handleToolEvent]);
-
-  useEffect(() => {
-    if (!enabled) {return;}
-
-    try {
-      const client = getGatewayClient({
-        onEvent: handleEvent,
+      sessionStore.updateToolCall(sessionKey, {
+        id: toolCallId,
+        name: toolName,
+        status,
+        input,
+        output,
+        duration,
       });
 
-      // Connect if not already connected
-      if (!client.isConnected()) {
-        void client.connect();
+      if (error) {
+        console.error(`[StreamHandler] Tool error (${toolName}):`, error);
       }
+    },
+    [sessionStore]
+  );
 
-      return () => {
-        // Cleanup is handled by the gateway client
-      };
-    } catch (error) {
-      console.error("[StreamHandler] Failed to setup event handler:", error);
+  useEffect(() => {
+    if (!enabled) return;
+
+    const client = getGatewayClient();
+
+    // Subscribe to chat and tool events using the subscription API
+    const unsubscribeChat = client.subscribe("chat", (event: GatewayEvent) => {
+      handleChatEvent(event.payload as GatewayChatEvent);
+    });
+
+    const unsubscribeTool = client.subscribe("tool", (event: GatewayEvent) => {
+      handleToolEvent(event.payload as GatewayToolEvent);
+    });
+
+    // Connect if not already connected
+    if (!client.isConnected()) {
+      void client.connect();
     }
-  }, [enabled, handleEvent]);
+
+    return () => {
+      unsubscribeChat();
+      unsubscribeTool();
+    };
+  }, [enabled, handleChatEvent, handleToolEvent]);
 }
