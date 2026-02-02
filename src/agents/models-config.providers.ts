@@ -54,6 +54,7 @@ const MOONSHOT_DEFAULT_COST = {
 
 // Amazon Nova 1P API (direct API, not Bedrock)
 const AMAZON_NOVA_BASE_URL = "https://api.nova.amazon.com/v1";
+export const AMAZON_NOVA_DEFAULT_MODEL_ID = "nova-2-lite-v1";
 const AMAZON_NOVA_DEFAULT_COST = {
   input: 0,
   output: 0,
@@ -308,7 +309,7 @@ function buildMoonshotProvider(): ProviderConfig {
   };
 }
 
-function buildAmazonNovaProvider(): ProviderConfig {
+export function buildAmazonNovaProvider(): ProviderConfig {
   return {
     baseUrl: AMAZON_NOVA_BASE_URL,
     api: "openai-completions",

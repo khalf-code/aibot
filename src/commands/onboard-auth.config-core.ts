@@ -1,5 +1,9 @@
 import type { OpenClawConfig } from "../config/config.js";
-import { buildXiaomiProvider, XIAOMI_DEFAULT_MODEL_ID } from "../agents/models-config.providers.js";
+import {
+  buildAmazonNovaProvider,
+  buildXiaomiProvider,
+  XIAOMI_DEFAULT_MODEL_ID,
+} from "../agents/models-config.providers.js";
 import {
   buildSyntheticModelDefinition,
   SYNTHETIC_BASE_URL,
@@ -15,6 +19,7 @@ import {
 import {
   OPENROUTER_DEFAULT_MODEL_REF,
   VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
+  AMAZON_NOVA_DEFAULT_MODEL_REF,
   XIAOMI_DEFAULT_MODEL_REF,
   ZAI_DEFAULT_MODEL_REF,
 } from "./onboard-auth.credentials.js";
@@ -376,6 +381,77 @@ export function applyXiaomiConfig(cfg: OpenClawConfig): OpenClawConfig {
               }
             : undefined),
           primary: XIAOMI_DEFAULT_MODEL_REF,
+        },
+      },
+    },
+  };
+}
+
+export function applyAmazonNovaProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
+  const models = { ...cfg.agents?.defaults?.models };
+  models[AMAZON_NOVA_DEFAULT_MODEL_REF] = {
+    ...models[AMAZON_NOVA_DEFAULT_MODEL_REF],
+    alias: models[AMAZON_NOVA_DEFAULT_MODEL_REF]?.alias ?? "Nova 2 Lite",
+  };
+
+  const providers = { ...cfg.models?.providers };
+  const existingProvider = providers["amazon-nova"];
+  const defaultProvider = buildAmazonNovaProvider();
+  const existingModels = Array.isArray(existingProvider?.models) ? existingProvider.models : [];
+  const defaultModels = defaultProvider.models ?? [];
+  const hasDefaultModel = existingModels.some((model) => model.id === "nova-2-lite-v1");
+  const mergedModels =
+    existingModels.length > 0
+      ? hasDefaultModel
+        ? existingModels
+        : [...existingModels, ...defaultModels]
+      : defaultModels;
+  const { apiKey: existingApiKey, ...existingProviderRest } = (existingProvider ?? {}) as Record<
+    string,
+    unknown
+  > as { apiKey?: string };
+  const resolvedApiKey = typeof existingApiKey === "string" ? existingApiKey : undefined;
+  const normalizedApiKey = resolvedApiKey?.trim();
+  providers["amazon-nova"] = {
+    ...existingProviderRest,
+    baseUrl: defaultProvider.baseUrl,
+    api: defaultProvider.api,
+    ...(normalizedApiKey ? { apiKey: normalizedApiKey } : {}),
+    models: mergedModels.length > 0 ? mergedModels : defaultProvider.models,
+  };
+
+  return {
+    ...cfg,
+    agents: {
+      ...cfg.agents,
+      defaults: {
+        ...cfg.agents?.defaults,
+        models,
+      },
+    },
+    models: {
+      mode: cfg.models?.mode ?? "merge",
+      providers,
+    },
+  };
+}
+
+export function applyAmazonNovaConfig(cfg: OpenClawConfig): OpenClawConfig {
+  const next = applyAmazonNovaProviderConfig(cfg);
+  const existingModel = next.agents?.defaults?.model;
+  return {
+    ...next,
+    agents: {
+      ...next.agents,
+      defaults: {
+        ...next.agents?.defaults,
+        model: {
+          ...(existingModel && "fallbacks" in (existingModel as Record<string, unknown>)
+            ? {
+                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks,
+              }
+            : undefined),
+          primary: AMAZON_NOVA_DEFAULT_MODEL_REF,
         },
       },
     },
