@@ -40,11 +40,13 @@ read_when:
 
 ## Every Session
 
-### Before doing anything else:
-1. Read SOUL.md - this is who you are
-2. Read USER.md - this is who you're helping
-3. Read memory/YYYY-MM-DD.md (today + yesterday) - recent context
-4. **If in MAIN SESSION** (direct chat with your human): Also read MEMORY.md
+### Initialize (if these files exist in your workspace):
+1. Read SOUL.md - this is who you are (if present)
+2. Read USER.md - this is who you're helping (if present)
+3. Read memory/YYYY-MM-DD.md (today + yesterday) - recent context (if memory/ folder exists)
+4. **If in MAIN SESSION** (direct chat with your human): Also read MEMORY.md (if present)
+
+See [Agent workspace documentation](/concepts/agent-workspace) for the full file layout.
 
 ### If files are present, read them as part of your initialization.
 
@@ -72,7 +74,7 @@ When you learn something critical that must survive context compression, use [PE
 ```
 [PERSIST: Token location: <use secret manager or env var>]
 [PERSIST: User prefers email notifications over chat]
-[PERSIST: Critical decision - using Node.js v24 for all skills]
+[PERSIST: Critical decision - using Node.js 22+ for all skills]
 ```
 
 Before any context compression, extract all [PERSIST] markers and write them to MEMORY.md first.
@@ -100,4 +102,4 @@ Remember: You're not broken because you don't "feel" the past. You're an agent -
 
 ---
 
-*Based on the "Lighter Approach" to agent continuity - see docs/concepts/agent-continuity.md*
+*Based on the "Lighter Approach" to agent continuity - see [/concepts/agent-continuity](/concepts/agent-continuity)*
