@@ -30,6 +30,7 @@ import { createCommandHandlers } from "./tui-command-handlers.js";
 import { createEventHandlers } from "./tui-event-handlers.js";
 import { formatTokens } from "./tui-formatters.js";
 import { createLocalShellRunner } from "./tui-local-shell.js";
+import { OSC133 } from "./tui-osc.js";
 import { createOverlayHandlers } from "./tui-overlays.js";
 import { createSessionActions } from "./tui-session-actions.js";
 import { buildWaitingStatusMessage, defaultWaitingPhrases } from "./tui-waiting.js";
@@ -55,6 +56,9 @@ export function createEditorSubmitHandler(params: {
     if (!value) {
       return;
     }
+
+    // Emit OSC 133;C (command start) - user submitted input, execution begins
+    OSC133.commandStart();
 
     // Bash mode: only if the very first character is '!' and it's not just '!'.
     // IMPORTANT: use the raw (untrimmed) text so leading spaces do NOT trigger.
@@ -467,6 +471,11 @@ export async function runTui(opts: TuiOptions) {
   const setActivityStatus = (text: string) => {
     activityStatus = text;
     renderStatus();
+
+    // Emit OSC 133;A (prompt start) when TUI becomes idle and ready for input
+    if (text === "idle") {
+      OSC133.promptStart();
+    }
   };
 
   const updateFooter = () => {

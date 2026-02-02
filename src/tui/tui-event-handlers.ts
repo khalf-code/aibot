@@ -2,6 +2,7 @@ import type { TUI } from "@mariozechner/pi-tui";
 import type { ChatLog } from "./components/chat-log.js";
 import type { AgentEvent, ChatEvent, TuiStateAccess } from "./tui-types.js";
 import { asString, extractTextFromMessage, isCommandMessage } from "./tui-formatters.js";
+import { OSC133 } from "./tui-osc.js";
 import { TuiStreamAssembler } from "./tui-stream-assembler.js";
 
 type EventHandlerContext = {
@@ -102,6 +103,8 @@ export function createEventHandlers(context: EventHandlerContext) {
         streamAssembler.drop(evt.runId);
         noteFinalizedRun(evt.runId);
         state.activeChatRunId = null;
+        // Emit OSC 133;D (command end) - output complete
+        OSC133.commandEnd();
         setActivityStatus("idle");
         void refreshSessionInfo?.();
         tui.requestRender();
@@ -118,6 +121,8 @@ export function createEventHandlers(context: EventHandlerContext) {
       chatLog.finalizeAssistant(finalText, evt.runId);
       noteFinalizedRun(evt.runId);
       state.activeChatRunId = null;
+      // Emit OSC 133;D (command end) - output complete
+      OSC133.commandEnd();
       setActivityStatus(stopReason === "error" ? "error" : "idle");
       // Refresh session info to update token counts in footer
       void refreshSessionInfo?.();
@@ -127,6 +132,8 @@ export function createEventHandlers(context: EventHandlerContext) {
       streamAssembler.drop(evt.runId);
       sessionRuns.delete(evt.runId);
       state.activeChatRunId = null;
+      // Emit OSC 133;D (command end) - execution aborted but cycle complete
+      OSC133.commandEnd();
       setActivityStatus("aborted");
       void refreshSessionInfo?.();
     }
@@ -135,6 +142,8 @@ export function createEventHandlers(context: EventHandlerContext) {
       streamAssembler.drop(evt.runId);
       sessionRuns.delete(evt.runId);
       state.activeChatRunId = null;
+      // Emit OSC 133;D (command end) - execution errored but cycle complete
+      OSC133.commandEnd();
       setActivityStatus("error");
       void refreshSessionInfo?.();
     }
