@@ -251,7 +251,7 @@ export const configHandlers: GatewayRequestHandlers = {
     }
     const { cleaned: safePatch, stripped } = stripProtectedGatewayPaths(parsedRes.parsed);
     if (stripped.length > 0) {
-      context.logGateway.warn(
+      context?.logGateway.warn(
         `config.patch: stripped protected gateway fields: ${stripped.join(", ")}`,
       );
     }

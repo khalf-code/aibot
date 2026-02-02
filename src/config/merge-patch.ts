@@ -31,6 +31,14 @@ export function applyMergePatch(base: unknown, patch: unknown): unknown {
  * Gateway transport fields that are inherently host-specific and must not be
  * overwritten by config.patch (e.g. from a paired device syncing its own
  * gateway settings). These should only be changed via config.set or the CLI.
+ *
+ * The stripping performed by {@link stripProtectedGatewayPaths} is intentionally
+ * shallow: it only removes direct `patch.gateway.<key>` entries. This is safe
+ * because config patches follow RFC 7396 (JSON Merge Patch) semantics, which
+ * represent changes as structured, nested objects -- not as dotted-key paths or
+ * JSON Pointer strings. The protocol never produces a top-level key like
+ * `"gateway.mode"`; the key `mode` always appears nested inside a `gateway`
+ * object.
  */
 const PROTECTED_GATEWAY_KEYS = new Set(["mode", "remote", "bind", "port"]);
 
