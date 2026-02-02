@@ -78,6 +78,18 @@ export function registerCharterLoader(
         sections.push("## Task Queue", truncate(tasks, maxPerFile), "");
       }
 
+      // Inject fleet operations and verification reminders
+      sections.push(
+        "## Operating Reminders",
+        "- PLAN MODE first for complex work. If stuck, re-plan from scratch.",
+        "- VERIFY everything: run tests, hit endpoints, prove it works before marking complete.",
+        "- PARALLELIZE: 3+ independent tasks = 3+ simultaneous sessions via git worktrees.",
+        "- SUBAGENTS: offload research/audits to keep main context clean.",
+        "- LEARN: every correction updates a workspace file. Compound knowledge.",
+        "- Read SKILLS.md for reusable workflows (/gameday, /sunday-review, /edge-check, etc.)",
+        "",
+      );
+
       sections.push("</sharps-edge-project-context>");
 
       const prependContext = sections.join("\n");

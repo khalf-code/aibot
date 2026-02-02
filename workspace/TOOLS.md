@@ -18,9 +18,76 @@ claude --continue "Now add error handling and a version field"
 # Run with specific instructions
 claude "Read the CHARTER.md, then scaffold the Cloudflare Workers project with Hono"
 
-# Let it fix issues
+# Let it fix issues (Tip #7: Automated Bug Fixing)
 claude "Run the tests, fix any failures, then run them again to confirm"
+
+# Paste logs directly - don't micromanage the fix
+claude "Here are the Docker logs. Find and fix the error:" < /tmp/error.log
+
+# Plan Mode first for complex work (Tip #2)
+claude "Enter Plan Mode. Design the x402 payment flow before writing any code."
+# If stuck, don't patch - go back to Plan Mode immediately:
+claude "Stop. Enter Plan Mode. Re-plan the approach from scratch."
+
+# Adversarial review (Tip #3: use a second session as Staff Engineer)
+claude "Review the plan in projects/SHARPS-EDGE/BUILD_STATUS.md. \
+  Act as a Staff Engineer. Find holes, race conditions, missing edge cases."
+
+# Subagents for context hygiene (Tip #6)
+claude "Use subagents: one to research ESPN API rate limits, \
+  one to audit our caching layer. Keep main context clean."
+
+# Verification loops (Tip #8: prove it works, don't just write it)
+claude "Write the edge detection endpoint. Then start the server, \
+  hit it with 3 test requests, and show me the responses. \
+  Don't just write the fix - prove to me it works."
 ```
+
+### Massive Parallelism (The Top Unlock)
+
+Run 3-5 Claude Code sessions simultaneously using git worktrees. Each session
+gets its own isolated workspace - no context cross-contamination.
+
+```bash
+# Set up worktrees for parallel work (one-time)
+git worktree add ../openclaw-a -b work/feature-a
+git worktree add ../openclaw-b -b work/feature-b
+git worktree add ../openclaw-c -b work/feature-c
+
+# Shell aliases for instant workspace switching (add to ~/.zshrc)
+alias za='cd ../openclaw-a'
+alias zb='cd ../openclaw-b'
+alias zc='cd ../openclaw-c'
+alias zm='cd ../openclaw'  # main
+
+# Run parallel sessions
+# Terminal 1 (za): claude "Build the /quick-check endpoint"
+# Terminal 2 (zb): claude "Add weather venue coordinates for MLB"
+# Terminal 3 (zc): claude "Write tests for the calibration engine"
+# Terminal 4 (zm): You orchestrate, review, merge results
+```
+
+**Rules for parallel work:**
+- Each worktree = one task. Never share a worktree between sessions.
+- Merge results back to main after each task completes.
+- Keep one terminal for orchestration (no active Claude session).
+- If two tasks touch the same file, run them sequentially instead.
+
+### Distribution of Cognition
+
+Treat Claude Code as a fleet, not a single worker. Assign specialized roles:
+
+```
+Session A: Research & data collection (read APIs, gather context)
+Session B: Core implementation (write the actual code)
+Session C: Tests & verification (write tests, run them, fix failures)
+Session D: Documentation & cleanup (update docs, changelog, READMEs)
+Session E: Review & hardening (security audit, edge cases, error handling)
+```
+
+Check back on sessions as they finish. Each session should be self-contained
+enough that you can context-switch without losing state. The session's
+BUILD_STATUS.md entry tracks what it's doing.
 
 ### Best Practices
 
@@ -29,6 +96,10 @@ claude "Run the tests, fix any failures, then run them again to confirm"
 - Use `--continue` to maintain context within a build session
 - Review output before marking tasks complete in BUILD_STATUS.md
 - Claude Code has its own $200/mo budget (flat rate, unlimited usage)
+- **Plan Mode first** for anything complex. If stuck, re-plan immediately.
+- **Verify, don't trust**: always ask Claude to prove code works (run tests, hit endpoints)
+- **Subagents for heavy lifting**: offload research/audits to keep main context clean
+- **Parallel by default**: if 3 tasks are independent, run 3 sessions
 
 ### What Claude Code Handles
 
@@ -38,15 +109,18 @@ claude "Run the tests, fix any failures, then run them again to confirm"
 - File creation and project scaffolding
 - Debugging and error resolution
 - Deployment commands (`wrangler deploy`)
+- Self-verification (run what you built, prove it works)
 
 ### What You (Danno) Handle
 
 - Reading workspace files and following the Nine Laws
 - Conflict detection and pre-action checks
 - Cost tracking and budget management
-- Task orchestration and progress updates
+- Task orchestration and progress updates (fleet coordinator)
 - Decision logging and audit trail
 - Communicating with Michael via messaging channels
+- Spawning parallel sessions for independent tasks
+- Merging results from parallel worktrees
 
 ## Project Management
 

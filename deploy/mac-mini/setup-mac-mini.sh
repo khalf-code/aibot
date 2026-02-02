@@ -120,6 +120,92 @@ mkdir -p "$WORKSPACE_DIR/logs/errors"
 mkdir -p "$WORKSPACE_DIR/logs/decisions"
 mkdir -p "$WORKSPACE_DIR/logs/alerts"
 mkdir -p "$WORKSPACE_DIR/memory"
+mkdir -p "$WORKSPACE_DIR/data/picks"
+mkdir -p "$WORKSPACE_DIR/data/lessons"
+
+# --- Set up parallel worktrees ---
+
+echo ""
+echo "--- Setting up parallel worktree infrastructure ---"
+
+REPO_ROOT="$SCRIPT_DIR/../.."
+WORKTREE_BASE="$(dirname "$REPO_ROOT")"
+
+# Create worktree directories (actual worktrees created on-demand)
+echo "Worktree base: $WORKTREE_BASE"
+echo "  Worktrees will be created on-demand by Danno via 'git worktree add'"
+
+# Add shell aliases for workspace switching
+SHELL_RC="$HOME/.zshrc"
+if [ ! -f "$SHELL_RC" ]; then
+  SHELL_RC="$HOME/.bashrc"
+fi
+
+if ! grep -q "# SHARPS EDGE worktree aliases" "$SHELL_RC" 2>/dev/null; then
+  echo "" >> "$SHELL_RC"
+  echo "# SHARPS EDGE worktree aliases (parallel Claude Code sessions)" >> "$SHELL_RC"
+  echo "alias zm='cd $REPO_ROOT'           # main workspace" >> "$SHELL_RC"
+  echo "alias za='cd $WORKTREE_BASE/openclaw-a'  # parallel session A" >> "$SHELL_RC"
+  echo "alias zb='cd $WORKTREE_BASE/openclaw-b'  # parallel session B" >> "$SHELL_RC"
+  echo "alias zc='cd $WORKTREE_BASE/openclaw-c'  # parallel session C" >> "$SHELL_RC"
+  echo "alias zd='cd $WORKTREE_BASE/openclaw-d'  # parallel session D" >> "$SHELL_RC"
+  echo "alias zs='git worktree list'       # show all worktrees" >> "$SHELL_RC"
+  echo "" >> "$SHELL_RC"
+  echo "# Quick worktree creation" >> "$SHELL_RC"
+  echo "zn() { git worktree add $WORKTREE_BASE/openclaw-\$1 -b work/\$1; }" >> "$SHELL_RC"
+  echo "zrm() { git worktree remove $WORKTREE_BASE/openclaw-\$1; }" >> "$SHELL_RC"
+  echo "Added worktree aliases to $SHELL_RC"
+  echo "  zm = main, za/zb/zc/zd = parallel sessions"
+  echo "  zn <name> = create new worktree, zrm <name> = remove worktree"
+  echo "  zs = list all worktrees"
+else
+  echo "Worktree aliases already configured in $SHELL_RC"
+fi
+
+# --- Set up Claude Code permissions ---
+
+echo ""
+echo "--- Configuring tool permissions ---"
+CLAUDE_SETTINGS_DIR="$REPO_ROOT/.claude"
+mkdir -p "$CLAUDE_SETTINGS_DIR"
+
+PERMISSIONS_FILE="$CLAUDE_SETTINGS_DIR/settings.json"
+if [ ! -f "$PERMISSIONS_FILE" ]; then
+  cat > "$PERMISSIONS_FILE" << 'PERMS'
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(pnpm test*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm build*)",
+      "Bash(vitest*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git branch*)",
+      "Bash(git worktree*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git status*)",
+      "Bash(git merge*)",
+      "Bash(wrangler dev*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)"
+    ]
+  }
+}
+PERMS
+  echo "Permissions configured at $PERMISSIONS_FILE"
+  echo "  Pre-approved: read, tests, lint, build, git ops, wrangler dev"
+  echo "  Blocked: destructive git commands"
+else
+  echo "Permissions already configured at $PERMISSIONS_FILE"
+fi
 
 # --- Summary ---
 
@@ -132,14 +218,22 @@ echo "  Wrangler: $(wrangler --version 2>/dev/null || echo 'installed')"
 echo "  Workspace: $WORKSPACE_DIR"
 echo "  Config: $CONFIG_FILE"
 echo ""
+echo "  Permissions: $PERMISSIONS_FILE"
+echo ""
 echo "Next steps:"
-echo "  1. Run: openclaw onboard --install-daemon"
-echo "  2. Scan WhatsApp QR code when prompted"
-echo "  3. Send the bootstrap message from FIRST_MESSAGE.md to Danno via WhatsApp"
+echo "  1. Source your shell config: source $SHELL_RC"
+echo "  2. Run: openclaw onboard --install-daemon"
+echo "  3. Scan WhatsApp QR code when prompted"
+echo "  4. Send the bootstrap message from FIRST_MESSAGE.md to Danno via WhatsApp"
 echo ""
 echo "Architecture:"
 echo "  Thinking: OpenRouter free models (DeepSeek R1, Llama 3.3 70B) = \$0"
-echo "  Building: Claude Code CLI = \$200/mo"
+echo "  Building: Claude Code CLI = \$200/mo (fleet of parallel sessions)"
 echo "  Hosting:  Cloudflare Workers = \$0 (free tier)"
 echo "  Data:     The Odds API = \$0 (500 req/mo free)"
+echo ""
+echo "Parallel sessions:"
+echo "  zm = main workspace, za/zb/zc/zd = parallel sessions"
+echo "  zn <name> = create worktree, zrm <name> = remove worktree"
+echo "  Run 3-5 Claude Code sessions simultaneously for max throughput."
 echo ""
