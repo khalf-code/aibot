@@ -5,6 +5,10 @@ import {
   consumeGatewaySigusr1RestartAuthorization,
   isGatewaySigusr1RestartExternallyAllowed,
 } from "../../infra/restart.js";
+import {
+  isAbortError,
+  registerUnhandledRejectionHandler,
+} from "../../infra/unhandled-rejections.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 
 const gatewayLog = createSubsystemLogger("gateway");
@@ -19,11 +23,35 @@ export async function runGatewayLoop(params: {
   let server: Awaited<ReturnType<typeof startGatewayServer>> | null = null;
   let shuttingDown = false;
   let restartResolver: (() => void) | null = null;
+  let unregisterUnhandledRejection: (() => void) | null = null;
 
   const cleanupSignals = () => {
     process.removeListener("SIGTERM", onSigterm);
     process.removeListener("SIGINT", onSigint);
     process.removeListener("SIGUSR1", onSigusr1);
+  };
+
+  const cleanupUnhandledRejectionHandler = () => {
+    if (unregisterUnhandledRejection) {
+      unregisterUnhandledRejection();
+      unregisterUnhandledRejection = null;
+    }
+  };
+
+  const registerShutdownAbortHandler = () => {
+    if (unregisterUnhandledRejection) {
+      return;
+    }
+    unregisterUnhandledRejection = registerUnhandledRejectionHandler((reason) => {
+      if (!shuttingDown) {
+        return false;
+      }
+      if (!isAbortError(reason)) {
+        return false;
+      }
+      gatewayLog.debug("suppressed AbortError during shutdown");
+      return true;
+    });
   };
 
   const request = (action: GatewayRunSignalAction, signal: string) => {
@@ -32,6 +60,7 @@ export async function runGatewayLoop(params: {
       return;
     }
     shuttingDown = true;
+    registerShutdownAbortHandler();
     const isRestart = action === "restart";
     gatewayLog.info(`received ${signal}; ${isRestart ? "restarting" : "shutting down"}`);
 
@@ -53,9 +82,11 @@ export async function runGatewayLoop(params: {
         clearTimeout(forceExitTimer);
         server = null;
         if (isRestart) {
+          cleanupUnhandledRejectionHandler();
           shuttingDown = false;
           restartResolver?.();
         } else {
+          cleanupUnhandledRejectionHandler();
           cleanupSignals();
           params.runtime.exit(0);
         }
