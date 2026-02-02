@@ -90,6 +90,7 @@ export type SessionConfig = {
   resetByChannel?: Record<string, SessionResetConfig>;
   store?: string;
   typingIntervalSeconds?: number;
+  typingTtlSeconds?: number;
   typingMode?: TypingMode;
   mainKey?: string;
   sendPolicy?: SessionSendPolicyConfig;
