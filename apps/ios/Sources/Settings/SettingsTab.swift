@@ -17,7 +17,8 @@ struct SettingsTab: View {
     @Environment(VoiceWakeManager.self) private var voiceWake: VoiceWakeManager
     @Environment(GatewayConnectionController.self) private var gatewayController: GatewayConnectionController
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("node.displayName") private var displayName: String = "iOS Node"
+    @AppStorage("node.displayName") private var displayName: String = NodeDisplayName.defaultValue(
+        for: UIDevice.current.userInterfaceIdiom)
     @AppStorage("node.instanceId") private var instanceId: String = UUID().uuidString
     @AppStorage("voiceWake.enabled") private var voiceWakeEnabled: Bool = false
     @AppStorage("talk.enabled") private var talkEnabled: Bool = false
@@ -40,6 +41,7 @@ struct SettingsTab: View {
     @State private var lastLocationModeRaw: String = OpenClawLocationMode.off.rawValue
     @State private var gatewayToken: String = ""
     @State private var gatewayPassword: String = ""
+    @State private var manualGatewayPortText: String = ""
 
     var body: some View {
         NavigationStack {
@@ -120,7 +122,7 @@ struct SettingsTab: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
 
-                        TextField("Port", value: self.$manualGatewayPort, format: .number)
+                        TextField("Port (optional)", text: self.manualPortBinding)
                             .keyboardType(.numberPad)
 
                         Toggle("Use TLS", isOn: self.$manualGatewayTLS)
@@ -140,11 +142,11 @@ struct SettingsTab: View {
                         }
                         .disabled(self.connectingGatewayID != nil || self.manualGatewayHost
                             .trimmingCharacters(in: .whitespacesAndNewlines)
-                            .isEmpty || self.manualGatewayPort <= 0 || self.manualGatewayPort > 65535)
+                            .isEmpty || !self.manualPortIsValid)
 
                         Text(
                             "Use this when mDNS/Bonjour discovery is blocked. "
-                                + "The gateway WebSocket listens on port 18789 by default.")
+                                + "Leave port empty for 443 on tailnet DNS (TLS) or 18789 otherwise.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
 
@@ -232,6 +234,7 @@ struct SettingsTab: View {
             .onAppear {
                 self.localIPAddress = Self.primaryIPv4Address()
                 self.lastLocationModeRaw = self.locationEnabledModeRaw
+                self.syncManualPortText()
                 let trimmedInstanceId = self.instanceId.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmedInstanceId.isEmpty {
                     self.gatewayToken = GatewaySettingsStore.loadGatewayToken(instanceId: trimmedInstanceId) ?? ""
@@ -254,6 +257,9 @@ struct SettingsTab: View {
                 let instanceId = self.instanceId.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !instanceId.isEmpty else { return }
                 GatewaySettingsStore.saveGatewayPassword(trimmed, instanceId: instanceId)
+            }
+            .onChange(of: self.manualGatewayPort) { _, _ in
+                self.syncManualPortText()
             }
             .onChange(of: self.appModel.gatewayServerName) { _, _ in
                 self.connectStatus.text = nil
@@ -278,8 +284,24 @@ struct SettingsTab: View {
     @ViewBuilder
     private func gatewayList(showing: GatewayListMode) -> some View {
         if self.gatewayController.gateways.isEmpty {
-            Text("No gateways found yet.")
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("No gateways found yet.")
+                    .foregroundStyle(.secondary)
+                Text("If your gateway is on another network, connect it and ensure DNS is working.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if let lastKnown = GatewaySettingsStore.loadLastGatewayConnection() {
+                    Button {
+                        Task { await self.connectLastKnown() }
+                    } label: {
+                        self.lastKnownButtonLabel(host: lastKnown.host, port: lastKnown.port)
+                    }
+                    .disabled(self.connectingGatewayID != nil)
+                    .buttonStyle(.borderedProminent)
+                    .tint(self.appModel.seamColor)
+                }
+            }
         } else {
             let connectedID = self.appModel.connectedGatewayID
             let rows = self.gatewayController.gateways.filter { gateway in
@@ -377,13 +399,77 @@ struct SettingsTab: View {
         await self.gatewayController.connect(gateway)
     }
 
+    private func connectLastKnown() async {
+        self.connectingGatewayID = "last-known"
+        defer { self.connectingGatewayID = nil }
+        await self.gatewayController.connectLastKnown()
+    }
+
+    @ViewBuilder
+    private func lastKnownButtonLabel(host: String, port: Int) -> some View {
+        if self.connectingGatewayID == "last-known" {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                Text("Connecting…")
+            }
+            .frame(maxWidth: .infinity)
+        } else {
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.horizontal.circle.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Connect last known")
+                    Text("\(host):\(port)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var manualPortBinding: Binding<String> {
+        Binding(
+            get: { self.manualGatewayPortText },
+            set: { newValue in
+                let filtered = newValue.filter(\.isNumber)
+                if self.manualGatewayPortText != filtered {
+                    self.manualGatewayPortText = filtered
+                }
+                if filtered.isEmpty {
+                    if self.manualGatewayPort != 0 {
+                        self.manualGatewayPort = 0
+                    }
+                } else if let port = Int(filtered), self.manualGatewayPort != port {
+                    self.manualGatewayPort = port
+                }
+            })
+    }
+
+    private var manualPortIsValid: Bool {
+        if self.manualGatewayPortText.isEmpty { return true }
+        return self.manualGatewayPort >= 1 && self.manualGatewayPort <= 65535
+    }
+
+    private func syncManualPortText() {
+        if self.manualGatewayPort > 0 {
+            let next = String(self.manualGatewayPort)
+            if self.manualGatewayPortText != next {
+                self.manualGatewayPortText = next
+            }
+        } else if !self.manualGatewayPortText.isEmpty {
+            self.manualGatewayPortText = ""
+        }
+    }
+
     private func connectManual() async {
         let host = self.manualGatewayHost.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !host.isEmpty else {
             self.connectStatus.text = "Failed: host required"
             return
         }
-        guard self.manualGatewayPort > 0, self.manualGatewayPort <= 65535 else {
+        guard self.manualPortIsValid else {
             self.connectStatus.text = "Failed: invalid port"
             return
         }
