@@ -223,22 +223,6 @@ export function formatMatrixThreadContext(params: {
   };
 }
 
-export function formatThreadContextAsText(context: FormattedThreadContext): string {
-  const lines: string[] = [];
-
-  lines.push("--- Thread Context ---");
-  const rootMedia = context.root.mediaPath ? ` [${context.root.msgtype}]` : "";
-  lines.push(`[Thread Root] ${context.root.sender}: ${context.root.body}${rootMedia}`);
-
-  context.replies.forEach((reply, idx) => {
-    const media = reply.mediaPath ? ` [${reply.msgtype}]` : "";
-    lines.push(`[Reply ${idx + 1}] ${reply.sender}: ${reply.body}${media}`);
-  });
-
-  lines.push("--- Current Message ---");
-  return lines.join("\n");
-}
-
 export function resolveMatrixThreadTarget(params: {
   threadReplies: "off" | "inbound" | "always";
   messageId: string;

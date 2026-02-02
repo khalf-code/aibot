@@ -35,7 +35,6 @@ import { resolveMatrixRoomConfig } from "./rooms.js";
 import {
   fetchMatrixThreadContext,
   formatMatrixThreadContext,
-  formatThreadContextAsText,
   resolveMatrixThreadRootId,
   resolveMatrixThreadTarget,
   type FormattedThreadContext,
@@ -473,6 +472,7 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
       let threadContextRaw: Awaited<ReturnType<typeof fetchMatrixThreadContext>> = null;
       let formattedThreadContext: FormattedThreadContext | undefined;
       let threadStarterBody: string | undefined;
+      let threadLabel: string | undefined;
       if (threadRootId && threadContextEnabled) {
         threadContextRaw = await fetchMatrixThreadContext({
           client,
@@ -482,7 +482,6 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
           maxMediaBytes: mediaMaxBytes,
         });
         if (threadContextRaw) {
-          threadStarterBody = threadContextRaw.root.body;
           formattedThreadContext = formatMatrixThreadContext({
             context: threadContextRaw,
             roomId,
@@ -510,11 +509,18 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
         sessionKey: route.sessionKey,
       });
 
-      // Format body with thread context if available
-      let formattedBody = textWithId;
-      if (formattedThreadContext) {
-        const threadContextText = formatThreadContextAsText(formattedThreadContext);
-        formattedBody = `${threadContextText}\n${textWithId}`;
+      // Format thread starter body and label (aligned with Discord pattern)
+      if (threadContextRaw) {
+        const root = threadContextRaw.root;
+        threadStarterBody = core.channel.reply.formatAgentEnvelope({
+          channel: "Matrix",
+          from: root.sender,
+          timestamp: root.timestamp,
+          envelope: envelopeOptions,
+          body: root.body,
+        });
+        const roomLabel = roomName ?? roomInfo.canonicalAlias ?? roomId;
+        threadLabel = `Matrix thread #${roomLabel}`;
       }
 
       const body = core.channel.reply.formatAgentEnvelope({
@@ -523,7 +529,7 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
         timestamp: eventTs ?? undefined,
         previousTimestamp,
         envelope: envelopeOptions,
-        body: formattedBody,
+        body: textWithId,
       });
 
       const groupSystemPrompt = roomConfig?.systemPrompt?.trim() || undefined;
@@ -550,6 +556,7 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
         ReplyToId: threadTarget ? undefined : (replyToEventId ?? undefined),
         MessageThreadId: threadTarget,
         ThreadStarterBody: threadStarterBody,
+        ThreadLabel: threadLabel,
         ThreadContext: formattedThreadContext
           ? JSON.stringify(formattedThreadContext)
           : undefined,
