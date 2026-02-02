@@ -1,4 +1,10 @@
+import { completeSimple, type TextContent } from "@mariozechner/pi-ai";
+
+import { getApiKeyForModel, requireApiKey } from "../../agents/model-auth.js";
 import { parseModelRef } from "../../agents/model-selection.js";
+import { resolveModel } from "../../agents/pi-embedded-runner/model.js";
+import type { OpenClawConfig } from "../../config/config.js";
+import { logVerbose } from "../../globals.js";
 
 export type RelevanceModelRef = {
   provider: string;
@@ -67,6 +73,89 @@ export type RelevanceCheckResult = {
 };
 
 export type RelevanceRunner = (prompt: string) => Promise<{ text: string }>;
+
+function isTextContentBlock(block: { type: string }): block is TextContent {
+  return block.type === "text";
+}
+
+const DEFAULT_RELEVANCE_TIMEOUT_MS = 10_000;
+const DEFAULT_RELEVANCE_MAX_TOKENS = 100;
+
+/**
+ * Creates a RelevanceRunner that uses completeSimple to call the model.
+ * This is the actual implementation for relevance checking.
+ */
+export async function createRelevanceRunner(params: {
+  modelRef: RelevanceModelRef;
+  cfg: OpenClawConfig;
+  timeoutMs?: number;
+}): Promise<RelevanceRunner> {
+  const { modelRef, cfg, timeoutMs = DEFAULT_RELEVANCE_TIMEOUT_MS } = params;
+
+  const resolved = resolveModel(modelRef.provider, modelRef.model, undefined, cfg);
+  if (!resolved.model) {
+    logVerbose(`relevance-check: model not found ${modelRef.provider}/${modelRef.model}`);
+    // Return a fail-open runner
+    return async () => ({ text: "RESPOND: Model not available, defaulting to respond" });
+  }
+
+  let apiKey: string;
+  try {
+    const auth = await getApiKeyForModel({ model: resolved.model, cfg });
+    apiKey = requireApiKey(auth, modelRef.provider);
+  } catch (err) {
+    logVerbose(`relevance-check: API key error for ${modelRef.provider}: ${String(err)}`);
+    // Return a fail-open runner
+    return async () => ({ text: "RESPOND: API key not available, defaulting to respond" });
+  }
+
+  const model = resolved.model;
+
+  return async (prompt: string): Promise<{ text: string }> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await completeSimple(
+        model,
+        {
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+              timestamp: Date.now(),
+            },
+          ],
+        },
+        {
+          apiKey,
+          maxTokens: DEFAULT_RELEVANCE_MAX_TOKENS,
+          temperature: 0.1,
+          signal: controller.signal,
+        },
+      );
+
+      const text = res.content
+        .filter(isTextContentBlock)
+        .map((block) => block.text.trim())
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      return { text: text || "SKIP: No response from model" };
+    } catch (err) {
+      const error = err as Error;
+      if (error.name === "AbortError") {
+        logVerbose("relevance-check: request timed out");
+        return { text: "RESPOND: Timed out, defaulting to respond" };
+      }
+      logVerbose(`relevance-check: model call failed: ${String(err)}`);
+      return { text: "RESPOND: Error during check, defaulting to respond" };
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+}
 
 export async function checkMessageRelevance(params: {
   message: string;

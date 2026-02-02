@@ -1,4 +1,5 @@
-import { resolveAckReaction } from "../../../agents/identity.js";
+import { resolveAckReaction, resolveIdentityName } from "../../../agents/identity.js";
+import { resolveDefaultModelForAgent } from "../../../agents/model-selection.js";
 import { hasControlCommand } from "../../../auto-reply/command-detection.js";
 import { shouldHandleTextCommands } from "../../../auto-reply/commands-registry.js";
 import type { FinalizedMsgContext } from "../../../auto-reply/templating.js";
@@ -45,7 +46,11 @@ import { resolveSlackEffectiveAllowFrom } from "../auth.js";
 import { resolveSlackChannelConfig } from "../channel-config.js";
 import { normalizeSlackChannelType, type SlackMonitorContext } from "../context.js";
 import { resolveSlackMedia, resolveSlackThreadStarter } from "../media.js";
-import { checkMessageRelevance, resolveRelevanceModel } from "../relevance-check.js";
+import {
+  checkMessageRelevance,
+  createRelevanceRunner,
+  resolveRelevanceModel,
+} from "../relevance-check.js";
 
 import type { PreparedSlackMessage } from "./types.js";
 
@@ -356,18 +361,31 @@ export async function prepareSlackMessage(params: {
       channelName ||
       "team channel";
 
-    // Get agent persona from system prompt or use generic
-    const agentPersona = "helpful AI assistant";
+    // Get agent persona from identity config or use generic
+    const identityName = resolveIdentityName(cfg, route.agentId);
+    const agentPersona = identityName
+      ? `AI assistant named "${identityName}"`
+      : "helpful AI assistant";
+
+    // Resolve the model to use for relevance checking
+    const defaultModelRef = resolveDefaultModelForAgent({ cfg, agentId: route.agentId });
+    const relevanceModelRef = resolveRelevanceModel({
+      relevanceModelConfig: ctx.relevanceModel,
+      mainProvider: defaultModelRef.provider,
+      mainModel: defaultModelRef.model,
+    });
+
+    // Create the runner with the resolved model
+    const runner = await createRelevanceRunner({
+      modelRef: relevanceModelRef,
+      cfg,
+    });
 
     const relevanceResult = await checkMessageRelevance({
       message: rawBody,
       channelContext: channelDescription,
       agentPersona,
-      runner: async (_prompt) => {
-        // Placeholder for actual model call - will be wired up in Task 7
-        // For now, default to responding so the feature can be tested
-        return { text: "RESPOND: Message requires attention" };
-      },
+      runner,
     });
 
     if (!relevanceResult.shouldRespond) {

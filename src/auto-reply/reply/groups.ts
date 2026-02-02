@@ -55,7 +55,16 @@ export function resolveGroupRequireMention(params: {
   return true;
 }
 
-export function defaultGroupActivation(requireMention: boolean): "always" | "mention" {
+export function defaultGroupActivation(
+  requireMention: boolean,
+  responseMode?: string,
+): "always" | "mention" | "auto" {
+  if (responseMode === "auto") {
+    return "auto";
+  }
+  if (responseMode === "all") {
+    return "always";
+  }
   return !requireMention ? "always" : "mention";
 }
 
@@ -63,7 +72,7 @@ export function buildGroupIntro(params: {
   cfg: OpenClawConfig;
   sessionCtx: TemplateContext;
   sessionEntry?: SessionEntry;
-  defaultActivation: "always" | "mention";
+  defaultActivation: "always" | "mention" | "auto";
   silentToken: string;
 }): string {
   const activation =
@@ -92,7 +101,9 @@ export function buildGroupIntro(params: {
   const activationLine =
     activation === "always"
       ? "Activation: always-on (you receive every group message)."
-      : "Activation: trigger-only (you are invoked only when explicitly mentioned; recent context may be included).";
+      : activation === "auto"
+        ? "Activation: smart-response (you are invoked for messages that seem relevant to you; a pre-filter determined this message needs your attention)."
+        : "Activation: trigger-only (you are invoked only when explicitly mentioned; recent context may be included).";
   const groupId = params.sessionEntry?.groupId ?? extractGroupId(params.sessionCtx.From);
   const groupChannel = params.sessionCtx.GroupChannel?.trim() ?? subject;
   const groupSpace = params.sessionCtx.GroupSpace?.trim();
@@ -106,13 +117,15 @@ export function buildGroupIntro(params: {
       })
     : undefined;
   const silenceLine =
-    activation === "always"
+    activation === "always" || activation === "auto"
       ? `If no response is needed, reply with exactly "${params.silentToken}" (and nothing else) so OpenClaw stays silent. Do not add any other words, punctuation, tags, markdown/code blocks, or explanations.`
       : undefined;
   const cautionLine =
     activation === "always"
       ? "Be extremely selective: reply only when directly addressed or clearly helpful. Otherwise stay silent."
-      : undefined;
+      : activation === "auto"
+        ? "A pre-filter determined this message is relevant to you. Respond helpfully if you can add value, or use the silent token if you have nothing useful to contribute."
+        : undefined;
   const lurkLine =
     "Be a good group participant: mostly lurk and follow the conversation; reply only when directly addressed or you can add clear value. Emoji reactions are welcome when available.";
   const styleLine =
