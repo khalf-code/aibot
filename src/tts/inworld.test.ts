@@ -1,11 +1,11 @@
 /**
  * Unit tests for Inworld TTS Provider
  *
- * Run with: npx vitest run src/inworld-provider.test.ts
+ * Run with: npx vitest run src/tts/inworld.test.ts
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { inworldTTS, INWORLD_VOICE_IDS, INWORLD_MODELS } from "./inworld-provider";
+import { inworldTTS, INWORLD_VOICE_IDS, INWORLD_MODELS } from "./inworld";
 
 // Mock fetch globally
 const mockFetch = vi.fn();

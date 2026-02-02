@@ -95,6 +95,14 @@ export const INWORLD_VOICE_IDS = [
 
 export const INWORLD_MODELS = ["inworld-tts-1", "inworld-tts-1-max"] as const;
 
+/** Type for valid model IDs */
+type InworldModelId = typeof INWORLD_MODELS[number];
+
+/** Type guard for model validation */
+function isValidModel(model: string): model is InworldModelId {
+  return INWORLD_MODELS.includes(model as InworldModelId);
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -138,7 +146,7 @@ function normalizeVoiceId(voiceId: string | undefined): string {
  */
 function normalizeModelId(modelId: string | undefined): string {
   const model = modelId ?? DEFAULT_MODEL;
-  if (!INWORLD_MODELS.includes(model as any)) {
+  if (!isValidModel(model)) {
     throw new Error(`Invalid model: ${model}. Valid options: ${INWORLD_MODELS.join(", ")}`);
   }
   return model;
@@ -167,7 +175,7 @@ function normalizeModelId(modelId: string | undefined): string {
  */
 export async function inworldTTS(
   text: string,
-  config: { inworld: InworldTtsConfig }
+  config: { inworld?: InworldTtsConfig }
 ): Promise<TtsResult> {
   const startTime = Date.now();
   const inworldConfig = config.inworld ?? {};
