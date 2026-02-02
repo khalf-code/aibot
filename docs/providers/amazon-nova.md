@@ -59,12 +59,12 @@ in your model params:
 }
 ```
 
-| Level | Behavior |
-|-------|----------|
-| `disabled` | No extended thinking |
-| `low` | Fast, basic reasoning |
-| `medium` | Balanced reasoning and speed |
-| `high` | Deep, thorough analysis |
+| Level      | Behavior                     |
+| ---------- | ---------------------------- |
+| `disabled` | No extended thinking         |
+| `low`      | Fast, basic reasoning        |
+| `medium`   | Balanced reasoning and speed |
+| `high`     | Deep, thorough analysis      |
 
 ## Config snippet
 
