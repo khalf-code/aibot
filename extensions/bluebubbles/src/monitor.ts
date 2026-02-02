@@ -2159,26 +2159,17 @@ async function processMessage(
       return;
     }
     clearTypingRestartTimer();
-    logVerbose(
-      core,
-      runtime,
-      `typing restart scheduled chatGuid=${chatGuidForActions} delayMs=${typingRestartDelayMs}`,
-    );
     typingRestartTimer = setTimeout(() => {
       typingRestartTimer = undefined;
       if (!streamingActive) {
         return;
       }
-      logVerbose(core, runtime, `typing restart fire chatGuid=${chatGuidForActions}`);
       sendBlueBubblesTyping(chatGuidForActions, true, {
         cfg: config,
         accountId: account.accountId,
       })
-        .then(() => {
-          logVerbose(core, runtime, `typing restart sent chatGuid=${chatGuidForActions}`);
-        })
         .catch((err) => {
-          logVerbose(core, runtime, `typing restart failed: ${String(err)}`);
+          runtime.error?.(`[bluebubbles] typing restart failed: ${String(err)}`);
         });
     }, typingRestartDelayMs);
   };
@@ -2210,11 +2201,6 @@ async function processMessage(
             for (const mediaUrl of mediaList) {
               const caption = first ? text : undefined;
               first = false;
-              logVerbose(
-                core,
-                runtime,
-                `send media start to=${outboundTarget} hasCaption=${Boolean(caption)}`,
-              );
               const result = await sendBlueBubblesMedia({
                 cfg: config,
                 to: outboundTarget,
@@ -2223,11 +2209,6 @@ async function processMessage(
                 replyToId: replyToMessageGuid || null,
                 accountId: account.accountId,
               });
-              logVerbose(
-                core,
-                runtime,
-                `send media done to=${outboundTarget} messageId=${result.messageId}`,
-              );
               const cachedBody = (caption ?? "").trim() || "<media:attachment>";
               maybeEnqueueOutboundMessageId(result.messageId, cachedBody);
               sentMessage = true;
@@ -2262,21 +2243,11 @@ async function processMessage(
           }
           for (let i = 0; i < chunks.length; i++) {
             const chunk = chunks[i];
-            logVerbose(
-              core,
-              runtime,
-              `send text start to=${outboundTarget} len=${chunk.length} idx=${i + 1}/${chunks.length}`,
-            );
             const result = await sendMessageBlueBubbles(outboundTarget, chunk, {
               cfg: config,
               accountId: account.accountId,
               replyToMessageGuid: replyToMessageGuid || undefined,
             });
-            logVerbose(
-              core,
-              runtime,
-              `send text done to=${outboundTarget} messageId=${result.messageId}`,
-            );
             maybeEnqueueOutboundMessageId(result.messageId, chunk);
             sentMessage = true;
             statusSink?.({ lastOutboundAt: Date.now() });
@@ -2294,13 +2265,11 @@ async function processMessage(
           }
           streamingActive = true;
           clearTypingRestartTimer();
-          logVerbose(core, runtime, `typing start requested chatGuid=${chatGuidForActions}`);
           try {
             await sendBlueBubblesTyping(chatGuidForActions, true, {
               cfg: config,
               accountId: account.accountId,
             });
-            logVerbose(core, runtime, `typing start sent chatGuid=${chatGuidForActions}`);
           } catch (err) {
             runtime.error?.(`[bluebubbles] typing start failed: ${String(err)}`);
           }
@@ -2356,7 +2325,6 @@ async function processMessage(
     }
     if (shouldStopTyping) {
       // Stop typing after streaming completes to avoid a stuck indicator.
-      logVerbose(core, runtime, `typing stop sent chatGuid=${chatGuidForActions}`);
       sendBlueBubblesTyping(chatGuidForActions, false, {
         cfg: config,
         accountId: account.accountId,
