@@ -97,14 +97,15 @@ export async function readJsonBody(
         return;
       }
       done = true;
-      const raw = Buffer.concat(chunks).toString("utf-8").trim();
-      if (!raw) {
-        resolve({ ok: true, value: {}, rawBody: "" });
+      const rawBody = Buffer.concat(chunks).toString("utf-8");
+      const trimmed = rawBody.trim();
+      if (!trimmed) {
+        resolve({ ok: true, value: {}, rawBody });
         return;
       }
       try {
-        const parsed = JSON.parse(raw) as unknown;
-        resolve({ ok: true, value: parsed, rawBody: raw });
+        const parsed = JSON.parse(trimmed) as unknown;
+        resolve({ ok: true, value: parsed, rawBody });
       } catch (err) {
         resolve({ ok: false, error: String(err) });
       }
