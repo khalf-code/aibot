@@ -40,51 +40,57 @@ describe("CronService", () => {
     const enqueueSystemEvent = vi.fn();
     const requestHeartbeatNow = vi.fn();
     const runIsolatedAgentJob = vi.fn(async () => ({ status: "ok" }));
+    let cronA: CronService | null = null;
+    let cronB: CronService | null = null;
 
-    vi.setSystemTime(new Date("2025-12-13T10:00:00.000Z"));
+    try {
+      vi.setSystemTime(new Date("2025-12-13T10:00:00.000Z"));
 
-    const cronA = new CronService({
-      storePath: store.storePath,
-      cronEnabled: true,
-      log: noopLogger,
-      enqueueSystemEvent,
-      requestHeartbeatNow,
-      runIsolatedAgentJob,
-    });
+      cronA = new CronService({
+        storePath: store.storePath,
+        cronEnabled: true,
+        log: noopLogger,
+        enqueueSystemEvent,
+        requestHeartbeatNow,
+        runIsolatedAgentJob,
+      });
 
-    await cronA.start();
-    const job = await cronA.add({
-      name: "daily reminder",
-      enabled: true,
-      schedule: { kind: "cron", expr: "0 9 * * *", tz: "UTC" },
-      sessionTarget: "main",
-      wakeMode: "next-heartbeat",
-      payload: { kind: "systemEvent", text: "hello" },
-    });
+      await cronA.start();
+      const job = await cronA.add({
+        name: "daily reminder",
+        enabled: true,
+        schedule: { kind: "cron", expr: "0 9 * * *", tz: "UTC" },
+        sessionTarget: "main",
+        wakeMode: "next-heartbeat",
+        payload: { kind: "systemEvent", text: "hello" },
+      });
 
-    const initialNextRunAtMs = job.state.nextRunAtMs;
-    expect(initialNextRunAtMs).toBeTypeOf("number");
+      const initialNextRunAtMs = job.state.nextRunAtMs;
+      expect(initialNextRunAtMs).toBeTypeOf("number");
 
-    cronA.stop();
+      cronA.stop();
+      cronA = null;
 
-    vi.setSystemTime(new Date("2025-12-14T10:00:00.000Z"));
+      vi.setSystemTime(new Date("2025-12-14T10:00:00.000Z"));
 
-    const cronB = new CronService({
-      storePath: store.storePath,
-      cronEnabled: true,
-      log: noopLogger,
-      enqueueSystemEvent,
-      requestHeartbeatNow,
-      runIsolatedAgentJob,
-    });
+      cronB = new CronService({
+        storePath: store.storePath,
+        cronEnabled: true,
+        log: noopLogger,
+        enqueueSystemEvent,
+        requestHeartbeatNow,
+        runIsolatedAgentJob,
+      });
 
-    await cronB.start();
-    const jobs = await cronB.list({ includeDisabled: true });
-    const restored = jobs.find((j) => j.id === job.id);
+      await cronB.start();
+      const jobs = await cronB.list({ includeDisabled: true });
+      const restored = jobs.find((j) => j.id === job.id);
 
-    expect(restored?.state.nextRunAtMs).toBe(initialNextRunAtMs);
-
-    cronB.stop();
-    await store.cleanup();
+      expect(restored?.state.nextRunAtMs).toBe(initialNextRunAtMs);
+    } finally {
+      cronA?.stop();
+      cronB?.stop();
+      await store.cleanup();
+    }
   });
 });
