@@ -4,8 +4,6 @@
  */
 
 import { ConversationalAgent, createAgent } from "@clawdbrain/vercel-ai-agent";
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
 import type { Agent } from "@/lib/api/agents";
 import type { ChatMessage } from "@/lib/api/sessions";
 
@@ -43,14 +41,17 @@ export class VercelAgentAdapter {
 
   private initializeAgent() {
     try {
-      const modelProvider = this.getModelProvider(this.config.agent);
+      const modelConfig = this.getModelConfig(this.config.agent);
 
-      // Create agent with basic configuration
+      // Create agent with v5 configuration
       this.conversationalAgent = createAgent({
-        model: modelProvider,
+        model: modelConfig,
         tools: {}, // TODO: Add tool support
-        system: this.config.agent.systemPrompt || undefined,
-        maxSteps: 10,
+        systemPrompt: this.config.agent.systemPrompt || undefined,
+        defaultExecutionConfig: {
+          maxSteps: 10,
+          stream: false,
+        },
       });
     } catch (error) {
       console.error("Failed to initialize Vercel AI agent:", error);
@@ -58,21 +59,30 @@ export class VercelAgentAdapter {
     }
   }
 
-  private getModelProvider(agent: Agent) {
-    // Map gateway provider/model to Vercel AI SDK provider
+  private getModelConfig(agent: Agent) {
+    // Map gateway provider/model to v5 ModelConfig
     const provider = agent.provider?.toLowerCase() || "anthropic";
     const model = agent.model || "";
 
     if (provider === "openai" || model.includes("gpt")) {
-      return openai(model || "gpt-4-turbo");
+      return {
+        provider: "openai" as const,
+        modelId: model || "gpt-4-turbo",
+      };
     }
 
     if (provider === "anthropic" || model.includes("claude")) {
-      return anthropic(model || "claude-3-5-sonnet-20241022");
+      return {
+        provider: "anthropic" as const,
+        modelId: model || "claude-3-5-sonnet-20241022",
+      };
     }
 
     // Default to Anthropic
-    return anthropic("claude-3-5-sonnet-20241022");
+    return {
+      provider: "anthropic" as const,
+      modelId: "claude-3-5-sonnet-20241022",
+    };
   }
 
   /**
@@ -98,20 +108,28 @@ export class VercelAgentAdapter {
       };
       history.push(userMessage);
 
-      // Run the agent with streaming
-      const stream = await this.conversationalAgent.runStream(message);
+      // Run the agent with streaming (v5 format)
+      const stream = await this.conversationalAgent.runStream({
+        messages: message,
+        executionConfig: {
+          stream: true,
+        },
+      });
 
       let accumulatedContent = "";
 
       // Process stream
       for await (const chunk of stream) {
-        if (chunk.type === "text-delta") {
-          accumulatedContent += chunk.text;
-          onStream?.(chunk.text);
-        } else if (chunk.type === "step-finish" && chunk.step) {
+        if (chunk.type === "text-delta" && chunk.textDelta) {
+          accumulatedContent += chunk.textDelta;
+          onStream?.(chunk.textDelta);
+        } else if (chunk.type === "tool-call" && chunk.toolCall) {
           // Handle tool calls
-          if (chunk.step.toolCalls && chunk.step.toolCalls.length > 0) {
-            for (const toolCall of chunk.step.toolCalls) {
+          onToolCall?.(chunk.toolCall);
+        } else if (chunk.type === "step-finish" && chunk.stepResult) {
+          // Handle step completion (can access tool results here if needed)
+          if (chunk.stepResult.toolCalls && chunk.stepResult.toolCalls.length > 0) {
+            for (const toolCall of chunk.stepResult.toolCalls) {
               onToolCall?.(toolCall);
             }
           }
