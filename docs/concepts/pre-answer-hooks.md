@@ -39,7 +39,7 @@ Add hooks configuration to your agent config (`AGENT_DIR/agent.json`):
 - Automatically detects questions (ends with `?`, starts with question words)
 - Skips very short messages (< 10 chars)
 - Skips heartbeats
-- Searches Memory Gateway via mcporter
+- Searches Memory Gateway via HTTP
 - Injects up to 5 relevant memory snippets
 
 **Enabling:**
@@ -105,7 +105,8 @@ preAnswerHookRegistry.register(myHook);
 
 ## Environment Variables
 
-- `MEMORY_GATEWAY_URL` — Override the Memory Gateway URL for the memory-search hook
+- `MEMORY_GATEWAY_URL` — Override the memory gateway URL for the memory-search hook
+- `MCP_GATEWAY_URL` — Alternative path to memory gateway (autodetected from mcporter config)
 
 ## Diagnostics
 
