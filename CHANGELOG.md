@@ -26,6 +26,7 @@ Docs: https://docs.openclaw.ai
 - Agents: re-run tool_use/result pairing repair after history limiting to prevent orphaned tool_result API rejections. (#6680, #4650, #4323, #4367)
 - Auto-reply: avoid referencing workspace files in /new greeting prompt. (#5706) Thanks @bravostation.
 - Tools: treat `"*"` tool allowlist entries as valid to avoid spurious unknown-entry warnings.
+- Slack: harden media fetch limits and Slack file URL validation. (#6639) Thanks @davidiach.
 - Process: resolve Windows `spawn()` failures for npm-family CLIs by appending `.cmd` when needed. (#5815) Thanks @thejhinvirtuoso.
 - Discord: resolve PluralKit proxied senders for allowlists and labels. (#5838) Thanks @thewilloftheshadow.
 - Agents: ensure OpenRouter attribution headers apply in the embedded runner.
