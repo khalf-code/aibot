@@ -31,23 +31,32 @@ export type RateLimitsAuthConfig = {
   windowMinutes?: number;
 };
 
+export type RateLimitsExternalConfig = {
+  /** ElevenLabs TTS requests per minute — default: 10. */
+  ttsPerMinute?: number;
+};
+
 export type RateLimitsConfig = {
   /** Master switch — default: true. */
   enabled?: boolean;
   http?: RateLimitsHttpConfig;
   ws?: RateLimitsWsConfig;
   auth?: RateLimitsAuthConfig;
+  external?: RateLimitsExternalConfig;
 };
 
 export type ResolvedRateLimitsHttpConfig = Required<RateLimitsHttpConfig>;
 export type ResolvedRateLimitsWsConfig = Required<RateLimitsWsConfig>;
 export type ResolvedRateLimitsAuthConfig = Required<RateLimitsAuthConfig>;
 
+export type ResolvedRateLimitsExternalConfig = Required<RateLimitsExternalConfig>;
+
 export type ResolvedRateLimitsConfig = {
   enabled: boolean;
   http: ResolvedRateLimitsHttpConfig;
   ws: ResolvedRateLimitsWsConfig;
   auth: ResolvedRateLimitsAuthConfig;
+  external: ResolvedRateLimitsExternalConfig;
 };
 
 const RATE_LIMITS_HTTP_DEFAULTS: ResolvedRateLimitsHttpConfig = {
@@ -70,6 +79,10 @@ const RATE_LIMITS_AUTH_DEFAULTS: ResolvedRateLimitsAuthConfig = {
   windowMinutes: 15,
 };
 
+const RATE_LIMITS_EXTERNAL_DEFAULTS: ResolvedRateLimitsExternalConfig = {
+  ttsPerMinute: 10,
+};
+
 /** Merge user-provided rate limit config with sensible defaults. */
 export function resolveRateLimitsConfig(raw?: RateLimitsConfig): ResolvedRateLimitsConfig {
   const enabled = raw?.enabled !== false;
@@ -78,6 +91,7 @@ export function resolveRateLimitsConfig(raw?: RateLimitsConfig): ResolvedRateLim
     http: { ...RATE_LIMITS_HTTP_DEFAULTS, ...raw?.http },
     ws: { ...RATE_LIMITS_WS_DEFAULTS, ...raw?.ws },
     auth: { ...RATE_LIMITS_AUTH_DEFAULTS, ...raw?.auth },
+    external: { ...RATE_LIMITS_EXTERNAL_DEFAULTS, ...raw?.external },
   };
 }
 
