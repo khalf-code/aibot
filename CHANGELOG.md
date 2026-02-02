@@ -6,6 +6,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Plugins: validate plugin/hook install paths and reject traversal-like names.
 - Telegram: add download timeouts for file fetches. (#6914) Thanks @hclsys.
 - Telegram: enforce thread specs for DM vs forum sends. (#6833) Thanks @obviyus.
 - Cron: preserve scheduled next run across gateway restarts so missed runs stay due. (#6977, #6924)
