@@ -10,6 +10,7 @@ import {
   getGatewayClient,
   resetGatewayClient,
   type GatewayClient,
+  type GatewayConnectionState,
   type GatewayStatus,
   type GatewayEvent,
   type GatewayHelloOk,
@@ -54,7 +55,7 @@ export function GatewayProvider({
   password,
   autoConnect = false,
 }: GatewayProviderProps) {
-  const [status, setStatus] = React.useState<GatewayStatus>("disconnected");
+  const [state, setState] = React.useState<GatewayConnectionState>({ status: "disconnected" });
   const [hello, setHello] = React.useState<GatewayHelloOk | null>(null);
   const eventHandlersRef = React.useRef<Set<(event: GatewayEvent) => void>>(new Set());
 
@@ -64,7 +65,6 @@ export function GatewayProvider({
       url,
       token,
       password,
-      onStatusChange: setStatus,
       onHello: setHello,
       onEvent: (event) => {
         for (const handler of eventHandlersRef.current) {
@@ -81,6 +81,12 @@ export function GatewayProvider({
     };
     return getGatewayClient(config);
   }, [url, token, password]);
+
+  // Keep provider state in sync with the gateway client.
+  React.useEffect(() => {
+    setState(client.getConnectionState());
+    return client.onStateChange(setState);
+  }, [client]);
 
   // Auto-connect if enabled
   React.useEffect(() => {
@@ -115,14 +121,14 @@ export function GatewayProvider({
   const value = React.useMemo<GatewayContextValue>(
     () => ({
       client,
-      status,
-      isConnected: status === "connected",
+      status: state.status as GatewayStatus,
+      isConnected: state.status === "connected",
       hello,
       connect,
       disconnect,
       addEventListener,
     }),
-    [client, status, hello, connect, disconnect, addEventListener]
+    [client, state.status, hello, connect, disconnect, addEventListener]
   );
 
   return <GatewayContext.Provider value={value}>{children}</GatewayContext.Provider>;
