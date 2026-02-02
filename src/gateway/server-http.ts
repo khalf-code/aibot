@@ -117,6 +117,7 @@ export function createHooksRequestHandler(
     }
 
     const payload = typeof body.value === "object" && body.value !== null ? body.value : {};
+    const rawBody = body.rawBody;
     const headers = normalizeHookHeaders(req);
 
     if (subPath === "wake") {
@@ -148,6 +149,7 @@ export function createHooksRequestHandler(
           headers,
           url,
           path: subPath,
+          rawBody,
         });
         if (mapped) {
           if (!mapped.ok) {

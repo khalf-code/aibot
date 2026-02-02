@@ -74,7 +74,7 @@ export function extractHookToken(req: IncomingMessage, url: URL): HookTokenResul
 export async function readJsonBody(
   req: IncomingMessage,
   maxBytes: number,
-): Promise<{ ok: true; value: unknown } | { ok: false; error: string }> {
+): Promise<{ ok: true; value: unknown; rawBody: string } | { ok: false; error: string }> {
   return await new Promise((resolve) => {
     let done = false;
     let total = 0;
@@ -99,12 +99,12 @@ export async function readJsonBody(
       done = true;
       const raw = Buffer.concat(chunks).toString("utf-8").trim();
       if (!raw) {
-        resolve({ ok: true, value: {} });
+        resolve({ ok: true, value: {}, rawBody: "" });
         return;
       }
       try {
         const parsed = JSON.parse(raw) as unknown;
-        resolve({ ok: true, value: parsed });
+        resolve({ ok: true, value: parsed, rawBody: raw });
       } catch (err) {
         resolve({ ok: false, error: String(err) });
       }
