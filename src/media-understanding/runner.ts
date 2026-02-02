@@ -270,16 +270,11 @@ async function probeGeminiCli(): Promise<boolean> {
     return cached;
   }
   const resolved = (async () => {
-    // We strictly use the local NPM package via npx --no-install to avoid auto-installs.
-    if (await hasBinary("npx")) {
+    if (await hasBinary("gemini")) {
       try {
-        const { stdout } = await runExec(
-          "npx",
-          ["--no-install", "@google/gemini-cli", "--output-format", "json", "ok"],
-          {
-            timeoutMs: 8000,
-          },
-        );
+        const { stdout } = await runExec("gemini", ["--output-format", "json", "ok"], {
+          timeoutMs: 8000,
+        });
         return Boolean(extractGeminiResponse(stdout) ?? stdout.toLowerCase().includes("ok"));
       } catch {
         return false;
@@ -658,9 +653,7 @@ async function resolveCliOutput(params: {
   mediaPath: string;
 }): Promise<string> {
   const commandId = commandBase(params.command);
-  const isGemini =
-    commandId === "gemini" ||
-    (commandId === "npx" && params.args.includes("@google/gemini-cli"));
+  const isGemini = commandId === "gemini";
   const fileOutput =
     commandId === "whisper-cli"
       ? resolveWhisperCppOutputPath(params.args)
@@ -1044,24 +1037,8 @@ async function runCliEntry(params: {
     Prompt: prompt,
     MaxChars: maxChars,
   };
-  let execCommand = command;
-  let execArgs = [...args];
-  let isNpxFallback = false;
-
-  // For Gemini, force usage of the local NPM package via npx --no-install
-  if (command === "gemini") {
-    if (await hasBinary("npx")) {
-      execCommand = "npx";
-      execArgs = ["--no-install", "@google/gemini-cli", ...args];
-      isNpxFallback = true;
-    }
-  }
-
-  const argv = [execCommand, ...execArgs].map((part, index) => {
-    // If we're using npx fallback, the first 3 parts (npx, --no-install, @google/gemini-cli) are not templates.
-    // Otherwise, only the first part (command) is not a template.
-    const isFixed = isNpxFallback ? index < 3 : index === 0;
-    return isFixed ? part : applyTemplate(part, templCtx);
+  const argv = [command, ...args].map((part, index) => {
+    return index === 0 ? part : applyTemplate(part, templCtx);
   });
   try {
     if (shouldLogVerbose()) {
