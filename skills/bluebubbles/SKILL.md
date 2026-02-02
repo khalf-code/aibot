@@ -1,44 +1,134 @@
 ---
 name: bluebubbles
-description: Build or update the BlueBubbles external channel plugin for OpenClaw (extension package, REST send/probe, webhook inbound).
+description: Use when you need to send or manage iMessages via BlueBubbles (recommended iMessage integration). Calls go through the generic message tool with channel="bluebubbles".
+metadata: {"openclaw":{"emoji":"🫧","requires":{"config":["channels.bluebubbles"]}}}
 ---
 
-# BlueBubbles plugin
+# BlueBubbles (iMessage)
 
-Use this skill when working on the BlueBubbles channel plugin.
+BlueBubbles is OpenClaw’s **recommended** iMessage integration.
 
-## Layout
+Use the **`message` tool** with `channel: "bluebubbles"` to:
 
-- Extension package: `extensions/bluebubbles/` (entry: `index.ts`).
-- Channel implementation: `extensions/bluebubbles/src/channel.ts`.
-- Webhook handling: `extensions/bluebubbles/src/monitor.ts` (register via `api.registerHttpHandler`).
-- REST helpers: `extensions/bluebubbles/src/send.ts` + `extensions/bluebubbles/src/probe.ts`.
-- Runtime bridge: `extensions/bluebubbles/src/runtime.ts` (set via `api.runtime`).
-- Catalog entry for onboarding: `src/channels/plugins/catalog.ts`.
+- send texts and attachments
+- react (tapbacks)
+- edit / unsend
+- reply-to (threading)
+- rename groups / set group icon
+- add/remove participants / leave groups
 
-## Internal helpers (use these, not raw API calls)
+## What to collect
 
-- `probeBlueBubbles` in `extensions/bluebubbles/src/probe.ts` for health checks.
-- `sendMessageBlueBubbles` in `extensions/bluebubbles/src/send.ts` for text delivery.
-- `resolveChatGuidForTarget` in `extensions/bluebubbles/src/send.ts` for chat lookup.
-- `sendBlueBubblesReaction` in `extensions/bluebubbles/src/reactions.ts` for tapbacks.
-- `sendBlueBubblesTyping` + `markBlueBubblesChatRead` in `extensions/bluebubbles/src/chat.ts`.
-- `downloadBlueBubblesAttachment` in `extensions/bluebubbles/src/attachments.ts` for inbound media.
-- `buildBlueBubblesApiUrl` + `blueBubblesFetchWithTimeout` in `extensions/bluebubbles/src/types.ts` for shared REST plumbing.
+- **Target** (required for most actions):
+  - best: `chat_guid:...` (stable for groups)
+  - ok: `+15551234567` (E.164), `user@example.com`
+- **Text** (for send/edit/reply)
+- **Message id** (for react/edit/unsend/reply)
+- **Attachment** (path or base64 buffer + filename)
 
-## Webhooks
+If the user is vague (“text my mom”), ask for:
+- recipient handle (phone/email) or explicit chat guid
+- the exact message content
 
-- BlueBubbles posts JSON to the gateway HTTP server.
-- Normalize sender/chat IDs defensively (payloads vary by version).
-- Skip messages marked as from self.
-- Route into core reply pipeline via the plugin runtime (`api.runtime`) and `openclaw/plugin-sdk` helpers.
-- For attachments/stickers, use `<media:...>` placeholders when text is empty and attach media paths via `MediaUrl(s)` in the inbound context.
+## Common actions
 
-## Config (core)
+### Send a message
 
-- `channels.bluebubbles.serverUrl` (base URL), `channels.bluebubbles.password`, `channels.bluebubbles.webhookPath`.
-- Action gating: `channels.bluebubbles.actions.reactions` (default true).
+```json
+{
+  "action": "send",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "message": "hello from OpenClaw"
+}
+```
 
-## Message tool notes
+### React (tapback)
 
-- **Reactions:** The `react` action requires a `target` (phone number or chat identifier) in addition to `messageId`. Example: `action=react target=+15551234567 messageId=ABC123 emoji=❤️`
+```json
+{
+  "action": "react",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "messageId": "<message-guid>",
+  "emoji": "❤️"
+}
+```
+
+Remove a reaction:
+
+```json
+{
+  "action": "react",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "messageId": "<message-guid>",
+  "emoji": "❤️",
+  "remove": true
+}
+```
+
+### Edit a previously sent message
+
+```json
+{
+  "action": "edit",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "messageId": "<message-guid>",
+  "message": "updated text"
+}
+```
+
+### Unsend
+
+```json
+{
+  "action": "unsend",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "messageId": "<message-guid>"
+}
+```
+
+### Reply to a specific message
+
+```json
+{
+  "action": "reply",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "replyTo": "<message-guid>",
+  "message": "replying to that"
+}
+```
+
+### Send an attachment
+
+```json
+{
+  "action": "sendAttachment",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "path": "/tmp/photo.jpg",
+  "caption": "here you go"
+}
+```
+
+### Send with an iMessage effect
+
+```json
+{
+  "action": "sendWithEffect",
+  "channel": "bluebubbles",
+  "target": "+15551234567",
+  "message": "big news",
+  "effect": "balloons"
+}
+```
+
+## Notes
+
+- Prefer `chat_guid` targets when you have them (especially for group chats).
+- BlueBubbles supports rich actions, but some are macOS-version dependent (for example, edit may be broken on macOS 26 Tahoe).
+- The gateway may expose both short and full message ids; full ids are more durable across restarts.
