@@ -364,7 +364,10 @@ async function extractFileBlocks(params: {
     const utf16Charset = resolveUtf16Charset(bufferResult?.buffer);
     const textSample = decodeTextSample(bufferResult?.buffer);
     const textLike = Boolean(utf16Charset) || looksLikeUtf8Text(bufferResult?.buffer);
-    if (!forcedTextMimeResolved && kind === "audio" && !textLike) {
+    // Always skip audio files from file extraction - they should be transcribed, not
+    // included as raw binary. The textLike check was unreliable because compressed
+    // audio (OGG, etc.) can pass UTF-8 heuristics due to byte distribution.
+    if (!forcedTextMimeResolved && kind === "audio") {
       continue;
     }
     const guessedDelimited = textLike ? guessDelimitedMime(textSample) : undefined;
