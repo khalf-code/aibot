@@ -3,12 +3,12 @@
  * Simple Express server to receive webhook events during testing
  */
 
-const express = require('express');
+import express from 'express';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Store received webhooks
-const receivedWebhooks = [];
+const receivedWebhooks: any[] = [];
 
 app.use(express.json());
 
