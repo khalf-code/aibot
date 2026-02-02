@@ -167,6 +167,11 @@ async function runNgrokCommand(args: string[]): Promise<string> {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
+    const timeout = setTimeout(() => {
+      proc.kill("SIGTERM");
+      reject(new Error("ngrok command timed out after 30s"));
+    }, 30000);
+
     let stdout = "";
     let stderr = "";
 
@@ -178,6 +183,7 @@ async function runNgrokCommand(args: string[]): Promise<string> {
     });
 
     proc.on("close", (code) => {
+      clearTimeout(timeout);
       if (code === 0) {
         resolve(stdout);
       } else {
@@ -185,7 +191,10 @@ async function runNgrokCommand(args: string[]): Promise<string> {
       }
     });
 
-    proc.on("error", reject);
+    proc.on("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
   });
 }
 
@@ -198,11 +207,18 @@ export async function isNgrokAvailable(): Promise<boolean> {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
+    const timeout = setTimeout(() => {
+      proc.kill("SIGTERM");
+      resolve(false);
+    }, 5000);
+
     proc.on("close", (code) => {
+      clearTimeout(timeout);
       resolve(code === 0);
     });
 
     proc.on("error", () => {
+      clearTimeout(timeout);
       resolve(false);
     });
   });
