@@ -8,6 +8,10 @@ import type { TypingSignaler } from "./typing-mode.js";
 import { resolveAgentModelFallbacksOverride } from "../../agents/agent-scope.js";
 import { runCliAgent } from "../../agents/cli-runner.js";
 import { getCliSessionId } from "../../agents/cli-session.js";
+import {
+  createSdkMainAgentRuntime,
+  resolveAgentRuntimeKind,
+} from "../../agents/main-agent-runtime-factory.js";
 import { runWithModelFallback } from "../../agents/model-fallback.js";
 import { isCliProvider } from "../../agents/model-selection.js";
 import {
@@ -151,7 +155,7 @@ export async function runAgentTurnWithFallback(params: {
           params.followupRun.run.config,
           resolveAgentIdFromSessionKey(params.followupRun.run.sessionKey),
         ),
-        run: (provider, model) => {
+        run: async (provider, model) => {
           // Notify that model selection is complete (including after fallback).
           // This allows responsePrefix template interpolation with the actual model.
           params.opts?.onModelSelected?.({
@@ -229,6 +233,180 @@ export async function runAgentTurnWithFallback(params: {
             provider === params.followupRun.run.provider
               ? params.followupRun.run.authProfileId
               : undefined;
+
+          // Check runtime configuration to decide between Pi agent and Claude Code SDK
+          const runtimeKind = resolveAgentRuntimeKind(
+            params.followupRun.run.config,
+            params.followupRun.run.agentId,
+          );
+
+          // If using Claude Code SDK runtime, create and use SDK runtime
+          if (runtimeKind === "ccsdk") {
+            // Retrieve Claude SDK session ID from session entry for native session resume
+            const activeEntry = params.getActiveSessionEntry();
+            const claudeSdkSessionId = activeEntry?.claudeSdkSessionId?.trim() || undefined;
+
+            const sdkRuntime = await createSdkMainAgentRuntime({
+              config: params.followupRun.run.config,
+              sessionKey: params.sessionKey,
+              sessionFile: params.followupRun.run.sessionFile,
+              workspaceDir: params.followupRun.run.workspaceDir,
+              agentDir: params.followupRun.run.agentDir,
+              abortSignal: params.opts?.abortSignal,
+              messageProvider: params.sessionCtx.Provider?.trim().toLowerCase() || undefined,
+              agentAccountId: params.sessionCtx.AccountId,
+              messageTo: params.sessionCtx.OriginatingTo ?? params.sessionCtx.To,
+              messageThreadId: params.sessionCtx.MessageThreadId ?? undefined,
+              groupId: resolveGroupSessionKey(params.sessionCtx)?.id,
+              groupChannel:
+                params.sessionCtx.GroupChannel?.trim() ?? params.sessionCtx.GroupSubject?.trim(),
+              groupSpace: params.sessionCtx.GroupSpace?.trim() ?? undefined,
+              senderId: params.sessionCtx.SenderId?.trim() || undefined,
+              senderName: params.sessionCtx.SenderName?.trim() || undefined,
+              senderUsername: params.sessionCtx.SenderUsername?.trim() || undefined,
+              senderE164: params.sessionCtx.SenderE164?.trim() || undefined,
+              claudeSessionId: claudeSdkSessionId,
+              ...buildThreadingToolContext({
+                sessionCtx: params.sessionCtx,
+                config: params.followupRun.run.config,
+                hasRepliedRef: params.opts?.hasRepliedRef,
+              }),
+            });
+
+            return sdkRuntime.run({
+              sessionId: params.followupRun.run.sessionId,
+              sessionKey: params.sessionKey,
+              sessionFile: params.followupRun.run.sessionFile,
+              workspaceDir: params.followupRun.run.workspaceDir,
+              agentDir: params.followupRun.run.agentDir,
+              config: params.followupRun.run.config,
+              prompt: params.commandBody,
+              extraSystemPrompt: params.followupRun.run.extraSystemPrompt,
+              ownerNumbers: params.followupRun.run.ownerNumbers,
+              timeoutMs: params.followupRun.run.timeoutMs,
+              runId,
+              abortSignal: params.opts?.abortSignal,
+              images: params.opts?.images,
+              onPartialReply: allowPartialStream
+                ? async (payload) => {
+                    const textForTyping = await handlePartialForTyping(payload);
+                    if (!params.opts?.onPartialReply || textForTyping === undefined) {
+                      return;
+                    }
+                    await params.opts.onPartialReply({
+                      text: textForTyping,
+                      mediaUrls: payload.mediaUrls,
+                    });
+                  }
+                : undefined,
+              onAssistantMessageStart: async () => {
+                await params.typingSignals.signalMessageStart();
+              },
+              onBlockReply: params.opts?.onBlockReply
+                ? async (payload) => {
+                    const { text, skip } = normalizeStreamingText(payload);
+                    const hasPayloadMedia = (payload.mediaUrls?.length ?? 0) > 0;
+                    if (skip && !hasPayloadMedia) {
+                      return;
+                    }
+                    const currentMessageId =
+                      params.sessionCtx.MessageSidFull ?? params.sessionCtx.MessageSid;
+                    const taggedPayload = applyReplyTagsToPayload(
+                      {
+                        text,
+                        mediaUrls: payload.mediaUrls,
+                        mediaUrl: payload.mediaUrls?.[0],
+                        replyToId: payload.replyToId,
+                        replyToTag: payload.replyToTag,
+                        replyToCurrent: payload.replyToCurrent,
+                      },
+                      currentMessageId,
+                    );
+                    if (!isRenderablePayload(taggedPayload) && !payload.audioAsVoice) {
+                      return;
+                    }
+                    const parsed = parseReplyDirectives(taggedPayload.text ?? "", {
+                      currentMessageId,
+                      silentToken: SILENT_REPLY_TOKEN,
+                    });
+                    const cleaned = parsed.text || undefined;
+                    const hasRenderableMedia =
+                      Boolean(taggedPayload.mediaUrl) || (taggedPayload.mediaUrls?.length ?? 0) > 0;
+                    if (
+                      !cleaned &&
+                      !hasRenderableMedia &&
+                      !payload.audioAsVoice &&
+                      !parsed.audioAsVoice
+                    ) {
+                      return;
+                    }
+                    if (parsed.isSilent && !hasRenderableMedia) {
+                      return;
+                    }
+
+                    const blockPayload: ReplyPayload = params.applyReplyToMode({
+                      ...taggedPayload,
+                      text: cleaned,
+                      audioAsVoice: Boolean(parsed.audioAsVoice || payload.audioAsVoice),
+                      replyToId: taggedPayload.replyToId ?? parsed.replyToId,
+                      replyToTag: taggedPayload.replyToTag || parsed.replyToTag,
+                      replyToCurrent: taggedPayload.replyToCurrent || parsed.replyToCurrent,
+                    });
+
+                    void params.typingSignals
+                      .signalTextDelta(cleaned ?? taggedPayload.text)
+                      .catch((err) => {
+                        logVerbose(`block reply typing signal failed: ${String(err)}`);
+                      });
+
+                    if (params.blockStreamingEnabled && params.blockReplyPipeline) {
+                      params.blockReplyPipeline.enqueue(blockPayload);
+                    } else if (params.blockStreamingEnabled) {
+                      directlySentBlockKeys.add(createBlockReplyPayloadKey(blockPayload));
+                      await params.opts?.onBlockReply?.(blockPayload);
+                    }
+                  }
+                : undefined,
+              onToolResult: onToolResult
+                ? (payload) => {
+                    const task = (async () => {
+                      const { text, skip } = normalizeStreamingText(payload);
+                      if (skip && !payload.mediaUrls) {
+                        return;
+                      }
+                      await onToolResult({
+                        text,
+                        mediaUrls: payload.mediaUrls,
+                      });
+                    })()
+                      .catch((err) => {
+                        logVerbose(`tool result delivery failed: ${String(err)}`);
+                      })
+                      .finally(() => {
+                        params.pendingToolTasks.delete(task);
+                      });
+                    params.pendingToolTasks.add(task);
+                  }
+                : undefined,
+              onAgentEvent: async (evt) => {
+                if (evt.stream === "tool") {
+                  const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
+                  if (phase === "start" || phase === "update") {
+                    await params.typingSignals.signalToolStart();
+                  }
+                }
+                if (evt.stream === "compaction") {
+                  const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
+                  const willRetry = Boolean(evt.data.willRetry);
+                  if (phase === "end" && !willRetry) {
+                    autoCompactionCompleted = true;
+                  }
+                }
+              },
+            });
+          }
+
+          // Otherwise, use Pi agent runtime (existing code path)
           return runEmbeddedPiAgent({
             sessionId: params.followupRun.run.sessionId,
             sessionKey: params.sessionKey,

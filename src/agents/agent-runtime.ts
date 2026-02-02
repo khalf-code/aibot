@@ -6,6 +6,7 @@
  * reply pipeline code.
  */
 
+import type { ImageContent } from "@mariozechner/pi-ai";
 import type { OpenClawConfig } from "../config/config.js";
 import type { EmbeddedPiRunResult } from "./pi-embedded-runner/types.js";
 
@@ -20,12 +21,30 @@ export type AgentRuntimeKind = "pi" | "ccsdk";
 // Shared callback types
 // ---------------------------------------------------------------------------
 
+/** Multimodal payload with full support for voice, video, and pictures. */
+export type AgentRuntimePayload = {
+  text?: string;
+  mediaUrl?: string;
+  mediaUrls?: string[];
+  /** Message ID to reply to (threading support). */
+  replyToId?: string;
+  /** Tag for reply threading. */
+  replyToTag?: boolean;
+  /** Reply to current message flag. */
+  replyToCurrent?: boolean;
+  /** Send audio as voice message (bubble) instead of audio file. Defaults to false. */
+  audioAsVoice?: boolean;
+  isError?: boolean;
+  /** Channel-specific payload data (per-channel envelope). */
+  channelData?: Record<string, unknown>;
+};
+
 /** Streaming callbacks shared by all agent runtimes. */
 export type AgentRuntimeCallbacks = {
-  onPartialReply?: (payload: { text?: string; mediaUrls?: string[] }) => void | Promise<void>;
+  onPartialReply?: (payload: AgentRuntimePayload) => void | Promise<void>;
   onAssistantMessageStart?: () => void | Promise<void>;
-  onBlockReply?: (payload: { text?: string; mediaUrls?: string[] }) => void | Promise<void>;
-  onToolResult?: (payload: { text?: string; mediaUrls?: string[] }) => void | Promise<void>;
+  onBlockReply?: (payload: AgentRuntimePayload) => void | Promise<void>;
+  onToolResult?: (payload: AgentRuntimePayload) => void | Promise<void>;
   onAgentEvent?: (evt: { stream: string; data: Record<string, unknown> }) => void | Promise<void>;
 };
 
@@ -47,6 +66,8 @@ export type AgentRuntimeRunParams = {
   timeoutMs: number;
   runId: string;
   abortSignal?: AbortSignal;
+  /** Optional inbound images/audio/video (multimodal input support). */
+  images?: ImageContent[];
 } & AgentRuntimeCallbacks;
 
 // ---------------------------------------------------------------------------

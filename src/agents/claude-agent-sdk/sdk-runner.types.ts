@@ -3,7 +3,9 @@
  * embedded runner that uses the Claude Agent SDK as the main agent runtime.
  */
 
+import type { ImageContent } from "@mariozechner/pi-ai";
 import type { OpenClawConfig } from "../../config/config.js";
+import type { AgentRuntimePayload } from "../agent-runtime.js";
 import type { AnyAgentTool } from "../tools/common.js";
 
 // ---------------------------------------------------------------------------
@@ -111,19 +113,22 @@ export type SdkRunnerParams = {
   /** Abort signal for cancellation. */
   abortSignal?: AbortSignal;
 
-  // --- Streaming callbacks (subset of RunEmbeddedPiAgentParams) ---
+  /** Optional inbound images/audio/video (multimodal input support). */
+  images?: ImageContent[];
+
+  // --- Streaming callbacks with full multimodal support (voice, video, pictures) ---
 
   /** Called with partial text as the agent streams a response. */
-  onPartialReply?: (payload: { text?: string }) => void | Promise<void>;
+  onPartialReply?: (payload: AgentRuntimePayload) => void | Promise<void>;
 
   /** Called when the agent starts a new assistant message. */
   onAssistantMessageStart?: () => void | Promise<void>;
 
   /** Called when the agent completes a block reply. */
-  onBlockReply?: (payload: { text?: string }) => void | Promise<void>;
+  onBlockReply?: (payload: AgentRuntimePayload) => void | Promise<void>;
 
   /** Called when a tool result is produced. */
-  onToolResult?: (payload: { text?: string }) => void | Promise<void>;
+  onToolResult?: (payload: AgentRuntimePayload) => void | Promise<void>;
 
   /** Called for lifecycle / diagnostic events. */
   onAgentEvent?: (evt: { stream: string; data: Record<string, unknown> }) => void | Promise<void>;

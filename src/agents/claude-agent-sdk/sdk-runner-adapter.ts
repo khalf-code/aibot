@@ -6,9 +6,11 @@
  * main agent dispatch path without changing the downstream reply pipeline.
  */
 
+import type { ImageContent } from "@mariozechner/pi-ai";
 import { execSync } from "node:child_process";
 import os from "node:os";
 import type { OpenClawConfig } from "../../config/config.js";
+import type { AgentRuntimePayload } from "../agent-runtime.js";
 import type { EmbeddedPiRunResult } from "../pi-embedded-runner/types.js";
 import type { AnyAgentTool } from "../tools/common.js";
 import type { SdkRunnerResult } from "./sdk-runner.types.js";
@@ -375,6 +377,8 @@ export type RunSdkAgentAdaptedParams = {
   timeoutMs: number;
   runId: string;
   abortSignal?: AbortSignal;
+  /** Optional inbound images/audio/video (multimodal input support). */
+  images?: ImageContent[];
   /** Claude Code session ID from previous run (for native session resume). */
   claudeSessionId?: string;
   /** Model to use (e.g., "sonnet", "opus", "haiku", or full model ID). */
@@ -387,11 +391,11 @@ export type RunSdkAgentAdaptedParams = {
   // Tools are lazily built to avoid import cycles.
   tools: AnyAgentTool[];
 
-  // Callbacks (subset matching Pi Agent runner).
-  onPartialReply?: (payload: { text?: string; mediaUrls?: string[] }) => void | Promise<void>;
+  // Callbacks with full multimodal support (voice, video, pictures).
+  onPartialReply?: (payload: AgentRuntimePayload) => void | Promise<void>;
   onAssistantMessageStart?: () => void | Promise<void>;
-  onBlockReply?: (payload: { text?: string; mediaUrls?: string[] }) => void | Promise<void>;
-  onToolResult?: (payload: { text?: string; mediaUrls?: string[] }) => void | Promise<void>;
+  onBlockReply?: (payload: AgentRuntimePayload) => void | Promise<void>;
+  onToolResult?: (payload: AgentRuntimePayload) => void | Promise<void>;
   onAgentEvent?: (evt: { stream: string; data: Record<string, unknown> }) => void | Promise<void>;
 };
 

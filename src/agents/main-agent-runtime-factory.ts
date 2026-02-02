@@ -4,6 +4,8 @@ import type { SandboxContext } from "./sandbox.js";
 import type { AnyAgentTool } from "./tools/common.js";
 import { resolveMcpToolsForAgent } from "../mcp/mcp-tools.js";
 import { resolveSessionAgentId } from "./agent-scope.js";
+import { DEFAULT_AGENT_ID, normalizeAgentId } from "../routing/session-key.js";
+import { resolveAgentConfig } from "./agent-scope.js";
 import { createSdkAgentRuntime } from "./claude-agent-sdk/sdk-agent-runtime.js";
 import { resolveThinkingBudget } from "./claude-agent-sdk/sdk-runner.config.js";
 import { createOpenClawCodingTools } from "./pi-tools.js";
@@ -18,6 +20,41 @@ export function resolveMainAgentRuntimeKind(config?: OpenClawConfig): MainAgentR
     config?.agents?.main?.runtime ??
     config?.agents?.defaults?.runtime;
   return configured === "ccsdk" ? "ccsdk" : "pi";
+}
+
+/**
+ * Resolve the runtime kind for any agent (not just "main").
+ *
+ * Resolution order:
+ * 1. Per-agent override: `agents.list[i].runtime`
+ * 2. For main agent: `agents.defaults.mainRuntime` or `agents.main.runtime`
+ * 3. Global default: `agents.defaults.runtime`
+ * 4. Fallback: "pi"
+ */
+export function resolveAgentRuntimeKind(
+  config: OpenClawConfig | undefined,
+  agentId: string,
+): MainAgentRuntimeKind {
+  if (!config) {
+    return "pi";
+  }
+
+  const normalized = normalizeAgentId(agentId);
+
+  // 1. Try per-agent override
+  const agentConfig = resolveAgentConfig(config, normalized);
+  if (agentConfig?.runtime) {
+    return agentConfig.runtime === "ccsdk" ? "ccsdk" : "pi";
+  }
+
+  // 2. For main agent, use mainRuntime logic
+  if (normalized === DEFAULT_AGENT_ID) {
+    return resolveMainAgentRuntimeKind(config);
+  }
+
+  // 3. Use global default
+  const globalRuntime = config.agents?.defaults?.runtime;
+  return globalRuntime === "ccsdk" ? "ccsdk" : "pi";
 }
 
 export type CreateSdkMainAgentRuntimeParams = {

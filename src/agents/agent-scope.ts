@@ -124,6 +124,8 @@ export function resolveAgentConfig(
     subagents: typeof entry.subagents === "object" && entry.subagents ? entry.subagents : undefined,
     sandbox: entry.sandbox,
     tools: entry.tools,
+    runtime: entry.runtime,
+    ccsdkProvider: entry.ccsdkProvider,
   };
 }
 
