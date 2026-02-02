@@ -547,7 +547,7 @@ async function runWebSearch(params: {
   if (params.provider !== "brave") {
     return {
       error: "unsupported_provider",
-      message: `Unsupported web search provider: ${params.provider}`,
+      message: `Unsupported web search provider: ${String(params.provider)}`,
       docs: "https://docs.openclaw.ai/tools/web",
     };
   }
