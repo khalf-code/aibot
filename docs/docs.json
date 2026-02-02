@@ -1062,6 +1062,7 @@
               "tools/llm-task",
               "plugin",
               "plugins/voice-call",
+              "plugins/nats-wake",
               "plugins/zalouser",
               "tools/exec",
               "tools/web",
