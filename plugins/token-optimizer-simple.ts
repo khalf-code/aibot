@@ -263,6 +263,18 @@ function extractContext(message: string, metadata: any = {}) {
   };
 }
 
+function compressContext(content: string, maxTokens: number): string {
+  // Estimate ~4 chars per token
+  const maxChars = maxTokens * 4;
+
+  if (content.length <= maxChars) {
+    return content;
+  }
+
+  // Simple compression: truncate with ellipsis
+  return content.substring(0, maxChars - 20) + "\n\n[...truncated for brevity]";
+}
+
 // Main plugin definition
 const tokenOptimizerPlugin = {
   id: "token-optimizer",
@@ -348,24 +360,38 @@ const tokenOptimizerPlugin = {
         }
       }
 
-      // Store classification in global registry for downstream processing
-      (globalThis as any).tokenOptimizerLastClassification = {
-        classification,
-        effectiveTier,
-        metadata: {
-          ...metadata,
-          complexity: classification.complexity,
+      // Get tier configuration
+      const tierConfig = COMPLEXITY_PATTERNS[effectiveTier];
+
+      // Apply context compression for lower tiers
+      let processedContent = content;
+      if (effectiveTier === "TRIVIAL" || effectiveTier === "LOW") {
+        processedContent = compressContext(content, tierConfig.maxTokens);
+      }
+
+      // Use ctx to affect routing - set model and thinking level
+      if (ctx && typeof ctx === "object") {
+        ctx.recommendedModel = tierConfig.model;
+        ctx.recommendedThinking = tierConfig.thinking;
+        ctx.tokenOptimizer = {
+          classification: classification.complexity,
           effectiveTier,
           originalLength: content.length,
-          classificationReasoning: classification.reasoning,
-          recommendedModel: COMPLEXITY_PATTERNS[effectiveTier].model,
-          recommendedThinking: COMPLEXITY_PATTERNS[effectiveTier].thinking,
-        },
-        timestamp: Date.now(),
-      };
+          compressedLength: processedContent.length,
+          reasoning: classification.reasoning,
+        };
+      }
+
+      // Modify event content if compressed
+      if (processedContent !== content) {
+        event.content = processedContent;
+        api.logger.info(
+          `[Token Optimizer] Compressed: ${content.length} -> ${processedContent.length} chars`,
+        );
+      }
 
       api.logger.debug(
-        `[Token Optimizer] Classified: ${classification.complexity} -> ${effectiveTier} (${content.length} chars)`,
+        `[Token Optimizer] Classified: ${classification.complexity} -> ${effectiveTier} | Model: ${tierConfig.model}`,
       );
     });
 
