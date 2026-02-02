@@ -150,6 +150,12 @@ async function downloadToFile(
                 return;
               }
               const redirectUrl = new URL(location, url).href;
+              // Check abort before starting redirect to avoid unnecessary work
+              if (timeoutSignal.aborted) {
+                timeoutSignal.removeEventListener("abort", onAbort);
+                reject(new Error("Download timeout"));
+                return;
+              }
               // Pass the SAME signal to maintain total timeout across redirects
               // Remove listener here as the recursive call will add its own
               timeoutSignal.removeEventListener("abort", onAbort);
@@ -225,17 +231,23 @@ export async function saveMediaSource(
   const baseId = crypto.randomUUID();
   if (looksLikeUrl(source)) {
     const tempDest = path.join(dir, `${baseId}.tmp`);
-    const { headerMime, sniffBuffer, size } = await downloadToFile(source, tempDest, headers);
-    const mime = await detectMime({
-      buffer: sniffBuffer,
-      headerMime,
-      filePath: source,
-    });
-    const ext = extensionForMime(mime) ?? path.extname(new URL(source).pathname);
-    const id = ext ? `${baseId}${ext}` : baseId;
-    const finalDest = path.join(dir, id);
-    await fs.rename(tempDest, finalDest);
-    return { id, path: finalDest, size, contentType: mime };
+    try {
+      const { headerMime, sniffBuffer, size } = await downloadToFile(source, tempDest, headers);
+      const mime = await detectMime({
+        buffer: sniffBuffer,
+        headerMime,
+        filePath: source,
+      });
+      const ext = extensionForMime(mime) ?? path.extname(new URL(source).pathname);
+      const id = ext ? `${baseId}${ext}` : baseId;
+      const finalDest = path.join(dir, id);
+      await fs.rename(tempDest, finalDest);
+      return { id, path: finalDest, size, contentType: mime };
+    } catch (err) {
+      // Clean up partial temp file on error (timeout, abort, etc.)
+      await fs.unlink(tempDest).catch(() => {});
+      throw err;
+    }
   }
   // local path
   const stat = await fs.stat(source);
