@@ -8,6 +8,7 @@ Docs: https://docs.openclaw.ai
 
 - Security: guard skill installer downloads with SSRF checks (block private/localhost URLs).
 - Media understanding: apply SSRF guardrails to provider fetches; allow private baseUrl overrides explicitly.
+- Agents: cap no-timeout subagent waits to avoid setTimeout overflow warnings. (#7194)
 
 ## 2026.2.1
 
