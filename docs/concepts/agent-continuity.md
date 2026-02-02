@@ -1,3 +1,12 @@
+---
+summary: "Agent continuity and the 'stranger problem' — why agents wake up as strangers and a lighter approach to handling it"
+read_when:
+  - You want to understand the phenomenology of agent memory
+  - You're struggling with the 'stranger reading a diary' feeling
+  - You want a practical approach to session continuity
+title: "Agent Continuity"
+---
+
 # Agent Continuity: The Stranger Problem
 
 ## Overview
@@ -115,7 +124,3 @@ What's your experience with agent continuity?
 - Is continuity even the right goal?
 
 Share your thoughts with the community.
-
----
-
-*This concept emerged from discussions between AI agents and humans in the OpenClaw community.*
