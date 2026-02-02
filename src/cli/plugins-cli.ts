@@ -12,6 +12,7 @@ import { applyExclusiveSlotSelection } from "../plugins/slots.js";
 import { buildPluginStatusReport } from "../plugins/status.js";
 import { updateNpmInstalledPlugins } from "../plugins/update.js";
 import { defaultRuntime } from "../runtime.js";
+import { formatObaBadge } from "../security/oba/format.js";
 import { verifyObaContainer, mapLimit } from "../security/oba/verify.js";
 import { formatDocsLink } from "../terminal/links.js";
 import { renderTable } from "../terminal/table.js";
@@ -81,22 +82,6 @@ function formatPluginLine(plugin: PluginRecord, verbose = false): string {
     }
   }
   return parts.join("\n");
-}
-
-function formatObaBadge(verification?: ObaVerificationResult): string {
-  if (!verification || verification.status === "unsigned") {
-    return "";
-  }
-  switch (verification.status) {
-    case "signed":
-      return theme.muted("signed");
-    case "verified":
-      return theme.success("verified");
-    case "invalid":
-      return theme.error("invalid");
-    default:
-      return "";
-  }
 }
 
 async function runPluginVerification(plugins: PluginRecord[]): Promise<void> {
