@@ -5,6 +5,7 @@ OpenClaw supports integration with Holochain to enable decentralized, peer-to-pe
 ## Overview
 
 Holochain provides:
+
 - **Decentralized session storage** via DHT (Distributed Hash Table)
 - **Enhanced security** through validation rules and immutable audit logs
 - **Agent-to-Agent (A2A) economy** with Solana/USDC integration
@@ -64,6 +65,7 @@ Combines Node.js gateway with Holochain DHT for session storage. Best for gradua
 ```
 
 **Features:**
+
 - Gateway handles messaging channels (Telegram, Discord, etc.)
 - Session history stored in Holochain DHT
 - Automatic fallback to local storage if Holochain unavailable
@@ -80,10 +82,7 @@ Complete P2P operation. Gateway only used for legacy channel support.
     "p2p": {
       "enabled": true,
       "networkId": "openclaw-mainnet",
-      "bootstrapNodes": [
-        "wss://bootstrap1.openclaw.ai",
-        "wss://bootstrap2.openclaw.ai"
-      ],
+      "bootstrapNodes": ["wss://bootstrap1.openclaw.ai", "wss://bootstrap2.openclaw.ai"],
       "kitsuneTransport": true
     }
   }
@@ -91,6 +90,7 @@ Complete P2P operation. Gateway only used for legacy channel support.
 ```
 
 **Features:**
+
 - Peer-to-peer agent routing
 - Decentralized agent discovery
 - No single point of failure
@@ -113,6 +113,7 @@ Specify Holochain conductor binary location:
 ```
 
 Auto-detection tries:
+
 1. `HOLOCHAIN_BIN` environment variable
 2. `holochain` in PATH
 3. Common installation paths
@@ -165,6 +166,7 @@ Enable distributed session storage:
 ```
 
 **Benefits:**
+
 - Sessions replicated across DHT nodes
 - Data sovereignty (you control your data)
 - Automatic backup and redundancy
@@ -185,6 +187,7 @@ Configure fallback to local storage:
 ```
 
 When enabled:
+
 1. Try DHT storage first
 2. If Holochain unavailable, use local SQLite
 3. Auto-sync when Holochain comes back online
@@ -206,6 +209,7 @@ Enable validation rules to prevent prompt injection:
 ```
 
 **Reduces injection rate from 91% to ~10%** through:
+
 - Pattern-based validation
 - Semantic analysis
 - Community-verified rules
@@ -225,6 +229,7 @@ Log all operations to DHT:
 ```
 
 **Features:**
+
 - Tamper-proof logging
 - Cryptographic signatures
 - Compliance-ready audit trail
@@ -244,6 +249,7 @@ DHT-based rate limiting:
 ```
 
 **Prevents abuse:**
+
 - Track requests across DHT nodes
 - IP-based limiting
 - Agent-based limiting
@@ -320,6 +326,7 @@ Default: 5% commission on verified skills marketplace
 ```
 
 **How it works:**
+
 1. Agent A requests service from Agent B
 2. Payment in USDC via Solana
 3. 5% goes to OpenClaw ecosystem fund
@@ -335,10 +342,7 @@ Configure DHT bootstrap nodes:
 {
   "holochain": {
     "p2p": {
-      "bootstrapNodes": [
-        "wss://bootstrap1.openclaw.ai",
-        "wss://bootstrap2.openclaw.ai"
-      ]
+      "bootstrapNodes": ["wss://bootstrap1.openclaw.ai", "wss://bootstrap2.openclaw.ai"]
     }
   }
 }
@@ -359,6 +363,7 @@ Set network identifier:
 ```
 
 **Networks:**
+
 - `openclaw-mainnet`: Production network
 - `openclaw-testnet`: Testing network
 - `custom-network`: Private networks

@@ -19,10 +19,11 @@ describe("Holochain config defaults", () => {
     expect(result).toEqual(cfg);
   });
 
-  test("should apply conductor defaults in hybrid mode", () => {
+  test("should apply conductor defaults when conductor is needed", () => {
     const cfg: OpenClawConfig = {
       holochain: {
         mode: "hybrid",
+        conductor: {},
       },
     };
     const result = applyHolochainDefaults(cfg);
@@ -133,11 +134,12 @@ describe("Holochain config defaults", () => {
     const cfg: OpenClawConfig = {
       holochain: {
         mode: "hybrid",
+        conductor: {},
       },
     };
     const result = applyHolochainDefaults(cfg);
-    expect(cfg.holochain?.conductor).toBeUndefined();
-    expect(result.holochain?.conductor).toBeDefined();
+    expect(cfg.holochain?.conductor?.adminPort).toBeUndefined();
+    expect(result.holochain?.conductor?.adminPort).toBeDefined();
   });
 
   test("should handle partial session storage config", () => {
@@ -188,5 +190,44 @@ describe("Holochain config defaults", () => {
     };
     const result = applyHolochainDefaults(cfg);
     expect(result).toEqual(cfg);
+  });
+
+  test("should not create conductor when mode is hybrid but no conductor-related config", () => {
+    const cfg: OpenClawConfig = {
+      holochain: {
+        mode: "hybrid",
+      },
+    };
+    const result = applyHolochainDefaults(cfg);
+    expect(result.holochain?.conductor).toBeUndefined();
+    expect(result.holochain?.sessionStorage).toBeDefined();
+  });
+
+  test("should create conductor when autoStart is explicitly true", () => {
+    const cfg: OpenClawConfig = {
+      holochain: {
+        mode: "hybrid",
+        conductor: {
+          autoStart: true,
+        },
+      },
+    };
+    const result = applyHolochainDefaults(cfg);
+    expect(result.holochain?.conductor).toBeDefined();
+    expect(result.holochain?.conductor?.autoStart).toBe(true);
+  });
+
+  test("should create conductor when conductor config exists", () => {
+    const cfg: OpenClawConfig = {
+      holochain: {
+        mode: "hybrid",
+        conductor: {
+          binPath: "/custom/path",
+        },
+      },
+    };
+    const result = applyHolochainDefaults(cfg);
+    expect(result.holochain?.conductor).toBeDefined();
+    expect(result.holochain?.conductor?.adminPort).toBe(4444);
   });
 });

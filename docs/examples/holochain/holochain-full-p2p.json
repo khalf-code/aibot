@@ -14,10 +14,7 @@
     },
     "p2p": {
       "enabled": true,
-      "bootstrapNodes": [
-        "wss://bootstrap1.openclaw.ai",
-        "wss://bootstrap2.openclaw.ai"
-      ],
+      "bootstrapNodes": ["wss://bootstrap1.openclaw.ai", "wss://bootstrap2.openclaw.ai"],
       "networkId": "openclaw-mainnet",
       "kitsuneTransport": true
     }

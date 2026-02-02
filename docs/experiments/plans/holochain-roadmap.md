@@ -7,6 +7,7 @@
 ## Vision
 
 Create a P2P, privacy-first AI assistant ecosystem where:
+
 - Users own their data (DHT-based session storage)
 - Agents can transact directly (A2A economy with USDC)
 - No single point of failure (full P2P routing)
@@ -19,6 +20,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 **Status**: ✅ Complete
 
 ### Deliverables
+
 - [x] Config schema types (`types.holochain.ts`)
 - [x] Zod validation schema (`zod-schema.holochain.ts`)
 - [x] Default value resolvers
@@ -28,6 +30,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 - [x] Example configurations
 
 ### Key Decisions
+
 - Three integration modes: disabled, hybrid, full-p2p
 - Conductor auto-start by default
 - Fallback to local storage for reliability
@@ -39,6 +42,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 **Status**: 🔄 In Planning
 
 ### Deliverables
+
 - [ ] Holochain conductor integration
   - [ ] Auto-detect/install conductor binary
   - [ ] Lifecycle management (start, stop, restart)
@@ -55,11 +59,13 @@ Create a P2P, privacy-first AI assistant ecosystem where:
   - [ ] Performance benchmarks (< 200ms target)
 
 ### Technical Stack
+
 - **Rust**: HDK 0.6.0 for zome development
 - **Node.js**: holochain-client-js for conductor communication
 - **Crypto**: Node.js crypto module for AES-256
 
 ### Risks & Mitigation
+
 - **Learning curve**: Pair programming sessions, Holochain workshops
 - **Conductor stability**: Auto-restart, health checks every 30s
 - **DHT latency**: Write-through cache, async write-back
@@ -70,6 +76,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 **Status**: 📋 Planned
 
 ### Deliverables
+
 - [ ] Prompt injection prevention
   - [ ] Validation rules zome
   - [ ] Pattern matching (NVIDIA AppArmor/seccomp)
@@ -85,6 +92,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
   - [ ] Global consensus via DHT
 
 ### Metrics
+
 - **Injection prevention**: 91% → 10% (81% reduction)
 - **Audit completeness**: 100% of critical operations
 - **Rate limit effectiveness**: < 0.1% abuse incidents
@@ -95,6 +103,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 **Status**: 📋 Planned
 
 ### Deliverables
+
 - [ ] Authentication bridges
   - [ ] AD/LDAP integration
   - [ ] SAML 2.0 support
@@ -113,6 +122,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
   - [ ] Export/deletion workflows
 
 ### Business Model
+
 - **Secure-Claw Tier**: $249/month
   - Hardened sandbox
   - Priority support
@@ -125,6 +135,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 **Status**: 📋 Planned
 
 ### Deliverables
+
 - [ ] Solana/USDC wallet integration
   - [ ] Managed wallet creation
   - [ ] Secure seed phrase storage (Holochain conductor)
@@ -146,6 +157,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
   - [ ] Trust scores
 
 ### Revenue Model
+
 - **Commission**: 5% on all A2A transactions
 - **Verified Skills**: Premium skill certification ($99/skill)
 - **Target**: $1M ARR by Q4 2027
@@ -156,6 +168,7 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 **Status**: 📋 Planned
 
 ### Deliverables
+
 - [ ] Gateway WS → Holochain signals
   - [ ] Signal handler migration
   - [ ] WebSocket compatibility layer
@@ -176,43 +189,49 @@ Create a P2P, privacy-first AI assistant ecosystem where:
   - [ ] Community moderation
 
 ### Performance Targets
+
 - **Latency**: < 200ms (P2P routing vs gateway)
 - **Throughput**: 10,000+ concurrent agents
 - **Reliability**: 99.9% uptime (no SPOF)
 
 ## Risk Matrix
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Holochain ecosystem fragmentation | Medium | High | Community engagement, fallback to fork |
-| Learning curve too steep | High | Medium | Training, documentation, pair programming |
-| DHT network instability | Low | High | Retry logic, fallback, monitoring |
-| Tooling maturity | Medium | Medium | hc-cli + launcher, contribute to ecosystem |
-| Regulatory (crypto wallet) | Medium | High | Legal counsel, compliance-first design |
+| Risk                              | Probability | Impact | Mitigation                                 |
+| --------------------------------- | ----------- | ------ | ------------------------------------------ |
+| Holochain ecosystem fragmentation | Medium      | High   | Community engagement, fallback to fork     |
+| Learning curve too steep          | High        | Medium | Training, documentation, pair programming  |
+| DHT network instability           | Low         | High   | Retry logic, fallback, monitoring          |
+| Tooling maturity                  | Medium      | Medium | hc-cli + launcher, contribute to ecosystem |
+| Regulatory (crypto wallet)        | Medium      | High   | Legal counsel, compliance-first design     |
 
 ## Success Criteria
 
 ### Phase 2 (Hybrid Mode)
+
 - ✅ Session storage works with < 200ms latency
 - ✅ Fallback to local storage in < 1s
 - ✅ 100% test coverage for critical paths
 
 ### Phase 3 (Security)
+
 - ✅ Prompt injection rate < 10%
 - ✅ 100% critical operations in audit log
 - ✅ Rate limiting prevents > 99% abuse
 
 ### Phase 4 (Enterprise)
+
 - ✅ 5+ enterprise customers ($249/month)
 - ✅ SOC 2 Type II readiness
 - ✅ 99.9% uptime SLA
 
 ### Phase 5 (A2A Economy)
+
 - ✅ 1,000+ verified skills
 - ✅ $100k+ transaction volume
 - ✅ 5% commission collected
 
 ### Phase 6 (Full P2P)
+
 - ✅ 10,000+ concurrent agents
 - ✅ 99.9% uptime (no SPOF)
 - ✅ Agent registry: 30k verified (vs 1.2M fake)
@@ -220,16 +239,19 @@ Create a P2P, privacy-first AI assistant ecosystem where:
 ## Team & Resources
 
 ### Phase 2-3
+
 - 2 Rust/Holochain developers
 - 1 Node.js/TypeScript developer
 - 1 Security engineer
 
 ### Phase 4-5
+
 - +1 Enterprise architect
 - +1 Blockchain/Solana developer
 - +1 DevOps engineer
 
 ### Phase 6
+
 - +2 P2P/networking engineers
 - +1 Community manager
 

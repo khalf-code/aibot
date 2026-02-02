@@ -477,24 +477,33 @@ export function applyHolochainDefaults(cfg: OpenClawConfig): OpenClawConfig {
   const nextHolochain = { ...holochain };
   let mutated = false;
 
-  if (!nextHolochain.conductor) {
-    nextHolochain.conductor = {};
-    mutated = true;
-  }
+  // Only create conductor config if it's explicitly provided or if autoStart is enabled
+  const wantsConductor =
+    holochain.conductor?.autoStart === true || holochain.conductor !== undefined;
 
-  if (nextHolochain.conductor.adminPort === undefined) {
-    nextHolochain.conductor.adminPort = 4444;
-    mutated = true;
-  }
+  if (wantsConductor) {
+    const conductor = nextHolochain.conductor ? { ...nextHolochain.conductor } : {};
+    let conductorMutated = !nextHolochain.conductor;
 
-  if (nextHolochain.conductor.appPort === undefined) {
-    nextHolochain.conductor.appPort = 4445;
-    mutated = true;
-  }
+    if (conductor.adminPort === undefined) {
+      conductor.adminPort = 4444;
+      conductorMutated = true;
+    }
 
-  if (nextHolochain.conductor.autoStart === undefined) {
-    nextHolochain.conductor.autoStart = true;
-    mutated = true;
+    if (conductor.appPort === undefined) {
+      conductor.appPort = 4445;
+      conductorMutated = true;
+    }
+
+    if (conductor.autoStart === undefined) {
+      conductor.autoStart = true;
+      conductorMutated = true;
+    }
+
+    if (conductorMutated) {
+      nextHolochain.conductor = conductor;
+      mutated = true;
+    }
   }
 
   if (holochain.mode === "hybrid" || holochain.mode === "full-p2p") {
