@@ -171,7 +171,7 @@ function isLaneIdle(state: LaneState): boolean {
 export function removeLane(lane: string): boolean {
   const cleaned = lane.trim() || CommandLane.Main;
   // Never remove the main lane - it should always exist
-  if (cleaned === CommandLane.Main) {
+  if (cleaned === (CommandLane.Main as string)) {
     return false;
   }
   const state = lanes.get(cleaned);
@@ -204,7 +204,7 @@ export function clearCommandLane(lane: string = CommandLane.Main, removeWhenIdle
   const removed = state.queue.length;
   state.queue.length = 0;
   // Auto-remove the lane entry if it's now idle and not the main lane
-  if (removeWhenIdle && isLaneIdle(state) && cleaned !== CommandLane.Main) {
+  if (removeWhenIdle && isLaneIdle(state) && cleaned !== (CommandLane.Main as string)) {
     lanes.delete(cleaned);
     diag.debug(`clearCommandLane: lane=${cleaned} removed (idle after clear)`);
   }
@@ -220,7 +220,7 @@ export function pruneIdleLanes(): number {
   let pruned = 0;
   for (const [lane, state] of lanes.entries()) {
     // Never remove the main lane
-    if (lane === CommandLane.Main) {
+    if (lane === (CommandLane.Main as string)) {
       continue;
     }
     if (isLaneIdle(state)) {
