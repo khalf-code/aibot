@@ -199,7 +199,9 @@ export async function runPreparedReply(
     ((baseBodyTrimmedRaw.length === 0 && rawBodyTrimmed.length > 0) || isBareNewOrReset);
   const baseBodyFinal = isBareSessionReset ? BARE_SESSION_RESET_PROMPT : baseBody;
   const baseBodyTrimmed = baseBodyFinal.trim();
-  const hasInboundMedia = !!buildInboundMediaNote(ctx);
+  const hasInboundMedia =
+    !!buildInboundMediaNote(ctx) ||
+    (Array.isArray(params.opts?.images) && params.opts!.images.length > 0);
   if (!baseBodyTrimmed && !hasInboundMedia) {
     await typing.onReplyStart();
     logVerbose("Inbound body empty after normalization; skipping agent run");
