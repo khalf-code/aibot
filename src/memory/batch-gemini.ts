@@ -37,6 +37,14 @@ const GEMINI_BATCH_MAX_REQUESTS = 50000;
 const GEMINI_UPLOAD_TIMEOUT_MS = 120_000; // 2min for large file uploads
 const GEMINI_API_TIMEOUT_MS = 30_000; // 30s for API calls
 const GEMINI_DOWNLOAD_TIMEOUT_MS = 60_000; // 1min for downloads
+
+/** Check if error is a timeout from AbortSignal.timeout() (works for both Error and DOMException) */
+function isTimeoutError(err: unknown): boolean {
+  return (
+    typeof err === "object" && err !== null && (err as { name?: string }).name === "TimeoutError"
+  );
+}
+
 const debugEmbeddings = isTruthyEnvValue(process.env.OPENCLAW_DEBUG_MEMORY_EMBEDDINGS);
 const log = createSubsystemLogger("memory/embeddings");
 
@@ -158,7 +166,7 @@ async function submitGeminiBatch(params: {
       throw new Error("gemini batch file upload failed: missing file id");
     }
   } catch (err) {
-    if (err instanceof Error && err.name === "TimeoutError") {
+    if (isTimeoutError(err)) {
       throw new Error(`Gemini batch upload timed out after ${GEMINI_UPLOAD_TIMEOUT_MS}ms`, {
         cause: err,
       });
@@ -198,7 +206,7 @@ async function submitGeminiBatch(params: {
     }
     throw new Error(`gemini batch create failed: ${batchRes.status} ${text}`);
   } catch (err) {
-    if (err instanceof Error && err.name === "TimeoutError") {
+    if (isTimeoutError(err)) {
       throw new Error(`Gemini batch create timed out after ${GEMINI_API_TIMEOUT_MS}ms`, {
         cause: err,
       });
@@ -228,7 +236,7 @@ async function fetchGeminiBatchStatus(params: {
     }
     return (await res.json()) as GeminiBatchStatus;
   } catch (err) {
-    if (err instanceof Error && err.name === "TimeoutError") {
+    if (isTimeoutError(err)) {
       throw new Error(`Gemini batch status poll timed out after ${GEMINI_API_TIMEOUT_MS}ms`, {
         cause: err,
       });
@@ -256,7 +264,7 @@ async function fetchGeminiFileContent(params: {
     }
     return await res.text();
   } catch (err) {
-    if (err instanceof Error && err.name === "TimeoutError") {
+    if (isTimeoutError(err)) {
       throw new Error(`Gemini batch download timed out after ${GEMINI_DOWNLOAD_TIMEOUT_MS}ms`, {
         cause: err,
       });
