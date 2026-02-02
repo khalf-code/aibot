@@ -1,14 +1,11 @@
 /**
  * Minimal tool compatibility filter for provider switching.
- * Only filters messages when specific tool compatibility errors occur.
+ * Filters orphaned tool results that lack matching tool calls in the transcript,
+ * which can cause errors with strict providers during provider switching.
  */
 
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 
-/**
- * Simple filter to remove orphaned tool results when switching providers.
- * Reuses OpenClaw's existing tool format handling logic.
- */
 /**
  * Extract tool calls from assistant message using OpenClaw's existing logic.
  * Based on extractToolCallsFromAssistant from session-transcript-repair.ts

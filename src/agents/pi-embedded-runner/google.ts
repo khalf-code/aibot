@@ -338,16 +338,7 @@ export async function sanitizeSessionHistory(params: {
       modelId: params.modelId,
     });
 
-  const { filtered: compatibleMessages, removedCount } = filterOrphanedToolResults(params.messages);
-  
-  if (removedCount > 0) {
-    log.info(
-      `Filtered ${removedCount} orphaned tool results for provider compatibility ` +
-      `(${params.provider}/${params.modelId})`
-    );
-  }
-
-  const sanitizedImages = await sanitizeSessionMessagesImages(compatibleMessages, "session:history", {
+  const sanitizedImages = await sanitizeSessionMessagesImages(params.messages, "session:history", {
     sanitizeMode: policy.sanitizeMode,
     sanitizeToolCallIds: policy.sanitizeToolCallIds,
     toolCallIdMode: policy.toolCallIdMode,
@@ -357,9 +348,19 @@ export async function sanitizeSessionHistory(params: {
   const sanitizedThinking = policy.normalizeAntigravityThinkingBlocks
     ? sanitizeAntigravityThinkingBlocks(sanitizedImages)
     : sanitizedImages;
+  // Run tool-use pairing repair BEFORE orphan filtering to preserve repairable context
   const repairedTools = policy.repairToolUseResultPairing
     ? sanitizeToolUseResultPairing(sanitizedThinking)
     : sanitizedThinking;
+  // Filter orphaned tool results after repair step has had a chance to fix pairing issues
+  const { filtered: compatibleMessages, removedCount } = filterOrphanedToolResults(repairedTools);
+
+  if (removedCount > 0) {
+    log.info(
+      `Filtered ${removedCount} orphaned tool results for provider compatibility ` +
+        `(${params.provider}/${params.modelId})`,
+    );
+  }
 
   const isOpenAIResponsesApi =
     params.modelApi === "openai-responses" || params.modelApi === "openai-codex-responses";
@@ -375,8 +376,8 @@ export async function sanitizeSessionHistory(params: {
     : false;
   const sanitizedOpenAI =
     isOpenAIResponsesApi && modelChanged
-      ? downgradeOpenAIReasoningBlocks(repairedTools)
-      : repairedTools;
+      ? downgradeOpenAIReasoningBlocks(compatibleMessages)
+      : compatibleMessages;
 
   if (hasSnapshot && (!priorSnapshot || modelChanged)) {
     appendModelSnapshot(params.sessionManager, {
