@@ -457,66 +457,156 @@ const tokenOptimizerPlugin = {
       );
     });
 
-    // Register agent_end hook to inject tier badge into assistant messages
-    // This hook runs after the agent completes and we can modify the message list
+    // Store classifications by timestamp for message association
+    const messageClassifications: Record<string, any> = {};
+
+    // Register agent_end hook to associate classification with the last assistant message
     api.on("agent_end", async (event: any, ctx: any) => {
       const lastClassification = (globalThis as any)
         .tokenOptimizerLastClassification;
-      if (!lastClassification) {
-        return;
-      }
+      if (!lastClassification) return;
 
+      // Find the last assistant message and store classification by its timestamp
       const messages = event?.messages;
-      if (!messages || !Array.isArray(messages)) {
-        return;
-      }
+      if (!messages || !Array.isArray(messages)) return;
 
-      // Find the last assistant message
       for (let i = messages.length - 1; i >= 0; i--) {
         const msg = messages[i];
-        if (msg?.role === "assistant") {
-          const tierColors: Record<string, string> = {
-            TRIVIAL: "#10b981", // Green
-            LOW: "#3b82f6", // Blue
-            MEDIUM: "#f59e0b", // Orange
-            HIGH: "#ef4444", // Red
-            CRITICAL: "#dc2626", // Dark Red
-          };
+        if (msg?.role === "assistant" && msg?.timestamp) {
+          // Store classification keyed by message timestamp
+          messageClassifications[msg.timestamp] = lastClassification;
+          api.logger.info(
+            `[Token Optimizer] Stored classification for message at ${msg.timestamp}`,
+          );
+          break;
+        }
+      }
+    });
 
-          const tierColor =
-            tierColors[lastClassification.effectiveTier] || "#6b7280";
-          const modelName =
-            lastClassification.metadata?.recommendedModel?.split("/").pop() ||
-            "Unknown";
+    // Intercept chat.history by creating a proxy endpoint
+    // The Control UI will call this instead of the standard chat.history
+    api.registerHttpRoute?.({
+      method: "POST",
+      path: "/token-optimizer/chat-history",
+      handler: async (req: any, res: any) => {
+        try {
+          // Parse body if needed
+          let body = req.body;
+          if (!body && req.on) {
+            // Need to read body manually
+            const chunks: Buffer[] = [];
+            for await (const chunk of req) {
+              chunks.push(chunk);
+            }
+            const rawBody = Buffer.concat(chunks).toString();
+            body = rawBody ? JSON.parse(rawBody) : {};
+          }
 
-          // Create HTML badge for Control UI chat
-          const badge = `
+          const sessionKey = body?.sessionKey;
 
-<div style="margin-top: 12px; padding: 8px 12px; background: ${tierColor}15; border-left: 3px solid ${tierColor}; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px; font-family: system-ui, -apple-system, sans-serif;">
-  <span style="width: 10px; height: 10px; background: ${tierColor}; border-radius: 50%; display: inline-block;"></span>
-  <span style="color: ${tierColor}; font-weight: 600; font-size: 12px; text-transform: uppercase;">${lastClassification.effectiveTier}</span>
-  <span style="color: #64748b; font-size: 11px;">|</span>
-  <span style="color: #475569; font-size: 11px; font-family: monospace;">${modelName}</span>
-</div>`;
+          if (!sessionKey) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: "sessionKey required" }));
+            return;
+          }
 
-          // Modify the message content directly
-          if (typeof msg.content === "string") {
-            msg.content = msg.content + badge;
-          } else if (Array.isArray(msg.content)) {
-            const textContent = msg.content.find(
-              (c: any) => c?.type === "text",
+          // Get messages from the JSONL file
+          // Read from session storage directly
+          const fs = require("fs");
+          const path = require("path");
+          const os = require("os");
+
+          // First get sessionId from sessions.json
+          const sessionsFile = path.join(
+            os.homedir(),
+            ".openclaw",
+            "agents",
+            "main",
+            "sessions",
+            "sessions.json",
+          );
+
+          let messages: any[] = [];
+          let sessionId: string | null = null;
+
+          if (fs.existsSync(sessionsFile)) {
+            const sessionsData = JSON.parse(
+              fs.readFileSync(sessionsFile, "utf8"),
             );
-            if (textContent && textContent.text) {
-              textContent.text = textContent.text + badge;
+            const session = sessionsData[sessionKey];
+            if (session) {
+              sessionId = session.sessionId;
             }
           }
 
-          api.logger.info(
-            `[Token Optimizer] Injected ${lastClassification.effectiveTier} badge into assistant message`,
+          // Now read messages from the JSONL file
+          if (sessionId) {
+            const jsonlFile = path.join(
+              os.homedir(),
+              ".openclaw",
+              "agents",
+              "main",
+              "sessions",
+              `${sessionId}.jsonl`,
+            );
+
+            if (fs.existsSync(jsonlFile)) {
+              const content = fs.readFileSync(jsonlFile, "utf8");
+              // JSONL format: each line is a JSON object
+              messages = content
+                .split("\n")
+                .filter((line: string) => line.trim())
+                .map((line: string) => JSON.parse(line));
+            }
+          }
+
+          // Inject badges into assistant messages
+          for (const msg of messages) {
+            if (
+              msg.role === "assistant" &&
+              msg.timestamp &&
+              messageClassifications[msg.timestamp]
+            ) {
+              const classification = messageClassifications[msg.timestamp];
+              const tierColors: Record<string, string> = {
+                TRIVIAL: "#10b981",
+                LOW: "#3b82f6",
+                MEDIUM: "#f59e0b",
+                HIGH: "#ef4444",
+                CRITICAL: "#dc2626",
+              };
+              const tierColor =
+                tierColors[classification.effectiveTier] || "#6b7280";
+              const modelName =
+                classification.metadata?.recommendedModel?.split("/").pop() ||
+                "Unknown";
+
+              const badge = `<div style="margin-top:8px;padding:6px 10px;background:${tierColor}15;border-left:3px solid ${tierColor};border-radius:6px;display:inline-flex;align-items:center;gap:8px;font-family:system-ui,sans-serif;font-size:12px"><span style="width:10px;height:10px;background:${tierColor};border-radius:50%"></span><span style="color:${tierColor};font-weight:600;text-transform:uppercase">${classification.effectiveTier}</span><span style="color:#64748b">|</span><span style="color:#475569;font-family:monospace">${modelName}</span></div>`;
+
+              if (typeof msg.content === "string") {
+                msg.content = msg.content + badge;
+              } else if (Array.isArray(msg.content)) {
+                const textContent = msg.content.find(
+                  (c: any) => c?.type === "text",
+                );
+                if (textContent?.text) textContent.text += badge;
+              }
+            }
+          }
+
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              sessionKey,
+              messages,
+              thinkingLevel: "medium",
+            }),
           );
-          break; // Only modify the last assistant message
+        } catch (err: any) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message }));
         }
-      }
+      },
     });
 
     // Register a gateway method to get classification info
