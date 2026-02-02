@@ -404,10 +404,9 @@ export async function fetchFirecrawlContent(params: {
   };
 
   if (!res.ok || payload?.success === false) {
-    const detail = payload?.error ?? "";
-    throw new Error(
-      `Firecrawl fetch failed (${res.status}): ${wrapWebContent(detail || res.statusText, "web_fetch")}`.trim(),
-    );
+    const error = new Error(`Firecrawl fetch failed (${res.status})`);
+    (error as unknown as Record<string, unknown>)._debugDetail = payload?.error || res.statusText;
+    throw error;
   }
 
   const data = payload?.data ?? {};
@@ -561,7 +560,9 @@ async function runWebFetch(params: {
         maxChars: DEFAULT_ERROR_MAX_CHARS,
       });
       const wrappedDetail = wrapWebFetchContent(detail || res.statusText, DEFAULT_ERROR_MAX_CHARS);
-      throw new Error(`Web fetch failed (${res.status}): ${wrappedDetail.text}`);
+      const error = new Error(`Web fetch failed (${res.status})`);
+      (error as unknown as Record<string, unknown>)._debugDetail = wrappedDetail.text;
+      throw error;
     }
 
     const contentType = res.headers.get("content-type") ?? "application/octet-stream";

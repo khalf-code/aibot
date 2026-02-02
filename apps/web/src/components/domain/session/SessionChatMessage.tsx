@@ -19,6 +19,29 @@ export interface SessionChatMessageProps {
   className?: string;
 }
 
+/**
+ * Filter out tool output from message content.
+ * Tool outputs should ONLY appear in the tool details section, not in the main message.
+ */
+function filterToolOutputFromContent(content: string): string {
+  // If the content looks like raw tool output (e.g., ls output, command output),
+  // return empty string so it doesn't appear in the message bubble
+  const toolOutputPatterns = [
+    /^total \d+\s*\ndrwxr-xr-x/m,     // ls -la output
+    /^drwxr-xr-x[\s\S]*?staff/m,     // File listing with permissions
+    /^-rw-r--r--[\s\S]*?staff/m,     // File listing
+  ];
+
+  // Check if the entire content is tool output
+  const isOnlyToolOutput = toolOutputPatterns.some(pattern => pattern.test(content));
+  if (isOnlyToolOutput) {
+    return "";
+  }
+
+  // Otherwise return the content as-is
+  return content;
+}
+
 export function SessionChatMessage({ message, className }: SessionChatMessageProps) {
   const [expandedTools, setExpandedTools] = React.useState<Set<string>>(new Set());
 
@@ -41,6 +64,9 @@ export function SessionChatMessage({ message, className }: SessionChatMessagePro
         minute: "2-digit",
       })
     : "";
+
+  // Filter out tool output from assistant messages
+  const displayContent = isUser ? message.content : filterToolOutputFromContent(message.content);
 
   return (
     <div
@@ -96,18 +122,20 @@ export function SessionChatMessage({ message, className }: SessionChatMessagePro
             )}
           </div>
 
-          {/* Content */}
-          <div
-            className={cn(
-              "text-sm leading-relaxed whitespace-pre-wrap",
-              isUser ? "text-primary-foreground" : "text-foreground"
-            )}
-          >
-            {message.content}
-            {message.isStreaming && (
-              <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-current" />
-            )}
-          </div>
+          {/* Content - only show if there's actual text content (not just tool output) */}
+          {displayContent && (
+            <div
+              className={cn(
+                "text-sm leading-relaxed whitespace-pre-wrap",
+                isUser ? "text-primary-foreground" : "text-foreground"
+              )}
+            >
+              {displayContent}
+              {message.isStreaming && (
+                <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-current" />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tool Calls */}
@@ -142,6 +170,59 @@ interface ToolCallCardProps {
 }
 
 function ToolCallCard({ tool, isExpanded, onToggle }: ToolCallCardProps) {
+  /**
+   * Strip security wrappers from external content.
+   * These wrappers are meant for LLM context only, not user display.
+   */
+  const stripSecurityWrappers = (content: string): string => {
+    let cleaned = content;
+
+    // Remove security wrapper boundaries
+    cleaned = cleaned.replace(/<<<EXTERNAL_UNTRUSTED_CONTENT>>>/g, '');
+    cleaned = cleaned.replace(/<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>/g, '');
+
+    // Remove security warning block (multi-line warning about untrusted content)
+    const warningPattern = /SECURITY NOTICE:[\s\S]*?(?=Source:|$)/;
+    cleaned = cleaned.replace(warningPattern, '');
+
+    // Remove metadata lines that are part of the wrapper
+    cleaned = cleaned.replace(/^Source: (Email|Webhook|API|Web Search|Web Fetch|External)\s*\n/gm, '');
+    cleaned = cleaned.replace(/^From: .*\n/gm, '');
+    cleaned = cleaned.replace(/^Subject: .*\n/gm, '');
+    cleaned = cleaned.replace(/^---\s*\n/gm, '');
+
+    return cleaned.trim();
+  };
+
+  const stripWrappersRecursively = (value: string): string => {
+    // Try to parse as JSON first
+    try {
+      const parsed = JSON.parse(value);
+      const cleaned = stripWrappersFromValue(parsed);
+      return JSON.stringify(cleaned, null, 2);
+    } catch {
+      // Not JSON, just strip wrappers from the string
+      return stripSecurityWrappers(value);
+    }
+  };
+
+  const stripWrappersFromValue = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      return stripSecurityWrappers(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map(stripWrappersFromValue);
+    }
+    if (value && typeof value === 'object') {
+      const result: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(value)) {
+        result[key] = stripWrappersFromValue(val);
+      }
+      return result;
+    }
+    return value;
+  };
+
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -238,13 +319,13 @@ function ToolCallCard({ tool, isExpanded, onToggle }: ToolCallCardProps) {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={() => handleCopy(tool.output!)}
+                  onClick={() => handleCopy(stripWrappersRecursively(tool.output!))}
                 >
                   <Copy className="h-3 w-3" />
                 </Button>
               </div>
               <pre className="rounded-lg bg-background p-2 text-xs overflow-x-auto max-h-32 scrollbar-thin">
-                {tool.output}
+                {stripWrappersRecursively(tool.output)}
               </pre>
             </div>
           )}

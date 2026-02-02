@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveAgentDir, resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
+import { ensureAuthProfileStore } from "../agents/auth-profiles.js";
+import { isProviderConfigured } from "../agents/model-auth.js";
 import { loadModelCatalog } from "../agents/model-catalog.js";
 import { runEmbeddedPiAgent } from "../agents/pi-embedded.js";
 import { loadConfig } from "../config/config.js";
@@ -185,11 +187,22 @@ function scoreMicroModelId(id: string): number {
 
 async function resolveMicroModelRef(
   cfg: OpenClawConfig,
+  agentId: string,
 ): Promise<{ provider: string; model: string } | null> {
   try {
     const catalog = await loadModelCatalog({ config: cfg });
     if (catalog.length === 0) return null;
-    const best = catalog
+
+    // Filter to only providers with available auth
+    const agentDir = resolveAgentDir(cfg, agentId);
+    const store = ensureAuthProfileStore(agentDir);
+    const availableModels = catalog.filter((m) =>
+      isProviderConfigured({ provider: m.provider, cfg, store, agentDir }),
+    );
+
+    if (availableModels.length === 0) return null;
+
+    const best = availableModels
       .map((m) => ({ m, score: scoreMicroModelId(m.id) }))
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)[0]?.m;
@@ -205,7 +218,7 @@ async function generateDescriptionViaLLM(params: {
   agentId: string;
   conversation: string;
 }): Promise<{ description: string; provider: string; model: string } | null> {
-  const modelRef = (await resolveMicroModelRef(params.cfg)) ?? null;
+  const modelRef = (await resolveMicroModelRef(params.cfg, params.agentId)) ?? null;
   if (!modelRef) return null;
 
   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "clawdbrain-desc-"));

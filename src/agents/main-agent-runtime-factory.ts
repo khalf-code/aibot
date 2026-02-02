@@ -4,14 +4,14 @@ import type { SandboxContext } from "./sandbox.js";
 import type { AnyAgentTool } from "./tools/common.js";
 import { resolveMcpToolsForAgent } from "../mcp/mcp-tools.js";
 import { resolveSessionAgentId } from "./agent-scope.js";
-import { DEFAULT_AGENT_ID, normalizeAgentId } from "../routing/session-key.js";
+import { DEFAULT_AGENT_ID, isSubagentSessionKey, normalizeAgentId } from "../routing/session-key.js";
 import { resolveAgentConfig } from "./agent-scope.js";
 import { createSdkAgentRuntime } from "./claude-agent-sdk/sdk-agent-runtime.js";
 import { resolveThinkingBudget } from "./claude-agent-sdk/sdk-runner.config.js";
 import { createOpenClawCodingTools } from "./pi-tools.js";
 import { resolveSandboxContext } from "./sandbox.js";
 
-export type MainAgentRuntimeKind = "pi" | "ccsdk";
+export type MainAgentRuntimeKind = "pi" | "claude";
 
 export function resolveMainAgentRuntimeKind(config?: OpenClawConfig): MainAgentRuntimeKind {
   // mainRuntime overrides the global runtime for the main agent only.
@@ -19,7 +19,7 @@ export function resolveMainAgentRuntimeKind(config?: OpenClawConfig): MainAgentR
     config?.agents?.defaults?.mainRuntime ??
     config?.agents?.main?.runtime ??
     config?.agents?.defaults?.runtime;
-  return configured === "ccsdk" ? "ccsdk" : "pi";
+  return configured === "claude" ? "claude" : "pi";
 }
 
 /**
@@ -44,7 +44,7 @@ export function resolveAgentRuntimeKind(
   // 1. Try per-agent override
   const agentConfig = resolveAgentConfig(config, normalized);
   if (agentConfig?.runtime) {
-    return agentConfig.runtime === "ccsdk" ? "ccsdk" : "pi";
+    return agentConfig.runtime === "claude" ? "claude" : "pi";
   }
 
   // 2. For main agent, use mainRuntime logic
@@ -54,7 +54,53 @@ export function resolveAgentRuntimeKind(
 
   // 3. Use global default
   const globalRuntime = config.agents?.defaults?.runtime;
-  return globalRuntime === "ccsdk" ? "ccsdk" : "pi";
+  return globalRuntime === "claude" ? "claude" : "pi";
+}
+
+/**
+ * Resolve the runtime kind for a session, with proper subagent inheritance.
+ *
+ * For subagent sessions (e.g., `agent:main:subagent:UUID`), this function:
+ * 1. Checks for explicit subagent runtime config on the parent agent
+ * 2. Checks for global subagent runtime defaults
+ * 3. Falls back to the parent agent's runtime (inheritance)
+ *
+ * This ensures subagents inherit their parent's runtime by default, which is
+ * important when using Claude Code SDK (claude runtime) - subagents should also use
+ * the claude runtime rather than falling back to Pi (which requires separate API keys).
+ */
+export function resolveSessionRuntimeKind(
+  config: OpenClawConfig | undefined,
+  agentId: string,
+  sessionKey?: string,
+): MainAgentRuntimeKind {
+  if (!config) {
+    return "pi";
+  }
+
+  const normalized = normalizeAgentId(agentId);
+  const isSubagent = sessionKey ? isSubagentSessionKey(sessionKey) : false;
+
+  // For subagents, check for explicit subagent runtime config first
+  if (isSubagent) {
+    // 1. Check per-agent subagent runtime config
+    const agentConfig = resolveAgentConfig(config, normalized);
+    const subagentRuntime = agentConfig?.subagents?.runtime;
+    if (subagentRuntime && subagentRuntime !== "inherit") {
+      return subagentRuntime === "claude" ? "claude" : "pi";
+    }
+
+    // 2. Check global subagent runtime defaults
+    const globalSubagentRuntime = config.agents?.defaults?.subagents?.runtime;
+    if (globalSubagentRuntime && globalSubagentRuntime !== "inherit") {
+      return globalSubagentRuntime === "claude" ? "claude" : "pi";
+    }
+
+    // 3. Inherit from parent agent's runtime (fall through to regular resolution)
+  }
+
+  // Regular agent runtime resolution (also used as inheritance source for subagents)
+  return resolveAgentRuntimeKind(config, agentId);
 }
 
 export type CreateSdkMainAgentRuntimeParams = {

@@ -29,7 +29,7 @@ type ResolvedAgentConfig = {
   tools?: AgentEntry["tools"];
   mcpServers?: AgentEntry["mcpServers"];
   runtime?: any; // TODO: Add proper runtime type
-  ccsdkProvider?: any; // TODO: Add proper ccsdkProvider type
+  claudeSdkOptions?: any; // TODO: Add proper ClaudeSdkOptions type
 };
 
 let defaultAgentWarned = false;
@@ -125,7 +125,7 @@ export function resolveAgentConfig(
     sandbox: entry.sandbox,
     tools: entry.tools,
     runtime: entry.runtime,
-    ccsdkProvider: entry.ccsdkProvider,
+    claudeSdkOptions: entry.claudeSdkOptions,
   };
 }
 

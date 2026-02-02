@@ -14,9 +14,24 @@ Use `slack` to react, manage pins, send/edit/delete messages, and fetch member i
 
 - `channelId` and `messageId` (Slack message timestamp, e.g. `1712023032.1234`).
 - For reactions, an `emoji` (Unicode or `:name:`).
-- For message sends, a `to` target (`channel:<id>` or `user:<id>`) and `content`.
+- For message sends, a `to` target (`channel:<ID>` or `user:<ID>`) and `content`.
 
 Message context lines include `slack message id` and `channel` fields you can reuse directly.
+
+---
+
+### ⚠️ CRITICAL: Channel ID Format
+
+**Channel IDs MUST be UPPERCASE.** Lowercase IDs will fail with "Slack channels require a channel id".
+
+| ❌ WRONG | ✅ CORRECT |
+|----------|-----------|
+| `channel:c0aap72r7l5` | `channel:C0AAP72R7L5` |
+| `c0aap72r7l5` | `C0AAP72R7L5` |
+
+When extracting channel IDs from context (like `[channel: C0AAP72R7L5]`), use them **exactly as shown** — they're already uppercase.
+
+---
 
 ## Actions
 

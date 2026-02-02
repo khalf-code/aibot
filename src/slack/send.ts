@@ -1,4 +1,5 @@
 import { type FilesUploadV2Arguments, type WebClient } from "@slack/web-api";
+import type { OpenClawConfig } from "../config/config.js";
 import type { SlackTokenSource } from "./accounts.js";
 import {
   chunkMarkdownTextWithMode,
@@ -33,6 +34,7 @@ type SlackSendOpts = {
   mediaUrl?: string;
   client?: WebClient;
   threadTs?: string;
+  config?: OpenClawConfig;
 };
 
 export type SlackSendResult = {
@@ -133,7 +135,7 @@ export async function sendMessageSlack(
   if (!trimmedMessage && !opts.mediaUrl) {
     throw new Error("Slack send requires text or media");
   }
-  const cfg = loadConfig();
+  const cfg = opts.config ?? loadConfig();
   const account = resolveSlackAccount({
     cfg,
     accountId: opts.accountId,

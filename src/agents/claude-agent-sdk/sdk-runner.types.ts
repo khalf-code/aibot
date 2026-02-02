@@ -40,6 +40,11 @@ export type SdkProviderConfig = {
   model?: string;
   /** Max turns before the SDK stops. */
   maxTurns?: number;
+  /**
+   * Beta features to enable.
+   * - 'context-1m-2025-08-07': Enable 1M token context window (Sonnet 4/4.5 only)
+   */
+  betas?: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -145,6 +150,15 @@ export type SdkRunnerParams = {
    * requiring client-side history serialization.
    */
   claudeSessionId?: string;
+
+  /**
+   * Beta features to enable for this run.
+   * - 'context-1m-2025-08-07': Enable 1M token context window (Sonnet 4/4.5 only)
+   *
+   * Note: 1M context is more expensive. Use task classification to decide when
+   * larger context is beneficial (e.g., large codebase analysis, long documents).
+   */
+  betas?: string[];
 };
 
 // ---------------------------------------------------------------------------

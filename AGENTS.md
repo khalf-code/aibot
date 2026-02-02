@@ -3,7 +3,36 @@
 - Repo: https://github.com/openclaw/openclaw
 - GitHub issues/comments/PR comments: use literal multiline strings or `-F - <<'EOF'` (or $'...') for real newlines; never embed "\\n".
 
+## ⚠️ WORKING DIRECTORY GUIDANCE ⚠️
+
+**For Skill development, Skill changes, or any non-code configuration changes:**
+- Always make changes in **`~/clawd/clawdbot`** (the main clawdbot repo)
+- Do NOT make these changes in the agent's base working directory (`~/.openclaw/` or similar)
+
+| Change Type | Correct Location |
+|-------------|------------------|
+| Skill files (`skills/*/SKILL.md`) | `~/clawd/clawdbot/skills/` |
+| Agent configuration | `~/clawd/clawdbot/` or `~/.openclaw/openclaw.json` |
+| Documentation updates | `~/clawd/clawdbot/docs/` |
+| Memory/notes files | `~/clawd/MEMORY.md` |
+
+---
+
 ## Project Structure & Module Organization
+
+### ⚠️ UI Directory WARNING ⚠️
+**DO NOT** work on or maintain `ui/*` — this is the **legacy upstream UI** that is effectively deprecated for our fork.
+
+**DO** work in `apps/web/*` — this is **our revamped UI** (React, TanStack, shadcn). All new UI features, fixes, and improvements go here.
+
+| Directory | Status | Action |
+|-----------|--------|--------|
+| `apps/web/` | ✅ **ACTIVE** — Our UI | Work here for all UI tasks |
+| `ui/` | ❌ **DEPRECATED** — Legacy upstream | Do NOT modify; ignore for our purposes |
+
+If a task mentions "UI work" or "control UI" or "web interface", it means `apps/web/`, never `ui/`.
+
+---
 
 - Source code: `src/` (CLI wiring in `src/cli`, commands in `src/commands`, web provider in `src/provider-web.ts`, infra in `src/infra`, media pipeline in `src/media`).
 - Tests: colocated `*.test.ts`.
@@ -145,7 +174,14 @@
 - Notary auth env vars (`APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_API_KEY_P8`) are expected in your environment (per internal release docs).
 - **Multi-agent safety:** do **not** create/apply/drop `git stash` entries unless explicitly requested (this includes `git pull --rebase --autostash`). Assume other agents may be working; keep unrelated WIP untouched and avoid cross-cutting state changes.
 - **Multi-agent safety:** when the user says "push", you may `git pull --rebase` to integrate latest changes (never discard other agents' work). When the user says "commit", scope to your changes only. When the user says "commit all", commit everything in grouped chunks.
-- **Multi-agent safety:** do **not** create/remove/modify `git worktree` checkouts (or edit `.worktrees/*`) unless explicitly requested.
+- **Git Worktree Workflow (REQUIRED for features):** When starting new feature work, you MUST create a worktree:
+  ```bash
+  cd /Users/dgarson/clawd/clawdbot
+  git worktree add /private/tmp/clawdbot-<branch-slug> -b <branch-name>
+  cd /private/tmp/clawdbot-<branch-slug>
+  # Do ALL work here, NOT in the main repo
+  ```
+  See `/Users/dgarson/clawd/WORKTREE-WORKFLOW.md` for full workflow. Record worktree in `/Users/dgarson/clawd/MEMORY.md` "Active Worktrees" section.
 - **Multi-agent safety:** do **not** switch branches / check out a different branch unless explicitly requested.
 - **Multi-agent safety:** running multiple agents is OK as long as each agent has its own session.
 - **Multi-agent safety:** when you see unrecognized files, keep going; focus on your changes and commit only those.

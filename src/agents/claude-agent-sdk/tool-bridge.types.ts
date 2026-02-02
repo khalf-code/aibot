@@ -85,6 +85,18 @@ export type SdkRunnerQueryOptions = {
   hooks?: Record<string, unknown>;
   /** Path to the Claude Code executable to run. */
   pathToClaudeCodeExecutable?: string;
+  /**
+   * Enable session persistence to disk (default: true).
+   * Required for auto-compaction to work properly — when false,
+   * sessions are not saved to ~/.claude/projects/ and cannot be
+   * compacted or resumed.
+   */
+  persistSession?: boolean;
+  /**
+   * Enable beta features. Currently supported:
+   * - 'context-1m-2025-08-07': Enable 1M token context window (Sonnet 4/4.5 only)
+   */
+  betas?: string[];
 };
 
 // ---------------------------------------------------------------------------

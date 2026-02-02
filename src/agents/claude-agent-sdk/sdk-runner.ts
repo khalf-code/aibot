@@ -14,16 +14,16 @@
  * - Supports env-based provider switching (Anthropic, z.AI, etc.)
  */
 
-import { logDebug, logError, logInfo, logWarn } from "../../logger.js";
-import { bridgeClawdbrainToolsToMcpServer } from "./tool-bridge.js";
+import type { SdkRunnerParams, SdkRunnerResult } from "./sdk-runner.types.js";
 import type { SdkRunnerQueryOptions } from "./tool-bridge.types.js";
-import { extractTextFromClaudeAgentSdkEvent } from "./extract.js";
-import { loadClaudeAgentSdk } from "./sdk.js";
-import { isSdkTerminalToolEventType } from "./sdk-event-checks.js";
-import { buildClawdbrainSdkHooks } from "./sdk-hooks.js";
+import { logDebug, logError, logInfo, logWarn } from "../../logger.js";
 import { normalizeToolName } from "../tool-policy.js";
 import { normalizeUsage, type NormalizedUsage, type UsageLike } from "../usage.js";
-import type { SdkRunnerParams, SdkRunnerResult } from "./sdk-runner.types.js";
+import { extractTextFromClaudeAgentSdkEvent } from "./extract.js";
+import { isSdkTerminalToolEventType } from "./sdk-event-checks.js";
+import { buildClawdbrainSdkHooks } from "./sdk-hooks.js";
+import { loadClaudeAgentSdk } from "./sdk.js";
+import { bridgeClawdbrainToolsToMcpServer } from "./tool-bridge.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -121,6 +121,7 @@ function applySdkOptionsOverrides(
   if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) return options;
 
   // Clawdbrain must keep these consistent with its own tool plumbing + prompt building.
+  // Also protect session-related keys to ensure auto-compaction works correctly.
   const protectedKeys = new Set([
     "cwd",
     "mcpServers",
@@ -131,6 +132,8 @@ function applySdkOptionsOverrides(
     "systemPrompt",
     "model",
     "hooks",
+    "persistSession", // Required for auto-compaction (must stay true)
+    "resume", // Managed by claudeSessionId param
   ]);
 
   const record = overrides as Record<string, unknown>;
@@ -202,7 +205,7 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
     }
   };
 
-  emitEvent("lifecycle", { phase: "start", startedAt, runtime: "ccsdk" });
+  emitEvent("lifecycle", { phase: "start", startedAt, runtime: "claude" });
   emitEvent("sdk", { type: "sdk_runner_start", runId: params.runId });
 
   // -------------------------------------------------------------------------
@@ -211,15 +214,21 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
 
   let sdk;
   try {
+    logDebug("[sdk-runner] Loading Claude Agent SDK...");
     sdk = await loadClaudeAgentSdk();
+    logDebug("[sdk-runner] Claude Agent SDK loaded successfully");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
     logError(`[sdk-runner] Failed to load Claude Agent SDK: ${message}`);
+    if (stack) {
+      logDebug(`[sdk-runner] Stack trace:\n${stack}`);
+    }
     emitEvent("lifecycle", {
       phase: "error",
       startedAt,
       endedAt: Date.now(),
-      runtime: "ccsdk",
+      runtime: "claude",
       error: message,
     });
     return {
@@ -250,26 +259,37 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
 
   let bridgeResult;
   try {
+    logDebug(
+      `[sdk-runner] Bridging ${params.tools.length} tools to MCP server "${mcpServerName}"...`,
+    );
     bridgeResult = await bridgeClawdbrainToolsToMcpServer({
       name: mcpServerName,
       tools: params.tools,
       abortSignal: params.abortSignal,
     });
+    logDebug(`[sdk-runner] Tool bridge complete: ${bridgeResult.toolCount} tools registered`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
     logError(`[sdk-runner] Failed to bridge tools to MCP: ${message}`);
+    if (stack) {
+      logDebug(`[sdk-runner] Stack trace:\n${stack}`);
+    }
     emitEvent("lifecycle", {
       phase: "error",
       startedAt,
       endedAt: Date.now(),
-      runtime: "ccsdk",
+      runtime: "claude",
       error: message,
     });
     return {
       payloads: [
         {
           text:
-            "Failed to bridge Clawdbrain tools to the Claude Agent SDK.\n\n" + `Error: ${message}`,
+            "Failed to bridge Clawdbrain tools to the Claude Agent SDK.\n\n" +
+            `This usually means the MCP SDK (@modelcontextprotocol/sdk) is not installed ` +
+            `or is incompatible with the current Claude Agent SDK version.\n\n` +
+            `Error: ${message}`,
           isError: true,
         },
       ],
@@ -302,6 +322,10 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
   const sdkOptions: SdkRunnerQueryOptions = {
     cwd: params.workspaceDir,
     maxTurns: params.maxTurns ?? params.provider?.maxTurns ?? DEFAULT_MAX_TURNS,
+    // Ensure session persistence is enabled for auto-compaction to work.
+    // When persistSession is false, sessions are not saved to ~/.claude/projects/
+    // and cannot be compacted (the SDK loses the ability to manage context window).
+    persistSession: true,
   };
 
   // MCP server with bridged Clawdbrain tools.
@@ -376,6 +400,14 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
   // Model override from provider config.
   if (params.provider?.model) {
     sdkOptions.model = params.provider.model;
+  }
+
+  // Beta features (e.g., 1M context window for Sonnet 4/4.5).
+  // Priority: params.betas > provider.betas
+  const betas = params.betas ?? params.provider?.betas;
+  if (betas && betas.length > 0) {
+    sdkOptions.betas = betas;
+    logInfo(`[sdk-runner] Beta features enabled: ${betas.join(", ")}`);
   }
 
   // Hook callbacks (Claude Code hooks; richer tool + lifecycle signals).
@@ -497,6 +529,30 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
             );
           }
         }
+      }
+
+      // Handle compact_boundary events — SDK emits these after compaction completes.
+      // This allows us to emit a Pi Agent-compatible "compaction end" event.
+      if (isRecord(event) && event.type === "system" && event.subtype === "compact_boundary") {
+        const compactMeta = isRecord(event.compact_metadata) ? event.compact_metadata : undefined;
+        const trigger = typeof compactMeta?.trigger === "string" ? compactMeta.trigger : "auto";
+        const preTokens =
+          typeof compactMeta?.pre_tokens === "number" ? compactMeta.pre_tokens : undefined;
+
+        logInfo(
+          `[sdk-runner] Compaction completed: trigger=${trigger}` +
+            (preTokens !== undefined ? `, pre_tokens=${preTokens}` : ""),
+        );
+
+        // Emit compaction end event matching Pi Agent's format
+        // (stream: "compaction", data: { phase: "end", willRetry: false })
+        emitEvent("compaction", {
+          phase: "end",
+          trigger,
+          preTokens,
+          willRetry: false, // SDK doesn't expose retry info
+          source: "claude-agent-sdk",
+        });
       }
 
       const { kind } = classifyEvent(event);
@@ -659,7 +715,7 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
         phase: "error",
         startedAt,
         endedAt: Date.now(),
-        runtime: "ccsdk",
+        runtime: "claude",
         aborted: true,
         error: message,
       });
@@ -698,7 +754,7 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
         phase: "error",
         startedAt,
         endedAt: Date.now(),
-        runtime: "ccsdk",
+        runtime: "claude",
         error: message,
       });
       return {
@@ -745,7 +801,7 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
       phase: "error",
       startedAt,
       endedAt: Date.now(),
-      runtime: "ccsdk",
+      runtime: "claude",
       aborted,
       error: "No text output",
     });
@@ -801,7 +857,7 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
     phase: "end",
     startedAt,
     endedAt: Date.now(),
-    runtime: "ccsdk",
+    runtime: "claude",
     aborted,
     truncated,
     usage: accumulatedUsage,

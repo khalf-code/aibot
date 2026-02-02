@@ -20,8 +20,16 @@ export type AgentConfigEntry = {
   default?: boolean;
   name?: string;
   model?: AgentModelConfig;
-  runtime?: "pi" | "ccsdk";
-  ccsdkProvider?: "anthropic" | "zai" | "openrouter";
+  runtime?: "pi" | "claude";
+  claudeSdkOptions?: {
+    provider?: "anthropic" | "zai" | "openrouter";
+    models?: {
+      opus?: string;
+      sonnet?: string;
+      haiku?: string;
+      subagent?: string;
+    };
+  };
   identity?: AgentIdentityConfig;
   [key: string]: unknown;
 };
@@ -36,8 +44,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function normalizeModelRef(model?: AgentModelConfig): string | undefined {
-  if (!model) return undefined;
-  if (typeof model === "string") return model;
+  if (!model) {return undefined;}
+  if (typeof model === "string") {return model;}
   if (isPlainObject(model)) {
     const primary = model.primary;
     return typeof primary === "string" && primary.trim().length > 0 ? primary : undefined;
@@ -46,7 +54,7 @@ function normalizeModelRef(model?: AgentModelConfig): string | undefined {
 }
 
 function mergeModelConfig(existing: unknown, nextModel?: string): AgentModelConfig | undefined {
-  if (!nextModel) return (existing as AgentModelConfig | undefined) ?? undefined;
+  if (!nextModel) {return (existing as AgentModelConfig | undefined) ?? undefined;}
   if (isPlainObject(existing)) {
     return {
       ...(existing as Record<string, unknown>),
@@ -57,16 +65,16 @@ function mergeModelConfig(existing: unknown, nextModel?: string): AgentModelConf
 }
 
 export function getAgentsBlock(config?: unknown): AgentsConfigBlock | undefined {
-  if (!isPlainObject(config)) return undefined;
+  if (!isPlainObject(config)) {return undefined;}
   const agents = config.agents;
-  if (!isPlainObject(agents)) return undefined;
+  if (!isPlainObject(agents)) {return undefined;}
   return agents as AgentsConfigBlock;
 }
 
 export function getAgentsList(config?: unknown): AgentConfigEntry[] {
   const agents = getAgentsBlock(config);
   const list = agents?.list;
-  if (!Array.isArray(list)) return [];
+  if (!Array.isArray(list)) {return [];}
   return list.filter((entry): entry is AgentConfigEntry => {
     return isPlainObject(entry) && typeof entry.id === "string";
   });
@@ -81,7 +89,7 @@ export function mapAgentEntryToAgent(entry: AgentConfigEntry): Agent {
     role: "Assistant",
     model: modelRef,
     runtime: entry.runtime,
-    ccsdkProvider: entry.ccsdkProvider,
+    claudeSdkOptions: entry.claudeSdkOptions,
     avatar: entry.identity?.avatar,
     status: "offline",
     description: undefined,
@@ -95,7 +103,7 @@ export function buildAgentEntry(
   existing?: AgentConfigEntry
 ): AgentConfigEntry {
   const next: AgentConfigEntry = {
-    ...(existing ?? {}),
+    ...existing,
     id: update.id,
   };
 
@@ -111,18 +119,20 @@ export function buildAgentEntry(
     next.runtime = update.runtime;
   }
 
-  if (update.runtime === "pi") {
-    delete next.ccsdkProvider;
-  } else if (update.ccsdkProvider !== undefined) {
-    next.ccsdkProvider = update.ccsdkProvider;
+  if (update.runtime !== undefined) {
+    if (update.runtime === "pi") {
+      delete next.claudeSdkOptions;
+    } else if (update.claudeSdkOptions !== undefined) {
+      next.claudeSdkOptions = update.claudeSdkOptions;
+    }
   }
 
   if (update.avatar !== undefined || update.name !== undefined) {
     const identity: AgentIdentityConfig = {
       ...(isPlainObject(existing?.identity) ? existing?.identity : {}),
     };
-    if (update.name !== undefined) identity.name = update.name;
-    if (update.avatar !== undefined) identity.avatar = update.avatar;
+    if (update.name !== undefined) {identity.name = update.name;}
+    if (update.avatar !== undefined) {identity.avatar = update.avatar;}
     next.identity = identity;
   }
 
@@ -133,7 +143,7 @@ export function buildAgentsPatch(config: unknown, nextList: AgentConfigEntry[]) 
   const agents = getAgentsBlock(config);
   return {
     agents: {
-      ...(agents ?? {}),
+      ...agents,
       list: nextList,
     },
   };

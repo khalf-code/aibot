@@ -22,9 +22,14 @@ export { useAutoScroll } from "./use-auto-scroll";
 export { useKeyboardShortcuts, type KeyboardShortcut } from "./useKeyboardShortcuts";
 export {
   useGatewayConnection,
+  useGatewayUrl,
   type UseGatewayConnectionOptions,
   type UseGatewayConnectionResult,
 } from "./useGatewayConnection";
+export {
+  useGatewayStreamHandler,
+  type UseGatewayStreamHandlerOptions,
+} from "./useGatewayStreamHandler";
 export {
   useFieldValidation,
   useMultiFieldValidation,

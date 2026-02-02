@@ -167,6 +167,28 @@ export function buildClawdbrainSdkHooks(params: {
       return {};
     };
 
+  /**
+   * PreCompact hook handler — emits compaction start event compatible with Pi Agent.
+   * The SDK fires this hook before auto-compaction begins.
+   * Input shape: { hook_event_name: 'PreCompact', trigger: 'manual' | 'auto', custom_instructions: string | null }
+   */
+  const preCompactHook: SdkHookCallback = async (input, toolUseId) => {
+    emitHook("PreCompact", input, toolUseId);
+
+    const record = isRecord(input) ? input : undefined;
+    const trigger = typeof record?.trigger === "string" ? record.trigger : "auto";
+
+    // Emit compaction start event matching Pi Agent's format
+    // (stream: "compaction", data: { phase: "start" })
+    params.emitEvent("compaction", {
+      phase: "start",
+      trigger,
+      source: "claude-agent-sdk",
+    });
+
+    return {};
+  };
+
   return {
     PreToolUse: [{ hooks: [toolStartHook] }],
     PostToolUse: [{ hooks: [toolResultHook] }],
@@ -178,6 +200,6 @@ export function buildClawdbrainSdkHooks(params: {
     Stop: [{ hooks: [passthroughHook("Stop")] }],
     SubagentStart: [{ hooks: [passthroughHook("SubagentStart")] }],
     SubagentStop: [{ hooks: [passthroughHook("SubagentStop")] }],
-    PreCompact: [{ hooks: [passthroughHook("PreCompact")] }],
+    PreCompact: [{ hooks: [preCompactHook] }],
   };
 }

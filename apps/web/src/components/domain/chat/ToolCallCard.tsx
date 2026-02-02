@@ -58,8 +58,32 @@ export function ToolCallCard({
   const status = statusConfig[toolCall.status];
 
   const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
+    if (ms < 1000) {return `${ms}ms`;}
     return `${(ms / 1000).toFixed(2)}s`;
+  };
+
+  /**
+   * Strip security wrappers from external content.
+   * These wrappers are meant for LLM context only, not user display.
+   */
+  const stripSecurityWrappers = (content: string): string => {
+    let cleaned = content;
+
+    // Remove security wrapper boundaries
+    cleaned = cleaned.replace(/<<<EXTERNAL_UNTRUSTED_CONTENT>>>/g, '');
+    cleaned = cleaned.replace(/<<<END_EXTERNAL_UNTRUSTED_CONTENT>>>/g, '');
+
+    // Remove security warning block (multi-line warning about untrusted content)
+    const warningPattern = /SECURITY NOTICE:[\s\S]*?(?=Source:|$)/;
+    cleaned = cleaned.replace(warningPattern, '');
+
+    // Remove metadata lines that are part of the wrapper
+    cleaned = cleaned.replace(/^Source: (Email|Webhook|API|Web Search|Web Fetch|External)\s*\n/gm, '');
+    cleaned = cleaned.replace(/^From: .*\n/gm, '');
+    cleaned = cleaned.replace(/^Subject: .*\n/gm, '');
+    cleaned = cleaned.replace(/^---\s*\n/gm, '');
+
+    return cleaned.trim();
   };
 
   const formatJson = (value: unknown): string => {
@@ -68,6 +92,29 @@ export function ToolCallCard({
     } catch {
       return String(value);
     }
+  };
+
+  const stripWrappersFromValue = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      return stripSecurityWrappers(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map(stripWrappersFromValue);
+    }
+    if (value && typeof value === 'object') {
+      const result: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(value)) {
+        result[key] = stripWrappersFromValue(val);
+      }
+      return result;
+    }
+    return value;
+  };
+
+  const formatOutput = (value: unknown): string => {
+    // Strip security wrappers from the value structure first, then format
+    const cleaned = stripWrappersFromValue(value);
+    return formatJson(cleaned);
   };
 
   return (
@@ -143,7 +190,7 @@ export function ToolCallCard({
                     Output
                   </span>
                   <pre className="p-2 rounded-md bg-background/50 text-xs font-mono text-foreground overflow-x-auto max-h-40">
-                    {formatJson(toolCall.output)}
+                    {formatOutput(toolCall.output)}
                   </pre>
                 </div>
               )}

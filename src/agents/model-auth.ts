@@ -389,3 +389,54 @@ export function requireApiKey(auth: ResolvedProviderAuth, provider: string): str
   }
   throw new Error(`No API key resolved for provider "${provider}" (auth mode: ${auth.mode}).`);
 }
+
+/**
+ * Check if a provider has any available authentication configured.
+ * Returns true if ANY of these conditions are met:
+ * - Provider has auth profiles in the auth store
+ * - Provider has environment variable credentials
+ * - Provider has custom API key in models.json
+ * - Provider uses aws-sdk auth mode
+ */
+export function isProviderConfigured(params: {
+  provider: string;
+  cfg?: OpenClawConfig;
+  store?: AuthProfileStore;
+  agentDir?: string;
+}): boolean {
+  const { provider, cfg, store: providedStore, agentDir } = params;
+  const normalized = normalizeProviderId(provider);
+
+  // Check for aws-sdk auth mode override
+  const authOverride = resolveProviderAuthOverride(cfg, provider);
+  if (authOverride === "aws-sdk") {
+    return true;
+  }
+
+  // Check for special amazon-bedrock case (uses aws-sdk by default)
+  // Only report as configured if AWS credentials are actually available
+  if (authOverride === undefined && normalized === "amazon-bedrock") {
+    return resolveAwsSdkEnvVarName() !== undefined;
+  }
+
+  // Check for auth profiles
+  const store = providedStore ?? ensureAuthProfileStore(agentDir);
+  const profiles = listProfilesForProvider(store, provider);
+  if (profiles.length > 0) {
+    return true;
+  }
+
+  // Check for environment variable credentials
+  const envKey = resolveEnvApiKey(provider);
+  if (envKey?.apiKey) {
+    return true;
+  }
+
+  // Check for custom provider API key in models.json
+  const customKey = getCustomProviderApiKey(cfg, provider);
+  if (customKey) {
+    return true;
+  }
+
+  return false;
+}

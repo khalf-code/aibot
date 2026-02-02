@@ -7,8 +7,16 @@ export interface Agent {
   name: string;
   role: string;
   model?: string;
-  runtime?: "pi" | "ccsdk";
-  ccsdkProvider?: "anthropic" | "zai" | "openrouter";
+  runtime?: "pi" | "claude";
+  claudeSdkOptions?: {
+    provider?: "anthropic" | "zai" | "openrouter";
+    models?: {
+      opus?: string;
+      sonnet?: string;
+      haiku?: string;
+      subagent?: string;
+    };
+  };
   avatar?: string;
   status: AgentStatus;
   description?: string;
@@ -62,7 +70,7 @@ export const useAgentStore = create<AgentStore>()((set) => ({
       agents.forEach((agent) => {
         const existing = map.get(agent.id);
         map.set(agent.id, {
-          ...(existing ?? {}),
+          ...existing,
           ...agent,
           currentTask: agent.currentTask ?? existing?.currentTask,
           pendingApprovals: agent.pendingApprovals ?? existing?.pendingApprovals,

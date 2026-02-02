@@ -1,21 +1,22 @@
 import { Type } from "@sinclair/typebox";
 import { describe, expect, it, vi } from "vitest";
-
 import type { AnyAgentTool } from "../tools/common.js";
-import {
-  bridgeClawdbrainToolsSync,
-  buildMcpAllowedTools,
-  convertToolResult,
-  extractJsonSchema,
-  mcpToolName,
-  wrapToolHandler,
-} from "./tool-bridge.js";
 import type {
   McpServerLike,
   McpToolConfig,
   McpToolHandlerExtra,
   McpToolHandlerFn,
 } from "./tool-bridge.types.js";
+import {
+  bridgeClawdbrainToolsSync,
+  buildMcpAllowedTools,
+  buildZodSchemaForTool,
+  convertToolResult,
+  extractJsonSchema,
+  jsonSchemaToZod,
+  mcpToolName,
+  wrapToolHandler,
+} from "./tool-bridge.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -114,6 +115,230 @@ describe("extractJsonSchema", () => {
     // Symbol keys should not survive JSON.parse(JSON.stringify(...))
     const symbolKeys = Object.getOwnPropertySymbols(schema);
     expect(symbolKeys).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// jsonSchemaToZod
+// ---------------------------------------------------------------------------
+
+describe("jsonSchemaToZod", () => {
+  it("converts object schema with string properties", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "User name" },
+        email: { type: "string" },
+      },
+      required: ["name"],
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+    expect(zodSchema).toBeDefined();
+
+    // Validate that schema accepts correct data
+    const validResult = zodSchema.safeParse({ name: "John", email: "john@example.com" });
+    expect(validResult.success).toBe(true);
+
+    // Should also accept without optional email
+    const validWithoutEmail = zodSchema.safeParse({ name: "John" });
+    expect(validWithoutEmail.success).toBe(true);
+  });
+
+  it("converts enum properties for action parameters", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["send", "delete", "react"] },
+        target: { type: "string" },
+      },
+      required: ["action"],
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    // Valid action
+    const validResult = zodSchema.safeParse({ action: "send", target: "user123" });
+    expect(validResult.success).toBe(true);
+
+    // Invalid action should fail
+    const invalidResult = zodSchema.safeParse({ action: "invalid_action" });
+    expect(invalidResult.success).toBe(false);
+  });
+
+  it("converts number and integer properties", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        count: { type: "number" },
+        limit: { type: "integer" },
+      },
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    const result = zodSchema.safeParse({ count: 3.14, limit: 10 });
+    expect(result.success).toBe(true);
+  });
+
+  it("converts boolean properties", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        enabled: { type: "boolean" },
+        silent: { type: "boolean", description: "Silent mode" },
+      },
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    const result = zodSchema.safeParse({ enabled: true, silent: false });
+    expect(result.success).toBe(true);
+  });
+
+  it("converts array properties", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        tags: { type: "array", items: { type: "string" } },
+        ids: { type: "array", items: { type: "number" } },
+      },
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    const result = zodSchema.safeParse({ tags: ["a", "b"], ids: [1, 2, 3] });
+    expect(result.success).toBe(true);
+  });
+
+  it("converts nested object properties", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        config: {
+          type: "object",
+          properties: {
+            timeout: { type: "number" },
+            retries: { type: "integer" },
+          },
+          required: ["timeout"],
+        },
+      },
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    const result = zodSchema.safeParse({ config: { timeout: 5000, retries: 3 } });
+    expect(result.success).toBe(true);
+  });
+
+  it("handles schema with only properties (no explicit type)", () => {
+    const jsonSchema = {
+      properties: {
+        message: { type: "string" },
+      },
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    const result = zodSchema.safeParse({ message: "hello" });
+    expect(result.success).toBe(true);
+  });
+
+  it("returns permissive schema for empty properties", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {},
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    // Should accept any object
+    const result = zodSchema.safeParse({ anything: "goes" });
+    expect(result.success).toBe(true);
+  });
+
+  it("handles const values", () => {
+    const jsonSchema = {
+      type: "object",
+      properties: {
+        version: { const: "v1" },
+      },
+    };
+
+    const zodSchema = jsonSchemaToZod(jsonSchema);
+
+    const validResult = zodSchema.safeParse({ version: "v1" });
+    expect(validResult.success).toBe(true);
+
+    const invalidResult = zodSchema.safeParse({ version: "v2" });
+    expect(invalidResult.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildZodSchemaForTool
+// ---------------------------------------------------------------------------
+
+describe("buildZodSchemaForTool", () => {
+  it("builds Zod schema from tool TypeBox parameters", () => {
+    const tool = createStubTool("message", {
+      parameters: Type.Object({
+        action: Type.Union([Type.Literal("send"), Type.Literal("delete")]),
+        target: Type.String({ description: "Target user or channel" }),
+        message: Type.Optional(Type.String()),
+      }),
+    });
+
+    const zodSchema = buildZodSchemaForTool(tool);
+    expect(zodSchema).toBeDefined();
+
+    // Should be a Zod schema that validates correctly
+    const result = zodSchema.safeParse({ action: "send", target: "user123", message: "Hello" });
+    expect(result.success).toBe(true);
+  });
+
+  it("handles tool with enum action parameter", () => {
+    const tool: AnyAgentTool = {
+      name: "action_tool",
+      label: "Action Tool",
+      description: "Tool with action enum",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["create", "update", "delete"] },
+          id: { type: "string" },
+        },
+        required: ["action"],
+      } as never,
+      execute: async () => ({ content: [{ type: "text", text: "ok" }], details: undefined }),
+    };
+
+    const zodSchema = buildZodSchemaForTool(tool);
+
+    // Valid action
+    const validResult = zodSchema.safeParse({ action: "create", id: "123" });
+    expect(validResult.success).toBe(true);
+
+    // Invalid action
+    const invalidResult = zodSchema.safeParse({ action: "invalid" });
+    expect(invalidResult.success).toBe(false);
+  });
+
+  it("returns permissive schema for tool with no parameters", () => {
+    const tool: AnyAgentTool = {
+      name: "no_params",
+      label: "No Params",
+      description: "No parameters",
+      parameters: undefined as never,
+      execute: async () => ({ content: [{ type: "text", text: "ok" }], details: undefined }),
+    };
+
+    const zodSchema = buildZodSchemaForTool(tool);
+
+    // Should accept any object
+    const result = zodSchema.safeParse({ anything: "value" });
+    expect(result.success).toBe(true);
   });
 });
 

@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppShell } from "@/components/layout/AppShell";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { UnlockGuard } from "@/features/security/components/unlock/UnlockGuard";
+import { useGatewayStreamHandler } from "@/hooks";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -19,6 +20,9 @@ function RootLayout() {
   const isFullscreen = FULLSCREEN_PATHS.some((path) =>
     location.pathname.startsWith(path)
   );
+
+  // Enable gateway stream handler to process streaming events
+  useGatewayStreamHandler({ enabled: true });
 
   return (
     <ThemeProvider>

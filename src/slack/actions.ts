@@ -1,4 +1,5 @@
 import type { WebClient } from "@slack/web-api";
+import type { OpenClawConfig } from "../config/config.js";
 import { loadConfig } from "../config/config.js";
 import { logVerbose } from "../globals.js";
 import { resolveSlackAccount } from "./accounts.js";
@@ -10,6 +11,7 @@ export type SlackActionClientOpts = {
   accountId?: string;
   token?: string;
   client?: WebClient;
+  config?: OpenClawConfig;
 };
 
 export type SlackMessageSummary = {
@@ -31,8 +33,8 @@ export type SlackPin = {
   file?: { id?: string; name?: string };
 };
 
-function resolveToken(explicit?: string, accountId?: string) {
-  const cfg = loadConfig();
+function resolveToken(explicit?: string, accountId?: string, config?: OpenClawConfig) {
+  const cfg = config ?? loadConfig();
   const account = resolveSlackAccount({ cfg, accountId });
   const token = resolveSlackBotToken(explicit ?? account.botToken ?? undefined);
   if (!token) {
@@ -55,7 +57,7 @@ function normalizeEmoji(raw: string) {
 }
 
 async function getClient(opts: SlackActionClientOpts = {}) {
-  const token = resolveToken(opts.token, opts.accountId);
+  const token = resolveToken(opts.token, opts.accountId, opts.config);
   return opts.client ?? createSlackWebClient(token);
 }
 
@@ -155,6 +157,7 @@ export async function sendSlackMessage(
     mediaUrl: opts.mediaUrl,
     client: opts.client,
     threadTs: opts.threadTs,
+    config: opts.config,
   });
 }
 
