@@ -258,3 +258,5 @@ If `mode: "monitor"`, OpenClaw only logs the evaluation and leaves the payload u
 - Use `openclaw gateway run --verbose` and `openclaw logs --follow` to see guardrail events.
 - Guardrail errors follow `failOpen`: when `true`, errors are logged but do not block.
 - If you see unexpected blocking, confirm the effective threshold and stage config.
+- Guardrail plugin config changes require a gateway restart. Hot reload (`gateway.reload.mode=hot`) will ignore `plugins.*` changes.
+- To apply config changes automatically, set `gateway.reload.mode=hybrid` or `gateway.reload.mode=restart`, or restart manually with `openclaw gateway restart`.
