@@ -94,7 +94,10 @@ async function searchMemoryGateway(
         const data = JSON.parse(stdout);
         if (data.results && Array.isArray(data.results)) {
           const results = data.results.map((r: any) => ({
-            content: r.payload?.content || r.payload?.snippet || "",
+            content:
+              (r as { payload?: { content?: string; snippet?: string } }).payload?.content ||
+              (r as { payload?: { content?: string; snippet?: string } }).payload?.snippet ||
+              "",
             path: r.payload?.path || "",
             score: r.score || 0,
             lines: "", // mcporter doesn't return line numbers

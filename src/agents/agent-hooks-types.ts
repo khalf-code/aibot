@@ -7,7 +7,8 @@
 
 import type { TemplateContext } from "../auto-reply/templating.js";
 import type { SessionEntry } from "../config/sessions.js";
-import type { ResolvedAgentConfig } from "./agent-scope.js";
+// Agent configuration type not exported, using unknown
+// import type { ResolvedAgentConfig } from "./agent-scope.js";
 
 /**
  * Context fragment to inject into the prompt
@@ -42,7 +43,7 @@ export interface PreAnswerHookParams {
   /** Agent session entry */
   sessionEntry?: SessionEntry;
   /** Agent configuration */
-  agentConfig?: ResolvedAgentConfig;
+  agentConfig?: unknown;
   /** Context from the message */
   sessionCtx: TemplateContext;
   /** Whether this is a heartbeat */
