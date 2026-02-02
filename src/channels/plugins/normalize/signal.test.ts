@@ -28,4 +28,16 @@ describe("signal target normalization", () => {
     expect(looksLikeSignalTargetId("uuid:")).toBe(false);
     expect(looksLikeSignalTargetId("uuid:not-a-uuid")).toBe(false);
   });
+
+  it("preserves case for group IDs (base64 is case-sensitive)", () => {
+    // Base64 group IDs are case-sensitive - lowercasing corrupts them
+    // Example: mJ6qA3MrX09n1PzxIhv1u3KWKd/eDiNoWY0Hy1z2jas=
+    expect(
+      normalizeSignalMessagingTarget("group:mJ6qA3MrX09n1PzxIhv1u3KWKd/eDiNoWY0Hy1z2jas="),
+    ).toBe("group:mJ6qA3MrX09n1PzxIhv1u3KWKd/eDiNoWY0Hy1z2jas=");
+  });
+
+  it("preserves case for signal:group: prefixed IDs", () => {
+    expect(normalizeSignalMessagingTarget("signal:group:ABC123xyz=")).toBe("group:ABC123xyz=");
+  });
 });
