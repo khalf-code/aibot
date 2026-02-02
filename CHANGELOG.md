@@ -2,6 +2,13 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.2.2
+
+### Fixes
+
+- Security: guard skill installer downloads with SSRF checks (block private/localhost URLs).
+- Media understanding: apply SSRF guardrails to provider fetches; allow private baseUrl overrides explicitly.
+
 ## 2026.2.1
 
 ### Changes
@@ -23,6 +30,7 @@ Docs: https://docs.openclaw.ai
 ### Fixes
 
 - Security: guard remote media fetches with SSRF protections (block private/localhost, DNS pinning).
+- Updates: clean stale global install rename dirs and extend gateway update timeouts to avoid npm ENOTEMPTY failures.
 - Plugins: validate plugin/hook install paths and reject traversal-like names.
 - Telegram: add download timeouts for file fetches. (#6914) Thanks @hclsys.
 - Telegram: enforce thread specs for DM vs forum sends. (#6833) Thanks @obviyus.
