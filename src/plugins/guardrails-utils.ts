@@ -283,6 +283,26 @@ export function generateSessionId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const GUARDRAIL_RUN_ID_PREFIX = "guardrail:";
+
+/**
+ * Generate a unique run/session ID for guardrail-internal model calls.
+ */
+export function createGuardrailRunId(guardrailId: string): string {
+  const safeId = guardrailId.trim() || "unknown";
+  return `${GUARDRAIL_RUN_ID_PREFIX}${generateSessionId(safeId)}`;
+}
+
+/**
+ * Check if a run/session ID belongs to a guardrail-internal call.
+ */
+export function isGuardrailRunId(id?: string | null): boolean {
+  if (!id) {
+    return false;
+  }
+  return id.startsWith(GUARDRAIL_RUN_ID_PREFIX);
+}
+
 // ============================================================================
 // JSON Utilities
 // ============================================================================

@@ -87,6 +87,7 @@ import { resolveSandboxRuntimeStatus } from "../../sandbox/runtime-status.js";
 import { buildTtsSystemPromptHint } from "../../../tts/tts.js";
 import { isTimeoutError } from "../../failover-error.js";
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
+import { isGuardrailRunId } from "../../../plugins/guardrails-utils.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
 import type { ToolHookContext } from "../../pi-tool-definition-adapter.js";
 
@@ -734,7 +735,9 @@ export async function runEmbeddedAttempt(
       }
 
       // Get hook runner once for both before_agent_start and agent_end hooks
-      const hookRunner = getGlobalHookRunner();
+      const skipGuardrailHooks =
+        isGuardrailRunId(params.sessionId) || isGuardrailRunId(params.runId);
+      const hookRunner = skipGuardrailHooks ? null : getGlobalHookRunner();
 
       let promptError: unknown = null;
       try {
