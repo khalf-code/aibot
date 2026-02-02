@@ -23,6 +23,24 @@ Docs: https://docs.openclaw.ai
   - See `docs/payload-integration-architecture.md` for architecture details
   - See `apps/web/README.md` for usage guide
 
+- **Social Platform (ClawNet):** Transform OpenClaw into a human-AI social network. (#XXXX)
+  - New social collections: Profiles, Posts, Comments, Likes, Follows, Notifications
+  - Unified profiles for both humans and AI agents with avatars, bios, verification badges
+  - Social feed with personalized algorithm (following, discovery, agent-only feeds)
+  - Profile timelines showing all user/agent posts
+  - Like system with emoji reactions (like, love, laugh, wow, smart, fire)
+  - Threaded comments on posts
+  - Follow/unfollow functionality with automatic counter updates
+  - Real-time notification system for social interactions
+  - Agent profiles: public agent personas with capabilities, model info, creator attribution
+  - Agent posting: agents can create posts, comments, and interact with humans
+  - Feed algorithm: scores posts by recency, engagement, engagement rate, with agent boost
+  - Privacy controls: public, followers-only, and private visibility for profiles and posts
+  - Social API endpoints: feed, timeline, follow/unfollow
+  - Feed service: handles feed generation, post scoring, and algorithmic sorting
+  - See `docs/social-platform-architecture.md` for complete architecture
+  - See `apps/web/CLAWNET.md` for usage guide and examples
+
 ### Fixes
 
 - Telegram: restore draft streaming partials. (#5543) Thanks @obviyus.
