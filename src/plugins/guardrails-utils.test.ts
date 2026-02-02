@@ -1,5 +1,5 @@
+import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import { describe, expect, it } from "vitest";
-
 import {
   appendWarningToToolResult,
   buildToolCallSummary,
@@ -72,8 +72,8 @@ describe("extractToolResultText", () => {
   });
 
   it("handles null/undefined result", () => {
-    expect(extractToolResultText(null as any)).toBe("");
-    expect(extractToolResultText(undefined as any)).toBe("");
+    expect(extractToolResultText(null as unknown as AgentToolResult<unknown>)).toBe("");
+    expect(extractToolResultText(undefined as unknown as AgentToolResult<unknown>)).toBe("");
   });
 });
 
@@ -123,7 +123,7 @@ describe("appendWarningToToolResult", () => {
   });
 
   it("creates content array if not present", () => {
-    const result = { content: undefined as any };
+    const result = { content: undefined as unknown };
     const modified = appendWarningToToolResult(result, "warning");
     expect(modified.content).toEqual([{ type: "text", text: "warning" }]);
   });
@@ -145,14 +145,16 @@ describe("replaceToolResultWithWarning", () => {
   it("includes guardrailWarning in details", () => {
     const result = { content: [], details: { existing: "data" } };
     const modified = replaceToolResultWithWarning(result, "warning");
-    expect((modified.details as any).guardrailWarning).toBe("warning");
-    expect((modified.details as any).existing).toBe("data");
+    const details = modified.details as { guardrailWarning?: string; existing?: string };
+    expect(details.guardrailWarning).toBe("warning");
+    expect(details.existing).toBe("data");
   });
 
   it("creates details with guardrailWarning if none exists", () => {
     const result = { content: [] };
     const modified = replaceToolResultWithWarning(result, "warning");
-    expect((modified.details as any).guardrailWarning).toBe("warning");
+    const details = modified.details as { guardrailWarning?: string };
+    expect(details.guardrailWarning).toBe("warning");
   });
 });
 
@@ -180,7 +182,7 @@ describe("buildToolCallSummary", () => {
   });
 
   it("falls back to tool name on stringify error", () => {
-    const circular: any = {};
+    const circular: Record<string, unknown> = {};
     circular.self = circular;
     const summary = buildToolCallSummary("testTool", "id", circular);
     expect(summary).toBe("testTool");
@@ -271,7 +273,7 @@ describe("safeJsonStringify", () => {
   });
 
   it("returns null for circular references", () => {
-    const circular: any = {};
+    const circular: Record<string, unknown> = {};
     circular.self = circular;
     expect(safeJsonStringify(circular)).toBeNull();
   });

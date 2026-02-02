@@ -9,6 +9,7 @@ import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
+import { isGuardrailRunId } from "../../../plugins/guardrails-utils.js";
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
 import { isSubagentSessionKey } from "../../../routing/session-key.js";
 import { resolveSignalReactionLevel } from "../../../signal/reaction-level.js";
@@ -936,7 +937,7 @@ export async function runEmbeddedAttempt(
         lastAssistant = messagesSnapshot
           .slice()
           .toReversed()
-          .find((m) => m.role === "assistant") as AssistantMessage | undefined;
+          .find((m): m is AssistantMessage => m.role === "assistant");
 
         // Run after_response hooks for guardrail-style inspection/modification/blocking
         if (!guardrailBlock && hookRunner?.hasHooks("after_response")) {
@@ -1010,7 +1011,7 @@ export async function runEmbeddedAttempt(
               lastAssistant = messagesSnapshot
                 .slice()
                 .toReversed()
-                .find((m) => m.role === "assistant") as AssistantMessage | undefined;
+                .find((m): m is AssistantMessage => m.role === "assistant");
             }
           }
         }

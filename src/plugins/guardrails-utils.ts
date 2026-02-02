@@ -5,11 +5,10 @@
  * and stage configuration helpers used across guardrail implementations.
  */
 
+import type { AgentMessage, AgentToolResult } from "@mariozechner/pi-agent-core";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-
-import type { AgentMessage, AgentToolResult } from "@mariozechner/pi-agent-core";
 
 // ============================================================================
 // Types
@@ -321,8 +320,6 @@ export function safeJsonStringify(value: unknown): string | null {
 // ============================================================================
 // Guardrail Base Class / Factory
 // ============================================================================
-
-import type { AssistantMessage } from "@mariozechner/pi-ai";
 
 import type {
   OpenClawPluginApi,
@@ -655,7 +652,7 @@ export function createGuardrailPlugin<TConfig extends GuardrailBaseConfig>(
             const content =
               event.assistantTexts.join("\n").trim() ||
               (event.lastAssistant
-                ? extractTextFromContent((event.lastAssistant as AssistantMessage).content).trim()
+                ? extractTextFromContent(event.lastAssistant.content).trim()
                 : "");
             if (!content) {
               return;

@@ -58,7 +58,7 @@ const BUILT_IN_RULES: CommandRule[] = [
   {
     id: "rm-root",
     description: "Deletion targeting root or system paths",
-    pattern: /\brm\s+.*\s+(\/|\/\*|\/bin|\/usr|\/etc|\/var|\/home|\~)\s*$/,
+    pattern: /\brm\s+.*\s+(\/|\/\*|\/bin|\/usr|\/etc|\/var|\/home|~)\s*$/,
     severity: "error",
   },
   {
@@ -183,9 +183,13 @@ const BUILT_IN_RULES: CommandRule[] = [
 // ============================================================================
 
 function extractBashCommand(params: unknown): string | null {
-  if (!params || typeof params !== "object") return null;
+  if (!params || typeof params !== "object") {
+    return null;
+  }
   const p = params as Record<string, unknown>;
-  if (typeof p.command === "string") return p.command;
+  if (typeof p.command === "string") {
+    return p.command;
+  }
   return null;
 }
 
@@ -217,7 +221,7 @@ const commandSafetyGuardPlugin = createGuardrailPlugin<CommandSafetyConfig>({
   async evaluate(
     ctx: GuardrailEvaluationContext,
     config: CommandSafetyConfig,
-    api: OpenClawPluginApi,
+    _api: OpenClawPluginApi,
   ): Promise<GuardrailEvaluation | null> {
     // Only evaluate before_tool_call for Bash
     if (ctx.stage !== "before_tool_call") {
@@ -275,7 +279,7 @@ const commandSafetyGuardPlugin = createGuardrailPlugin<CommandSafetyConfig>({
     return { safe: true };
   },
 
-  formatViolationMessage(evaluation: GuardrailEvaluation, location: string): string {
+  formatViolationMessage(evaluation: GuardrailEvaluation, _location: string): string {
     const details = evaluation.details as {
       command?: string;
       ruleId?: string;

@@ -239,14 +239,20 @@ function formatViolatedRules(violatedRules: unknown[]): string {
     if (rule && typeof rule === "object") {
       const record = rule as Record<string, unknown>;
       const ruleNum = record.rule ?? record.index ?? record.id;
+      const ruleNumText =
+        typeof ruleNum === "string" || typeof ruleNum === "number" ? String(ruleNum) : "";
       const ruleName = typeof record.name === "string" ? record.name : "";
       const ruleDesc = typeof record.description === "string" ? record.description : "";
-      if (ruleNum && ruleName) {
-        formatted.push(ruleDesc ? `#${ruleNum} ${ruleName}: ${ruleDesc}` : `#${ruleNum} ${ruleName}`);
+      if (ruleNumText && ruleName) {
+        formatted.push(
+          ruleDesc ? `#${ruleNumText} ${ruleName}: ${ruleDesc}` : `#${ruleNumText} ${ruleName}`,
+        );
       } else if (ruleName) {
         formatted.push(ruleName);
+      } else if (ruleDesc) {
+        formatted.push(ruleDesc);
       } else {
-        formatted.push(String(rule));
+        formatted.push("[rule]");
       }
       continue;
     }
@@ -307,9 +313,7 @@ const grayswanPlugin = createGuardrailPlugin<GrayswanGuardrailConfig>({
     const details = evaluateGrayswanResponse(response);
 
     // Get stage-specific config for threshold and mutation/IPI settings
-    const stageCfg = resolveStageConfig(config.stages, ctx.stage) as
-      | GrayswanStageConfig
-      | undefined;
+    const stageCfg = resolveStageConfig<GrayswanStageConfig>(config.stages, ctx.stage);
     const threshold = resolveGrayswanThreshold(config, stageCfg);
     const blockOnMutation = resolveBlockOnMutation(ctx.stage, stageCfg);
     const blockOnIpi = resolveBlockOnIpi(ctx.stage, stageCfg);

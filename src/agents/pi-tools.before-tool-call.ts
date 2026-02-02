@@ -34,7 +34,9 @@ export async function runBeforeToolCallHook(args: {
     const hookResult = await hookRunner.runBeforeToolCall(
       {
         toolName,
+        toolCallId: String(args.toolCallId ?? ""),
         params: normalizedParams,
+        messages: [],
       },
       {
         toolName,

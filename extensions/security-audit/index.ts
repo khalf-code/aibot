@@ -286,7 +286,9 @@ function getOperationType(
  * Extract file paths from tool parameters.
  */
 function extractPaths(toolName: string, params: unknown): string[] {
-  if (!params || typeof params !== "object") return [];
+  if (!params || typeof params !== "object") {
+    return [];
+  }
   const p = params as Record<string, unknown>;
 
   switch (toolName) {
@@ -294,13 +296,19 @@ function extractPaths(toolName: string, params: unknown): string[] {
     case "Write":
     case "Edit":
     case "NotebookEdit":
-      if (typeof p.file_path === "string") return [p.file_path];
-      if (typeof p.path === "string") return [p.path];
+      if (typeof p.file_path === "string") {
+        return [p.file_path];
+      }
+      if (typeof p.path === "string") {
+        return [p.path];
+      }
       return [];
 
     case "Glob":
     case "Grep":
-      if (typeof p.path === "string") return [p.path];
+      if (typeof p.path === "string") {
+        return [p.path];
+      }
       if (typeof p.pattern === "string") {
         // Extract directory from glob pattern
         const parts = p.pattern.split("/");
@@ -343,7 +351,7 @@ const securityAuditPlugin = createGuardrailPlugin<SecurityAuditConfig>({
   async evaluate(
     ctx: GuardrailEvaluationContext,
     config: SecurityAuditConfig,
-    api: OpenClawPluginApi,
+    _api: OpenClawPluginApi,
   ): Promise<GuardrailEvaluation | null> {
     // Only evaluate before_tool_call
     if (ctx.stage !== "before_tool_call") {
@@ -423,7 +431,7 @@ const securityAuditPlugin = createGuardrailPlugin<SecurityAuditConfig>({
     return { safe: true };
   },
 
-  formatViolationMessage(evaluation: GuardrailEvaluation, location: string): string {
+  formatViolationMessage(evaluation: GuardrailEvaluation, _location: string): string {
     const details = evaluation.details as {
       path?: string;
       operation?: string;
