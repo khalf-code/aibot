@@ -1,10 +1,10 @@
+import type { OpenClawConfig } from "../config/config.js";
 import {
   buildBasetenModelDefinition,
   BASETEN_BASE_URL,
   BASETEN_DEFAULT_MODEL_REF,
   BASETEN_MODEL_CATALOG,
 } from "../agents/baseten-models.js";
-import type { OpenClawConfig } from "../config/config.js";
 import { buildXiaomiProvider, XIAOMI_DEFAULT_MODEL_ID } from "../agents/models-config.providers.js";
 import {
   buildSyntheticModelDefinition,

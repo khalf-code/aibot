@@ -1,5 +1,6 @@
 import type { ApplyAuthChoiceParams, ApplyAuthChoiceResult } from "./auth-choice.apply.js";
 import { ensureAuthProfileStore, resolveAuthProfileOrder } from "../agents/auth-profiles.js";
+import { BASETEN_DEFAULT_MODEL_REF } from "../agents/baseten-models.js";
 import { resolveEnvApiKey } from "../agents/model-auth.js";
 import {
   formatApiKeyPreview,
@@ -11,7 +12,6 @@ import {
   applyGoogleGeminiModelDefault,
   GOOGLE_GEMINI_DEFAULT_MODEL,
 } from "./google-gemini-model-default.js";
-import { BASETEN_DEFAULT_MODEL_REF } from "../agents/baseten-models.js";
 import {
   applyAuthProfileConfig,
   applyBasetenConfig,
