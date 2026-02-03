@@ -10,136 +10,17 @@ import type { GraphitiConfig, LightRAGConfig, MemoryServiceConfig } from "../../
 import { resolveHookConfig } from "../../config.js";
 import type { HookHandler } from "../../hooks.js";
 import type { AgentBootstrapHookContext } from "../../internal-hooks.js";
-import { GraphitiClient } from "../../../memory/graphiti-client.js";
-import { LightRAGClient } from "../../../memory/lightrag-client.js";
-import { MemoryServiceClient } from "../../../memory/memory-service-client.js";
-import type {
-  GraphitiEntity,
-  GraphitiRelationship,
+import {
+  GraphitiClient,
+  type GraphitiEntity,
+  type GraphitiRelationship,
 } from "../../../memory/graphiti-client.js";
-import type { LightRAGQueryResponse } from "../../../memory/lightrag-client.js";
-import type { MemoryServiceMemory } from "../../../memory/memory-service-client.js";
-
-type RAGContextResult = {
-  graphiti?: {
-    entities: GraphitiEntity[];
-    relationships: GraphitiRelationship[];
-  };
-  lightrag?: LightRAGQueryResponse;
-  memoryService?: {
-    memories: MemoryServiceMemory[];
-  };
-};
-
-/**
- * Format RAG results into a markdown context file
- */
-function formatRAGContext(result: RAGContextResult, timestamp: Date): string {
-  const sections: string[] = [];
-
-  sections.push("# RAG Context");
-  sections.push("");
-  sections.push(`Generated: ${timestamp.toISOString()}`);
-  sections.push("");
-  sections.push(
-    "This file contains automatically retrieved context from your knowledge graph and memory systems.",
-  );
-  sections.push("");
-
-  // Graphiti entities and relationships
-  if (result.graphiti && (result.graphiti.entities.length > 0 || result.graphiti.relationships.length > 0)) {
-    sections.push("## Temporal Knowledge Graph (Graphiti)");
-    sections.push("");
-
-    if (result.graphiti.entities.length > 0) {
-      sections.push("### Entities");
-      sections.push("");
-      for (const entity of result.graphiti.entities) {
-        sections.push(`- **${entity.name}** (${entity.type || "unknown"})`);
-        if (entity.summary) {
-          sections.push(`  - ${entity.summary}`);
-        }
-        if (entity.createdAt) {
-          sections.push(`  - Created: ${entity.createdAt}`);
-        }
-      }
-      sections.push("");
-    }
-
-    if (result.graphiti.relationships.length > 0) {
-      sections.push("### Relationships");
-      sections.push("");
-      for (const rel of result.graphiti.relationships) {
-        const label = rel.type ? `[${rel.type}]` : "";
-        sections.push(`- ${rel.source} ${label} → ${rel.target}`);
-        if (rel.summary) {
-          sections.push(`  - ${rel.summary}`);
-        }
-      }
-      sections.push("");
-    }
-  }
-
-  // LightRAG document context
-  if (result.lightrag) {
-    sections.push("## Long-term Document Context (LightRAG)");
-    sections.push("");
-
-    if (result.lightrag.answer) {
-      sections.push("### Answer");
-      sections.push("");
-      sections.push(result.lightrag.answer);
-      sections.push("");
-    }
-
-    if (result.lightrag.sources && result.lightrag.sources.length > 0) {
-      sections.push("### Sources");
-      sections.push("");
-      for (const source of result.lightrag.sources) {
-        sections.push(`- ${source}`);
-      }
-      sections.push("");
-    }
-
-    if (result.lightrag.entities && result.lightrag.entities.length > 0) {
-      sections.push("### Related Entities");
-      sections.push("");
-      sections.push(result.lightrag.entities.join(", "));
-      sections.push("");
-    }
-  }
-
-  // Memory Service memories
-  if (result.memoryService && result.memoryService.memories.length > 0) {
-    sections.push("## Universal Memory Layer (Memory Service)");
-    sections.push("");
-    for (const memory of result.memoryService.memories) {
-      sections.push(`### Memory ${memory.id}`);
-      if (memory.score !== undefined) {
-        sections.push(`*Relevance: ${memory.score.toFixed(3)}*`);
-      }
-      sections.push("");
-      sections.push(memory.content);
-      if (memory.createdAt) {
-        sections.push("");
-        sections.push(`*Created: ${memory.createdAt}*`);
-      }
-      sections.push("");
-    }
-  }
-
-  // If no results from any source
-  if (
-    (!result.graphiti || (result.graphiti.entities.length === 0 && result.graphiti.relationships.length === 0)) &&
-    !result.lightrag &&
-    (!result.memoryService || result.memoryService.memories.length === 0)
-  ) {
-    sections.push("*No relevant context found from RAG sources.*");
-    sections.push("");
-  }
-
-  return sections.join("\n");
-}
+import { LightRAGClient, type LightRAGQueryResponse } from "../../../memory/lightrag-client.js";
+import {
+  MemoryServiceClient,
+  type MemoryServiceMemory,
+} from "../../../memory/memory-service-client.js";
+import { combineRAGContext, type RAGContextResult } from "./format.js";
 
 /**
  * Query Graphiti for recent entities and relationships
@@ -335,7 +216,7 @@ const injectRAGContext: HookHandler = async (event) => {
     }
 
     // Format context as markdown
-    const contextMarkdown = formatRAGContext(ragContext, event.timestamp);
+    const contextMarkdown = combineRAGContext(ragContext, event.timestamp);
 
     // Inject as synthetic bootstrap file
     // We'll use "RAG_CONTEXT.md" as the name, but since WorkspaceBootstrapFileName is
