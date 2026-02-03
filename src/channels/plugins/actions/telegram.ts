@@ -216,8 +216,8 @@ export const telegramMessageActions: ChannelMessageActionAdapter = {
       const chatId =
         readStringOrNumberParam(params, "chatId") ??
         readStringOrNumberParam(params, "channelId") ??
-        readStringParam(params, "to") ??
-        readStringParam(params, "target", { required: true });
+        readStringOrNumberParam(params, "to") ??
+        readStringOrNumberParam(params, "target", { required: true })!;
       const threadId = readStringOrNumberParam(params, "threadId");
       const limit = readNumberParam(params, "limit", { integer: true }) ?? 30;
       const before = readNumberParam(params, "before", { integer: true });
