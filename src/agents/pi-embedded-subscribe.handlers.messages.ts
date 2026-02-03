@@ -361,9 +361,11 @@ export function handleMessageEnd(
   // Guard: Detect potential tool call parsing failures (common with OpenRouter)
   // If the message ends with patterns suggesting a tool call was intended but
   // no tool execution events were fired, log a warning for debugging.
+  // Use stripped text (not rawText) to avoid false positives from JSON examples
+  // or structured content in the assistant's message.
   const toolMetaCount = ctx.state.toolMetas.length;
   if (toolMetaCount === 0) {
-    const suspectedTool = detectUnparsedToolCallIntent(rawText);
+    const suspectedTool = detectUnparsedToolCallIntent(text);
     if (suspectedTool) {
       ctx.log.warn(
         `Potential tool call parsing failure detected (tool: ${suspectedTool}). ` +
