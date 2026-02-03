@@ -38,10 +38,13 @@ function createBaseRun(params: { runOverrides?: Partial<FollowupRun["run"]> }) {
   const typing = createMockTypingController();
   const sessionCtx = {
     Provider: "telegram",
+    provider: "telegram",
     OriginatingTo: "chat",
     AccountId: "primary",
+    accountId: "primary",
     MessageSid: "msg",
     Surface: "telegram",
+    surface: "telegram",
   } as unknown as TemplateContext;
 
   const resolvedQueue = { mode: "interrupt" } as unknown as QueueSettings;
