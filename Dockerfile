@@ -36,7 +36,14 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 
+# Allow non-root user to write files during runtime
+RUN chown -R node:node /app /data
+
+# Security hardening: run as non-root
+USER node
+
 # Default: start the gateway
-# Uses OPENCLAW_GATEWAY_PORT env var, --bind lan ensures 0.0.0.0 binding for Railway
+# --bind lan ensures 0.0.0.0 binding for Railway healthchecks
 # --allow-unconfigured allows starting without initial config
 CMD ["node", "openclaw.mjs", "gateway", "run", "--bind", "lan", "--allow-unconfigured"]
+
