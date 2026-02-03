@@ -39,9 +39,6 @@ importers:
       '@homebridge/ciao':
         specifier: ^1.3.4
         version: 1.3.4
-      '@lancedb/lancedb':
-        specifier: ^0.23.0
-        version: 0.23.0(apache-arrow@18.1.0)
       '@line/bot-sdk':
         specifier: ^10.6.0
         version: 10.6.0
@@ -75,9 +72,6 @@ importers:
       '@slack/web-api':
         specifier: ^7.13.0
         version: 7.13.0
-      '@upstash/vector':
-        specifier: ^1.2.2
-        version: 1.2.2
       '@whiskeysockets/baileys':
         specifier: 7.0.0-rc.9
         version: 7.0.0-rc.9(audio-decode@2.2.3)(sharp@0.34.5)
@@ -141,9 +135,6 @@ importers:
       node-llama-cpp:
         specifier: 3.15.1
         version: 3.15.1(typescript@5.9.3)
-      openai:
-        specifier: ^6.17.0
-        version: 6.17.0(ws@8.19.0)(zod@4.3.6)
       osc-progress:
         specifier: ^0.3.0
         version: 0.3.0
@@ -2890,9 +2881,6 @@ packages:
   '@typespec/ts-http-runtime@0.3.2':
     resolution: {integrity: sha512-IlqQ/Gv22xUC1r/WQm4StLkYQmaaTsXAhUVsNE0+xiyf0yRFiH5++q78U3bw6bLKDCTmh0uqKB9eG9+Bt75Dkg==}
     engines: {node: '>=20.0.0'}
-
-  '@upstash/vector@1.2.2':
-    resolution: {integrity: sha512-ptQ9xnxtKqmpNK52PCcHCszlPOLxIBfjsv7ty8RoF95pkjctS9rSjTQ3Pl9bx5VFbpDj+0dMXw88WLt6swDkgQ==}
 
   '@urbit/aura@3.0.0':
     resolution: {integrity: sha512-N8/FHc/lmlMDCumMuTXyRHCxlov5KZY6unmJ9QR2GOw+OpROZMBsXYGwE+ZMtvN21ql9+Xb8KhGNBj08IrG3Wg==}
@@ -6665,7 +6653,7 @@ snapshots:
     dependencies:
       '@types/node': 24.10.9
     optionalDependencies:
-      axios: 1.13.4
+      axios: 1.13.4(debug@4.4.3)
     transitivePeerDependencies:
       - debug
 
@@ -6868,7 +6856,7 @@ snapshots:
       '@azure/core-auth': 1.10.1
       '@azure/msal-node': 3.8.6
       '@microsoft/agents-activity': 1.2.3
-      axios: 1.13.4
+      axios: 1.13.4(debug@4.4.3)
       jsonwebtoken: 9.0.3
       jwks-rsa: 3.2.2
       object-path: 0.11.8
@@ -7700,7 +7688,7 @@ snapshots:
       '@slack/types': 2.19.0
       '@slack/web-api': 7.13.0
       '@types/express': 5.0.6
-      axios: 1.13.4
+      axios: 1.13.4(debug@4.4.3)
       express: 5.2.1
       path-to-regexp: 8.3.0
       raw-body: 3.0.2
@@ -7746,7 +7734,7 @@ snapshots:
       '@slack/types': 2.19.0
       '@types/node': 25.2.0
       '@types/retry': 0.12.0
-      axios: 1.13.4
+      axios: 1.13.4(debug@4.4.3)
       eventemitter3: 5.0.4
       form-data: 2.5.4
       is-electron: 2.2.2
@@ -8330,8 +8318,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@upstash/vector@1.2.2': {}
-
   '@urbit/aura@3.0.0': {}
 
   '@urbit/http-api@3.0.0':
@@ -8641,14 +8627,6 @@ snapshots:
   aws-sign2@0.7.0: {}
 
   aws4@1.13.2: {}
-
-  axios@1.13.4:
-    dependencies:
-      follow-redirects: 1.15.11
-      form-data: 2.5.4
-      proxy-from-env: 1.1.0
-    transitivePeerDependencies:
-      - debug
 
   axios@1.13.4(debug@4.4.3):
     dependencies:
@@ -9224,8 +9202,6 @@ snapshots:
       array-back: 3.1.0
 
   flatbuffers@24.12.23: {}
-
-  follow-redirects@1.15.11: {}
 
   follow-redirects@1.15.11(debug@4.4.3):
     optionalDependencies:
