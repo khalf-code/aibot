@@ -494,7 +494,10 @@ export async function startNostrBus(options: NostrBusOptions): Promise<NostrBusH
     }
   }
 
-  const sub = pool.subscribeMany(relays, [{ kinds: [1059], "#p": [pk], since }], {
+  const sub = pool.subscribeMany(
+    relays,
+    [{ kinds: [1059], "#p": [pk], since }],
+    {
     onevent: handleEvent,
     oneose: () => {
       // EOSE handler - called when all stored events have been received
