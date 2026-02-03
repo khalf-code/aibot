@@ -1,12 +1,24 @@
 "use client";
 
-import { motion } from "framer-motion";
+import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   GitBranch,
   Calendar,
@@ -15,6 +27,9 @@ import {
   Pause,
   Play,
   Archive,
+  MoreHorizontal,
+  Network,
+  Pencil,
 } from "lucide-react";
 import type { Workstream, WorkstreamStatus } from "@/hooks/queries/useWorkstreams";
 import type { Agent } from "@/stores/useAgentStore";
@@ -22,9 +37,10 @@ import type { Agent } from "@/stores/useAgentStore";
 interface WorkstreamCardProps {
   workstream: Workstream;
   owner?: Agent | null;
-  variant?: "expanded" | "compact";
+  variant?: "expanded" | "compact" | "minimal";
   onViewDetails?: () => void;
   onOpenDAG?: () => void;
+  onEdit?: () => void;
   className?: string;
 }
 
@@ -93,11 +109,127 @@ export function WorkstreamCard({
   variant = "expanded",
   onViewDetails,
   onOpenDAG,
+  onEdit,
   className,
 }: WorkstreamCardProps) {
+  const [isHovered, setIsHovered] = React.useState(false);
   const status = statusConfig[workstream.status];
   const completedTasks = workstream.tasks.filter((t) => t.status === "done").length;
   const totalTasks = workstream.tasks.length;
+
+  // Minimal variant - most compact, for dense lists
+  if (variant === "minimal") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className={cn("group", className)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <Card 
+          className="cursor-pointer overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm transition-all duration-200 hover:border-primary/30 hover:bg-accent/5"
+          onClick={onViewDetails}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              {/* Compact icon with status color */}
+              <div 
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors",
+                  workstream.status === "active" && "bg-green-500/10",
+                  workstream.status === "paused" && "bg-orange-500/10",
+                  workstream.status === "completed" && "bg-blue-500/10",
+                  workstream.status === "archived" && "bg-gray-500/10"
+                )}
+              >
+                <GitBranch className={cn("h-4 w-4", status.color)} />
+              </div>
+
+              {/* Main info */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="truncate text-sm font-medium text-foreground">
+                    {workstream.name}
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{workstream.progress}%</span>
+                  <span>•</span>
+                  <span>{completedTasks}/{totalTasks} tasks</span>
+                </div>
+              </div>
+
+              {/* Overflow menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-8 w-8 shrink-0 transition-opacity",
+                      isHovered ? "opacity-100" : "opacity-0"
+                    )}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onOpenDAG}>
+                    <Network className="mr-2 h-4 w-4" />
+                    Open DAG
+                  </DropdownMenuItem>
+                  {onEdit && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Compact progress bar */}
+            <div className="mt-3">
+              <Progress value={workstream.progress} className="h-1" />
+            </div>
+
+            {/* Hover-revealed details */}
+            <AnimatePresence>
+              {isHovered && (workstream.description || (workstream.tags && workstream.tags.length > 0)) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-3 space-y-2 border-t border-border/50 mt-3">
+                    {workstream.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {workstream.description}
+                      </p>
+                    )}
+                    {workstream.tags && workstream.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {workstream.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
 
   if (variant === "compact") {
     return (
