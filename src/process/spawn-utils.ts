@@ -176,14 +176,16 @@ function createFileCaptureChild(
     const readAndPush = async (file: string, stream: Readable): Promise<void> => {
       try {
         const data = await fs.promises.readFile(file, "utf8");
-        if (data) stream.push(data);
+        if (data) {
+          stream.push(data);
+        }
       } catch {
         // File may not exist or read failed
       }
       stream.push(null);
     };
 
-    Promise.all([
+    void Promise.all([
       readAndPush(stdoutFile, stdoutStream),
       readAndPush(stderrFile, stderrStream),
     ]).then(() => {
