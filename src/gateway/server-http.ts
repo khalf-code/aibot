@@ -13,6 +13,7 @@ import { resolveAgentAvatar } from "../agents/identity-avatar.js";
 import { handleA2uiHttpRequest } from "../canvas-host/a2ui.js";
 import { loadConfig } from "../config/config.js";
 import { handleSlackHttpRequest } from "../slack/http/index.js";
+import { validateHostHeader } from "./auth.js";
 import { handleControlUiAvatarRequest, handleControlUiHttpRequest } from "./control-ui.js";
 import { applyHookMappings } from "./hooks-mapping.js";
 import {
@@ -242,6 +243,15 @@ export function createGatewayHttpServer(opts: {
     try {
       const configSnapshot = loadConfig();
       const trustedProxies = configSnapshot.gateway?.trustedProxies ?? [];
+
+      // DNS rebinding protection: validate Host header against allowed hosts
+      const hostCheck = validateHostHeader(req, resolvedAuth.allowedHosts);
+      if (!hostCheck.valid) {
+        res.statusCode = 403;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end("Forbidden: Invalid Host header");
+        return;
+      }
       if (await handleHooksRequest(req, res)) {
         return;
       }

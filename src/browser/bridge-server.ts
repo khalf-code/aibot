@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import type { ResolvedBrowserConfig } from "./config.js";
 import type { BrowserRouteRegistrar } from "./routes/types.js";
+import { validateHostHeader } from "../gateway/auth.js";
 import { registerBrowserRoutes } from "./routes/index.js";
 import {
   type BrowserServerState,
@@ -17,11 +18,15 @@ export type BrowserBridge = {
   state: BrowserServerState;
 };
 
+/** Default allowed Host header values for DNS rebinding protection. */
+const DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "::1"];
+
 export async function startBrowserBridgeServer(params: {
   resolved: ResolvedBrowserConfig;
   host?: string;
   port?: number;
   authToken?: string;
+  allowedHosts?: string[];
   onEnsureAttachTarget?: (profile: ProfileContext["profile"]) => Promise<void>;
 }): Promise<BrowserBridge> {
   const host = params.host ?? "127.0.0.1";
@@ -29,6 +34,17 @@ export async function startBrowserBridgeServer(params: {
 
   const app = express();
   app.use(express.json({ limit: "1mb" }));
+
+  // DNS rebinding protection: validate Host header on all requests
+  const allowedHosts = [...DEFAULT_ALLOWED_HOSTS, ...(params.allowedHosts ?? [])];
+  app.use((req, res, next) => {
+    const hostCheck = validateHostHeader(req, allowedHosts);
+    if (!hostCheck.valid) {
+      res.status(403).send("Forbidden: Invalid Host header");
+      return;
+    }
+    next();
+  });
 
   const authToken = params.authToken?.trim();
   if (authToken) {

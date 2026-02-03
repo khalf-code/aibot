@@ -2,6 +2,7 @@ import type { Server } from "node:http";
 import express from "express";
 import type { BrowserRouteRegistrar } from "./routes/types.js";
 import { loadConfig } from "../config/config.js";
+import { resolveGatewayAuth, validateHostHeader } from "../gateway/auth.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveBrowserConfig, resolveProfile } from "./config.js";
 import { ensureChromeExtensionRelayServer } from "./extension-relay.js";
@@ -25,6 +26,25 @@ export async function startBrowserControlServerFromConfig(): Promise<BrowserServ
 
   const app = express();
   app.use(express.json({ limit: "1mb" }));
+
+  // Resolve auth for Host header validation
+  const resolvedAuth = resolveGatewayAuth({ authConfig: cfg.gateway?.auth });
+
+  // DNS rebinding protection: validate Host header on all requests
+  // This protects against malicious websites making requests to localhost
+  app.use((req, res, next) => {
+    const hostCheck = validateHostHeader(req, resolvedAuth.allowedHosts);
+    if (!hostCheck.valid) {
+      res.status(403).send("Forbidden: Invalid Host header");
+      return;
+    }
+    next();
+  });
+
+  // Note: Token auth is NOT required here by default because:
+  // 1. Server only binds to 127.0.0.1 (not reachable from network)
+  // 2. Host header validation protects against DNS rebinding
+  // For external exposure, use bridge-server.ts with explicit authToken
 
   const ctx = createBrowserRouteContext({
     getState: () => state,
