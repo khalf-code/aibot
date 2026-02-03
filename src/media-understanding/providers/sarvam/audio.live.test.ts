@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { isTruthyEnvValue } from "../../../infra/env.js";
 import { transcribeSarvamAudio } from "./audio.js";
 

@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as ssrf from "../../../infra/net/ssrf.js";
 import { transcribeSarvamAudio, DEFAULT_SARVAM_AUDIO_MODEL } from "./audio.js";
 
@@ -45,13 +45,10 @@ describe("transcribeSarvamAudio", () => {
     const fetchFn = async (input: RequestInfo | URL, _init?: RequestInit) => {
       seenUrl = resolveRequestUrl(input);
       seenInit = _init;
-      return new Response(
-        JSON.stringify({ transcript: "hello world" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "hello world" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     const result = await transcribeSarvamAudio({
@@ -86,13 +83,10 @@ describe("transcribeSarvamAudio", () => {
     let seenUrl: string | null = null;
     const fetchFn = async (input: RequestInfo | URL, _init?: RequestInit) => {
       seenUrl = resolveRequestUrl(input);
-      return new Response(
-        JSON.stringify({ transcript: "ok" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "ok" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     await transcribeSarvamAudio({
@@ -111,13 +105,10 @@ describe("transcribeSarvamAudio", () => {
     let seenInit: RequestInit | undefined;
     const fetchFn = async (_input: RequestInfo | URL, _init?: RequestInit) => {
       seenInit = _init;
-      return new Response(
-        JSON.stringify({ transcript: "namaste" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "namaste" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     const result = await transcribeSarvamAudio({
@@ -138,13 +129,10 @@ describe("transcribeSarvamAudio", () => {
     let seenInit: RequestInit | undefined;
     const fetchFn = async (_input: RequestInfo | URL, _init?: RequestInit) => {
       seenInit = _init;
-      return new Response(
-        JSON.stringify({ transcript: "test" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "test" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     const result = await transcribeSarvamAudio({
@@ -165,13 +153,10 @@ describe("transcribeSarvamAudio", () => {
     let seenInit: RequestInit | undefined;
     const fetchFn = async (_input: RequestInfo | URL, _init?: RequestInit) => {
       seenInit = _init;
-      return new Response(
-        JSON.stringify({ transcript: "speaker 1: hello" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "speaker 1: hello" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     await transcribeSarvamAudio({
@@ -200,13 +185,10 @@ describe("transcribeSarvamAudio", () => {
     const fetchFn = async (_input: RequestInfo | URL, _init?: RequestInit) => {
       const headers = new Headers(_init?.headers);
       seenApiKey = headers.get("api-subscription-key");
-      return new Response(
-        JSON.stringify({ transcript: "ok" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "ok" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     await transcribeSarvamAudio({
@@ -225,13 +207,10 @@ describe("transcribeSarvamAudio", () => {
     let seenInit: RequestInit | undefined;
     const fetchFn = async (_input: RequestInfo | URL, _init?: RequestInit) => {
       seenInit = _init;
-      return new Response(
-        JSON.stringify({ transcript: "test" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "test" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     await transcribeSarvamAudio({
@@ -250,13 +229,10 @@ describe("transcribeSarvamAudio", () => {
 
   it("throws on HTTP error", async () => {
     const fetchFn = async () => {
-      return new Response(
-        JSON.stringify({ error: "Invalid API key" }),
-        {
-          status: 401,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Invalid API key" }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     await expect(
@@ -272,13 +248,10 @@ describe("transcribeSarvamAudio", () => {
 
   it("throws when transcript is missing", async () => {
     const fetchFn = async () => {
-      return new Response(
-        JSON.stringify({ language_code: "hi-IN" }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ language_code: "hi-IN" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     await expect(
@@ -294,13 +267,10 @@ describe("transcribeSarvamAudio", () => {
 
   it("trims whitespace from transcript", async () => {
     const fetchFn = async () => {
-      return new Response(
-        JSON.stringify({ transcript: "  hello world  " }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ transcript: "  hello world  " }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
     };
 
     const result = await transcribeSarvamAudio({

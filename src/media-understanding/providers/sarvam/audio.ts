@@ -1,4 +1,4 @@
-﻿import path from "node:path";
+import path from "node:path";
 import type { AudioTranscriptionRequest, AudioTranscriptionResult } from "../../types.js";
 import { fetchWithTimeoutGuarded, normalizeBaseUrl, readErrorResponse } from "../shared.js";
 

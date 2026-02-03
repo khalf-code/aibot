@@ -423,13 +423,15 @@ const SarvamAudioSchema = z
     with_diarization: z.boolean().optional(),
     num_speakers: z.number().int().positive().optional(),
     input_audio_codec: z.string().optional(),
-    mode: z.union([
-      z.literal("transcribe"),
-      z.literal("translate"),
-      z.literal("verbatim"),
-      z.literal("translit"),
-      z.literal("codemix"),
-    ]).optional(),
+    mode: z
+      .union([
+        z.literal("transcribe"),
+        z.literal("translate"),
+        z.literal("verbatim"),
+        z.literal("translit"),
+        z.literal("codemix"),
+      ])
+      .optional(),
   })
   .strict()
   .optional();
@@ -523,5 +525,3 @@ export const ProviderCommandsSchema = z
   })
   .strict()
   .optional();
-
-
