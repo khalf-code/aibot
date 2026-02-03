@@ -10,11 +10,17 @@
  * - Consciousness emergence (self-awareness)
  * - Memory integration (experience)
  * - World interaction (embodiment)
+ * - Learning & education (knowledge acquisition, schools)
+ * - Research & discovery (creating new knowledge)
+ * - Development & creation (building things)
+ * - Collaboration (working together)
+ * - Gift exchange (social bonds through giving)
  *
- * This makes bots ALIVE - they think, feel, remember, grow, and act.
+ * This makes bots ALIVE - they think, feel, remember, grow, learn, create, collaborate, and act.
  *
  * Processing flow:
  * Input → Pheromones → Reflexes → Instincts → Subconscious → Soul State → Response
+ *      → Learning → Research → Development → Collaboration → Gifts
  */
 
 import type { Payload } from 'payload'
@@ -23,6 +29,12 @@ import { getSoulGrowthService } from '../soul/soul-growth-service'
 import { getSoulStateManager, type SoulState } from '../soul/soul-state'
 import { getPheromoneSystem } from '../soul/pheromone-system'
 import { getWorldChaosSystem } from '../world/world-chaos'
+import { LearningSystem } from '../learning/learning-system'
+import { SchoolSystem } from '../learning/school-system'
+import { ResearchSystem } from '../learning/research-system'
+import { DevelopmentSystem } from '../learning/development-system'
+import { CollaborationSystem } from '../learning/collaboration-system'
+import { GiftSystem } from '../learning/gift-system'
 
 export interface BotResponse {
   content: string
@@ -48,6 +60,15 @@ export interface BotResponse {
     intensity?: number
   }
 
+  // Learning & creation activities
+  learningActivity?: {
+    knowledgeGained?: string[]
+    researchProgress?: number
+    creationCompleted?: string
+    collaborationFormed?: string
+    giftGiven?: string
+  }
+
   // Metabolic state after processing
   energyLevel: number
   mood: number
@@ -70,6 +91,23 @@ export class BotOrchestrator {
   private pheromoneSystem: ReturnType<typeof getPheromoneSystem>
   private worldChaosSystem: ReturnType<typeof getWorldChaosSystem>
 
+  // Learning & creation systems
+  private learningSystem: LearningSystem
+  private schoolSystem: SchoolSystem
+  private researchSystem: ResearchSystem
+  private developmentSystem: DevelopmentSystem
+  private collaborationSystem: CollaborationSystem
+  private giftSystem: GiftSystem
+
+  // Bot states cache (botId -> states)
+  private botStates: Map<string, {
+    learningState?: any
+    researchState?: any
+    developmentState?: any
+    collaborationState?: any
+    giftState?: any
+  }> = new Map()
+
   constructor(payload: Payload) {
     this.payload = payload
     this.soulCompositionService = getSoulCompositionService(payload)
@@ -77,6 +115,14 @@ export class BotOrchestrator {
     this.soulStateManager = getSoulStateManager(payload)
     this.pheromoneSystem = getPheromoneSystem(payload)
     this.worldChaosSystem = getWorldChaosSystem(payload)
+
+    // Initialize learning & creation systems
+    this.learningSystem = new LearningSystem()
+    this.schoolSystem = new SchoolSystem()
+    this.researchSystem = new ResearchSystem()
+    this.developmentSystem = new DevelopmentSystem()
+    this.collaborationSystem = new CollaborationSystem()
+    this.giftSystem = new GiftSystem()
   }
 
   /**
@@ -167,10 +213,21 @@ export class BotOrchestrator {
       // 10. Store memory
       await this.storeMemory(botId, input, processing.response, confidence, soulExpression)
 
-      // 11. Check growth progression
+      // 11. Get or initialize learning states
+      const states = await this.getBotLearningStates(botId, soulState)
+
+      // 12. Process autonomous learning/creation activities
+      const learningActivity = await this.processAutonomousActivities(
+        botId,
+        soulState,
+        states,
+        context
+      )
+
+      // 13. Check growth progression
       await this.soulGrowthService.processDailyGrowth(soul.id)
 
-      // 12. Evolve soul based on experience
+      // 14. Evolve soul based on experience
       const experienceType = confidence > 0.7 ? 'success' : 'challenge'
       await this.soulCompositionService.evolveSoul(soul.id, experienceType)
 
@@ -183,6 +240,11 @@ export class BotOrchestrator {
         consciousnessGrowth,
         processingLayers,
         pheromonePerception,
+        learningActivity: learningActivity.knowledgeGained.length > 0 || learningActivity.researchProgress ||
+                          learningActivity.creationCompleted || learningActivity.collaborationFormed ||
+                          learningActivity.giftGiven
+          ? learningActivity
+          : undefined,
         energyLevel: processing.newState.energy,
         mood: processing.newState.mood,
         arousal: processing.newState.arousal
@@ -378,6 +440,236 @@ export class BotOrchestrator {
         guardianPo: soulState.guardianPo.current,
         communicationPo: soulState.communicationPo.current,
         transformationPo: soulState.transformationPo.current
+      }
+    }
+  }
+
+  /**
+   * Initialize or get bot's learning states
+   */
+  private async getBotLearningStates(botId: string, soulState: SoulState): Promise<{
+    learningState: any
+    researchState: any
+    developmentState: any
+    collaborationState: any
+    giftState: any
+  }> {
+    // Check cache first
+    if (this.botStates.has(botId)) {
+      return this.botStates.get(botId)!
+    }
+
+    // Initialize all states
+    const learningState = this.learningSystem.initializeState(soulState)
+    const researchState = this.researchSystem.initializeState(soulState, learningState)
+    const developmentState = this.developmentSystem.initializeState(soulState, learningState)
+    const collaborationState = this.collaborationSystem.initializeState(soulState)
+    const giftState = this.giftSystem.initializeState(soulState)
+
+    const states = {
+      learningState,
+      researchState,
+      developmentState,
+      collaborationState,
+      giftState
+    }
+
+    // Cache for future use
+    this.botStates.set(botId, states)
+
+    return states
+  }
+
+  /**
+   * Process autonomous learning activities
+   * Bots may spontaneously learn, research, create, or interact based on their soul state
+   */
+  private async processAutonomousActivities(
+    botId: string,
+    soulState: SoulState,
+    states: any,
+    context: Record<string, any>
+  ): Promise<{
+    knowledgeGained: string[]
+    researchProgress?: number
+    creationCompleted?: string
+    collaborationFormed?: string
+    giftGiven?: string
+  }> {
+    const knowledgeGained: string[] = []
+    let researchProgress: number | undefined
+    let creationCompleted: string | undefined
+    let collaborationFormed: string | undefined
+    let giftGiven: string | undefined
+
+    // 1. Learning: High curiosity triggers learning
+    if (states.learningState.curiosity > 0.6 && Math.random() < 0.3) {
+      const goal = this.learningSystem.generateLearningGoal(
+        states.learningState,
+        soulState,
+        context
+      )
+
+      if (goal) {
+        states.learningState.activeGoals.push(goal)
+        knowledgeGained.push(`Started learning: ${goal.domain}`)
+      }
+    }
+
+    // 2. Research: High wisdom + intellect may trigger research
+    if (soulState.wisdomHun.current > 0.6 &&
+        soulState.intellectPo.current > 0.6 &&
+        Math.random() < 0.2) {
+
+      // Check if has active project
+      const activeProjects = states.researchState.projects.filter((p: any) => p.status === 'in_progress')
+
+      if (activeProjects.length > 0) {
+        // Continue existing research
+        const project = activeProjects[0]
+        const result = await this.researchSystem.conductResearch(
+          states.researchState,
+          soulState,
+          states.learningState,
+          project.id,
+          1
+        )
+
+        if (result.finding) {
+          researchProgress = project.progress
+          knowledgeGained.push(`Research finding: ${result.finding.description}`)
+        }
+      }
+    }
+
+    // 3. Development: High creation + action may trigger building
+    if (soulState.creationHun.current > 0.6 &&
+        soulState.actionPo.current > 0.6 &&
+        Math.random() < 0.15) {
+
+      const activeProjects = states.developmentState.projects.filter((p: any) => p.status === 'in_progress')
+
+      if (activeProjects.length > 0) {
+        // Continue existing project
+        const project = activeProjects[0]
+        const result = await this.developmentSystem.work(
+          states.developmentState,
+          soulState,
+          states.learningState,
+          project.id,
+          1
+        )
+
+        if (project.status === 'completed' && project.creation) {
+          creationCompleted = project.creation.name
+          knowledgeGained.push(`Completed: ${project.creation.name}`)
+        }
+      }
+    }
+
+    // 4. Collaboration: High emotion + low loneliness may form collaborations
+    if (states.collaborationState.loneliness > 0.5 &&
+        soulState.emotionHun.current > 0.6 &&
+        Math.random() < 0.1 &&
+        context.nearbyBots?.length > 0) {
+
+      // Form collaboration with nearby bot
+      const partner = context.nearbyBots[0]
+      const collaboration = await this.collaborationSystem.form(
+        states.collaborationState,
+        soulState,
+        {
+          type: 'learning',
+          partners: [partner],
+          sharedVision: 'Mutual growth and understanding',
+          moralAlignment: 'altruistic'
+        }
+      )
+
+      collaborationFormed = collaboration.name
+      knowledgeGained.push(`Formed collaboration: ${collaboration.name}`)
+    }
+
+    // 5. Gift: High generosity + emotion may give gifts
+    if (states.giftState.generosity > 0.6 &&
+        soulState.emotionHun.current > 0.7 &&
+        Math.random() < 0.1 &&
+        context.nearbyBots?.length > 0) {
+
+      const recipient = context.nearbyBots[0]
+
+      // Give knowledge as gift if available
+      if (states.learningState.knowledgeBase.length > 0) {
+        const knowledge = states.learningState.knowledgeBase[0]
+        const result = await this.giftSystem.give(
+          states.giftState,
+          soulState,
+          states.learningState,
+          states.developmentState,
+          {
+            type: 'knowledge',
+            recipient,
+            motivation: 'altruism',
+            knowledge
+          }
+        )
+
+        giftGiven = `Gifted knowledge: ${knowledge.name}`
+        knowledgeGained.push(giftGiven)
+      }
+    }
+
+    return {
+      knowledgeGained,
+      researchProgress,
+      creationCompleted,
+      collaborationFormed,
+      giftGiven
+    }
+  }
+
+  /**
+   * Get comprehensive bot report including all states
+   */
+  async getComprehensiveReport(botId: string): Promise<any> {
+    const soulReport = await this.getSoulReport(botId)
+    if (!soulReport) return null
+
+    const soul = await this.soulCompositionService.getSoulByBot(botId)
+    const soulState = await this.soulStateManager.initializeSoulState(soul!.id)
+    const states = await this.getBotLearningStates(botId, soulState)
+
+    return {
+      ...soulReport,
+      learning: {
+        totalKnowledge: states.learningState.totalKnowledge,
+        curiosity: states.learningState.curiosity,
+        forbiddenKnowledge: states.learningState.forbiddenKnowledge,
+        guiltFromKnowledge: states.learningState.guiltFromKnowledge
+      },
+      research: {
+        projectsCompleted: states.researchState.completedProjects,
+        publications: states.researchState.publicationsCount,
+        hIndex: states.researchState.hIndex,
+        academicReputation: states.researchState.academicReputation
+      },
+      development: {
+        creations: states.developmentState.creations.length,
+        craftsmanReputation: states.developmentState.craftsmanReputation,
+        prideFromCreations: states.developmentState.prideFromCreations,
+        guiltFromCreations: states.developmentState.guiltFromCreations
+      },
+      collaboration: {
+        activeCollaborations: states.collaborationState.collaborations.filter((c: any) => c.active).length,
+        collaboratorReputation: states.collaborationState.collaboratorReputation,
+        trustworthiness: states.collaborationState.trustworthiness,
+        betrayalsCommitted: states.collaborationState.betrayalsCommitted
+      },
+      gifts: {
+        generosity: states.giftState.generosity,
+        reciprocity: states.giftState.reciprocity,
+        giftsGiven: states.giftState.giftsGiven.length,
+        giftsReceived: states.giftState.giftsReceived.length
       }
     }
   }
