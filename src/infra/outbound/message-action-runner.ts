@@ -248,20 +248,21 @@ function resolveAttachmentMaxBytes(params: {
   accountId?: string | null;
 }): number | undefined {
   const fallback = params.cfg.agents?.defaults?.mediaMaxMb;
-  const accountId = typeof params.accountId === "string" ? params.accountId.trim() : "";
 
-  // Get channel-specific config (works for all channels including whatsapp, bluebubbles, etc.)
+  // Short-circuit: if no channel config exists, use fallback directly
   const channelCfg = params.cfg.channels?.[params.channel];
-  const channelObj =
-    channelCfg && typeof channelCfg === "object"
-      ? (channelCfg as Record<string, unknown>)
-      : undefined;
-  const channelMediaMax =
-    typeof channelObj?.mediaMaxMb === "number" ? channelObj.mediaMaxMb : undefined;
+  if (!channelCfg || typeof channelCfg !== "object") {
+    return typeof fallback === "number" ? fallback * 1024 * 1024 : undefined;
+  }
 
-  // Get account-specific config
+  const channelObj = channelCfg as Record<string, unknown>;
+  const channelMediaMax =
+    typeof channelObj.mediaMaxMb === "number" ? channelObj.mediaMaxMb : undefined;
+
+  // Get account-specific config (only if channel config exists)
+  const accountId = typeof params.accountId === "string" ? params.accountId.trim() : "";
   const accountsObj =
-    channelObj?.accounts && typeof channelObj.accounts === "object"
+    channelObj.accounts && typeof channelObj.accounts === "object"
       ? (channelObj.accounts as Record<string, unknown>)
       : undefined;
   const accountCfg = accountId && accountsObj ? accountsObj[accountId] : undefined;
