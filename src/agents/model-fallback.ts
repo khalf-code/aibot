@@ -263,7 +263,7 @@ export async function runWithModelFallback<T>(params: {
       });
       // Check cooldown with model ID to enable per-model cooldown tracking
       const isAnyProfileAvailable = profileIds.some(
-        (id) => !isProfileInCooldown(authStore, id, candidate.model)
+        (id) => !isProfileInCooldown(authStore, id, candidate.model),
       );
 
       if (profileIds.length > 0 && !isAnyProfileAvailable) {

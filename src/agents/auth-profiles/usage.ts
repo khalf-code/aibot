@@ -1,5 +1,5 @@
 import type { OpenClawConfig } from "../../config/config.js";
-import type { AuthProfileFailureReason, AuthProfileStore, ModelCooldownStats, ProfileUsageStats } from "./types.js";
+import type { AuthProfileFailureReason, AuthProfileStore, ProfileUsageStats } from "./types.js";
 import { normalizeProviderId } from "../model-selection.js";
 import { saveAuthProfileStore, updateAuthProfileStoreWithLock } from "./store.js";
 
@@ -18,7 +18,11 @@ function resolveProfileUnusableUntil(stats: ProfileUsageStats): number | null {
  * When modelId is provided, checks model-specific cooldown first (for rate limits),
  * then falls back to provider-level cooldown (for auth/billing failures).
  */
-export function isProfileInCooldown(store: AuthProfileStore, profileId: string, modelId?: string): boolean {
+export function isProfileInCooldown(
+  store: AuthProfileStore,
+  profileId: string,
+  modelId?: string,
+): boolean {
   const stats = store.usageStats?.[profileId];
   if (!stats) {
     return false;
