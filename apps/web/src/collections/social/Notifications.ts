@@ -7,6 +7,35 @@ export const Notifications: CollectionConfig = {
     defaultColumns: ['recipient', 'type', 'actor', 'read', 'createdAt'],
     group: 'Social'
   },
+  indexes: [
+    {
+      fields: {
+        recipient: 1,
+        read: 1,
+        createdAt: -1
+      },
+      options: {
+        name: 'notifications_inbox_idx'
+      }
+    },
+    {
+      fields: {
+        recipient: 1,
+        type: 1
+      },
+      options: {
+        name: 'notifications_recipient_type_idx'
+      }
+    },
+    {
+      fields: {
+        createdAt: -1
+      },
+      options: {
+        name: 'notifications_created_at_idx'
+      }
+    }
+  ],
   access: {
     create: () => true, // System creates notifications
     read: ({ req: { user } }) => {

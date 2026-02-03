@@ -184,10 +184,23 @@ export class CacheService {
       const prefix = options.prefix || 'clawnet'
       const fullPattern = `${prefix}:${pattern}`
 
-      const keys = await this.client.keys(fullPattern)
+      // Use SCAN instead of KEYS to avoid blocking Redis
+      const keys: string[] = []
+      let cursor = '0'
+
+      do {
+        const result = await this.client.scan(cursor, 'MATCH', fullPattern, 'COUNT', 100)
+        cursor = result[0]
+        keys.push(...result[1])
+      } while (cursor !== '0')
 
       if (keys.length > 0) {
-        await this.client.del(keys)
+        // Delete in batches to avoid blocking
+        const batchSize = 100
+        for (let i = 0; i < keys.length; i += batchSize) {
+          const batch = keys.slice(i, i + batchSize)
+          await this.client.del(batch)
+        }
       }
     } catch (error) {
       this.payload.logger.error(`Cache delete pattern error for ${pattern}: ${error}`)
