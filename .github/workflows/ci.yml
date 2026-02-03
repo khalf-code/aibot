@@ -642,3 +642,36 @@ jobs:
       - name: Run Android ${{ matrix.task }}
         working-directory: apps/android
         run: ${{ matrix.command }}
+
+  security-audit:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          check-latest: true
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.23.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Security audit
+        run: |
+          echo "## 🔒 Dependency Security Audit" >> "$GITHUB_STEP_SUMMARY"
+          if pnpm audit --audit-level=high 2>&1 | tee audit-output.txt; then
+            echo "✅ No high/critical vulnerabilities found" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "❌ Vulnerabilities detected:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            head -100 audit-output.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
