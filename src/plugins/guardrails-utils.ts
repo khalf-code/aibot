@@ -142,6 +142,7 @@ export function replaceToolResultWithWarning(
     ? { ...baseDetails, guardrailWarning: warning }
     : { guardrailWarning: warning };
   return {
+    ...result,
     content: [{ type: "text", text: warning }],
     details,
   };
