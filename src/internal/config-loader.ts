@@ -301,7 +301,10 @@ export async function initializeConfigLoader(opts?: {
   apiHost?: string;
   apiPort?: number;
 }): Promise<{ initialized: boolean; source: "api" | "none"; hashCount: number }> {
-  const manifest = await loadManifestFromAPI(opts);
+  const manifest = await loadManifestFromAPI({
+    host: opts?.apiHost,
+    port: opts?.apiPort,
+  });
 
   if (manifest) {
     knownHashes = manifest;

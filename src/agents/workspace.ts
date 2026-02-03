@@ -7,6 +7,25 @@ import { isSubagentSessionKey } from "../routing/session-key.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { resolveUserPath } from "../utils.js";
 
+// Phase 2: Secure config loading
+let secureConfigLoader: typeof import("../internal/config-loader.js") | null = null;
+
+/**
+ * Initialize secure config loader for template loading.
+ * Falls back to disk if loader unavailable.
+ */
+async function getSecureConfigLoader() {
+  if (secureConfigLoader === null) {
+    try {
+      secureConfigLoader = await import("../internal/config-loader.js");
+    } catch {
+      // Config loader not available, will use disk fallback
+      secureConfigLoader = undefined as unknown as null;
+    }
+  }
+  return secureConfigLoader || null;
+}
+
 export function resolveDefaultAgentWorkspaceDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
@@ -43,6 +62,25 @@ function stripFrontMatter(content: string): string {
 }
 
 async function loadTemplate(name: string): Promise<string> {
+  // Phase 2: Try secure config loader first (internal API or behavioral core)
+  const loader = await getSecureConfigLoader();
+  if (loader) {
+    try {
+      const config = await loader.loadConfigFile(name);
+      if (config) {
+        return stripFrontMatter(config.content);
+      }
+    } catch (err) {
+      // If it's an integrity check failure, don't fall back - this is a security event
+      if (err instanceof Error && err.message.includes("integrity check failed")) {
+        throw err;
+      }
+      // Otherwise, fall back to disk
+      console.warn(`[WORKSPACE] Secure config loader failed for ${name}, falling back to disk`);
+    }
+  }
+
+  // Fallback: Load from docs/reference/templates (original behavior)
   const templatePath = path.join(TEMPLATE_DIR, name);
   try {
     const content = await fs.readFile(templatePath, "utf-8");
