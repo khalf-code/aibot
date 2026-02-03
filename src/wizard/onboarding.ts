@@ -297,7 +297,8 @@ export async function runOnboardingWizard(
     token: baseConfig.gateway?.auth?.token ?? process.env.OPENCLAW_GATEWAY_TOKEN,
     password: baseConfig.gateway?.auth?.password ?? process.env.OPENCLAW_GATEWAY_PASSWORD,
   });
-  const localUrl = localProbe.resolvedUrl ?? localUrlDefault;
+  const localUrl =
+    localProbe.ok && localProbe.resolvedUrl ? localProbe.resolvedUrl : localUrlDefault;
   const remoteUrl = baseConfig.gateway?.remote?.url?.trim() ?? "";
   const remoteProbe = remoteUrl
     ? await probeGatewayReachable({
