@@ -67,11 +67,11 @@ export function renderNostrCard(params: {
         <div class="status-list account-card-status">
           <div>
             <span class="label">Running</span>
-            <span>${account.running ? "Yes" : "No"}</span>
+            <span>${account.running ? t().ui.views.channels.yes : t().ui.views.channels.no}</span>
           </div>
           <div>
             <span class="label">Configured</span>
-            <span>${account.configured ? "Yes" : "No"}</span>
+            <span>${account.configured ? t().ui.views.channels.yes : t().ui.views.channels.no}</span>
           </div>
           <div>
             <span class="label">Public Key</span>
@@ -79,7 +79,7 @@ export function renderNostrCard(params: {
           </div>
           <div>
             <span class="label">Last inbound</span>
-            <span>${account.lastInboundAt ? formatAgo(account.lastInboundAt) : "n/a"}</span>
+            <span>${account.lastInboundAt ? formatAgo(account.lastInboundAt) : t().ui.views.channels.na}</span>
           </div>
           ${
             account.lastError
@@ -174,7 +174,7 @@ export function renderNostrCard(params: {
             `
             : html`
                 <div style="color: var(--text-muted); font-size: 13px">
-                  No profile set. Click "Edit Profile" to add your name, bio, and avatar.
+                  ${t().ui.views.channels.nostr.noProfile}
                 </div>
               `
         }
@@ -184,7 +184,7 @@ export function renderNostrCard(params: {
 
   return html`
     <div class="card">
-      <div class="card-title">Nostr</div>
+      <div class="card-title">${t().ui.views.channels.nostr.title}</div>
       <div class="card-sub">Decentralized DMs via Nostr relays (NIP-04).</div>
       ${accountCountLabel}
 
@@ -199,11 +199,11 @@ export function renderNostrCard(params: {
             <div class="status-list" style="margin-top: 16px;">
               <div>
                 <span class="label">Configured</span>
-                <span>${summaryConfigured ? "Yes" : "No"}</span>
+                <span>${summaryConfigured ? t().ui.views.channels.yes : t().ui.views.channels.no}</span>
               </div>
               <div>
                 <span class="label">Running</span>
-                <span>${summaryRunning ? "Yes" : "No"}</span>
+                <span>${summaryRunning ? t().ui.views.channels.yes : t().ui.views.channels.no}</span>
               </div>
               <div>
                 <span class="label">Public Key</span>
@@ -213,7 +213,7 @@ export function renderNostrCard(params: {
               </div>
               <div>
                 <span class="label">Last start</span>
-                <span>${summaryLastStartAt ? formatAgo(summaryLastStartAt) : "n/a"}</span>
+                <span>${summaryLastStartAt ? formatAgo(summaryLastStartAt) : t().ui.views.channels.na}</span>
               </div>
             </div>
           `

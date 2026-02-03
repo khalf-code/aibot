@@ -515,6 +515,13 @@ export const zhCN: typeof import("./en.js").en = {
                 installing: "正在安装...",
                 apiKey: "API Key",
                 saveKey: "保存 Key",
+                groups: {
+                    workspace: "工作区技能",
+                    builtIn: "内置技能",
+                    installed: "已安装技能",
+                    extra: "扩展技能",
+                    other: "其他技能",
+                },
             },
             nodes: {
                 nodes: "节点",

@@ -5,6 +5,7 @@
  */
 
 import { html, nothing, type TemplateResult } from "lit";
+import { t } from "../i18n";
 import type { NostrProfile as NostrProfileType } from "../types";
 
 // ============================================================================
@@ -166,7 +167,7 @@ export function renderNostrProfileForm(params: {
   return html`
     <div class="nostr-profile-form" style="padding: 16px; background: var(--bg-secondary); border-radius: 8px; margin-top: 12px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div style="font-weight: 600; font-size: 16px;">Edit Profile</div>
+        <div style="font-weight: 600; font-size: 16px;">${t().ui.views.channels.nostr.editProfile}</div>
         <div style="font-size: 12px; color: var(--text-muted);">Account: ${accountId}</div>
       </div>
 
@@ -184,30 +185,13 @@ export function renderNostrProfileForm(params: {
 
       ${renderPicturePreview()}
 
-      ${renderField("name", "Username", {
-        placeholder: "satoshi",
-        maxLength: 256,
-        help: "Short username (e.g., satoshi)",
-      })}
+      ${renderField("name", t().ui.views.channels.nostr.profileForm.username, { placeholder: t().ui.views.channels.nostr.profileForm.usernamePlaceholder, maxLength: 256, help: t().ui.views.channels.nostr.profileForm.usernameHelp })}
 
-      ${renderField("displayName", "Display Name", {
-        placeholder: "Satoshi Nakamoto",
-        maxLength: 256,
-        help: "Your full display name",
-      })}
+      ${renderField("displayName", t().ui.views.channels.nostr.profileForm.displayName, { placeholder: t().ui.views.channels.nostr.profileForm.displayNamePlaceholder, maxLength: 256, help: t().ui.views.channels.nostr.profileForm.displayNameHelp })}
 
-      ${renderField("about", "Bio", {
-        type: "textarea",
-        placeholder: "Tell people about yourself...",
-        maxLength: 2000,
-        help: "A brief bio or description",
-      })}
+      ${renderField("about", t().ui.views.channels.nostr.profileForm.bio, { type: "textarea", placeholder: t().ui.views.channels.nostr.profileForm.bioPlaceholder, maxLength: 2000, help: t().ui.views.channels.nostr.profileForm.bioHelp })}
 
-      ${renderField("picture", "Avatar URL", {
-        type: "url",
-        placeholder: "https://example.com/avatar.jpg",
-        help: "HTTPS URL to your profile picture",
-      })}
+      ${renderField("picture", t().ui.views.channels.nostr.profileForm.avatarUrl, { type: "url", placeholder: t().ui.views.channels.nostr.profileForm.avatarUrlPlaceholder, help: t().ui.views.channels.nostr.profileForm.avatarUrlHelp })}
 
       ${
         state.showAdvanced
@@ -215,27 +199,13 @@ export function renderNostrProfileForm(params: {
             <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px;">
               <div style="font-weight: 500; margin-bottom: 12px; color: var(--text-muted);">Advanced</div>
 
-              ${renderField("banner", "Banner URL", {
-                type: "url",
-                placeholder: "https://example.com/banner.jpg",
-                help: "HTTPS URL to a banner image",
-              })}
+              ${renderField("banner", t().ui.views.channels.nostr.profileForm.bannerUrl, { type: "url", placeholder: t().ui.views.channels.nostr.profileForm.bannerUrlPlaceholder, help: t().ui.views.channels.nostr.profileForm.bannerUrlHelp })}
 
-              ${renderField("website", "Website", {
-                type: "url",
-                placeholder: "https://example.com",
-                help: "Your personal website",
-              })}
+              ${renderField("website", t().ui.views.channels.nostr.profileForm.website, { type: "url", placeholder: t().ui.views.channels.nostr.profileForm.websitePlaceholder, help: t().ui.views.channels.nostr.profileForm.websiteHelp })}
 
-              ${renderField("nip05", "NIP-05 Identifier", {
-                placeholder: "you@example.com",
-                help: "Verifiable identifier (e.g., you@domain.com)",
-              })}
+              ${renderField("nip05", t().ui.views.channels.nostr.profileForm.nip05, { placeholder: t().ui.views.channels.nostr.profileForm.nip05Placeholder, help: t().ui.views.channels.nostr.profileForm.nip05Help })}
 
-              ${renderField("lud16", "Lightning Address", {
-                placeholder: "you@getalby.com",
-                help: "Lightning address for tips (LUD-16)",
-              })}
+              ${renderField("lud16", t().ui.views.channels.nostr.profileForm.lightningAddress, { placeholder: t().ui.views.channels.nostr.profileForm.lightningAddressPlaceholder, help: t().ui.views.channels.nostr.profileForm.lightningAddressHelp })}
             </div>
           `
           : nothing
@@ -247,7 +217,7 @@ export function renderNostrProfileForm(params: {
           @click=${callbacks.onSave}
           ?disabled=${state.saving || !isDirty}
         >
-          ${state.saving ? "Saving..." : "Save & Publish"}
+          ${state.saving ? t().ui.views.channels.nostr.profileForm.saving : t().ui.views.channels.nostr.profileForm.save}
         </button>
 
         <button
@@ -255,14 +225,14 @@ export function renderNostrProfileForm(params: {
           @click=${callbacks.onImport}
           ?disabled=${state.importing || state.saving}
         >
-          ${state.importing ? "Importing..." : "Import from Relays"}
+          ${state.importing ? t().ui.views.channels.nostr.profileForm.importing : t().ui.views.channels.nostr.profileForm.import}
         </button>
 
         <button
           class="btn"
           @click=${callbacks.onToggleAdvanced}
         >
-          ${state.showAdvanced ? "Hide Advanced" : "Show Advanced"}
+          ${state.showAdvanced ? t().ui.views.channels.nostr.profileForm.hideAdvanced : t().ui.views.channels.nostr.profileForm.showAdvanced}
         </button>
 
         <button

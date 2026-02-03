@@ -515,6 +515,13 @@ export const en = {
                 installing: "Installing…",
                 apiKey: "API key",
                 saveKey: "Save key",
+                groups: {
+                    workspace: "Workspace Skills",
+                    builtIn: "Built-in Skills",
+                    installed: "Installed Skills",
+                    extra: "Extra Skills",
+                    other: "Other Skills",
+                },
             },
             nodes: {
                 nodes: "Nodes",

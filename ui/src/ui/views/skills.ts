@@ -10,28 +10,30 @@ type SkillGroup = {
   skills: SkillStatusEntry[];
 };
 
-const SKILL_SOURCE_GROUPS: Array<{ id: string; label: string; sources: string[] }> = [
-  { id: "workspace", label: "Workspace Skills", sources: ["openclaw-workspace"] },
-  { id: "built-in", label: "Built-in Skills", sources: ["openclaw-bundled"] },
-  { id: "installed", label: "Installed Skills", sources: ["openclaw-managed"] },
-  { id: "extra", label: "Extra Skills", sources: ["openclaw-extra"] },
-];
-
 function groupSkills(skills: SkillStatusEntry[]): SkillGroup[] {
   const groups = new Map<string, SkillGroup>();
-  for (const def of SKILL_SOURCE_GROUPS) {
+  const translations = t().ui.views.skills.groups;
+
+  const groupDefs = [
+    { id: "workspace", label: translations.workspace, sources: ["openclaw-workspace"] },
+    { id: "built-in", label: translations.builtIn, sources: ["openclaw-bundled"] },
+    { id: "installed", label: translations.installed, sources: ["openclaw-managed"] },
+    { id: "extra", label: translations.extra, sources: ["openclaw-extra"] },
+  ];
+
+  for (const def of groupDefs) {
     groups.set(def.id, { id: def.id, label: def.label, skills: [] });
   }
-  const other: SkillGroup = { id: "other", label: "Other Skills", skills: [] };
+  const other: SkillGroup = { id: "other", label: translations.other, skills: [] };
   for (const skill of skills) {
-    const match = SKILL_SOURCE_GROUPS.find((group) => group.sources.includes(skill.source));
+    const match = groupDefs.find((group) => group.sources.includes(skill.source));
     if (match) {
       groups.get(match.id)?.skills.push(skill);
     } else {
       other.skills.push(skill);
     }
   }
-  const ordered = SKILL_SOURCE_GROUPS.map((group) => groups.get(group.id)).filter(
+  const ordered = groupDefs.map((group) => groups.get(group.id)).filter(
     (group): group is SkillGroup => Boolean(group && group.skills.length > 0),
   );
   if (other.skills.length > 0) {
