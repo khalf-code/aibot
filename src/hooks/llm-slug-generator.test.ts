@@ -13,7 +13,7 @@ describe("llm-slug-generator", () => {
     const mockRun = vi.mocked(runEmbeddedPiAgent);
     mockRun.mockResolvedValue({
       payloads: [{ text: "Slug-Example" }],
-    } as unknown as ReturnType<typeof runEmbeddedPiAgent>);
+    } as Awaited<ReturnType<typeof runEmbeddedPiAgent>>);
 
     const { generateSlugViaLLM } = await import("./llm-slug-generator.js");
 
