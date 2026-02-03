@@ -105,6 +105,8 @@ import {
   errorShape,
   type GatewayFrame,
   GatewayFrameSchema,
+  GatewayReloadParamsSchema,
+  GatewayReloadResultSchema,
   type HelloOk,
   HelloOkSchema,
   type LogsTailParams,
@@ -458,6 +460,8 @@ export const validateWorktreeDeleteParams = ajv.compile(ProtocolSchemas.Worktree
 export const validateWorktreeMoveParams = ajv.compile(ProtocolSchemas.WorktreeMoveParams);
 export const validateWorktreeMkdirParams = ajv.compile(ProtocolSchemas.WorktreeMkdirParams);
 
+export const validateGatewayReloadParams = ajv.compile(GatewayReloadParamsSchema);
+
 export function formatValidationErrors(errors: ErrorObject[] | null | undefined) {
   if (!errors?.length) {
     return "unknown validation error";
@@ -607,6 +611,9 @@ export {
   AutomationsCreateParamsSchema,
   AutomationsArtifactDownloadParamsSchema,
   AutomationsArtifactDownloadResultSchema,
+  // Gateway reload
+  GatewayReloadParamsSchema,
+  GatewayReloadResultSchema,
 };
 
 export type {

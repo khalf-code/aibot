@@ -17,3 +17,4 @@ export * from "./schema/snapshot.js";
 export * from "./schema/types.js";
 export * from "./schema/wizard.js";
 export * from "./schema/worktree.js";
+export * from "./schema/gateway-reload.js";

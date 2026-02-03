@@ -29,11 +29,27 @@ export function createGatewayCloseHandler(params: {
   clients: Set<{ socket: { close: (code: number, reason: string) => void } }>;
   configReloader: { stop: () => Promise<void> };
   browserControl: { stop: () => Promise<void> } | null;
+  persistInterval?: ReturnType<typeof setInterval>;
+  persistChatRunState?: () => Promise<void>;
   wss: WebSocketServer;
   httpServer: HttpServer;
   httpServers?: HttpServer[];
 }) {
   return async (opts?: { reason?: string; restartExpectedMs?: number | null }) => {
+    // Stop persistence timer and flush state before shutdown
+    if (params.persistInterval) {
+      clearInterval(params.persistInterval);
+    }
+    if (params.persistChatRunState) {
+      try {
+        await Promise.race([
+          params.persistChatRunState(),
+          new Promise((resolve) => setTimeout(resolve, 500)), // 500ms timeout
+        ]);
+      } catch {
+        /* best-effort */
+      }
+    }
     const reasonRaw = typeof opts?.reason === "string" ? opts.reason.trim() : "";
     const reason = reasonRaw || "gateway stopping";
     const restartExpectedMs =
