@@ -9,7 +9,7 @@ title: "zalouser-free Plugin"
 
 # zalouser-free Plugin
 
-Free Zalo Personal channel plugin for OpenClaw using the [zca-js](https://github.com/RFS-ADRENO/zca-js) library.
+Free Personal Zalo channel plugin for OpenClaw using the [zca-js](https://github.com/RFS-ADRENO/zca-js) library.
 
 ## Overview
 
@@ -69,11 +69,11 @@ In `~/.openclaw/openclaw.json`:
         enabled: true,
         config: {
           // Optional: custom session storage path
-          sessionPath: "~/.openclaw/zalouser-free/sessions.json"
-        }
-      }
-    }
-  }
+          sessionPath: "~/.openclaw/zalouser-free/sessions.json",
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -85,16 +85,17 @@ In `~/.openclaw/openclaw.json`:
     "zalouser-free": {
       accounts: {
         default: {
-          enabled: false,            // Enable after login
-          dmAccess: "whitelist",     // "open" | "whitelist"
-          groupAccess: "mention",    // "open" | "mention" | "whitelist"
-          allowedUsers: [],          // User IDs for whitelist
-          allowedGroups: [],         // Group IDs for whitelist
-          userAgent: ""              // Optional custom UA
-        }
-      }
-    }
-  }
+          enabled: false, // Enable after login
+          dmAccess: "whitelist", // "open" | "whitelist"
+          groupAccess: "whitelist", // "open" | "whitelist"
+          groupReplyMode: "mention", // "mention" | "all"
+          allowedUsers: [], // User IDs for whitelist
+          allowedGroups: [], // Group IDs for whitelist
+          userAgent: "", // Optional custom UA
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -104,20 +105,21 @@ The plugin accepts the following configuration options:
 
 #### Plugin Config (`plugins.entries.zalouser-free.config`)
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| Field         | Type   | Default                                   | Description                       |
+| ------------- | ------ | ----------------------------------------- | --------------------------------- |
 | `sessionPath` | string | `~/.openclaw/zalouser-free/sessions.json` | Path to store session credentials |
 
 #### Account Config (`channels.zalouser-free.accounts.<accountId>`)
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | boolean | `false` | Enable account on gateway startup |
-| `dmAccess` | string | `"whitelist"` | DM access control: `"open"` or `"whitelist"` |
-| `groupAccess` | string | `"mention"` | Group access: `"open"`, `"mention"`, or `"whitelist"` |
-| `allowedUsers` | string[] | `[]` | Allowed user IDs (for whitelist/mention modes) |
-| `allowedGroups` | string[] | `[]` | Allowed group IDs (for whitelist mode) |
-| `userAgent` | string | `""` | Custom user agent for this account |
+| Field            | Type     | Default       | Description                                                                            |
+| ---------------- | -------- | ------------- | -------------------------------------------------------------------------------------- |
+| `enabled`        | boolean  | `false`       | Enable account on gateway startup                                                      |
+| `dmAccess`       | string   | `"whitelist"` | DM access control: `"open"` or `"whitelist"`                                           |
+| `groupAccess`    | string   | `"whitelist"` | Group access control: `"open"` or `"whitelist"`                                        |
+| `groupReplyMode` | string   | `"mention"`   | Group reply mode: `"mention"` (only when mentioned) or `"all"` (reply to all messages) |
+| `allowedUsers`   | string[] | `[]`          | Allowed user IDs (for whitelist modes)                                                 |
+| `allowedGroups`  | string[] | `[]`          | Allowed group IDs (for whitelist mode)                                                 |
+| `userAgent`      | string   | `""`          | Custom user agent for this account                                                     |
 
 ## CLI Commands
 
@@ -126,6 +128,7 @@ The plugin accepts the following configuration options:
 Login to Zalo via QR code.
 
 **Options:**
+
 - `--qr-path <path>` - Save QR code to file instead of terminal
 
 **Examples:**
@@ -188,6 +191,7 @@ openclaw zalouser-free stop work
 Send a text message.
 
 **Options:**
+
 - `-a, --account <accountId>` - Account ID (default: "default")
 - `-g, --group` - Send to group instead of direct
 
@@ -223,12 +227,14 @@ The plugin registers the following components:
 **ID:** `zalouser-free`  
 **Label:** "Zalo Personal (Free)"  
 **Capabilities:**
+
 - Chat types: `direct`, `group`
 - Media: `text`, `sticker`
 
 ### Onboarding Adapter
 
 Provides guided setup during `openclaw onboard`:
+
 - QR login instructions
 - Access control configuration
 - Multi-account setup
@@ -266,11 +272,11 @@ openclaw zalouser-free login
         default: {
           enabled: true,
           dmAccess: "whitelist",
-          allowedUsers: ["friend123"]
-        }
-      }
-    }
-  }
+          allowedUsers: ["friend123"],
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -290,18 +296,20 @@ openclaw gateway restart
         personal: {
           enabled: true,
           dmAccess: "whitelist",
-          groupAccess: "mention",
-          allowedUsers: ["friend1", "friend2"]
+          groupAccess: "whitelist",
+          groupReplyMode: "mention",
+          allowedUsers: ["friend1", "friend2"],
         },
         work: {
           enabled: true,
           dmAccess: "open",
           groupAccess: "whitelist",
-          allowedGroups: ["workgroup1"]
-        }
-      }
-    }
-  }
+          groupReplyMode: "all",
+          allowedGroups: ["workgroup1"],
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -319,8 +327,9 @@ openclaw zalouser-free login work
 ```json5
 {
   dmAccess: "whitelist",
-  groupAccess: "mention",
-  allowedUsers: ["friend1", "friend2", "family1"]
+  groupAccess: "whitelist",
+  groupReplyMode: "mention",
+  allowedUsers: ["friend1", "friend2", "family1"],
 }
 ```
 
@@ -329,7 +338,8 @@ openclaw zalouser-free login work
 ```json5
 {
   dmAccess: "open",
-  groupAccess: "open"
+  groupAccess: "open",
+  groupReplyMode: "all",
 }
 ```
 
@@ -338,19 +348,21 @@ openclaw zalouser-free login work
 ```json5
 {
   dmAccess: "whitelist",
-  groupAccess: "mention",
-  allowedUsers: ["admin1"]
+  groupAccess: "open",
+  groupReplyMode: "mention",
+  allowedUsers: ["admin1"],
 }
 ```
 
-**Specific groups only:**
+**Specific groups only, reply to all:**
 
 ```json5
 {
   dmAccess: "whitelist",
   groupAccess: "whitelist",
+  groupReplyMode: "all",
   allowedUsers: ["*"],
-  allowedGroups: ["group1", "group2"]
+  allowedGroups: ["group1", "group2"],
 }
 ```
 
@@ -429,6 +441,7 @@ openclaw zalouser-free login
 ### Gateway not starting accounts
 
 Check config:
+
 - Ensure `enabled: true` for the account
 - Verify `plugins.entries.zalouser-free.enabled: true`
 - Check gateway logs for errors

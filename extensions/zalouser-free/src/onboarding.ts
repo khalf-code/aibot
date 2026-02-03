@@ -2,115 +2,175 @@
  * Onboarding Adapter for zalouser-free
  */
 
-import type { ZaloUserFreeAccountConfig } from "./types.js";
-import { DEFAULT_ACCOUNT_ID } from "./accounts.js";
+import type { ChannelOnboardingAdapter, OpenClawConfig, WizardPrompter } from "openclaw/plugin-sdk";
+import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk";
 import { ZaloSessionManager } from "./session-manager.js";
+import { listAccountIds } from "./accounts.js";
 
-export interface OnboardingStatus {
-    ready: boolean;
-    authenticated: boolean;
-    warnings: string[];
-    errors: string[];
+const channel = "zalouser-free" as const;
+
+async function noteZalouserFreeHelp(prompter: WizardPrompter): Promise<void> {
+    await prompter.note(
+        [
+            "Zalo Personal Account (Free) - Direct integration via zca-js",
+            "",
+            "This channel uses zca-js library directly.",
+            "You'll scan a QR code with your Zalo app to login.",
+            "",
+            "Docs: https://docs.openclaw.ai/channels/zalouser-free",
+        ].join("\n"),
+        "Zalo Personal (Free) Setup",
+    );
 }
 
-export interface OnboardingAdapter {
-    id: string;
-    displayName: string;
-    getStatus: (cfg: unknown, accountId?: string) => Promise<OnboardingStatus>;
-    getPrompts: () => Array<{
-        key: string;
-        label: string;
-        type: "text" | "select" | "boolean";
-        options?: string[];
-        required?: boolean;
-    }>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    applyConfig: (cfg: unknown, accountId: string, input: Record<string, any>) => any;
-}
-
-export const zalouserFreeOnboardingAdapter: OnboardingAdapter = {
-    id: "zalouser-free",
-    displayName: "Zalo (Free, Zalo Personal, zca-js)",
-
-    getStatus: async (cfg: unknown, accountId?: string): Promise<OnboardingStatus> => {
-        const id = accountId ?? DEFAULT_ACCOUNT_ID;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const channelConfig = (cfg as any)?.channels?.["zalouser-free"];
-        const accountConfig = channelConfig?.accounts?.[id];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pluginConfig = (cfg as any)?.plugins?.entries?.["zalouser-free"]?.config;
-
-        // Check for actual saved credentials
+export const zalouserFreeOnboardingAdapter: ChannelOnboardingAdapter = {
+    channel,
+    
+    getStatus: async ({ cfg }) => {
+        const ids = listAccountIds(cfg);
+        let configured = false;
+        
+        const pluginConfig = cfg.plugins?.entries?.["zalouser-free"]?.config;
         const sessionPath = pluginConfig?.sessionPath;
-        // We can instantiate the manager here just to check credentials
-        // Note: This relies on the session file existing on disk
         const manager = new ZaloSessionManager(sessionPath);
-        const hasCredentials = manager.hasSavedCredentials(id);
-
-        // Status is authenticated if we have credentials
-        const authenticated = hasCredentials;
-        // Ready if authenticated and enabled
-        const enabled = Boolean(accountConfig?.enabled);
-        const ready = authenticated && enabled;
-
+        
+        for (const accountId of ids) {
+            const hasCredentials = manager.hasSavedCredentials(accountId);
+            if (hasCredentials) {
+                configured = true;
+                break;
+            }
+        }
+        
         return {
-            ready,
-            authenticated,
-            warnings: !authenticated ? ["Not logged in. Run: openclaw zalouser-free login"] : (!enabled ? ["Account is disabled (but authenticated)."] : []),
-            errors: [],
+            channel,
+            configured,
+            statusLines: [`Zalo Personal (Free): ${configured ? "logged in" : "needs QR login"}`],
+            selectionHint: configured ? "recommended · logged in" : "recommended · QR login",
+            quickstartScore: configured ? 1 : 15,
         };
     },
-
-    getPrompts: () => [
-        {
-            key: "dmAccess",
-            label: "DM Access Policy",
-            type: "select" as const,
-            options: ["whitelist", "open"],
-            required: false,
-        },
-        {
-            key: "groupAccess",
-            label: "Group Access Policy",
-            type: "select" as const,
-            options: ["mention", "whitelist", "open"],
-            required: false,
-        },
-    ],
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    applyConfig: (cfg: unknown, accountId: string, input: Record<string, any>) => {
-        const id = accountId ?? DEFAULT_ACCOUNT_ID;
-
-        const accountConfig: Partial<ZaloUserFreeAccountConfig> = {
-            enabled: true,
-            dmAccess: input.dmAccess || "whitelist",
-            groupAccess: input.groupAccess || "mention",
-            allowedUsers: input.allowedUsers || [],
-            allowedGroups: input.allowedGroups || [],
-        };
-
-        return {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ...(cfg as any),
+    
+    configure: async ({ cfg, prompter }) => {
+        await noteZalouserFreeHelp(prompter);
+        
+        const accountId = DEFAULT_ACCOUNT_ID;
+        
+        const pluginConfig = cfg.plugins?.entries?.["zalouser-free"]?.config;
+        const sessionPath = pluginConfig?.sessionPath;
+        const manager = new ZaloSessionManager(sessionPath, console);
+        
+        const hasCredentials = manager.hasSavedCredentials(accountId);
+        
+        if (!hasCredentials) {
+            const wantsLogin = await prompter.confirm({
+                message: "Login via QR code now?",
+                initialValue: true,
+            });
+            
+            if (wantsLogin) {
+                await prompter.note(
+                    "A QR code will appear below.\nScan it with your Zalo app to login.",
+                    "QR Login",
+                );
+                
+                // Perform QR login
+                const result = await manager.loginWithQR(accountId, {
+                    qrCallback: (qrData) => {
+                        console.log("\n" + qrData + "\n");
+                    },
+                });
+                
+                if (!result.ok) {
+                    await prompter.note(`Login failed: ${result.error || "Unknown error"}`, "Error");
+                    return { cfg, accountId };
+                } else {
+                    await prompter.note("Login successful!", "Success");
+                }
+            } else {
+                await prompter.note(
+                    "Skipping login. You can login later with: openclaw zalouser-free login",
+                    "Setup",
+                );
+                return { cfg, accountId };
+            }
+        } else {
+            const keepSession = await prompter.confirm({
+                message: "Zalo Personal (Free) already logged in. Keep session?",
+                initialValue: true,
+            });
+            
+            if (!keepSession) {
+                await prompter.note(
+                    "Please logout manually and re-run onboarding: openclaw zalouser-free logout",
+                    "Setup",
+                );
+                return { cfg, accountId };
+            }
+        }
+        
+        // Enable the channel
+        let next = {
+            ...cfg,
             channels: {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                ...(cfg as any).channels,
+                ...cfg.channels,
                 "zalouser-free": {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ...(cfg as any).channels?.["zalouser-free"],
+                    ...cfg.channels?.["zalouser-free"],
                     enabled: true,
                     accounts: {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        ...(cfg as any).channels?.["zalouser-free"]?.accounts,
-                        [id]: {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            ...(cfg as any).channels?.["zalouser-free"]?.accounts?.[id],
-                            ...accountConfig,
+                        ...cfg.channels?.["zalouser-free"]?.accounts,
+                        [accountId]: {
+                            ...cfg.channels?.["zalouser-free"]?.accounts?.[accountId],
+                            enabled: true,
+                            dmAccess: "whitelist",
+                            groupAccess: "mention",
+                            allowedUsers: [],
+                            allowedGroups: [],
                         },
                     },
                 },
             },
-        };
+        } as OpenClawConfig;
+        
+        // Prompt for DM access policy
+        const dmPolicy = await prompter.select({
+            message: "DM (Direct Message) Access Policy",
+            options: [
+                { value: "whitelist", label: "Whitelist (only allowed users)" },
+                { value: "open", label: "Open (anyone can message)" },
+            ],
+            initialValue: "whitelist",
+        });
+        
+        // Prompt for group access policy
+        const groupPolicy = await prompter.select({
+            message: "Group Access Policy",
+            options: [
+                { value: "mention", label: "Mention (only when bot is mentioned)" },
+                { value: "whitelist", label: "Whitelist (only allowed groups)" },
+                { value: "open", label: "Open (all groups)" },
+            ],
+            initialValue: "mention",
+        });
+        
+        next = {
+            ...next,
+            channels: {
+                ...next.channels,
+                "zalouser-free": {
+                    ...next.channels?.["zalouser-free"],
+                    accounts: {
+                        ...next.channels?.["zalouser-free"]?.accounts,
+                        [accountId]: {
+                            ...next.channels?.["zalouser-free"]?.accounts?.[accountId],
+                            dmAccess: dmPolicy,
+                            groupAccess: groupPolicy,
+                        },
+                    },
+                },
+            },
+        } as OpenClawConfig;
+        
+        return { cfg: next, accountId };
     },
 };

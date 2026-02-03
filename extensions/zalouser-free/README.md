@@ -49,39 +49,31 @@ Add to your OpenClaw config (`~/.openclaw/config.json5`):
     "zalouser-free": {
       accounts: {
         default: {
-          enabled: false,            // Set to true to auto-start on gateway boot
-          dmAccess: "whitelist",     // "open" (anyone) or "whitelist" (only allowed users)
-          groupAccess: "mention",    // "open" (anyone), "mention" (only when mentioned), or "whitelist" (only allowed users)
-          allowedUsers: [            // List of allowed user IDs (for whitelist/mention modes)
-            "user123",               // Specific user ID
-            "*"                      // Wildcard = all users (use carefully!)
+          enabled: false, // Set to true to auto-start on gateway boot
+          dmAccess: "whitelist", // "open" (anyone) or "whitelist" (only allowed users)
+          groupAccess: "whitelist", // "open" (anyone) or "whitelist" (only allowed groups)
+          groupReplyMode: "mention", // "mention" (only when mentioned) or "all" (reply to all messages)
+          allowedUsers: [
+            // List of allowed user IDs (for whitelist modes)
+            "user123", // Specific user ID
+            "*", // Wildcard = all users (use carefully!)
           ],
-          allowedGroups: [           // List of allowed group IDs (for whitelist modes)
-            "group456"               // Specific group ID
+          allowedGroups: [
+            // List of allowed group IDs (for whitelist modes)
+            "group456", // Specific group ID
           ],
-          userAgent: ""              // Optional: custom user agent for this account
         },
         work: {
-          enabled: false,            // Example: second account
+          enabled: false, // Example: second account
           dmAccess: "whitelist",
-          groupAccess: "mention",
+          groupAccess: "whitelist",
+          groupReplyMode: "mention",
           allowedUsers: [],
           allowedGroups: [],
-          userAgent: "Mozilla/5.0..."
-        }
-      }
-    }
+        },
+      },
+    },
   },
-  plugins: {
-    entries: {
-      "zalouser-free": {
-        enabled: true,
-        config: {
-          sessionPath: null          // Optional: custom session storage path
-        }
-      }
-    }
-  }
 }
 ```
 
@@ -100,15 +92,16 @@ Add to your OpenClaw config (`~/.openclaw/config.json5`):
        "zalouser-free": {
          accounts: {
            default: { enabled: true },
-           work: { enabled: true }
-         }
-       }
-     }
+           work: { enabled: true },
+         },
+       },
+     },
    }
    ```
 
 When `enabled: true`, the account will auto-start when OpenClaw gateway boots up.
-```
+
+````
 
 ## Usage
 
@@ -123,17 +116,7 @@ openclaw zalouser-free login myaccount
 
 # Save QR to file instead of terminal
 openclaw zalouser-free login --qr-path /tmp/zalo-qr.png
-```
-
-### Start listening for messages
-
-```bash
-# Start default account
-openclaw zalouser-free start
-
-# Start specific account
-openclaw zalouser-free start myaccount
-```
+````
 
 ### Check status
 
@@ -170,27 +153,34 @@ openclaw zalouser-free stop
 
 ## Differences from official @openclaw/zalouser
 
-| Feature | zalouser-free | @openclaw/zalouser |
-|---------|---------------|-------------------|
-| Library | zca-js (open source) | zca binary |
-| Cost | Free | May require API costs |
-| Setup | Simple (QR login) | May require additional setup |
-| Stability | Community maintained | Official support |
+| Feature   | zalouser-free        | @openclaw/zalouser           |
+| --------- | -------------------- | ---------------------------- |
+| Library   | zca-js (open source) | zca binary                   |
+| Cost      | Free                 | May require API costs        |
+| Setup     | Simple (QR login)    | May require additional setup |
+| Stability | Community maintained | Official support             |
 
 ## Access Control
 
 The plugin supports flexible access control for privacy and security:
 
 ### DM Access Modes
+
 - **`open`**: Accept messages from anyone who knows your bot's Zalo ID
 - **`whitelist`**: Only accept messages from users in `allowedUsers` list
 
 ### Group Access Modes
-- **`open`**: Accept messages from anyone in any group
+
+- **`open`**: Accept messages from any group
+- **`whitelist`**: Only accept messages from groups in `allowedGroups` list
+
+### Group Reply Modes
+
 - **`mention`**: Only respond when bot is @mentioned in group messages
-- **`whitelist`**: Only accept messages from users in `allowedUsers` OR groups in `allowedGroups`
+- **`all`**: Respond to all messages in allowed groups
 
 ### Examples
+
 ```json5
 {
   channels: {
@@ -199,23 +189,26 @@ The plugin supports flexible access control for privacy and security:
         // Personal bot - only family/friends
         default: {
           dmAccess: "whitelist",
-          groupAccess: "mention",
-          allowedUsers: ["friend123", "family456"]
+          groupAccess: "whitelist",
+          groupReplyMode: "mention",
+          allowedUsers: ["friend123", "family456"],
         },
         // Public bot - anyone can message
         public: {
           dmAccess: "open",
-          groupAccess: "open"
+          groupAccess: "open",
+          groupReplyMode: "all",
         },
         // Group admin bot - only when mentioned
         admin: {
           dmAccess: "whitelist",
-          groupAccess: "mention",
-          allowedUsers: ["admin123"]
-        }
-      }
-    }
-  }
+          groupAccess: "open",
+          groupReplyMode: "mention",
+          allowedUsers: ["admin123"],
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -224,6 +217,7 @@ The plugin supports flexible access control for privacy and security:
 ### "Session expired" or "Login required"
 
 Run `openclaw zalouser-free login` again. Sessions may expire if:
+
 - You logged in on another device/browser
 - Zalo detected unusual activity
 - Session cookies expired
@@ -239,7 +233,7 @@ Only one web listener can run per Zalo account. If you open Zalo Web in browser 
 
 ### Access denied messages
 
-Check your `dmAccess`/`groupAccess` settings in config. If using "whitelist" mode, ensure the sender's user ID is in `allowedUsers` or group ID is in `allowedGroups`.
+Check your `dmAccess`/`groupAccess`/`groupReplyMode` settings in config. If using "whitelist" mode, ensure the sender's user ID is in `allowedUsers` or group ID is in `allowedGroups`. If using "mention" reply mode, ensure the bot is @mentioned in the message.
 
 ## Development
 

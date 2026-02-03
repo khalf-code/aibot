@@ -57,7 +57,8 @@ export function resolveAccount(cfg: unknown, accountId?: string | null): Resolve
         accountId: id,
         enabled: baseEnabled && accountEnabled,
         dmAccess: "whitelist",
-        groupAccess: "mention",
+        groupAccess: "whitelist",
+        groupReplyMode: "mention",
         allowedUsers: [],
         allowedGroups: [],
     };

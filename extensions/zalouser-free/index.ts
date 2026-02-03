@@ -5,7 +5,6 @@
 
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { createChannelPlugin, initSessionManager } from "./src/channel.js";
-import { zalouserFreeOnboardingAdapter } from "./src/onboarding.js";
 import { setZalouserFreeRuntime } from "./src/runtime.js";
 import type { ZaloUserFreePluginConfig } from "./src/types.js";
 
@@ -26,14 +25,9 @@ const plugin = {
     const sessionManager = initSessionManager(pluginConfig.sessionPath, logger);
     sessionManager.setConfigProvider(() => api.config);
 
-    // Create and register channel plugin
+    // Create and register channel plugin (includes onboarding)
     const channelPlugin = createChannelPlugin(sessionManager, api);
     api.registerChannel({ plugin: channelPlugin });
-
-    // Register onboarding adapter if available
-    if (api.registerOnboarding) {
-      api.registerOnboarding(zalouserFreeOnboardingAdapter);
-    }
 
     logger.info?.("[zalouser-free] Plugin registered successfully");
   },

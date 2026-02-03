@@ -8,6 +8,7 @@ import type { IncomingMessage } from "./types.js";
 import { ZaloSessionManager } from "./session-manager.js";
 import { listAccountIds, resolveAccount, DEFAULT_ACCOUNT_ID } from "./accounts.js";
 import { getZalouserFreeRuntime, hasZalouserFreeRuntime } from "./runtime.js";
+import { zalouserFreeOnboardingAdapter } from "./onboarding.js";
 
 // Shared session manager instance
 let sharedSessionManager: ZaloSessionManager | null = null;
@@ -168,12 +169,15 @@ export function createChannelPlugin(sessionManager: ZaloSessionManager, api: unk
         meta: {
             id: "zalouser-free",
             label: "Zalo Personal (Free)",
-            selectionLabel: "Zalo (Free, Zalo Personal, zca-js)",
+            selectionLabel: "Zalo (Free, Personal Zalo, zca-js)",
             docsPath: "/channels/zalouser-free",
             blurb: "Free Zalo Personal messaging using zca-js library. No API costs.",
             aliases: ["zalo-free", "zfree"],
             order: 86,
         },
+        
+        onboarding: zalouserFreeOnboardingAdapter,
+        
         capabilities: {
             chatTypes: ["direct", "group"] as const,
             media: true,

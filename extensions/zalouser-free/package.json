@@ -15,7 +15,7 @@
       "docsPath": "/channels/zalouser-free",
       "docsLabel": "zalouser-free",
       "blurb": "Free Zalo Personal messaging using zca-js library.",
-      "order": 70,
+      "order": 84,
       "aliases": [
         "zalo-free",
         "zfree"

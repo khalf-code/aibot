@@ -7,11 +7,55 @@ import { Zalo, ThreadType, LoginQRCallbackEventType, type Message, type Credenti
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import * as url from "node:url";
+import * as cp from "node:child_process";
+import { Buffer } from "node:buffer";
+import qrcode from "qrcode-terminal";
 import type { ZaloSession, SessionStore, IncomingMessage, ChatType, SendResult, StatusResult } from "./types.js";
 import { resolveAccount } from "./accounts.js";
 
 // Windows 11 Chrome user agent
 // const DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
+
+// Helper to decode QR code from base64 image
+async function decodeQRCode(base64Image: string): Promise<string | null> {
+    try {
+        let jsQR, PNG;
+        try {
+            // @ts-ignore
+            jsQR = (await import("jsqr")).default;
+            // @ts-ignore
+            const pngModule = await import("pngjs");
+            PNG = pngModule.PNG || pngModule.default.PNG;
+        } catch {
+            console.log("\n📦 Installing missing QR dependencies (jsqr, pngjs)... please wait...");
+            const currentFile = url.fileURLToPath(import.meta.url);
+            const extDir = path.resolve(path.dirname(currentFile), "..");
+            
+            try {
+                cp.execSync("bun add jsqr pngjs", { cwd: extDir, stdio: "inherit" });
+                console.log("✅ Dependencies installed.");
+                // @ts-ignore
+                jsQR = (await import("jsqr")).default;
+                // @ts-ignore
+                const pngModule = await import("pngjs");
+                PNG = pngModule.PNG || pngModule.default.PNG;
+            } catch (err) {
+                console.error("❌ Failed to install dependencies (try running 'bun add jsqr pngjs' in extension dir):", err);
+                return null;
+            }
+        }
+
+        if (!jsQR || !PNG) { return null; }
+
+        const buffer = Buffer.from(base64Image, 'base64');
+        const png = PNG.sync.read(buffer);
+        const code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+        return code ? code.data : null;
+    } catch {
+        return null;
+    }
+}
 
 export class ZaloSessionManager {
     private sessions: Map<string, ZaloSession> = new Map();
@@ -94,18 +138,52 @@ export class ZaloSessionManager {
 
             const api = await zalo.loginQR(
                 null,
-                (event) => {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                async (event) => {
                     this.logger.info?.(`[zalouser-free] QR Login event: ${event.type}`);
 
                     if (event.type === LoginQRCallbackEventType.QRCodeGenerated && event.data) {
-                        console.log("\n📱 QR Code Generated!");
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const data = event.data as any;
-                        if (options?.qrCallback && data.qr) {
-                            options.qrCallback(data.qr);
+                        const data = event.data as { image: string };
+                        
+                        console.log("\n📱 QR Code Generated!\n");
+                        
+                        // Save QR code image to file
+                        const qrPath = path.join(os.tmpdir(), `zalo-qr-${Date.now()}.png`);
+                        
+                        try {
+                            // Use the saveToFile action which usually handles base64 decoding internally or provided by lib
+                            if (event.actions?.saveToFile) {
+                                await event.actions.saveToFile(qrPath);
+                                console.log(`\n✅ QR code saved to: ${qrPath}`);
+                                console.log("👉 Open this image file and scan with your Zalo app to login.\n");
+                            }
+                            
+                            const base64Image = data.image;
+                            
+                            if (base64Image) {
+                                process.stdout.write("Decoding QR code for terminal display... ");
+                                try {
+                                    const decoded = await decodeQRCode(base64Image);
+                                    if (decoded) {
+                                        console.log("Done!\n");
+                                        console.log("Scan this code in terminal:\n");
+                                        qrcode.generate(decoded, { small: true });
+                                        if (options?.qrCallback) { options.qrCallback(decoded); }
+                                    } else {
+                                        console.log("Failed (please open the image file above).");
+                                        // Fallback to path just so callback has something
+                                        if (options?.qrCallback) { options.qrCallback(qrPath); }
+                                    }
+                                } catch {
+                                    console.log("Failed to decode (use image file).");
+                                }
+                            } else {
+                                if (options?.qrCallback) { options.qrCallback(qrPath); }
+                            }
+                        } catch (err) {
+                            console.error("Failed to handle QR code:", err);
                         }
                     }
+
 
                     if (event.type === LoginQRCallbackEventType.QRCodeScanned && event.data) {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -298,7 +376,8 @@ export class ZaloSessionManager {
         }
 
         const dmAccess = accountConfig.dmAccess ?? "whitelist";
-        const groupAccess = accountConfig.groupAccess ?? "mention";
+        const groupAccess = accountConfig.groupAccess ?? "whitelist";
+        const groupReplyMode = accountConfig.groupReplyMode ?? "mention";
         const allowedUsers = accountConfig.allowedUsers ?? [];
         const allowedGroups = accountConfig.allowedGroups ?? [];
 
@@ -317,16 +396,28 @@ export class ZaloSessionManager {
                 return allowed;
             }
         } else if (msg.chatType === "group") {
+            // Step 1: Check group access (is this group allowed?)
+            let groupAllowed = false;
             if (groupAccess === "open") {
+                groupAllowed = true;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                this.logger.info?.("[zalouser-free] Group access ALLOWED (open mode)");
-                return true;
+                this.logger.info?.("[zalouser-free] Group access check: ALLOWED (open mode)");
             } else if (groupAccess === "whitelist") {
-                const allowed = isAllowedGroup;
+                groupAllowed = isAllowedGroup;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                this.logger.info?.(`[zalouser-free] Group access ${allowed ? 'ALLOWED' : 'DENIED'} (whitelist mode)`);
-                return allowed;
-            } else if (groupAccess === "mention") {
+                this.logger.info?.(`[zalouser-free] Group access check: ${groupAllowed ? 'ALLOWED' : 'DENIED'} (whitelist mode)`);
+            }
+
+            if (!groupAllowed) {
+                return false;
+            }
+
+            // Step 2: Check reply mode (should we reply to this message?)
+            if (groupReplyMode === "all") {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                this.logger.info?.("[zalouser-free] Group reply mode: REPLY (all mode)");
+                return true;
+            } else if (groupReplyMode === "mention") {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const raw = msg.raw as any;
                 const mentions = raw?.data?.mentions || [];
@@ -342,11 +433,9 @@ export class ZaloSessionManager {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const isMentioned = mentions.some((m: any) => String(m.uid) === String(botUserId));
 
-
-                const allowed = isMentioned;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                this.logger.info?.(`[zalouser-free] Group access ${allowed ? 'ALLOWED' : 'DENIED'} (mention mode)`);
-                return allowed;
+                this.logger.info?.(`[zalouser-free] Group reply mode: ${isMentioned ? 'REPLY' : 'SKIP'} (mention mode)`);
+                return isMentioned;
             }
         }
 

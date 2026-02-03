@@ -17,8 +17,10 @@ export interface ZaloUserFreeAccountConfig {
     displayName?: string;
     /** DM access control: 'open' (anyone) or 'whitelist' (only allowed users) */
     dmAccess?: "open" | "whitelist";
-    /** Group access: 'open' (anyone), 'mention' (only when mentioned), or 'whitelist' (only allowed users) */
-    groupAccess?: "open" | "mention" | "whitelist";
+    /** Group access control: 'open' (anyone) or 'whitelist' (only allowed groups) */
+    groupAccess?: "open" | "whitelist";
+    /** Group reply mode: 'mention' (only reply when mentioned) or 'all' (reply to all messages) */
+    groupReplyMode?: "mention" | "all";
     /** List of allowed user IDs (for whitelist modes) */
     allowedUsers?: string[];
     /** List of allowed group IDs (for whitelist modes) */
