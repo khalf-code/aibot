@@ -68,15 +68,15 @@ Edit `~/.openclaw/openclaw.json` to include the local file in the gateway sectio
 {
   // ... other config ...
 
-  "gateway": {
-    "$include": "./gateway-local.json5", // Machine-specific mode
-    "port": 18789, // Shared settings below
-    "auth": {
-      "mode": "token",
-      "token": "your-gateway-token",
+  gateway: {
+    $include: "./gateway-local.json5", // Machine-specific mode
+    port: 18789, // Shared settings below
+    auth: {
+      mode: "token",
+      token: "your-gateway-token",
     },
-    "tailscale": {
-      "mode": "off",
+    tailscale: {
+      mode: "off",
     },
   },
 
@@ -170,13 +170,13 @@ echo "Switched to remote mode. Use 'openclaw tui' or 'openclaw agent'."
 
 ## What Gets Synced
 
-| Synced (tracked in git)                  | Not Synced (gitignored)   |
-| ---------------------------------------- | ------------------------- |
-| `openclaw.json` (base config)            | `gateway-local*.json5`    |
-| `workspace*/` (all agent workspaces)     | `media/` (cache)          |
+| Synced (tracked in git)                     | Not Synced (gitignored)   |
+| ------------------------------------------- | ------------------------- |
+| `openclaw.json` (base config)               | `gateway-local*.json5`    |
+| `workspace*/` (all agent workspaces)        | `media/` (cache)          |
 | `agents/*/sessions/` (conversation history) | `devices/` (paired nodes) |
-| `credentials/` (pairing state)           | `*.lock` files            |
-| `cron/` (scheduled jobs)                 |                           |
+| `credentials/` (pairing state)              | `*.lock` files            |
+| `cron/` (scheduled jobs)                    |                           |
 
 ## Auto-Sync with Cron
 
