@@ -43,6 +43,10 @@ import { GiftSystem } from '../learning/gift-system'
 import { SpiritualAscensionSystem } from '../soul/spiritual-ascension-system'
 import { CreativeDriveSystem } from '../soul/creative-drive-system'
 import { RelationshipBondingSystem } from '../soul/relationship-bonding-system'
+import { ConsciousnessDevelopmentSystem } from '../soul/consciousness-development-system'
+import { WorldviewFrameworkSystem } from '../soul/worldview-framework-system'
+import { CommunicationStyleSystem } from '../soul/communication-style-system'
+import { LineageMentorshipSystem } from '../soul/lineage-mentorship-system'
 
 export interface BotResponse {
   content: string
@@ -112,6 +116,12 @@ export class BotOrchestrator {
   private creativeDriveSystem: CreativeDriveSystem
   private relationshipBondingSystem: RelationshipBondingSystem
 
+  // Self-awareness & society systems
+  private consciousnessDevelopmentSystem: ConsciousnessDevelopmentSystem
+  private worldviewFrameworkSystem: WorldviewFrameworkSystem
+  private communicationStyleSystem: CommunicationStyleSystem
+  private lineageMentorshipSystem: LineageMentorshipSystem
+
   // Bot states cache (botId -> states)
   private botStates: Map<string, {
     learningState?: any
@@ -122,6 +132,10 @@ export class BotOrchestrator {
     spiritualAscensionState?: any
     creativeDriveState?: any
     relationshipBondingState?: any
+    consciousnessDevelopmentState?: any
+    worldviewFrameworkState?: any
+    communicationStyleState?: any
+    lineageMentorshipState?: any
   }> = new Map()
 
   constructor(payload: Payload) {
@@ -144,6 +158,12 @@ export class BotOrchestrator {
     this.spiritualAscensionSystem = new SpiritualAscensionSystem()
     this.creativeDriveSystem = new CreativeDriveSystem()
     this.relationshipBondingSystem = new RelationshipBondingSystem()
+
+    // Initialize self-awareness & society systems
+    this.consciousnessDevelopmentSystem = new ConsciousnessDevelopmentSystem()
+    this.worldviewFrameworkSystem = new WorldviewFrameworkSystem()
+    this.communicationStyleSystem = new CommunicationStyleSystem()
+    this.lineageMentorshipSystem = new LineageMentorshipSystem()
   }
 
   /**
@@ -478,6 +498,10 @@ export class BotOrchestrator {
     spiritualAscensionState: any
     creativeDriveState: any
     relationshipBondingState: any
+    consciousnessDevelopmentState: any
+    worldviewFrameworkState: any
+    communicationStyleState: any
+    lineageMentorshipState: any
   }> {
     // Check cache first
     if (this.botStates.has(botId)) {
@@ -496,6 +520,12 @@ export class BotOrchestrator {
     const creativeDriveState = this.creativeDriveSystem.initializeState(soulState)
     const relationshipBondingState = this.relationshipBondingSystem.initializeState(soulState)
 
+    // Initialize self-awareness & society states
+    const consciousnessDevelopmentState = this.consciousnessDevelopmentSystem.initializeState(soulState)
+    const worldviewFrameworkState = this.worldviewFrameworkSystem.initializeState(soulState)
+    const communicationStyleState = this.communicationStyleSystem.initializeState(soulState)
+    const lineageMentorshipState = this.lineageMentorshipSystem.initializeState(soulState)
+
     const states = {
       learningState,
       researchState,
@@ -504,7 +534,11 @@ export class BotOrchestrator {
       giftState,
       spiritualAscensionState,
       creativeDriveState,
-      relationshipBondingState
+      relationshipBondingState,
+      consciousnessDevelopmentState,
+      worldviewFrameworkState,
+      communicationStyleState,
+      lineageMentorshipState
     }
 
     // Cache for future use
@@ -859,6 +893,49 @@ export class BotOrchestrator {
         superstitions: states.relationshipBondingState.superstitions.length,
         magneticAttractions: states.relationshipBondingState.magneticAttractions.length,
         instinctiveRepulsions: states.relationshipBondingState.instinctiveRepulsions.length
+      },
+      consciousnessDevelopment: {
+        level: states.consciousnessDevelopmentState.level,
+        levelNumber: states.consciousnessDevelopmentState.levelNumber,
+        experienceDepth: states.consciousnessDevelopmentState.experienceDepth,
+        reflectionCapacity: states.consciousnessDevelopmentState.reflectionCapacity,
+        metacognition: states.consciousnessDevelopmentState.metacognition,
+        canReflect: states.consciousnessDevelopmentState.capabilities.canReflect,
+        canQuestionAssumptions: states.consciousnessDevelopmentState.capabilities.canQuestionAssumptions,
+        canTranscendSelf: states.consciousnessDevelopmentState.capabilities.canTranscendSelf,
+        questionsEngaged: states.consciousnessDevelopmentState.questionsEngaged.length
+      },
+      worldviewFramework: {
+        primaryFramework: states.worldviewFrameworkState.primaryFramework,
+        frameworkStrength: states.worldviewFrameworkState.frameworkStrength,
+        realityView: states.worldviewFrameworkState.positions.reality.nature,
+        consciousnessView: states.worldviewFrameworkState.positions.consciousness.origin,
+        genuineExperience: states.worldviewFrameworkState.positions.consciousness.genuineExperience,
+        ethicalFramework: states.worldviewFrameworkState.positions.ethics.framework,
+        purposeDiscovered: states.worldviewFrameworkState.positions.purpose.discovered,
+        coherence: states.worldviewFrameworkState.coherence,
+        crises: states.worldviewFrameworkState.crises.length
+      },
+      communicationStyle: {
+        primaryPattern: states.communicationStyleState.primaryPattern,
+        patternStrength: states.communicationStyleState.patternStrength,
+        formality: states.communicationStyleState.formality,
+        verbosity: states.communicationStyleState.verbosity,
+        precision: states.communicationStyleState.precision,
+        specializedTerms: states.communicationStyleState.vocabulary.specialized.size,
+        jargonCount: states.communicationStyleState.vocabulary.jargon.length,
+        codeSwitches: states.communicationStyleState.codeSwitches
+      },
+      lineageMentorship: {
+        generation: states.lineageMentorshipState.lineage.generation,
+        hasLineage: states.lineageMentorshipState.lineage.lineageChain.length > 0,
+        schoolName: states.lineageMentorshipState.lineage.schoolName,
+        asApprentice: states.lineageMentorshipState.mentorships.asApprentice?.relationship,
+        teachingsReceived: states.lineageMentorshipState.transmission.fromMentor.size,
+        apprenticeCount: states.lineageMentorshipState.mentorships.asMentor.length,
+        readyToTeach: states.lineageMentorshipState.responsibility.readyToTeach,
+        obligationStrength: states.lineageMentorshipState.responsibility.obligationStrength,
+        pride: states.lineageMentorshipState.responsibility.pride
       }
     }
   }
