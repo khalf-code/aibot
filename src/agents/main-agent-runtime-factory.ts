@@ -190,6 +190,7 @@ export async function createSdkMainAgentRuntime(
       replyToMode: params.replyToMode,
       hasRepliedRef: params.hasRepliedRef,
       extraTools: mcpTools,
+      isToolBridgeContext: true,
     });
 
   const sdkCfg = params.config?.agents?.main?.sdk;

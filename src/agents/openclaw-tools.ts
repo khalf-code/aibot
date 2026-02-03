@@ -53,6 +53,8 @@ export function createOpenClawTools(options?: {
   modelHasVision?: boolean;
   /** Explicit agent ID override for cron/hook sessions. */
   requesterAgentIdOverride?: string;
+  /** When true, tools are being exposed in a Claude Agent SDK / tool-bridge context. */
+  isToolBridgeContext?: boolean;
 }): AnyAgentTool[] {
   const imageTool = options?.agentDir?.trim()
     ? createImageTool({
@@ -130,6 +132,7 @@ export function createOpenClawTools(options?: {
       agentGroupSpace: options?.agentGroupSpace,
       sandboxed: options?.sandboxed,
       requesterAgentIdOverride: options?.requesterAgentIdOverride,
+      isToolBridgeContext: options?.isToolBridgeContext,
     }),
     createSessionStatusTool({
       agentSessionKey: options?.agentSessionKey,

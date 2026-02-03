@@ -2,12 +2,13 @@
  * Tests for automations store.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import path from "node:path";
-import os from "node:os";
 import crypto from "node:crypto";
+import { existsSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { AutomationStoreFile } from "./types.js";
 import {
   loadAutomationsStore,
   saveAutomationsStore,
@@ -16,7 +17,6 @@ import {
   DEFAULT_AUTOMATIONS_DIR,
   DEFAULT_AUTOMATIONS_STORE_PATH,
 } from "./store.js";
-import type { AutomationStoreFile } from "./types.js";
 
 describe("Automations Store", () => {
   let tempDir: string;
@@ -42,7 +42,7 @@ describe("Automations Store", () => {
 
     it("should use default when no custom path", () => {
       const result = resolveAutomationsStorePath();
-      expect(result).toContain(".clawdbrain");
+      expect(result).toContain(".openclaw");
       expect(result).toContain("automations");
       expect(result).toContain("automations.json");
     });

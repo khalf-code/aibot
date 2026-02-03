@@ -159,6 +159,8 @@ export function createOpenClawCodingTools(options?: {
   hasRepliedRef?: { value: boolean };
   /** If true, the model has native vision capability */
   modelHasVision?: boolean;
+  /** When true, tools are being exposed in a Claude Agent SDK / tool-bridge context. */
+  isToolBridgeContext?: boolean;
 }): AnyAgentTool[] {
   const execToolName = "exec";
   const sandbox = options?.sandbox?.enabled ? options.sandbox : undefined;
@@ -353,6 +355,7 @@ export function createOpenClawCodingTools(options?: {
       hasRepliedRef: options?.hasRepliedRef,
       modelHasVision: options?.modelHasVision,
       requesterAgentIdOverride: agentId,
+      isToolBridgeContext: options?.isToolBridgeContext,
     }),
   ];
   const coreToolNames = new Set(

@@ -88,15 +88,24 @@ export function createSessionsSpawnTool(opts?: {
   sandboxed?: boolean;
   /** Explicit agent ID override for cron/hook sessions where session key parsing may not work. */
   requesterAgentIdOverride?: string;
+  /** When true, this tool is being exposed in a Claude Agent SDK / tool-bridge context. */
+  isToolBridgeContext?: boolean;
 }): AnyAgentTool {
+  // Build description with conditional guidance for tool-bridge context
+  const baseDescription =
+    "Spawn a background sub-agent run in an isolated OpenClaw session. " +
+    "REQUIRED PARAMETER: task (string) - the task for the sub-agent. " +
+    "Example input: { task: 'Research recent AI developments and summarize' }. " +
+    "Example output: { status: 'accepted', childSessionKey: 'agent:main:subagent:uuid', runId: 'uuid' }.";
+
+  const toolBridgeGuidance = opts?.isToolBridgeContext
+    ? " IMPORTANT: This tool creates OpenClaw sessions. Only use this when you need to interact with OpenClaw's operational infrastructure (e.g., managing agents, accessing OpenClaw channels, coordinating with OpenClaw-specific features). For general coding tasks or parallel work that doesn't require OpenClaw integration, use your native subagent capabilities instead."
+    : "";
+
   return {
     label: "Sessions",
     name: "sessions_spawn",
-    description:
-      "Spawn a background sub-agent run in an isolated session. " +
-      "REQUIRED PARAMETER: task (string) - the task for the sub-agent. " +
-      "Example input: { task: 'Research recent AI developments and summarize' }. " +
-      "Example output: { status: 'accepted', childSessionKey: 'agent:main:subagent:uuid', runId: 'uuid' }.",
+    description: baseDescription + toolBridgeGuidance,
     parameters: SessionsSpawnToolSchema,
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
