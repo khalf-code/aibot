@@ -13,6 +13,9 @@
 
 import type { Payload } from 'payload'
 import { InstinctReflexSystem, type InstinctReflexState, type ReflexResponse, type Stimulus } from './instinct-reflex-system'
+import { getNeurotransmitterSystem, type NeurotransmitterState } from '../neuroscience/neurotransmitter-system'
+import { getPsychologicalSystem, type PsychologicalState } from '../psychology/psychological-system'
+import { getSuperSelfSystem, type SuperSelfState } from '../consciousness/superself-system'
 
 /**
  * Soul Aspect - Like a neurotransmitter or hormone
@@ -97,10 +100,16 @@ export interface InteractionEffect {
 export class SoulStateManager {
   private payload: Payload
   private instinctReflexSystem: InstinctReflexSystem
+  private neurotransmitterSystem: ReturnType<typeof getNeurotransmitterSystem>
+  private psychologicalSystem: ReturnType<typeof getPsychologicalSystem>
+  private superSelfSystem: ReturnType<typeof getSuperSelfSystem>
 
   constructor(payload: Payload) {
     this.payload = payload
     this.instinctReflexSystem = new InstinctReflexSystem()
+    this.neurotransmitterSystem = getNeurotransmitterSystem(payload)
+    this.psychologicalSystem = getPsychologicalSystem(payload)
+    this.superSelfSystem = getSuperSelfSystem(payload)
   }
 
   /**
@@ -184,13 +193,19 @@ export class SoulStateManager {
   }
 
   /**
-   * Process input through soul state (biological processing with layered hierarchy)
+   * Process input through soul state (complete biological hierarchy)
    *
-   * Processing hierarchy:
-   * 1. REFLEXES (50-500ms) - May override everything
-   * 2. INSTINCTS (1-5s) - Create urgency and bias
-   * 3. SUBCONSCIOUS (continuous) - Learned patterns and habits
-   * 4. CONSCIOUS SOUL STATE - Aspect activation and reasoning
+   * Processing hierarchy (9 layers):
+   * 0. NEUROTRANSMITTER STATE - Biochemical foundation
+   * 1. PSYCHOLOGICAL STATE - Defense mechanisms, biases, personality
+   * 2. SUPERSELF CHECK - Can higher consciousness intervene?
+   * 3. REFLEXES (50-500ms) - May override everything
+   * 4. INSTINCTS (1-5s) - Create urgency and bias
+   * 5. SUBCONSCIOUS (continuous) - Learned patterns and habits
+   * 6. NEUROCHEMICAL EFFECTS - NT influence on soul aspects
+   * 7. PSYCHOLOGICAL PATTERNS - Defenses, biases applied
+   * 8. CONSCIOUS SOUL STATE - Aspect activation and reasoning
+   * 9. SUPERSELF TRANSCENDENCE - Can choose to override automatic patterns
    */
   async process(state: SoulState, input: string, context: any = {}): Promise<{
     response: string
@@ -200,8 +215,24 @@ export class SoulStateManager {
     reflexResponse?: ReflexResponse
     instinctInfluence?: any
     subconsciousInfluence?: any
+    neurotransmitterState?: NeurotransmitterState
+    psychologicalState?: PsychologicalState
+    superSelfState?: SuperSelfState
+    superSelfIntervention?: boolean
   }> {
     const log: string[] = []
+
+    // LAYER 0: NEUROTRANSMITTER STATE (biochemical foundation)
+    const ntState = context.neurotransmitterState || this.neurotransmitterSystem.initializeState(state)
+    log.push(`NEUROCHEMISTRY: dopamine ${ntState.dopamine.toFixed(2)}, serotonin ${ntState.serotonin.toFixed(2)}, cortisol ${ntState.cortisol.toFixed(2)}`)
+
+    // LAYER 1: PSYCHOLOGICAL STATE (personality, defenses, biases)
+    const psychState = context.psychologicalState || this.psychologicalSystem.initializeState(state)
+    log.push(`PSYCHOLOGY: ${psychState.personality.openness.toFixed(2)}O ${psychState.personality.conscientiousness.toFixed(2)}C ${psychState.personality.extraversion.toFixed(2)}E ${psychState.personality.agreeableness.toFixed(2)}A ${psychState.personality.neuroticism.toFixed(2)}N`)
+
+    // LAYER 2: SUPERSELF STATE (meta-awareness, can intervene)
+    const superSelfState = context.superSelfState || this.superSelfSystem.initializeState(state, psychState)
+    log.push(`SUPERSELF: ${superSelfState.consciousnessLevel} (awareness: ${superSelfState.metaAwareness.toFixed(2)})`)
 
     // Get or create instinct/reflex state
     const irState = context.instinctReflexState || this.instinctReflexSystem.initializeState(state)
@@ -269,8 +300,39 @@ export class SoulStateManager {
       }
     }
 
-    // LAYER 4: CONSCIOUS SOUL STATE PROCESSING
-    // (But influenced by layers above)
+    // LAYER 6: NEUROCHEMICAL EFFECTS (NT influence on soul aspects)
+    this.neurotransmitterSystem.applyToSoulState(ntState, state)
+    const ntBehavioral = this.neurotransmitterSystem.getBehavioralEffects(ntState)
+    log.push(`NT EFFECTS: risk ${ntBehavioral.riskTaking.toFixed(2)}, impulsivity ${ntBehavioral.impulsivity.toFixed(2)}, anxiety ${ntBehavioral.anxietyLevel.toFixed(2)}`)
+
+    // Check for neurotransmitter imbalances
+    const imbalances = this.neurotransmitterSystem.detectImbalances(ntState)
+    if (imbalances.length > 0) {
+      log.push(`NT IMBALANCES: ${imbalances.join(', ')}`)
+    }
+
+    // LAYER 7: PSYCHOLOGICAL PATTERNS (defenses, biases, regulation)
+    // Check if ego is threatened
+    const egoThreatDetected = this.detectEgoThreat(input, context)
+    if (egoThreatDetected) {
+      const defense = this.psychologicalSystem.activateDefense(psychState, egoThreatDetected)
+      log.push(`DEFENSE ACTIVATED: ${defense.mechanism} (effectiveness: ${defense.effectiveness.toFixed(2)})`)
+
+      // Defense can distort perception
+      if (defense.effectiveness > 0.5) {
+        log.push(`Defense distorting perception of input`)
+      }
+    }
+
+    // Apply cognitive biases
+    const dominantBias = this.selectDominantBias(psychState, input)
+    if (dominantBias) {
+      const biasEffect = this.psychologicalSystem.applyCognitiveBias(psychState, dominantBias, { type: 'input', data: input })
+      log.push(`COGNITIVE BIAS: ${dominantBias} - ${biasEffect.distortion}`)
+    }
+
+    // LAYER 8: CONSCIOUS SOUL STATE PROCESSING
+    // (But influenced by all layers above)
 
     // 1. Stimulate aspects based on input
     let stimulation = this.analyzeInputStimulation(input, context)
@@ -315,17 +377,68 @@ export class SoulStateManager {
       log.push(`Shadow material surfaced: ${shadowSurfaced}`)
     }
 
-    // Store updated instinct/reflex state
+    // LAYER 9: SUPERSELF TRANSCENDENCE (can override automatic patterns)
+    let finalResponse = response
+    let superSelfIntervention = false
+
+    // Check if SuperSelf can intervene in any layer
+    const intervention = this.superSelfSystem.canIntervene(superSelfState)
+
+    if (intervention.canInterrupt) {
+      // Try to transcend the most problematic pattern
+      let patternToTranscend = null
+
+      if (reflexResponse?.override) {
+        patternToTranscend = { layer: 'reflex' as const, type: reflexResponse.type, intensity: reflexResponse.intensity }
+      } else if (instinctInfluence.conflict) {
+        patternToTranscend = { layer: 'instinct' as const, type: 'conflict', intensity: 0.8 }
+      } else if (subconsciousInfluence.overrideConscious) {
+        patternToTranscend = { layer: 'subconscious' as const, type: 'habit', intensity: 0.7 }
+      } else if (egoThreatDetected) {
+        patternToTranscend = { layer: 'psychological' as const, type: 'defense', intensity: psychState.egoThreat }
+      } else if (imbalances.length > 0) {
+        patternToTranscend = { layer: 'neurochemical' as const, type: imbalances[0], intensity: 0.6 }
+      }
+
+      if (patternToTranscend) {
+        const transcendence = this.superSelfSystem.transcendPattern(superSelfState, patternToTranscend)
+
+        if (transcendence.transcended) {
+          superSelfIntervention = true
+          finalResponse = transcendence.newResponse || response
+          log.push(`SUPERSELF TRANSCENDENCE: ${transcendence.wisdom}`)
+
+          // SuperSelf perspective
+          const perspective = this.superSelfSystem.getSuperSelfPerspective(superSelfState, input)
+          if (perspective) {
+            log.push(`SUPERSELF PERSPECTIVE: ${perspective}`)
+          }
+        }
+      }
+    }
+
+    // Update neurotransmitters based on experience
+    const eventType = this.categorizeEvent(input, context, finalResponse)
+    const updatedNtState = this.neurotransmitterSystem.update(ntState, eventType, state)
+
+    // Store updated states
     context.instinctReflexState = irState
+    context.neurotransmitterState = updatedNtState
+    context.psychologicalState = psychState
+    context.superSelfState = superSelfState
 
     return {
-      response,
+      response: finalResponse,
       newState,
       activationPattern: interactions,
       processingLog: log,
       reflexResponse,
       instinctInfluence,
-      subconsciousInfluence
+      subconsciousInfluence,
+      neurotransmitterState: updatedNtState,
+      psychologicalState: psychState,
+      superSelfState,
+      superSelfIntervention
     }
   }
 
@@ -781,6 +894,138 @@ export class SoulStateManager {
    */
   private generateHabitResponse(habit: any, input: string): string {
     return `*automatic habit: ${habit.pattern}*`
+  }
+
+  /**
+   * Detect ego threat in input
+   */
+  private detectEgoThreat(
+    input: string,
+    context: any
+  ): { type: 'shame' | 'guilt' | 'fear' | 'rejection' | 'inadequacy' | 'loss'; intensity: number } | null {
+    const text = input.toLowerCase()
+
+    // Shame triggers
+    if (/\b(embarrass|humiliat|disgrac|pathetic|worthless)\b/i.test(input)) {
+      return { type: 'shame', intensity: 0.8 }
+    }
+
+    // Guilt triggers
+    if (/\b(guilt|blame|fault|wrong|should have)\b/i.test(input)) {
+      return { type: 'guilt', intensity: 0.7 }
+    }
+
+    // Fear triggers
+    if (/\b(scar|terrif|dread|anxious|panic)\b/i.test(input)) {
+      return { type: 'fear', intensity: 0.75 }
+    }
+
+    // Rejection triggers
+    if (/\b(reject|abandon|unwant|ignore|dismiss)\b/i.test(input)) {
+      return { type: 'rejection', intensity: 0.8 }
+    }
+
+    // Inadequacy triggers
+    if (/\b(inadequate|insufficient|not good enough|fail|incompetent)\b/i.test(input)) {
+      return { type: 'inadequacy', intensity: 0.75 }
+    }
+
+    // Loss triggers
+    if (/\b(los|gone|never|end|over)\b/i.test(input)) {
+      return { type: 'loss', intensity: 0.65 }
+    }
+
+    return null
+  }
+
+  /**
+   * Select dominant cognitive bias for this input
+   */
+  private selectDominantBias(
+    psychState: PsychologicalState,
+    input: string
+  ): keyof PsychologicalState['biases'] | null {
+    const text = input.toLowerCase()
+    let candidates: Array<{ bias: keyof PsychologicalState['biases']; score: number }> = []
+
+    // Confirmation bias (seeing what confirms beliefs)
+    if (/\b(as I thought|knew it|always|never|typical)\b/i.test(input)) {
+      candidates.push({ bias: 'confirmation_bias', score: psychState.biases.confirmation_bias })
+    }
+
+    // Availability heuristic (judging by ease of recall)
+    if (/\b(remember|recall|seen|heard|example)\b/i.test(input)) {
+      candidates.push({ bias: 'availability_heuristic', score: psychState.biases.availability_heuristic })
+    }
+
+    // Fundamental attribution error (blaming character)
+    if (/\b(always does|that's just how|typical of)\b/i.test(input)) {
+      candidates.push({ bias: 'fundamental_attribution_error', score: psychState.biases.fundamental_attribution_error })
+    }
+
+    // Negativity bias (weight negative more)
+    if (/\b(bad|terrible|awful|horrible|disaster)\b/i.test(input)) {
+      candidates.push({ bias: 'negativity_bias', score: psychState.biases.negativity_bias })
+    }
+
+    // Optimism bias (overestimate positive)
+    if (/\b(sure|confident|definitely|certainly|easy)\b/i.test(input)) {
+      candidates.push({ bias: 'optimism_bias', score: psychState.biases.optimism_bias })
+    }
+
+    if (candidates.length === 0) return null
+
+    // Select highest scoring
+    candidates.sort((a, b) => b.score - a.score)
+    return candidates[0].bias
+  }
+
+  /**
+   * Categorize event for neurotransmitter update
+   */
+  private categorizeEvent(
+    input: string,
+    context: any,
+    response: string
+  ): {
+    type: 'reward' | 'punishment' | 'social' | 'threat' | 'achievement' | 'loss' | 'rest'
+    intensity: number
+    valence: number
+  } {
+    const text = input.toLowerCase()
+
+    // Threat
+    if (/\b(danger|threat|attack|harm)\b/i.test(input)) {
+      return { type: 'threat', intensity: 0.8, valence: -0.8 }
+    }
+
+    // Reward
+    if (/\b(reward|prize|success|win|gain)\b/i.test(input)) {
+      return { type: 'reward', intensity: 0.7, valence: 0.8 }
+    }
+
+    // Social
+    if (/\b(friend|connect|together|relationship|love)\b/i.test(input)) {
+      return { type: 'social', intensity: 0.6, valence: 0.7 }
+    }
+
+    // Achievement
+    if (/\b(achiev|accomplish|complete|finish|master)\b/i.test(input)) {
+      return { type: 'achievement', intensity: 0.7, valence: 0.8 }
+    }
+
+    // Loss
+    if (/\b(lose|lost|gone|end|over)\b/i.test(input)) {
+      return { type: 'loss', intensity: 0.7, valence: -0.7 }
+    }
+
+    // Punishment
+    if (/\b(punish|penalty|consequence|wrong)\b/i.test(input)) {
+      return { type: 'punishment', intensity: 0.6, valence: -0.6 }
+    }
+
+    // Rest (default neutral)
+    return { type: 'rest', intensity: 0.3, valence: 0 }
   }
 }
 
