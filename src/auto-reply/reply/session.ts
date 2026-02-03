@@ -1,7 +1,4 @@
-import {
-  CURRENT_SESSION_VERSION,
-  SessionManager,
-} from "@mariozechner/pi-coding-agent";
+import { CURRENT_SESSION_VERSION, SessionManager } from "@mariozechner/pi-coding-agent";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -60,7 +57,7 @@ function forkSessionFromParent(params: {
 }): { sessionId: string; sessionFile: string } | null {
   const parentSessionFile = resolveSessionFilePath(
     params.parentEntry.sessionId,
-    params.parentEntry
+    params.parentEntry,
   );
   if (!parentSessionFile || !fs.existsSync(parentSessionFile)) {
     return null;
@@ -69,8 +66,7 @@ function forkSessionFromParent(params: {
     const manager = SessionManager.open(parentSessionFile);
     const leafId = manager.getLeafId();
     if (leafId) {
-      const sessionFile =
-        manager.createBranchedSession(leafId) ?? manager.getSessionFile();
+      const sessionFile = manager.createBranchedSession(leafId) ?? manager.getSessionFile();
       const sessionId = manager.getSessionId();
       if (sessionFile && sessionId) {
         return { sessionId, sessionFile };
@@ -79,10 +75,7 @@ function forkSessionFromParent(params: {
     const sessionId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
     const fileTimestamp = timestamp.replace(/[:.]/g, "-");
-    const sessionFile = path.join(
-      manager.getSessionDir(),
-      `${fileTimestamp}_${sessionId}.jsonl`
-    );
+    const sessionFile = path.join(manager.getSessionDir(), `${fileTimestamp}_${sessionId}.jsonl`);
     const header = {
       type: "session",
       version: CURRENT_SESSION_VERSION,
@@ -107,9 +100,7 @@ export async function initSessionState(params: {
   // Native slash commands (Telegram/Discord/Slack) are delivered on a separate
   // "slash session" key, but should mutate the target chat session.
   const targetSessionKey =
-    ctx.CommandSource === "native"
-      ? ctx.CommandTargetSessionKey?.trim()
-      : undefined;
+    ctx.CommandSource === "native" ? ctx.CommandTargetSessionKey?.trim() : undefined;
   const sessionCtxForState =
     targetSessionKey && targetSessionKey !== ctx.SessionKey
       ? { ...ctx, SessionKey: targetSessionKey }
@@ -120,16 +111,14 @@ export async function initSessionState(params: {
     sessionKey: sessionCtxForState.SessionKey,
     config: cfg,
   });
-  const groupResolution =
-    resolveGroupSessionKey(sessionCtxForState) ?? undefined;
+  const groupResolution = resolveGroupSessionKey(sessionCtxForState) ?? undefined;
   const resetTriggers = sessionCfg?.resetTriggers?.length
     ? sessionCfg.resetTriggers
     : DEFAULT_RESET_TRIGGERS;
   const sessionScope = sessionCfg?.scope ?? "per-sender";
   const storePath = resolveStorePath(sessionCfg?.store, { agentId });
 
-  const sessionStore: Record<string, SessionEntry> =
-    loadSessionStore(storePath);
+  const sessionStore: Record<string, SessionEntry> = loadSessionStore(storePath);
   let sessionKey: string | undefined;
   let sessionEntry: SessionEntry;
 
@@ -149,13 +138,10 @@ export async function initSessionState(params: {
 
   const normalizedChatType = normalizeChatType(ctx.ChatType);
   const isGroup =
-    normalizedChatType != null && normalizedChatType !== "direct"
-      ? true
-      : Boolean(groupResolution);
+    normalizedChatType != null && normalizedChatType !== "direct" ? true : Boolean(groupResolution);
   // Prefer CommandBody/RawBody (clean message) for command detection; fall back
   // to Body which may contain structural context (history, sender labels).
-  const commandSource =
-    ctx.BodyForCommands ?? ctx.CommandBody ?? ctx.RawBody ?? ctx.Body ?? "";
+  const commandSource = ctx.BodyForCommands ?? ctx.CommandBody ?? ctx.RawBody ?? ctx.Body ?? "";
   // IMPORTANT: do NOT lowercase the entire command body.
   // Users often pass case-sensitive arguments (e.g. filesystem paths on Linux).
   // Command parsing downstream lowercases only the command token for matching.
@@ -189,10 +175,7 @@ export async function initSessionState(params: {
       break;
     }
     const triggerLower = trigger.toLowerCase();
-    if (
-      trimmedBodyLower === triggerLower ||
-      strippedForResetLower === triggerLower
-    ) {
+    if (trimmedBodyLower === triggerLower || strippedForResetLower === triggerLower) {
       isNewSession = true;
       bodyStripped = "";
       resetTriggered = true;
@@ -212,8 +195,7 @@ export async function initSessionState(params: {
 
   sessionKey = resolveSessionKey(sessionScope, sessionCtxForState, mainKey);
   const entry = sessionStore[sessionKey];
-  const previousSessionEntry =
-    resetTriggered && entry ? { ...entry } : undefined;
+  const previousSessionEntry = resetTriggered && entry ? { ...entry } : undefined;
   const now = Date.now();
   const isThread = resolveThreadFlag({
     sessionKey,
@@ -263,8 +245,7 @@ export async function initSessionState(params: {
 
   const baseEntry = !isNewSession && freshEntry ? entry : undefined;
   // Track the originating channel/to for announce routing (subagent announce-back).
-  const lastChannelRaw =
-    (ctx.OriginatingChannel as string | undefined) || baseEntry?.lastChannel;
+  const lastChannelRaw = (ctx.OriginatingChannel as string | undefined) || baseEntry?.lastChannel;
   const lastToRaw = ctx.OriginatingTo || ctx.To || baseEntry?.lastTo;
   const lastAccountIdRaw = ctx.AccountId || baseEntry?.lastAccountId;
   const lastThreadIdRaw = ctx.MessageThreadId || baseEntry?.lastThreadId;
@@ -353,7 +334,7 @@ export async function initSessionState(params: {
     sessionEntry.sessionFile = resolveSessionTranscriptPath(
       sessionEntry.sessionId,
       agentId,
-      ctx.MessageThreadId
+      ctx.MessageThreadId,
     );
   }
   if (isNewSession) {
@@ -381,7 +362,7 @@ export async function initSessionState(params: {
           ctx.CommandBody ??
           ctx.RawBody ??
           ctx.BodyForCommands ??
-          ""
+          "",
       ),
     }),
     SessionId: sessionId,
