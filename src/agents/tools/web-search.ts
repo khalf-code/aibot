@@ -3,8 +3,8 @@ import type { OpenClawConfig } from "../../config/config.js";
 import type { AnyAgentTool } from "./common.js";
 import { formatCliCommand } from "../../cli/command-format.js";
 import { wrapWebContent } from "../../security/external-content.js";
-import { jsonResult, readNumberParam, readStringParam } from "./common.js";
 import { canUseAtlas, runAtlasPrompt } from "./atlas.js";
+import { jsonResult, readNumberParam, readStringParam } from "./common.js";
 import {
   CacheEntry,
   DEFAULT_CACHE_TTL_MINUTES,
@@ -488,11 +488,7 @@ function normalizeAtlasSearchResults(value: unknown, maxCount: number): AtlasSea
     const item = entry as Record<string, unknown>;
     const title = typeof item.title === "string" ? item.title : "";
     const url =
-      typeof item.url === "string"
-        ? item.url
-        : typeof item.link === "string"
-          ? item.link
-          : "";
+      typeof item.url === "string" ? item.url : typeof item.link === "string" ? item.link : "";
     const snippet =
       typeof item.snippet === "string"
         ? item.snippet
@@ -943,7 +939,7 @@ export function createWebSearchTool(options?: {
             sandboxed: options?.sandboxed,
           });
           return jsonResult(result);
-        } catch (err) {
+        } catch {
           return jsonResult(await runFallbackSearch(fallbackProvider));
         }
       }
