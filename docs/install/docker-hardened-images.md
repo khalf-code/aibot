@@ -14,6 +14,7 @@ Docker Hardened Images (DHI) are minimal, security-focused base images maintaine
 ## What are DHI?
 
 DHI are "distroless" container images that:
+
 - Remove unnecessary components (shells, package managers, debugging tools)
 - Reduce attack surface by up to 95%
 - Include cryptographic signing and SBOMs
@@ -88,13 +89,13 @@ FROM dhi.io/rust:1.77-debian12
 
 OpenClaw requires Node.js 22, which is available in DHI:
 
-| Runtime | DHI Tag | Use Case |
-|---------|---------|----------|
-| Node.js (dev) | `dhi.io/node:22-debian12-dev` | Build stage |
-| Node.js (runtime) | `dhi.io/node:22-debian12` | Production |
-| Python | `dhi.io/python:3.12-debian12` | Python sandbox (optional) |
-| Go | `dhi.io/go:1.23-debian12` | Go sandbox (optional) |
-| Rust | `dhi.io/rust:1.77-debian12` | Rust sandbox (optional) |
+| Runtime           | DHI Tag                       | Use Case                  |
+| ----------------- | ----------------------------- | ------------------------- |
+| Node.js (dev)     | `dhi.io/node:22-debian12-dev` | Build stage               |
+| Node.js (runtime) | `dhi.io/node:22-debian12`     | Production                |
+| Python            | `dhi.io/python:3.12-debian12` | Python sandbox (optional) |
+| Go                | `dhi.io/go:1.23-debian12`     | Go sandbox (optional)     |
+| Rust              | `dhi.io/rust:1.77-debian12`   | Rust sandbox (optional)   |
 
 See [Docker Hub DHI catalog](https://hub.docker.com/u/dhi) for all available images and versions.
 
@@ -103,6 +104,7 @@ See [Docker Hub DHI catalog](https://hub.docker.com/u/dhi) for all available ima
 ### What's Removed (Distroless)
 
 DHI **runtime** images don't include:
+
 - Shell (bash, sh)
 - Package managers (apt, apk)
 - Debugging tools (curl, wget, git)
@@ -112,6 +114,7 @@ DHI **dev** images (e.g., `dhi.io/node:22-debian12-dev`) include build tools for
 ### Debugging
 
 Without a shell, debugging requires:
+
 - `docker exec` won't work for interactive shells
 - Use `docker logs` for output
 - Add debugging tools in dev stage only
@@ -120,6 +123,7 @@ Without a shell, debugging requires:
 ### Compatibility
 
 DHI images are compatible with:
+
 - ✅ Standard Docker commands
 - ✅ Docker Compose
 - ✅ Kubernetes
@@ -165,6 +169,7 @@ echo "Build complete"
 ```
 
 Usage:
+
 ```bash
 chmod +x rebuild-dhi.sh
 ./rebuild-dhi.sh latest        # Build from main
