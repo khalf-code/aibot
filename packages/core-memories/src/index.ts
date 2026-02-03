@@ -276,22 +276,51 @@ export async function checkOllamaAvailable(): Promise<OllamaCheckResult> {
   });
 }
 
-// Deep merge utility
+// Type-safe deep merge that only merges known config keys
 function deepMerge(
   target: CoreMemoriesConfig,
   source: Record<string, unknown>,
 ): CoreMemoriesConfig {
   const result = { ...target };
+
   for (const key in source) {
-    if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
-      (result[key as keyof CoreMemoriesConfig] as Record<string, unknown>) = deepMerge(
-        (result[key as keyof CoreMemoriesConfig] || {}) as CoreMemoriesConfig,
-        source[key] as Record<string, unknown>,
-      ) as unknown as Record<string, unknown>;
-    } else {
-      (result[key as keyof CoreMemoriesConfig] as unknown) = source[key];
+    // Only merge keys that exist in DEFAULT_CONFIG (prevent shape pollution)
+    if (!(key in DEFAULT_CONFIG)) {
+      console.warn(`CoreMemories: Ignoring unknown config key "${key}"`);
+      continue;
+    }
+
+    const sourceValue = source[key];
+
+    // Handle nested objects (but not arrays or null)
+    if (
+      sourceValue &&
+      typeof sourceValue === "object" &&
+      !Array.isArray(sourceValue) &&
+      key in result &&
+      result[key as keyof CoreMemoriesConfig] &&
+      typeof result[key as keyof CoreMemoriesConfig] === "object"
+    ) {
+      // Recursively merge nested objects
+      const targetValue = result[key as keyof CoreMemoriesConfig] as Record<string, unknown>;
+      const mergedNested = { ...targetValue };
+
+      for (const nestedKey in sourceValue) {
+        // Only merge keys that exist in the target nested object
+        if (nestedKey in targetValue) {
+          mergedNested[nestedKey] = (sourceValue as Record<string, unknown>)[nestedKey];
+        } else {
+          console.warn(`CoreMemories: Ignoring unknown nested config key "${key}.${nestedKey}"`);
+        }
+      }
+
+      (result[key as keyof CoreMemoriesConfig] as unknown) = mergedNested;
+    } else if (typeof sourceValue !== "function") {
+      // Primitive value - assign directly
+      (result[key as keyof CoreMemoriesConfig] as unknown) = sourceValue;
     }
   }
+
   return result;
 }
 
@@ -825,6 +854,29 @@ export class CoreMemories {
     return data.entries || [];
   }
 
+  // Get ALL warm entries across all weeks (for search)
+  private getAllWarmEntries(): WarmEntry[] {
+    const warmDir = path.join(this.memoryDir, "hot", "warm");
+    if (!fs.existsSync(warmDir)) return [];
+
+    const allEntries: WarmEntry[] = [];
+    const files = fs.readdirSync(warmDir);
+
+    for (const file of files) {
+      if (file.endsWith(".json")) {
+        const warmPath = path.join(warmDir, file);
+        const data = JSON.parse(fs.readFileSync(warmPath, "utf-8")) as {
+          entries?: WarmEntry[];
+        };
+        if (data.entries) {
+          allEntries.push(...data.entries);
+        }
+      }
+    }
+
+    return allEntries;
+  }
+
   // Retrieval
   findByKeyword(keyword: string): KeywordSearchResult {
     const index = this.loadIndex();
@@ -833,16 +885,18 @@ export class CoreMemories {
     const flash: FlashEntry[] = [];
     const warm: WarmEntry[] = [];
 
+    // Get all entries once for searching
+    const flashEntries = this.getFlashEntries();
+    const allWarmEntries = this.getAllWarmEntries();
+
     for (const id of ids) {
-      const flashEntries = this.getFlashEntries();
       const flashMatch = flashEntries.find((e) => e.id === id);
       if (flashMatch) {
         flash.push(flashMatch);
         continue;
       }
 
-      const warmEntries = this.getWarmEntries();
-      const warmMatch = warmEntries.find((e) => e.id === id);
+      const warmMatch = allWarmEntries.find((e) => e.id === id);
       if (warmMatch) {
         warm.push(warmMatch);
       }
