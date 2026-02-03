@@ -6,6 +6,7 @@ import type {
   MediaUnderstandingDecision,
   MediaUnderstandingOutput,
 } from "../media-understanding/types.js";
+import type { SlackIdentityContext } from "./reply/groups.js";
 
 /** Valid message channels for routing. */
 export type OriginatingChannelType = ChannelId | InternalMessageChannel;
@@ -121,6 +122,11 @@ export type MsgContext = {
    * Used for hook confirmation messages like "Session context saved to memory".
    */
   HookMessages?: string[];
+  /**
+   * Slack co-working identity context (bot identity and teammates).
+   * Used to inject self-awareness and teammate awareness in group prompts.
+   */
+  SlackIdentity?: SlackIdentityContext;
 };
 
 export type FinalizedMsgContext = Omit<MsgContext, "CommandAuthorized"> & {

@@ -51,6 +51,7 @@ import {
   createRelevanceRunner,
   resolveRelevanceModel,
 } from "../relevance-check.js";
+import { buildMentionContext, formatMentionContextHint } from "../mention-context.js";
 
 import type { PreparedSlackMessage } from "./types.js";
 
@@ -354,6 +355,18 @@ export async function prepareSlackMessage(params: {
   });
   const rawBody = (message.text ?? "").trim() || media?.placeholder || "";
 
+  // Build mention context for enriched awareness
+  const mentionCtx = buildMentionContext({
+    messageText: rawBody,
+    selfUserId: ctx.botUserId ?? "",
+    teammates: ctx.teammates ?? [],
+    isReplyToSelf: implicitMention,
+  });
+  const mentionHint = formatMentionContextHint(mentionCtx);
+  if (mentionHint) {
+    logVerbose(`slack: ${mentionHint}`);
+  }
+
   // Auto-response mode: check relevance with fast model before proceeding
   if (isRoom && channelResponseMode === "auto" && !effectiveWasMentioned) {
     const channelDescription =
@@ -602,6 +615,17 @@ export async function prepareSlackMessage(params: {
     CommandAuthorized: commandAuthorized,
     OriginatingChannel: "slack" as const,
     OriginatingTo: slackTo,
+    // Slack co-working identity context for group intro injection
+    SlackIdentity: isRoomish
+      ? {
+          botUserId: ctx.botUserId,
+          teammates: (ctx.teammates ?? []).map((t) => ({
+            userId: t.userId,
+            name: t.name,
+            displayName: t.displayName,
+          })),
+        }
+      : undefined,
   }) satisfies FinalizedMsgContext;
 
   await recordInboundSession({

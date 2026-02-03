@@ -176,6 +176,7 @@ export async function runPreparedReply(
         sessionEntry,
         defaultActivation,
         silentToken: SILENT_REPLY_TOKEN,
+        slackIdentity: ctx.SlackIdentity,
       })
     : "";
   const groupSystemPrompt = sessionCtx.GroupSystemPrompt?.trim() ?? "";
