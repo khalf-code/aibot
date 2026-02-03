@@ -1,7 +1,7 @@
 ---
-summary: "Configure Amazon Nova 1P API (direct API, not Bedrock)"
+summary: "Configure Amazon Nova APi"
 read_when:
-  - You want to use Amazon Nova models via the direct 1P API
+  - You want to use Amazon Nova models via the API at nova.amazon.com
   - You need to set up NOVA_API_KEY authentication
   - You want copy/paste config for Amazon Nova
 ---
@@ -50,7 +50,7 @@ in your model params:
         "amazon-nova/nova-2-lite-v1": {
           alias: "Nova 2 Lite",
           params: {
-            reasoning_effort: "high", // "disabled", "low", "medium", "high"
+            reasoning_effort: "high", // "low", "medium", "high"
           },
         },
       },
@@ -61,7 +61,6 @@ in your model params:
 
 | Level      | Behavior                     |
 | ---------- | ---------------------------- |
-| `disabled` | No extended thinking         |
 | `low`      | Fast, basic reasoning        |
 | `medium`   | Balanced reasoning and speed |
 | `high`     | Deep, thorough analysis      |
@@ -96,7 +95,7 @@ in your model params:
             input: ["text", "image"],
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
             contextWindow: 1000000,
-            maxTokens: 65536,
+            maxTokens: 65535,
           },
           {
             id: "nova-2-pro-v1",
@@ -105,7 +104,7 @@ in your model params:
             input: ["text", "image"],
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
             contextWindow: 1000000,
-            maxTokens: 65536,
+            maxTokens: 65535,
           },
         ],
       },
