@@ -99,6 +99,7 @@ describe("late-arriving invoke results", () => {
           mode: GATEWAY_CLIENT_MODES.NODE,
         },
         commands: [],
+        token: "test-gateway-token-1234567890",
       });
 
       const identity = loadOrCreateDeviceIdentity();

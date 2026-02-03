@@ -25,12 +25,7 @@ import { upsertPresence } from "../../../infra/system-presence.js";
 import { loadVoiceWakeConfig } from "../../../infra/voicewake.js";
 import { rawDataToString } from "../../../infra/ws.js";
 import { isGatewayCliClient, isWebchatClient } from "../../../utils/message-channel.js";
-import {
-  authorizeGatewayConnect,
-  isLocalDirectRequest,
-  shouldTrustLocalhost,
-  validateHostHeader,
-} from "../../auth.js";
+import { authorizeGatewayConnect, isLocalDirectRequest, validateHostHeader } from "../../auth.js";
 import { buildDeviceAuthPayload } from "../../device-auth.js";
 import { isLoopbackAddress, isTrustedProxyAddress, resolveGatewayClientIp } from "../../net.js";
 import { resolveNodeCommandAllowlist } from "../../node-command-policy.js";
@@ -223,10 +218,6 @@ export function attachGatewayWsMessageHandler(params: {
     close(1008, "invalid host header");
     return;
   }
-
-  // Determine if we should apply localhost trust for this connection.
-  // This requires explicit opt-in via config AND passing all security checks.
-  const trustsLocalhost = shouldTrustLocalhost(upgradeReq, resolvedAuth, trustedProxies);
 
   const reportedClientIp =
     isLocalClient || hasUntrustedProxyHeaders
@@ -537,9 +528,10 @@ export function attachGatewayWsMessageHandler(params: {
             close(1008, "device signature expired");
             return;
           }
-          // Nonce is required unless trustLocalhost is explicitly enabled AND
-          // this is a verified local connection. Default: always require nonce.
-          const nonceRequired = !trustsLocalhost;
+          // Nonce is required for remote clients. Local clients (determined by
+          // isLocalDirectRequest) can skip the nonce for backward compatibility,
+          // but still must pass Host header validation (DNS rebinding protection).
+          const nonceRequired = !isLocalClient;
           const providedNonce = typeof device.nonce === "string" ? device.nonce.trim() : "";
           if (nonceRequired && !providedNonce) {
             setHandshakeState("failed");
