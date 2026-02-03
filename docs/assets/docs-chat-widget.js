@@ -1,7 +1,12 @@
 (() => {
   if (document.getElementById("docs-chat-root")) return;
 
-  const apiBase = window.DOCS_CHAT_API_URL || "http://localhost:3001";
+  // Select API URL: prefer explicit config, else localhost for dev, else production
+  const hostname = window.location.hostname;
+  const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+  const apiBase =
+    window.DOCS_CHAT_API_URL ||
+    (isLocal ? "http://localhost:3001" : "https://claw-api.openknot.ai");
 
   // Load vendored @create-markdown/preview@0.1.0 for markdown rendering
   let markdownToHTML = null;
