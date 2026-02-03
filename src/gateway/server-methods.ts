@@ -13,6 +13,7 @@ import { cronHandlers } from "./server-methods/cron.js";
 import { decisionHandlers } from "./server-methods/decisions.js";
 import { deviceHandlers } from "./server-methods/devices.js";
 import { execApprovalsHandlers } from "./server-methods/exec-approvals.js";
+import { gatewayReloadHandlers } from "./server-methods/gateway-reload.js";
 import { healthHandlers } from "./server-methods/health.js";
 import { logsHandlers } from "./server-methods/logs.js";
 import { modelsHandlers } from "./server-methods/models.js";
@@ -180,6 +181,7 @@ function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["c
   }
   if (
     method.startsWith("config.") ||
+    method.startsWith("gateway.") ||
     method.startsWith("wizard.") ||
     method.startsWith("update.") ||
     method === "channels.logout" ||
@@ -237,6 +239,7 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
   ...tokenHandlers,
   ...auditHandlers,
   ...worktreeHandlers,
+  ...gatewayReloadHandlers,
 };
 
 export async function handleGatewayRequest(

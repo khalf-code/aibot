@@ -87,6 +87,25 @@ export type GatewayRequestContext = {
   automations?: any; // TODO: Add proper type
   overseerRunner?: any; // TODO: Add proper type
   artifactStorage?: any; // TODO: Add proper type
+  triggerConfigReload?: (opts?: {
+    forceRestart?: boolean;
+    graceful?: boolean;
+    gracefulTimeoutMs?: number;
+  }) => Promise<{
+    mode: "hot" | "restart" | "noop";
+    plan: import("../config-reload.js").GatewayReloadPlan;
+    graceful?: {
+      enabled: boolean;
+      runningAgents: number;
+      timeoutMs: number;
+      drained: boolean;
+    };
+    restart?: {
+      scheduled: boolean;
+      delayMs?: number;
+      reason: string;
+    };
+  }>;
 };
 
 export type GatewayRequestOptions = {
