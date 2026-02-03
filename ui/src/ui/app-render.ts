@@ -1,5 +1,6 @@
 import { html, nothing } from "lit";
 import type { AppViewState } from "./app-view-state";
+import { extractShortModelName } from "../../../src/auto-reply/reply/response-prefix-template.js";
 import { parseAgentSessionKey } from "../../../src/routing/session-key.js";
 import { refreshChatAvatar } from "./app-chat";
 import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.helpers";
@@ -50,6 +51,11 @@ import {
   updateSkillEnabled,
 } from "./controllers/skills";
 import { icons } from "./icons";
+import {
+  HIGH_TIER_MODEL_PATTERNS,
+  MEDIUM_TIER_MODEL_PATTERNS,
+  LOW_TIER_MODEL_PATTERNS,
+} from "./model-tiers.js";
 import { TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation";
 import { renderAgents } from "./views/agents";
 import { renderChannels } from "./views/channels";
@@ -83,6 +89,28 @@ function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
     return candidate;
   }
   return identity?.avatarUrl;
+}
+
+function resolveCurrentModel(state: AppViewState): string | null {
+  if (!state.sessionsResult?.sessions) return null;
+  const activeSession = state.sessionsResult.sessions.find((row) => row.key === state.sessionKey);
+  const model = activeSession?.model ?? state.sessionsResult.defaults?.model ?? null;
+  if (!model) return null;
+  return extractShortModelName(model);
+}
+
+function resolveModelTier(model: string): "high" | "medium" | "low" | null {
+  const lower = model.toLowerCase();
+  if (HIGH_TIER_MODEL_PATTERNS.some((pattern) => lower.includes(pattern))) {
+    return "high";
+  }
+  if (MEDIUM_TIER_MODEL_PATTERNS.some((pattern) => lower.includes(pattern))) {
+    return "medium";
+  }
+  if (LOW_TIER_MODEL_PATTERNS.some((pattern) => lower.includes(pattern))) {
+    return "low";
+  }
+  return null;
 }
 
 export function renderApp(state: AppViewState) {
@@ -135,6 +163,27 @@ export function renderApp(state: AppViewState) {
             <span>Health</span>
             <span class="mono">${state.connected ? "OK" : "Offline"}</span>
           </div>
+          ${
+            state.connected && state.tab === "chat"
+              ? (() => {
+                  const currentModel = resolveCurrentModel(state);
+                  if (!currentModel) return nothing;
+                  const tier = resolveModelTier(currentModel);
+                  const tierClass =
+                    tier === "high"
+                      ? "danger"
+                      : tier === "medium"
+                        ? "warn"
+                        : tier === "low"
+                          ? "ok"
+                          : "";
+                  return html`<div class="pill ${tierClass}">
+                    <span>Model</span>
+                    <span class="mono">${currentModel}</span>
+                  </div>`;
+                })()
+              : nothing
+          }
           ${renderThemeToggle(state)}
         </div>
       </header>

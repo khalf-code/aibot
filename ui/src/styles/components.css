@@ -207,6 +207,18 @@
   color: var(--danger);
 }
 
+.pill.warn {
+  border-color: var(--warn-subtle);
+  background: var(--warn-subtle);
+  color: var(--warn);
+}
+
+.pill.ok {
+  border-color: var(--ok-subtle);
+  background: var(--ok-subtle);
+  color: var(--ok);
+}
+
 /* ===========================================
    Theme Toggle
    =========================================== */
