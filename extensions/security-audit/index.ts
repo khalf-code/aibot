@@ -358,6 +358,10 @@ function getOperationType(toolName: string, params: unknown): "read" | "write" |
     case "exec": {
       // exec can be read, write, or execute depending on command
       const cmd = (params as { command?: string })?.command ?? "";
+      const hasRedirection = /(^|\s)\d*>>?\s*\S/.test(cmd) || /\S>>?\S/.test(cmd);
+      if (hasRedirection) {
+        return "write";
+      }
       if (/\b(cat|head|tail|less|more|grep|awk|sed)\b/.test(cmd)) {
         return "read";
       }
