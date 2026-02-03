@@ -120,6 +120,112 @@ export async function isLtmOptedIn(workspaceDir: string): Promise<boolean> {
   );
 }
 
+type MemoryLayoutResult = {
+  created: {
+    stm: boolean;
+    working: boolean;
+    ltmIndex: boolean;
+    ltmNodes: boolean;
+  };
+};
+
+type MemoryLayoutLogger = (message: string) => void;
+
+export async function ensureWmStmLtmLayout(params: {
+  workspaceDir: string;
+  allowCreate: boolean;
+  log?: MemoryLayoutLogger;
+}): Promise<MemoryLayoutResult> {
+  const created = {
+    stm: false,
+    working: false,
+    ltmIndex: false,
+    ltmNodes: false,
+  };
+  if (!params.allowCreate) {
+    return { created };
+  }
+  const workspaceDir = params.workspaceDir.trim();
+  if (!workspaceDir) {
+    params.log?.("memory layout: missing workspaceDir");
+    return { created };
+  }
+  const log = params.log;
+
+  const ensureDir = async (targetPath: string, label: string) => {
+    const stat = await tryLstat(targetPath);
+    if (stat) {
+      if (stat.isSymbolicLink()) {
+        log?.(`memory layout: skip ${label} (symlink)`);
+        return { ok: false, created: false };
+      }
+      if (!stat.isDirectory()) {
+        log?.(`memory layout: skip ${label} (not a directory)`);
+        return { ok: false, created: false };
+      }
+      return { ok: true, created: false };
+    }
+    try {
+      await fs.mkdir(targetPath, { recursive: true });
+      return { ok: true, created: true };
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "EEXIST") {
+        return { ok: true, created: false };
+      }
+      log?.(`memory layout: failed to create ${label}: ${String(err)}`);
+      return { ok: false, created: false };
+    }
+  };
+
+  const ensureFile = async (targetPath: string, content: string, label: string) => {
+    const stat = await tryLstat(targetPath);
+    if (stat) {
+      if (stat.isSymbolicLink()) {
+        log?.(`memory layout: skip ${label} (symlink)`);
+        return { ok: false, created: false };
+      }
+      if (!stat.isFile()) {
+        log?.(`memory layout: skip ${label} (not a file)`);
+        return { ok: false, created: false };
+      }
+      return { ok: true, created: false };
+    }
+    try {
+      await fs.writeFile(targetPath, content, { flag: "wx" });
+      return { ok: true, created: true };
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "EEXIST") {
+        return { ok: true, created: false };
+      }
+      log?.(`memory layout: failed to create ${label}: ${String(err)}`);
+      return { ok: false, created: false };
+    }
+  };
+
+  const stm = await ensureFile(path.join(workspaceDir, "STM.md"), "# STM\n", "STM.md");
+  created.stm = stm.created;
+
+  const working = await ensureFile(
+    path.join(workspaceDir, "WORKING.md"),
+    "# WORKING\n",
+    "WORKING.md",
+  );
+  created.working = working.created;
+
+  const ltmDir = path.join(workspaceDir, "ltm");
+  const ltmDirResult = await ensureDir(ltmDir, "ltm/");
+  if (ltmDirResult.ok) {
+    const nodes = await ensureDir(path.join(ltmDir, "nodes"), "ltm/nodes/");
+    created.ltmNodes = nodes.created;
+    const index = await ensureFile(path.join(ltmDir, "index.md"), "# LTM Index\n", "ltm/index.md");
+    created.ltmIndex = index.created;
+  }
+
+  return { created };
+}
+
 async function walkDir(dir: string, files: string[]) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {

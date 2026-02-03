@@ -42,6 +42,9 @@ If the workspace also contains WM/STM/LTM files, OpenClaw treats them as memory 
 LTM opt-in rule (to avoid indexing unrelated `ltm/` folders): `ltm/` is treated as memory only when
 either `ltm/index.md` exists or `ltm/nodes/` exists.
 
+When the workspace is writable, OpenClaw auto-creates `STM.md`, `WORKING.md`, `ltm/index.md`, and
+`ltm/nodes/` during the pre-compaction memory flush if they are missing.
+
 ## When to write memory
 
 - Decisions, preferences, and durable facts go to `MEMORY.md`.
