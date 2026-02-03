@@ -1,5 +1,4 @@
 import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "sonner";
 import { ThemeProvider, ShortcutsProvider } from "@/providers";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -51,9 +50,6 @@ function RootLayout() {
             },
           }}
         />
-        {import.meta.env.DEV && (
-          <TanStackRouterDevtools position="bottom-right" />
-        )}
       </ShortcutsProvider>
     </ThemeProvider>
   );

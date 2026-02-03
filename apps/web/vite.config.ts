@@ -3,7 +3,12 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import path from "path";
+import { fileURLToPath } from "url";
 import { visualizer } from "rollup-plugin-visualizer";
+
+// ESM __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Default dev token for local development (must match gateway config)
 const DEV_TOKEN = "dev-token-local";
@@ -59,10 +64,6 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@tanstack/')) {
                 return 'vendor-tanstack';
               }
-              // Radix UI components (check before React to avoid @radix-ui/react-* being caught by React check)
-              if (id.includes('@radix-ui/')) {
-                return 'vendor-radix';
-              }
               // 3D rendering libraries (from reagraph)
               if (id.includes('three') || id.includes('@react-three/') || id.includes('@react-spring/three')) {
                 return 'vendor-three';
@@ -78,25 +79,27 @@ export default defineConfig(({ mode }) => {
               if (id.includes('reagraph') || id.includes('graphology')) {
                 return 'vendor-graph';
               }
-              // React ecosystem - bundle React core with state management and shared utilities
-              // to minimize circular dependencies
+              // React ecosystem - bundle React core with UI libraries, state management, and flow diagrams
+              // to eliminate circular dependencies through shared utilities
               if (
                 id.match(/\/react\//) ||
                 id.match(/\/react-dom\//) ||
                 id.includes('zustand') ||
                 id.includes('immer') ||
+                id.includes('@xyflow/') ||
+                id.includes('@radix-ui/') ||
+                // React UI component libraries
+                id.includes('cmdk') ||
+                id.includes('sonner') ||
+                // Shared UI utilities used heavily by React components
+                id.includes('class-variance-authority') ||
+                id.includes('clsx') ||
+                id.includes('tailwind-merge') ||
+                // React-specific utilities that React packages actually use
                 id.includes('scheduler') ||
-                id.includes('use-sync-external-store') ||
-                // Common utilities that React and other packages share
-                id.includes('loose-envify') ||
-                id.includes('object-assign') ||
-                id.includes('prop-types')
+                id.includes('use-sync-external-store')
               ) {
                 return 'vendor-react';
-              }
-              // Flow diagrams
-              if (id.includes('@xyflow/')) {
-                return 'vendor-xyflow';
               }
               // Form libraries with validation
               if (id.includes('react-hook-form') || id.includes('@hookform/')) {

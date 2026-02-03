@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:host": "vite --host",
-    "build": "node scripts/generate-route-tree.mjs && tsc -b && vite build",
+    "dev": "rm -rf ./node_modules/.vite && vite",
+    "dev:host": "rm -rf ./node_modules/.vite && vite --host",
+    "build": "rm -rf ./node_modules/.vite && node scripts/generate-route-tree.mjs && tsc -b && vite build",
     "build:analyze": "vite build --mode analyze",
     "preview": "vite preview",
     "preview:host": "vite preview --host",
