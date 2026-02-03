@@ -320,6 +320,39 @@ html[data-theme="dark"] .docs-chat-user {
   color: var(--docs-chat-text);
   background: var(--docs-chat-code-bg);
 }
+/* Resize handle - left edge of expanded panel */
+#docs-chat-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 10;
+  display: none;
+}
+#docs-chat-root.docs-chat-expanded #docs-chat-resize-handle { display: block; }
+#docs-chat-resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--docs-chat-panel-border);
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+#docs-chat-resize-handle:hover::after,
+#docs-chat-resize-handle.docs-chat-dragging::after {
+  opacity: 1;
+  background: var(--docs-chat-accent);
+}
+@media (max-width: 520px) {
+  #docs-chat-resize-handle { display: none !important; }
+}
 `;
   document.head.appendChild(style);
 
@@ -336,6 +369,10 @@ html[data-theme="dark"] .docs-chat-user {
   const panel = document.createElement("div");
   panel.id = "docs-chat-panel";
   panel.style.display = "none";
+
+  // Resize handle for expandable sidebar width (desktop only)
+  const resizeHandle = document.createElement("div");
+  resizeHandle.id = "docs-chat-resize-handle";
 
   const header = document.createElement("div");
   header.id = "docs-chat-header";
@@ -389,6 +426,7 @@ html[data-theme="dark"] .docs-chat-user {
   inputWrap.appendChild(textarea);
   inputWrap.appendChild(send);
 
+  panel.appendChild(resizeHandle);
   panel.appendChild(header);
   panel.appendChild(messages);
   panel.appendChild(inputWrap);
@@ -461,10 +499,51 @@ html[data-theme="dark"] .docs-chat-user {
   };
 
   let isExpanded = false;
+  let customWidth = null; // User-set width via drag
+  const MIN_WIDTH = 320;
+  const MAX_WIDTH = 800;
+
+  // Drag-to-resize logic
+  let isDragging = false;
+  let startX, startWidth;
+
+  resizeHandle.addEventListener("mousedown", (e) => {
+    if (!isExpanded) return;
+    isDragging = true;
+    startX = e.clientX;
+    startWidth = panel.offsetWidth;
+    resizeHandle.classList.add("docs-chat-dragging");
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    // Panel is on right, so dragging left increases width
+    const delta = startX - e.clientX;
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
+    customWidth = newWidth;
+    panel.style.width = newWidth + "px";
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!isDragging) return;
+    isDragging = false;
+    resizeHandle.classList.remove("docs-chat-dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  });
+
   const setOpen = (isOpen) => {
     panel.style.display = isOpen ? "flex" : "none";
     button.style.display = isOpen ? "none" : "inline-flex";
     root.classList.toggle("docs-chat-expanded", isOpen && isExpanded);
+    if (!isOpen) {
+      panel.style.width = ""; // Reset to CSS default when closed
+    } else if (isExpanded && customWidth) {
+      panel.style.width = customWidth + "px";
+    }
     if (isOpen) textarea.focus();
   };
 
@@ -474,6 +553,11 @@ html[data-theme="dark"] .docs-chat-user {
     expand.setAttribute("aria-label", isExpanded ? "Collapse" : "Expand");
     if (panel.style.display !== "none") {
       root.classList.toggle("docs-chat-expanded", isExpanded);
+      if (isExpanded && customWidth) {
+        panel.style.width = customWidth + "px";
+      } else if (!isExpanded) {
+        panel.style.width = ""; // Reset to CSS default
+      }
     }
   };
 
