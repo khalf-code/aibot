@@ -241,13 +241,12 @@ export async function applyAuthChoiceApiProviders(
     if (
       !hasCredential &&
       params.opts?.cloudflareAiGatewayAccountId &&
-      params.opts?.cloudflareAiGatewayGatewayId &&
-      params.opts?.cloudflareAiGatewayApiKey
+      params.opts?.cloudflareAiGatewayGatewayId
     ) {
       await setCloudflareAiGatewayConfig(
         params.opts.cloudflareAiGatewayAccountId,
         params.opts.cloudflareAiGatewayGatewayId,
-        normalizeApiKeyInput(params.opts.cloudflareAiGatewayApiKey),
+        normalizeApiKeyInput(params.opts?.cloudflareAiGatewayApiKey ?? ""),
         params.agentDir,
       );
       hasCredential = true;

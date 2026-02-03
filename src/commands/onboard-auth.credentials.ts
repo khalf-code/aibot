@@ -187,12 +187,13 @@ export async function setCloudflareAiGatewayConfig(
   apiKey: string,
   agentDir?: string,
 ) {
+  const trimmedKey = apiKey.trim();
   upsertAuthProfile({
     profileId: "cloudflare-ai-gateway:default",
     credential: {
       type: "api_key",
       provider: "cloudflare-ai-gateway",
-      key: apiKey,
+      ...(trimmedKey && { key: trimmedKey }),
       metadata: {
         accountId,
         gatewayId,
