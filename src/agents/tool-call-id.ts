@@ -179,6 +179,7 @@ function rewriteToolResultIds(params: {
 }): Extract<AgentMessage, { role: "toolResult" }> {
   type ToolResultMessage = Extract<AgentMessage, { role: "toolResult" }> & {
     tool_call_id?: string;
+    toolUseId?: string;
   };
   const toolCallIdRaw = (params.message as { tool_call_id?: unknown }).tool_call_id;
   const toolCallId =
