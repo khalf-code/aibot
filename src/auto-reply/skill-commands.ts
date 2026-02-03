@@ -43,7 +43,7 @@ export function listSkillCommandsForAgents(params: {
   const entries: SkillCommandSpec[] = [];
   const agentIds = params.agentIds ?? listAgentIds(params.cfg);
 
-  // Track unique skill names (case-insensitive) to prevent duplicates across agents
+  // Track unique skill names (normalized) to prevent duplicates across agents
   const seenSkillNames = new Set<string>();
 
   for (const agentId of agentIds) {
@@ -57,10 +57,11 @@ export function listSkillCommandsForAgents(params: {
       reservedNames: used,
     });
     for (const command of commands) {
-      if (seenSkillNames.has(command.skillName.toLowerCase())) {
+      const normalizedSkillName = normalizeSkillCommandLookup(command.skillName);
+      if (seenSkillNames.has(normalizedSkillName)) {
         continue;
       }
-      seenSkillNames.add(command.skillName.toLowerCase());
+      seenSkillNames.add(normalizedSkillName);
       used.add(command.name.toLowerCase());
       entries.push(command);
     }
