@@ -546,6 +546,8 @@ export type PluginHookHttpResponseSendingResult = {
   block?: boolean;
   /** Reason for blocking */
   blockReason?: string;
+  /** HTTP status code for block response (default: 400) */
+  blockStatusCode?: number;
   /** Modified content (for redaction) */
   modifiedContent?: string;
   /** Modified response body */

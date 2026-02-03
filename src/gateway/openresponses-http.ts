@@ -176,6 +176,7 @@ function extractUserContentForScanning(input: string | ItemParam[]): string {
  * Build HTTP context for hook invocation.
  */
 function buildHttpContext(req: IncomingMessage, requestId: string): PluginHookHttpContext {
+  // Redact sensitive headers, normalize multi-value headers
   const safeHeaders: Record<string, string> = {};
   for (const [key, value] of Object.entries(req.headers)) {
     const lowerKey = key.toLowerCase();
@@ -183,6 +184,9 @@ function buildHttpContext(req: IncomingMessage, requestId: string): PluginHookHt
       safeHeaders[key] = "[REDACTED]";
     } else if (typeof value === "string") {
       safeHeaders[key] = value;
+    } else if (Array.isArray(value)) {
+      // Join multi-value headers (e.g., x-forwarded-for, set-cookie)
+      safeHeaders[key] = value.join(", ");
     }
   }
 
@@ -494,8 +498,12 @@ export async function handleOpenResponsesHttpRequest(
         sendJson(res, hookResult.blockStatusCode ?? 400, response);
         return true;
       }
-      // Apply modified request body if plugin sanitized it
+      // Replace request body if plugin sanitized it (full replacement, not merge)
       if (hookResult?.modifiedRequestBody) {
+        // Clear existing keys and apply new ones to support key deletion
+        for (const key of Object.keys(payload)) {
+          delete (payload as Record<string, unknown>)[key];
+        }
         Object.assign(payload, hookResult.modifiedRequestBody);
       }
     } catch (hookError) {
@@ -726,7 +734,7 @@ export async function handleOpenResponsesHttpRequest(
                 message: responseHook.blockReason || "Response blocked for security reasons",
               },
             });
-            sendJson(res, 400, blocked);
+            sendJson(res, responseHook.blockStatusCode ?? 400, blocked);
             return true;
           }
           if (responseHook?.modifiedContent) {

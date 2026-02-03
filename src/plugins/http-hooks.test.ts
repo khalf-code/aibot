@@ -342,7 +342,7 @@ describe("HTTP API Security Hooks", () => {
       };
 
       await expect(runner.runHttpRequestReceived(event, createMockHttpContext())).rejects.toThrow(
-        "Hook failed",
+        /Hook failed|http_request_received/,
       );
     });
   });

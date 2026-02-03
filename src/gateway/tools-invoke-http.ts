@@ -336,7 +336,7 @@ export async function handleToolsInvokeHttpRequest(
     args,
   });
 
-  // Build HTTP context for hooks
+  // Build HTTP context for hooks (redact sensitive, normalize multi-value)
   const safeHeaders: Record<string, string> = {};
   for (const [key, value] of Object.entries(req.headers)) {
     const lowerKey = key.toLowerCase();
@@ -344,6 +344,9 @@ export async function handleToolsInvokeHttpRequest(
       safeHeaders[key] = "[REDACTED]";
     } else if (typeof value === "string") {
       safeHeaders[key] = value;
+    } else if (Array.isArray(value)) {
+      // Join multi-value headers (e.g., x-forwarded-for, set-cookie)
+      safeHeaders[key] = value.join(", ");
     }
   }
   const httpCtx: PluginHookHttpContext = {
@@ -379,8 +382,12 @@ export async function handleToolsInvokeHttpRequest(
         });
         return true;
       }
-      // Apply modified params if plugin sanitized them
+      // Replace params if plugin sanitized them (full replacement, not merge)
       if (preHook?.modifiedParams !== undefined) {
+        // Clear existing keys and apply new ones to support key deletion
+        for (const key of Object.keys(toolArgs)) {
+          delete toolArgs[key];
+        }
         Object.assign(toolArgs, preHook.modifiedParams);
       }
     } catch (hookError) {
