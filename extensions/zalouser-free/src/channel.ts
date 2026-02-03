@@ -106,6 +106,7 @@ async function processMessage(
         MessageSid: msg.messageId,
         OriginatingChannel: "zalouser-free",
         OriginatingTo: `zalouser-free:${chatId}`,
+        CommandAuthorized: true, // Allow commands from whitelisted users
     });
 
     // Record inbound session
@@ -204,6 +205,25 @@ export function createChannelPlugin(sessionManager: ZaloSessionManager, api: unk
                 const accountId = params.accountId ?? DEFAULT_ACCOUNT_ID;
                 const chatType = sessionManager.getChatType(params.to);
                 const result = await sessionManager.sendText(accountId, params.to, chatType, params.text);
+                return {
+                    channel: "zalouser-free",
+                    ok: result.ok,
+                    messageId: result.messageId ?? "",
+                    error: result.error ? new Error(result.error) : undefined,
+                };
+            },
+
+            sendMedia: async (params: {
+                to: string;
+                mediaUrl: string;
+                text?: string;
+                accountId?: string;
+                cfg?: unknown;
+            }): Promise<{ channel: string; ok: boolean; messageId?: string; error?: Error }> => {
+                const accountId = params.accountId ?? DEFAULT_ACCOUNT_ID;
+                const chatType = sessionManager.getChatType(params.to);
+                const caption = params.text || "";
+                const result = await sessionManager.sendFile(accountId, params.to, chatType, caption, params.mediaUrl);
                 return {
                     channel: "zalouser-free",
                     ok: result.ok,

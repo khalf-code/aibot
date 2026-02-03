@@ -530,6 +530,95 @@ export class ZaloSessionManager {
         }
     }
 
+    async sendFile(
+        accountId: string,
+        threadId: string,
+        chatType: ChatType,
+        caption: string | undefined,
+        fileUrl: string
+    ): Promise<SendResult> {
+        const session = this.sessions.get(accountId);
+        if (!session) {
+            return { ok: false, error: "Session not found" };
+        }
+
+        let tempFilePath: string | null = null;
+
+        try {
+            // 1. Fetch the file
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+                return { ok: false, error: `Failed to fetch file: ${response.statusText}` };
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            // 2. Determine extension
+            const contentType = response.headers.get("content-type") || "";
+            let extension = path.extname(url.parse(fileUrl).pathname || "").toLowerCase();
+
+            // Infer extension from Content-Type if missing or generic
+            if (!extension || extension === ".bin") {
+                if (contentType.startsWith("image/jpeg")) { extension = ".jpg"; }
+                else if (contentType.startsWith("image/png")) { extension = ".png"; }
+                else if (contentType.startsWith("image/gif")) { extension = ".gif"; }
+                else if (contentType.startsWith("image/webp")) { extension = ".webp"; }
+                else if (contentType.startsWith("video/mp4")) { extension = ".mp4"; }
+                else if (contentType.startsWith("application/pdf")) { extension = ".pdf"; }
+                else { extension = ".bin"; } // Fallback
+            }
+
+            // 3. Save to temp file
+            const filename = `zalo-upload-${Date.now()}${extension}`;
+            tempFilePath = path.join(os.tmpdir(), filename);
+            fs.writeFileSync(tempFilePath, buffer);
+
+            // 4. Send using zca-js
+            // zca-js uploadAttachment handles file type detection based on extension
+            const threadType = chatType === "group" ? ThreadType.Group : ThreadType.User;
+            
+            // Allow empty caption
+            const msgContent = caption || ""; 
+
+            // Sending message with attachment
+            const result = await session.api.sendMessage(
+                {
+                    msg: msgContent,
+                    attachments: [tempFilePath]
+                },
+                threadId,
+                threadType
+            );
+
+            // 5. Cleanup
+            try {
+                if (fs.existsSync(tempFilePath)) {
+                    fs.unlinkSync(tempFilePath);
+                }
+            } catch (cleanupErr) {
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (this.logger as any).warn?.(`[zalouser-free] Failed to cleanup temp file: ${cleanupErr}`);
+            }
+
+            // Extract msgId from response
+            // Response structure: { message: { msgId: ... }, attachment: [...] }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const msgId = (result as any)?.message?.msgId || (result as any)?.attachment?.[0]?.msgId;
+
+            return { ok: true, messageId: String(msgId) };
+
+        } catch (err: unknown) {
+             // Cleanup on error
+             if (tempFilePath && fs.existsSync(tempFilePath)) {
+                try { fs.unlinkSync(tempFilePath); } catch { /* ignore */ }
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this.logger as any).error?.(`[zalouser-free] Failed to send file: ${err}`);
+            return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        }
+    }
+
     getStatus(accountId: string): StatusResult {
         const session = this.sessions.get(accountId);
         if (!session) {
