@@ -48,9 +48,9 @@ describe("cron schedule", () => {
     expect(next).toBeUndefined();
   });
 
-  it("returns undefined for at schedule when atMs equals now", () => {
+  it("returns atMs for at schedule when atMs equals now (due NOW)", () => {
     const now = Date.parse("2025-12-13T00:00:00.000Z");
     const next = computeNextRunAtMs({ kind: "at", atMs: now }, now);
-    expect(next).toBeUndefined();
+    expect(next).toBe(now);
   });
 });

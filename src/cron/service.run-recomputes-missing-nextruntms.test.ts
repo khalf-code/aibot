@@ -64,19 +64,9 @@ describe("CronService.run recomputes missing nextRunAtMs", () => {
       }),
     );
 
+    // Create a CronService that does NOT call start(), simulating the scenario
+    // where run() is invoked with stale/empty state (no nextRunAtMs).
     const cron = new CronService({
-      storePath: store.storePath,
-      cronEnabled: true,
-      log: noopLogger,
-      enqueueSystemEvent,
-      requestHeartbeatNow,
-      runIsolatedAgentJob: vi.fn(async () => ({ status: "ok" })),
-    });
-
-    // Start the service (this calls recomputeNextRuns).
-    // But simulate the scenario where the run() call uses stale state by
-    // creating a second CronService that does NOT call start().
-    const cron2 = new CronService({
       storePath: store.storePath,
       cronEnabled: false,
       log: noopLogger,
@@ -87,12 +77,11 @@ describe("CronService.run recomputes missing nextRunAtMs", () => {
     });
 
     // Without the fix, this would return not-due because nextRunAtMs is undefined.
-    const result = await cron2.run("stale-at-job");
+    const result = await cron.run("stale-at-job");
     expect(result.ran).toBe(true);
     expect(result.ok).toBe(true);
 
     cron.stop();
-    cron2.stop();
     await store.cleanup();
   });
 
