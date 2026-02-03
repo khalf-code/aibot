@@ -33,8 +33,8 @@ vi.mock("./users.js", () => ({
 
 vi.mock("./client.js", async (importOriginal) => {
   // Keep other exports (types/helpers) intact.
-  const mod: any = await importOriginal();
-  return { ...mod, zulipSendMessage: mocks.zulipSendMessage };
+  const mod = await importOriginal();
+  return { ...(mod as object), zulipSendMessage: mocks.zulipSendMessage };
 });
 
 import { sendMessageZulip } from "./send.js";

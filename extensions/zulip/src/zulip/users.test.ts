@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ZulipClient } from "./client.js";
 import { resolveUserIdsForEmails } from "./users.js";
 
 describe("resolveUserIdsForEmails", () => {
   it("resolves by delivery_email when email is redacted", async () => {
-    const client = { baseUrl: "https://zulip.example.com", email: "bot@example.com", apiKey: "x" };
+    const client: ZulipClient = {
+      baseUrl: "https://zulip.example.com",
+      email: "bot@example.com",
+      apiKey: "x",
+    };
 
     const fetchMock = vi.fn(
       async () =>
@@ -21,7 +26,7 @@ describe("resolveUserIdsForEmails", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      resolveUserIdsForEmails(client as any, ["Alice@Example.com", "bob@example.com"]),
+      resolveUserIdsForEmails(client, ["Alice@Example.com", "bob@example.com"]),
     ).resolves.toEqual([1, 2]);
 
     // should have fetched /api/v1/users exactly once

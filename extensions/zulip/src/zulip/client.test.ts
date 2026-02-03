@@ -28,8 +28,8 @@ describe("parseJsonOrThrow", () => {
 
 describe("client outbound payloads", () => {
   it("sends reactions as emoji_name=eyes", async () => {
-    const fetchMock = vi.fn(async (_url: any, init?: RequestInit) => {
-      const body = init?.body as any;
+    const fetchMock = vi.fn(async (_url: string | URL, init?: RequestInit) => {
+      const body = init?.body as string;
       const params = new URLSearchParams(body);
       expect(params.get("emoji_name")).toBe("eyes");
       return new Response(JSON.stringify({ result: "success" }), {
@@ -50,8 +50,8 @@ describe("client outbound payloads", () => {
   });
 
   it("sends typing payload with op start/stop and to [user_id]", async () => {
-    const fetchMock = vi.fn(async (_url: any, init?: RequestInit) => {
-      const body = init?.body as any;
+    const fetchMock = vi.fn(async (_url: string | URL, init?: RequestInit) => {
+      const body = init?.body as string;
       const params = new URLSearchParams(body);
       expect(params.get("type")).toBe("direct");
       expect(["start", "stop"]).toContain(params.get("op"));
@@ -79,8 +79,8 @@ describe("client outbound payloads", () => {
   });
 
   it("DM send supports numeric user_ids", async () => {
-    const fetchMock = vi.fn(async (_url: any, init?: RequestInit) => {
-      const body = init?.body as any;
+    const fetchMock = vi.fn(async (_url: string | URL, init?: RequestInit) => {
+      const body = init?.body as string;
       const params = new URLSearchParams(body);
       expect(params.get("type")).toBe("private");
       expect(params.get("to")).toBe(JSON.stringify([42]));

@@ -124,7 +124,8 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
   );
   const channelHistories = new Map<string, HistoryEntry[]>();
 
-  const defaultGroupPolicy = (cfg as any).channels?.defaults?.groupPolicy;
+  const defaultGroupPolicy = (cfg as { channels?: { defaults?: { groupPolicy?: string } } })
+    .channels?.defaults?.groupPolicy;
   const groupPolicy = account.config.groupPolicy ?? defaultGroupPolicy ?? "allowlist";
 
   const configAllowFrom = normalizeAllowList(account.config.allowFrom ?? []);
@@ -133,7 +134,9 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
   );
   const effectiveAllowFrom = Array.from(new Set([...configAllowFrom, ...storeAllowFrom]));
 
-  const groupAllowFrom = normalizeAllowList((account.config as any).groupAllowFrom ?? []);
+  const groupAllowFrom = normalizeAllowList(
+    (account.config as { groupAllowFrom?: string[] }).groupAllowFrom ?? [],
+  );
 
   let { queue_id: queueId, last_event_id: lastEventId } = await zulipRegister(client, {
     eventTypes: ["message"],
@@ -227,7 +230,8 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
     } catch {
       // best-effort
     }
-    const useAccessGroups = (cfg as any).commands?.useAccessGroups !== false;
+    const useAccessGroups =
+      (cfg as { commands?: { useAccessGroups?: boolean } }).commands?.useAccessGroups !== false;
     const commandGate = resolveControlCommandGate({
       useAccessGroups,
       authorizers: [{ configured: effectiveAllowFrom.length > 0, allowed: senderAllowedGroup }],

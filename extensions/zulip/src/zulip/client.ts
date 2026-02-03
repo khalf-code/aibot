@@ -84,17 +84,17 @@ function withAuth(client: ZulipClient, init?: RequestInit): RequestInit {
  * Parse a Zulip API response, throwing a friendly error on auth/proxy HTML pages
  * or on Zulip-style {result:"error"} payloads.
  */
-export async function parseJsonOrThrow(res: Response): Promise<any> {
+export async function parseJsonOrThrow(res: Response): Promise<unknown> {
   const text = await res.text();
 
   // Zulip API endpoints should return JSON. If we get HTML (common with SSO/Cloudflare Access),
-  // treat it as an auth error so we don't report false positives like “Sent”.
+  // treat it as an auth error so we don't report false positives like "Sent".
   const contentType = (res.headers.get("content-type") || "").toLowerCase();
   const looksLikeHtml = /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text);
   const expectsJson =
     contentType.includes("application/json") || contentType.includes("application/");
 
-  let payload: any;
+  let payload: Record<string, unknown>;
   try {
     payload = text ? JSON.parse(text) : {};
   } catch {
@@ -107,13 +107,21 @@ export async function parseJsonOrThrow(res: Response): Promise<any> {
     throw new Error(`Zulip API error: invalid JSON response (HTTP ${res.status})`);
   }
 
+  const msgField =
+    typeof payload?.msg === "string"
+      ? payload.msg
+      : typeof payload?.message === "string"
+        ? payload.message
+        : null;
+
   if (!res.ok) {
-    const msg = payload?.msg || payload?.message || `${res.status} ${res.statusText}`;
+    const msg = msgField ?? `${res.status} ${res.statusText}`;
     throw new Error(`Zulip API error: ${msg}`);
   }
 
   if (payload?.result && payload.result !== "success") {
-    throw new Error(`Zulip API error: ${payload.msg || payload.result}`);
+    const resultField = typeof payload.result === "string" ? payload.result : "unknown";
+    throw new Error(`Zulip API error: ${msgField ?? resultField}`);
   }
 
   return payload;

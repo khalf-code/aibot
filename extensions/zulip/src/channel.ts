@@ -179,13 +179,17 @@ export const zulipPlugin: ChannelPlugin<ResolvedZulipAccount> = {
         accountId: DEFAULT_ACCOUNT_ID,
         name: input.name,
       });
+      type PartialCfg = Record<string, unknown> & {
+        channels?: { zulip?: Record<string, unknown> };
+      };
+      const base = named as PartialCfg;
       if (input.useEnv) {
         return {
-          ...(named as any),
+          ...base,
           channels: {
-            ...(named as any).channels,
+            ...base.channels,
             zulip: {
-              ...(named as any).channels?.zulip,
+              ...base.channels?.zulip,
               enabled: true,
             },
           },
@@ -196,11 +200,11 @@ export const zulipPlugin: ChannelPlugin<ResolvedZulipAccount> = {
       const email = input.email?.trim();
       const apiKey = input.apiKey?.trim();
       return {
-        ...(named as any),
+        ...base,
         channels: {
-          ...(named as any).channels,
+          ...base.channels,
           zulip: {
-            ...(named as any).channels?.zulip,
+            ...base.channels?.zulip,
             enabled: true,
             ...(realm ? { realm } : {}),
             ...(site ? { site } : {}),

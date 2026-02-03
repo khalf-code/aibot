@@ -13,8 +13,10 @@ export type ResolvedZulipAccount = {
   config: ZulipAccountConfig;
 };
 
+type ZulipChannelConfig = { accounts?: Record<string, unknown> };
+
 function listConfiguredAccountIds(cfg: OpenClawConfig): string[] {
-  const accounts = (cfg.channels?.zulip as any)?.accounts as Record<string, unknown> | undefined;
+  const accounts = (cfg.channels?.zulip as ZulipChannelConfig | undefined)?.accounts;
   if (!accounts || typeof accounts !== "object") {
     return [];
   }
@@ -41,7 +43,7 @@ function resolveAccountConfig(
   cfg: OpenClawConfig,
   accountId: string,
 ): ZulipAccountConfig | undefined {
-  const accounts = (cfg.channels?.zulip as any)?.accounts as Record<string, unknown> | undefined;
+  const accounts = (cfg.channels?.zulip as ZulipChannelConfig | undefined)?.accounts;
   if (!accounts || typeof accounts !== "object") {
     return undefined;
   }
