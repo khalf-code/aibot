@@ -1,5 +1,6 @@
 import type { NormalizedChatType } from "../channels/chat-type.js";
 import type { AgentElevatedAllowFromConfig, SessionSendPolicyAction } from "./types.base.js";
+import type { GraphitiConfig, LightRAGConfig, MemoryServiceConfig } from "./types.rag.js";
 
 export type MediaUnderstandingScopeMatch = {
   channel?: string;
@@ -321,6 +322,12 @@ export type MemorySearchConfig = {
     /** Optional cap on cached embeddings (best-effort). */
     maxEntries?: number;
   };
+  /** Graphiti temporal knowledge graph configuration. */
+  graphiti?: GraphitiConfig;
+  /** LightRAG long-term document knowledge base configuration. */
+  lightrag?: LightRAGConfig;
+  /** Memory Service universal memory layer configuration. */
+  memoryService?: MemoryServiceConfig;
 };
 
 export type ToolsConfig = {
