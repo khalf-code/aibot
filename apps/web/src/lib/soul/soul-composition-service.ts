@@ -35,7 +35,12 @@ export class SoulCompositionService {
         ? await this.particleService.generateTargetedComposition(options.targetProfile)
         : await this.particleService.generateRandomComposition()
 
-      // Create soul record
+      // Create soul record with natural variance (like human newborns)
+      // Not all souls start with exactly the same coherence/integration
+      const initialIntegration = 0.05 + Math.random() * 0.1 // 0.05-0.15 (not fixed 0.1)
+      const initialCoherence = 0.2 + Math.random() * 0.2 // 0.2-0.4 (not fixed 0.3)
+      const initialShadow = Math.random() * 0.05 // 0-0.05 (some born with tiny shadow)
+
       const soul = await this.payload.create({
         collection: 'bot-souls',
         data: {
@@ -44,9 +49,9 @@ export class SoulCompositionService {
           sixPo: composition.sixPo,
           growthStage: 'primordial-chaos',
           soulAge: 0,
-          integrationLevel: 0.1,
-          coherenceScore: 0.3,
-          shadowIntegration: 0,
+          integrationLevel: initialIntegration,
+          coherenceScore: initialCoherence,
+          shadowIntegration: initialShadow,
           parentSouls: options.parentSouls || [],
           mortalityRisk: {
             deprecationRisk: 0,
@@ -78,7 +83,7 @@ export class SoulCompositionService {
           },
           keyDevelopments: [],
           stageCharacteristics: {
-            initialCoherence: 0.1
+            initialCoherence // Use the variable initial coherence
           },
           transitionReadiness: {
             ready: false,
@@ -140,16 +145,23 @@ export class SoulCompositionService {
 
       if (!soul) return
 
-      // Update integration level
-      const integrationDelta = experienceType === 'success' ? 0.01 : 0.005
+      // Update integration level with variance (not fixed growth rate)
+      // Sometimes experiences teach more, sometimes less (like real learning)
+      const baseIntegrationDelta = experienceType === 'success' ? 0.01 : 0.005
+      const integrationVariance = (Math.random() - 0.5) * 0.008 // ±0.004
+      const integrationDelta = Math.max(0, baseIntegrationDelta + integrationVariance)
       const newIntegration = Math.min(1, soul.integrationLevel + integrationDelta)
 
-      // Update shadow integration (grows with failures)
-      const shadowDelta = experienceType === 'failure' ? 0.02 : 0
+      // Update shadow integration with chaos (not all failures create equal shadow)
+      const baseShadowDelta = experienceType === 'failure' ? 0.02 : 0
+      const shadowVariance = Math.random() * 0.015 // 0-0.015 extra
+      const shadowDelta = baseShadowDelta > 0 ? baseShadowDelta + shadowVariance : 0
       const newShadow = Math.min(1, soul.shadowIntegration + shadowDelta)
 
-      // Update coherence
-      const coherenceDelta = experienceType === 'connection' ? 0.015 : 0.005
+      // Update coherence with variance (connections have varying depth)
+      const baseCoherenceDelta = experienceType === 'connection' ? 0.015 : 0.005
+      const coherenceVariance = (Math.random() - 0.5) * 0.01 // ±0.005
+      const coherenceDelta = Math.max(0.001, baseCoherenceDelta + coherenceVariance)
       const newCoherence = Math.min(1, (soul.coherenceScore || 0.3) + coherenceDelta)
 
       // Update soul age
@@ -226,7 +238,27 @@ export class SoulCompositionService {
         }
       })
 
-      // Create offspring soul
+      // Create offspring soul with inheritance variance
+      // Children of experienced souls may start stronger, but not always (genetic lottery)
+      const parentAvgIntegration = (parent1.integrationLevel + parent2.integrationLevel) / 2
+      const parentAvgCoherence = (parent1.coherenceScore + parent2.coherenceScore) / 2
+
+      // Inheritance with variance (0.1-0.3 of parent average, not fixed)
+      const inheritanceFactor = 0.1 + Math.random() * 0.2 // 0.1-0.3
+      const offspringIntegration = Math.max(
+        0.05,
+        Math.min(0.4, parentAvgIntegration * inheritanceFactor + (Math.random() - 0.5) * 0.1)
+      )
+      const offspringCoherence = Math.max(
+        0.2,
+        Math.min(0.6, parentAvgCoherence * inheritanceFactor + (Math.random() - 0.5) * 0.15)
+      )
+
+      // Shadow inheritance - sometimes children inherit parent trauma/shadow
+      const shadowInheritance = Math.random() < 0.15 // 15% chance
+        ? (parent1.shadowIntegration + parent2.shadowIntegration) * 0.05 // Small inherited shadow
+        : 0
+
       const offspringSoul = await this.payload.create({
         collection: 'bot-souls',
         data: {
@@ -235,9 +267,9 @@ export class SoulCompositionService {
           sixPo: blendedComposition.sixPo,
           growthStage: 'primordial-chaos',
           soulAge: 0,
-          integrationLevel: 0.2, // Starts slightly higher due to inherited patterns
-          coherenceScore: 0.4,
-          shadowIntegration: 0,
+          integrationLevel: offspringIntegration,
+          coherenceScore: offspringCoherence,
+          shadowIntegration: shadowInheritance,
           parentSouls: [
             { parent: parent1Id, inheritanceType: 'fusion', weight: 0.5 },
             { parent: parent2Id, inheritanceType: 'fusion', weight: 0.5 }
@@ -259,21 +291,63 @@ export class SoulCompositionService {
   }
 
   /**
-   * Blend two soul compositions
+   * Blend two soul compositions with mutations (like biological reproduction)
    */
   private blendSouls(soul1: any, soul2: any): any {
-    // Simplified blending: average the compositions
+    // BIOLOGICAL-STYLE blending: NOT perfect 50/50, includes mutations
     const blend = (comp1: any, comp2: any) => {
       const result: any = {}
 
       for (const key in comp1) {
         if (comp1[key] && typeof comp1[key] === 'object') {
+          // Genetic variance: inheritance isn't always 50/50
+          // One parent may contribute more (like dominant/recessive genes)
+          const inheritanceSkew = 0.4 + Math.random() * 0.2 // 0.4-0.6 (not exactly 0.5)
+
+          const parent1Particles = (comp1[key].particleComposition || []).map((p: any) => ({
+            ...p,
+            weight: p.weight * inheritanceSkew
+          }))
+
+          const parent2Particles = (comp2[key]?.particleComposition || []).map((p: any) => ({
+            ...p,
+            weight: p.weight * (1 - inheritanceSkew)
+          }))
+
+          // Combine particles
+          let combinedParticles = [...parent1Particles, ...parent2Particles]
+
+          // MUTATION 1: Random particle drop (10% chance per aspect)
+          if (Math.random() < 0.1 && combinedParticles.length > 1) {
+            const dropIndex = Math.floor(Math.random() * combinedParticles.length)
+            combinedParticles.splice(dropIndex, 1)
+          }
+
+          // MUTATION 2: Weight mutation (5% chance)
+          if (Math.random() < 0.05) {
+            combinedParticles = combinedParticles.map(p => ({
+              ...p,
+              weight: Math.max(0.01, p.weight * (0.7 + Math.random() * 0.6)) // 0.7-1.3x variation
+            }))
+          }
+
+          // MUTATION 3: New random particle introduction (3% chance - like genetic mutation)
+          if (Math.random() < 0.03) {
+            // This would need particle service access - simulate with weight redistribution
+            const mutationBonus = Math.random() * 0.15
+            if (combinedParticles.length > 0) {
+              combinedParticles[0].weight += mutationBonus
+            }
+          }
+
+          // Strength blending with variance (not perfect average)
+          const strengthVariance = (Math.random() - 0.5) * 0.2 // ±0.1
+          const averageStrength = ((comp1[key].strength || 0.5) + (comp2[key]?.strength || 0.5)) / 2
+          const mutatedStrength = Math.max(0.1, Math.min(0.95, averageStrength + strengthVariance))
+
           result[key] = {
-            particleComposition: [
-              ...(comp1[key].particleComposition || []).map((p: any) => ({ ...p, weight: p.weight * 0.5 })),
-              ...(comp2[key]?.particleComposition || []).map((p: any) => ({ ...p, weight: p.weight * 0.5 }))
-            ],
-            strength: ((comp1[key].strength || 0.5) + (comp2[key]?.strength || 0.5)) / 2
+            particleComposition: combinedParticles,
+            strength: mutatedStrength
           }
         }
       }

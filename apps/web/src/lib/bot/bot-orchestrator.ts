@@ -83,7 +83,7 @@ export class BotOrchestrator {
       const agentConfigs = await this.soulAgentMapper.getAgentConfiguration(soul.id)
 
       // 3. Process input through cognitive pipeline
-      const agentOutputs = await this.processThrough Agents(input, context, agentConfigs || {})
+      const agentOutputs = await this.processThroughAgents(input, context, agentConfigs || {})
 
       // 4. Synthesize final response
       const synthesis = this.synthesizeResponse(agentOutputs)

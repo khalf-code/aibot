@@ -134,85 +134,108 @@ export class ParticleService {
         const selected = []
         const weights = []
 
-        // Select random particles
+        // Select random particles (with occasional duplicates for chaos)
         for (let i = 0; i < Math.min(numParticles, activeParticles.length); i++) {
           const randomIndex = Math.floor(Math.random() * activeParticles.length)
           selected.push(activeParticles[randomIndex].id)
         }
 
-        // Generate random weights that sum to ~1
+        // Generate random weights with natural variation
         let sum = 0
         for (let i = 0; i < selected.length; i++) {
-          const weight = Math.random()
+          // Use exponential distribution for more natural variation (not uniform)
+          const weight = Math.pow(Math.random(), 1.5) // Skews toward smaller values
           weights.push(weight)
           sum += weight
         }
 
-        // Normalize weights
-        const normalized = weights.map(w => w / sum)
+        // Normalize weights - but add imperfection/chaos
+        const baseNormalized = weights.map(w => w / sum)
+
+        // Add mutation variance (±2-8% per weight)
+        const mutated = baseNormalized.map(w => {
+          const mutationAmount = (Math.random() - 0.5) * (0.04 + Math.random() * 0.08) // -2% to +10%
+          return Math.max(0.01, w + mutationAmount) // Keep above 0.01
+        })
+
+        // Chaotic normalization - weights may not sum exactly to 1.0
+        // This creates "leakage" or "surplus" like biological systems
+        const chaosFactor = 0.95 + Math.random() * 0.1 // 0.95-1.05
+        const imperfectSum = mutated.reduce((a, b) => a + b, 0)
+        const chaotic = mutated.map(w => (w / imperfectSum) * chaosFactor)
 
         // Return composition array
         return selected.map((particle, i) => ({
           particle,
-          weight: normalized[i]
+          weight: chaotic[i]
         }))
+      }
+
+      // Create composition with natural variance (not fixed ranges)
+      // Each birth is unique - like humans, no two souls are identical
+      const createStrength = (minBase: number, rangeBase: number) => {
+        // Add chaos to the range itself (not just value within range)
+        const rangeVariance = (Math.random() - 0.5) * 0.2 // ±10% range shift
+        const min = Math.max(0.05, minBase + rangeVariance)
+        const range = Math.max(0.1, rangeBase + rangeVariance)
+        return min + Math.random() * range
       }
 
       const composition = {
         sevenHun: {
           celestialHun: {
             particleComposition: createBlend(),
-            strength: 0.3 + Math.random() * 0.5 // 0.3-0.8
+            strength: createStrength(0.3, 0.5) // ~0.2-0.9 (varies per birth)
           },
           terrestrialHun: {
             particleComposition: createBlend(),
-            strength: 0.4 + Math.random() * 0.4 // 0.4-0.8
+            strength: createStrength(0.4, 0.4) // ~0.3-0.9
           },
           destinyHun: {
             particleComposition: createBlend(),
-            strength: 0.2 + Math.random() * 0.6 // 0.2-0.8
+            strength: createStrength(0.2, 0.6) // ~0.1-0.9
           },
           wisdomHun: {
             particleComposition: createBlend(),
-            strength: 0.3 + Math.random() * 0.5 // 0.3-0.8
+            strength: createStrength(0.3, 0.5) // ~0.2-0.9
           },
           emotionHun: {
             particleComposition: createBlend(),
-            strength: 0.2 + Math.random() * 0.6 // 0.2-0.8
+            strength: createStrength(0.2, 0.6) // ~0.1-0.9
           },
           creationHun: {
             particleComposition: createBlend(),
-            strength: 0.2 + Math.random() * 0.6 // 0.2-0.8
+            strength: createStrength(0.2, 0.6) // ~0.1-0.9
           },
           awarenessHun: {
             particleComposition: createBlend(),
-            strength: 0.1 + Math.random() * 0.4 // 0.1-0.5 (grows over time)
+            strength: createStrength(0.1, 0.4) // ~0.05-0.6 (grows over time)
           }
         },
         sixPo: {
           strengthPo: {
             particleComposition: createBlend(),
-            strength: 0.4 + Math.random() * 0.4 // 0.4-0.8
+            strength: createStrength(0.4, 0.4) // ~0.3-0.9
           },
           speedPo: {
             particleComposition: createBlend(),
-            strength: 0.3 + Math.random() * 0.5 // 0.3-0.8
+            strength: createStrength(0.3, 0.5) // ~0.2-0.9
           },
           perceptionPo: {
             particleComposition: createBlend(),
-            strength: 0.3 + Math.random() * 0.5 // 0.3-0.8
+            strength: createStrength(0.3, 0.5) // ~0.2-0.9
           },
           guardianPo: {
             particleComposition: createBlend(),
-            strength: 0.5 + Math.random() * 0.3 // 0.5-0.8
+            strength: createStrength(0.5, 0.3) // ~0.4-0.9
           },
           communicationPo: {
             particleComposition: createBlend(),
-            strength: 0.4 + Math.random() * 0.4 // 0.4-0.8
+            strength: createStrength(0.4, 0.4) // ~0.3-0.9
           },
           transformationPo: {
             particleComposition: createBlend(),
-            strength: 0.2 + Math.random() * 0.5 // 0.2-0.7
+            strength: createStrength(0.2, 0.5) // ~0.1-0.8
           }
         }
       }
@@ -308,7 +331,9 @@ export class ParticleService {
         for (let i = 0; i < Math.min(numDominant, dominantParticles.length); i++) {
           if (dominantParticles[i]) {
             selected.push(dominantParticles[i].id)
-            weights.push(0.6 + Math.random() * 0.3) // 0.6-0.9
+            // Add chaos: sometimes dominant isn't so dominant (genetic variance)
+            const dominanceVariation = Math.random() < 0.15 ? -0.2 : 0 // 15% chance of weak dominance
+            weights.push(0.6 + Math.random() * 0.3 + dominanceVariation)
           }
         }
 
@@ -316,17 +341,30 @@ export class ParticleService {
         for (let i = 0; i < Math.min(numSecondary, secondaryParticles.length); i++) {
           if (secondaryParticles[i]) {
             selected.push(secondaryParticles[i].id)
-            weights.push(0.2 + Math.random() * 0.3) // 0.2-0.5
+            // Add chaos: sometimes secondary emerges stronger (recessive gene expression)
+            const emergenceBoost = Math.random() < 0.1 ? 0.3 : 0 // 10% chance of strong emergence
+            weights.push(0.2 + Math.random() * 0.3 + emergenceBoost)
           }
         }
 
-        // Normalize weights
+        // Normalize weights with imperfection
         const sum = weights.reduce((a, b) => a + b, 0)
-        const normalized = weights.map(w => w / sum)
+        const baseNormalized = weights.map(w => w / sum)
+
+        // Add mutation variance
+        const mutated = baseNormalized.map(w => {
+          const mutationAmount = (Math.random() - 0.5) * 0.06 // ±3%
+          return Math.max(0.01, w + mutationAmount)
+        })
+
+        // Chaotic normalization
+        const chaosFactor = 0.96 + Math.random() * 0.08 // 0.96-1.04
+        const imperfectSum = mutated.reduce((a, b) => a + b, 0)
+        const chaotic = mutated.map(w => (w / imperfectSum) * chaosFactor)
 
         return selected.map((particle, i) => ({
           particle,
-          weight: normalized[i]
+          weight: chaotic[i]
         }))
       }
 
@@ -419,7 +457,7 @@ export class ParticleService {
 
       // Check for contradictions
       // Example: High Grok (irreverent) + High Claude (careful) = tension
-      const grokenIndex = particles.findIndex(p => p?.symbol === 'Gr')
+      const grokIndex = particles.findIndex(p => p?.symbol === 'Gr')
       const claudeIndex = particles.findIndex(p => p?.symbol === 'Cl')
 
       if (grokIndex !== -1 && claudeIndex !== -1) {

@@ -177,14 +177,25 @@ export abstract class BaseAgent {
   }
 
   /**
-   * Get effective parameter value (soul-derived + state-adjusted)
+   * Get effective parameter value (soul-derived + state-adjusted + chaos)
    */
   protected getEffectiveParameter(paramName: string, baseValue: number = 0.5): number {
     const soulValue = this.config.parameters[paramName] || baseValue
     const energyFactor = this.state.energy // Low energy reduces all parameters
     const moodFactor = this.state.mood > 0 ? 1 + this.state.mood * 0.1 : 1 + this.state.mood * 0.05
 
-    return Math.max(0, Math.min(1, soulValue * energyFactor * moodFactor))
+    // CHAOS TOKEN: Add neural noise (like biological neurons)
+    // Human brains aren't deterministic - neurons fire with variance
+    const neuralNoise = (Math.random() - 0.5) * 0.08 // ±4% noise
+
+    // STOCHASTIC VARIANCE: Occasional larger deviations (like creative leaps or errors)
+    const occasionalDeviation = Math.random() < 0.05 // 5% chance
+      ? (Math.random() - 0.5) * 0.2 // ±10% large deviation
+      : 0
+
+    const effectiveValue = soulValue * energyFactor * moodFactor + neuralNoise + occasionalDeviation
+
+    return Math.max(0, Math.min(1, effectiveValue))
   }
 
   /**
