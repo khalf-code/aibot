@@ -18,9 +18,22 @@ export type AgentModelEntryConfig = {
   params?: Record<string, unknown>;
 };
 
+export type ModelTieringConfig = {
+  /** Enable automatic model tiering based on query complexity. */
+  enabled?: boolean;
+  /** Model to use for simple queries (e.g., "ollama/llama3.3"). */
+  simple?: string;
+  /** Custom regex patterns that indicate complex queries. */
+  complexPatterns?: string[];
+  /** Character length threshold above which queries are considered complex (default: 500). */
+  complexLengthThreshold?: number;
+};
+
 export type AgentModelListConfig = {
   primary?: string;
   fallbacks?: string[];
+  /** Smart model tiering: use cheaper models for simple queries. */
+  tiering?: ModelTieringConfig;
 };
 
 export type AgentContextPruningConfig = {

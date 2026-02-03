@@ -13,12 +13,30 @@ import {
   HumanDelaySchema,
 } from "./zod-schema.core.js";
 
+export const ModelTieringSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    simple: z.string().optional(),
+    complexPatterns: z.array(z.string()).optional(),
+    complexLengthThreshold: z.number().int().positive().optional(),
+  })
+  .strict();
+
+export const RateLimitStrategySchema = z
+  .object({
+    strategy: z.union([z.literal("switch"), z.literal("wait"), z.literal("ask")]).optional(),
+    maxWaitSeconds: z.number().int().positive().optional(),
+    backupModel: z.string().optional(),
+  })
+  .strict();
+
 export const AgentDefaultsSchema = z
   .object({
     model: z
       .object({
         primary: z.string().optional(),
         fallbacks: z.array(z.string()).optional(),
+        tiering: ModelTieringSchema.optional(),
       })
       .strict()
       .optional(),
@@ -168,6 +186,7 @@ export const AgentDefaultsSchema = z
       })
       .strict()
       .optional(),
+    rateLimitStrategy: RateLimitStrategySchema.optional(),
   })
   .strict()
   .optional();
