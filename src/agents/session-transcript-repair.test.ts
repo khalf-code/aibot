@@ -205,6 +205,119 @@ describe("sanitizeToolUseResultPairing", () => {
     // All IDs should be unique
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  it("deduplicates tool_use IDs within the SAME assistant message", () => {
+    // This is the critical edge case: when the same ID appears multiple times
+    // in a single assistant message (e.g., from retry logic or malformed transcripts).
+    // Previously, using a Map<originalId, newId> would cause both tool calls
+    // to be remapped to the same new ID, losing the second tool result.
+    const input = [
+      {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.txt" } },
+          { type: "toolCall", id: "call_1", name: "read", arguments: { path: "b.txt" } }, // Same ID!
+        ],
+      },
+      {
+        role: "toolResult",
+        toolCallId: "call_1",
+        toolName: "read",
+        content: [{ type: "text", text: "content of a.txt" }],
+        isError: false,
+      },
+      {
+        role: "toolResult",
+        toolCallId: "call_1",
+        toolName: "read",
+        content: [{ type: "text", text: "content of b.txt" }],
+        isError: false,
+      },
+    ] satisfies AgentMessage[];
+
+    const out = sanitizeToolUseResultPairing(input);
+
+    // Get the assistant message
+    const assistant = out.find((m) => m.role === "assistant") as {
+      content?: Array<{ type?: string; id?: string }>;
+    };
+    const toolCallIds = assistant.content?.map((block) => block.id) ?? [];
+
+    // Both tool calls should have UNIQUE IDs
+    expect(toolCallIds).toHaveLength(2);
+    expect(new Set(toolCallIds).size).toBe(2);
+    expect(toolCallIds[0]).toBe("call_1");
+    expect(toolCallIds[1]).toBe("call_1_2");
+
+    // Both tool results should be preserved with matching unique IDs
+    const results = out.filter((m) => m.role === "toolResult") as Array<{
+      toolCallId?: string;
+      content?: Array<{ type?: string; text?: string }>;
+    }>;
+    expect(results).toHaveLength(2);
+
+    // First result should match first tool call
+    expect(results[0]?.toolCallId).toBe("call_1");
+    expect(results[0]?.content?.[0]?.text).toBe("content of a.txt");
+
+    // Second result should match second (remapped) tool call
+    expect(results[1]?.toolCallId).toBe("call_1_2");
+    expect(results[1]?.content?.[0]?.text).toBe("content of b.txt");
+  });
+
+  it("handles multiple duplicate IDs within the same message with varying counts", () => {
+    // Test with 3 tool calls, all with the same ID
+    const input = [
+      {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "dup", name: "exec", arguments: { cmd: "1" } },
+          { type: "toolCall", id: "dup", name: "exec", arguments: { cmd: "2" } },
+          { type: "toolCall", id: "dup", name: "exec", arguments: { cmd: "3" } },
+        ],
+      },
+      {
+        role: "toolResult",
+        toolCallId: "dup",
+        toolName: "exec",
+        content: [{ type: "text", text: "result 1" }],
+        isError: false,
+      },
+      {
+        role: "toolResult",
+        toolCallId: "dup",
+        toolName: "exec",
+        content: [{ type: "text", text: "result 2" }],
+        isError: false,
+      },
+      {
+        role: "toolResult",
+        toolCallId: "dup",
+        toolName: "exec",
+        content: [{ type: "text", text: "result 3" }],
+        isError: false,
+      },
+    ] satisfies AgentMessage[];
+
+    const out = sanitizeToolUseResultPairing(input);
+
+    const assistant = out.find((m) => m.role === "assistant") as {
+      content?: Array<{ type?: string; id?: string }>;
+    };
+    const toolCallIds = assistant.content?.map((block) => block.id) ?? [];
+
+    // All 3 should have unique IDs
+    expect(toolCallIds).toEqual(["dup", "dup_2", "dup_3"]);
+
+    // All 3 results should be preserved
+    const results = out.filter((m) => m.role === "toolResult") as Array<{
+      toolCallId?: string;
+      content?: Array<{ type?: string; text?: string }>;
+    }>;
+    expect(results).toHaveLength(3);
+    expect(results.map((r) => r.toolCallId)).toEqual(["dup", "dup_2", "dup_3"]);
+    expect(results.map((r) => r.content?.[0]?.text)).toEqual(["result 1", "result 2", "result 3"]);
+  });
 });
 
 describe("sanitizeToolCallInputs", () => {
