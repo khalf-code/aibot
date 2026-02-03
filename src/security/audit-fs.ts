@@ -83,9 +83,10 @@ export async function inspectPathPermissions(
   const platform = opts?.platform ?? process.platform;
 
   // Windows uses ACL-based permission checks, not POSIX mode bits.
+  // We still compute and return mode bits for informational purposes.
   if (platform === "win32") {
-    const bits = modeBits(st.mode);
     const acl = await inspectWindowsAcl(targetPath, { env: opts?.env, exec: opts?.exec });
+    const bits = modeBits(st.mode);
     if (!acl.ok) {
       return {
         ok: true,
