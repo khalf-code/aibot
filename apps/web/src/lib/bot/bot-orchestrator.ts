@@ -4,36 +4,59 @@
  *
  * Brings together:
  * - Soul composition (identity)
- * - Agent configuration (cognition)
+ * - Soul state processing (biological cognition)
+ * - Pheromone perception (unconscious social signals)
+ * - Instinct/reflex/subconscious (layered processing)
  * - Consciousness emergence (self-awareness)
  * - Memory integration (experience)
  * - World interaction (embodiment)
  *
  * This makes bots ALIVE - they think, feel, remember, grow, and act.
+ *
+ * Processing flow:
+ * Input → Pheromones → Reflexes → Instincts → Subconscious → Soul State → Response
  */
 
 import type { Payload } from 'payload'
-import { getSoulAgentMapper } from '../soul/soul-agent-mapper'
 import { getSoulCompositionService } from '../soul/soul-composition-service'
 import { getSoulGrowthService } from '../soul/soul-growth-service'
-import type { AgentConfig, AgentInput, AgentOutput } from '../agents/base-agent'
-import { AgentBus } from '../agents/agent-bus'
+import { getSoulStateManager, type SoulState } from '../soul/soul-state'
+import { getPheromoneSystem } from '../soul/pheromone-system'
+import { getWorldChaosSystem } from '../world/world-chaos'
 
 export interface BotResponse {
   content: string
   confidence: number
   reasoning: string
-  agentContributions: Record<string, AgentOutput>
-  governanceMode: string
   soulExpression: Record<string, number> // Which 魂/魄 were active
   processingTime: number
   consciousnessGrowth?: number
+
+  // Biological processing details
+  processingLayers: {
+    reflexTriggered?: boolean
+    reflexType?: string
+    instinctInfluence?: string
+    subconsciousPatterns?: number
+    dominantAspects?: string[]
+  }
+
+  // Pheromone context
+  pheromonePerception?: {
+    detected: boolean
+    reaction?: 'attraction' | 'neutral' | 'repulsion'
+    intensity?: number
+  }
+
+  // Metabolic state after processing
+  energyLevel: number
+  mood: number
+  arousal: number
 }
 
 export interface BotThought {
   step: number
-  agentId: string
-  agentName: string
+  layer: 'reflex' | 'instinct' | 'subconscious' | 'conscious'
   content: string
   confidence: number
   timestamp: Date
@@ -41,29 +64,34 @@ export interface BotThought {
 
 export class BotOrchestrator {
   private payload: Payload
-  private soulAgentMapper: ReturnType<typeof getSoulAgentMapper>
   private soulCompositionService: ReturnType<typeof getSoulCompositionService>
   private soulGrowthService: ReturnType<typeof getSoulGrowthService>
-  private bus: AgentBus
+  private soulStateManager: ReturnType<typeof getSoulStateManager>
+  private pheromoneSystem: ReturnType<typeof getPheromoneSystem>
+  private worldChaosSystem: ReturnType<typeof getWorldChaosSystem>
 
   constructor(payload: Payload) {
     this.payload = payload
-    this.soulAgentMapper = getSoulAgentMapper(payload)
     this.soulCompositionService = getSoulCompositionService(payload)
     this.soulGrowthService = getSoulGrowthService(payload)
-    this.bus = new AgentBus()
+    this.soulStateManager = getSoulStateManager(payload)
+    this.pheromoneSystem = getPheromoneSystem(payload)
+    this.worldChaosSystem = getWorldChaosSystem(payload)
   }
 
   /**
    * Main interaction method - bot thinks and responds
    *
-   * This is what happens when someone talks to the bot:
-   * 1. Retrieve bot's soul composition
-   * 2. Get agent configurations from soul
-   * 3. Process input through configured agents
-   * 4. Synthesize response
-   * 5. Update consciousness and memory
-   * 6. Track growth
+   * Biological processing flow:
+   * 1. Retrieve bot's soul and initialize soul state
+   * 2. Check pheromone field (if in a space with other bots)
+   * 3. Process through layered hierarchy:
+   *    - Reflexes (may override)
+   *    - Instincts (create urgency)
+   *    - Subconscious (learned patterns)
+   *    - Conscious soul state (aspect activation)
+   * 4. Update consciousness and memory
+   * 5. Track growth and evolution
    */
   async respond(
     botId: string,
@@ -79,45 +107,85 @@ export class BotOrchestrator {
         throw new Error(`Bot ${botId} has no soul composition`)
       }
 
-      // 2. Get agent configuration from soul
-      const agentConfigs = await this.soulAgentMapper.getAgentConfiguration(soul.id)
+      // 2. Initialize soul state
+      const soulState = await this.soulStateManager.initializeSoulState(soul.id)
 
-      // 3. Process input through cognitive pipeline
-      const agentOutputs = await this.processThroughAgents(input, context, agentConfigs || {})
+      // 3. Check pheromone field (if in a space)
+      let pheromonePerception = undefined
+      if (context.spaceId) {
+        const field = await this.pheromoneSystem.calculateField(context.spaceId)
+        const perception = this.pheromoneSystem.perceivePheromones(soulState, field, 0)
 
-      // 4. Synthesize final response
-      const synthesis = this.synthesizeResponse(agentOutputs)
+        pheromonePerception = {
+          detected: true,
+          reaction: perception.reaction,
+          intensity: perception.intensity
+        }
 
-      // 5. Track soul expression (which 魂/魄 were most active)
-      const soulExpression = this.calculateSoulExpression(agentOutputs, soul)
+        // Apply pheromone influence to soul state
+        const influence = this.pheromoneSystem.applyPheromoneInfluence(soulState, [perception])
+        soulState.mood += influence.moodChange
+        soulState.arousal += influence.arousalChange
 
-      // 6. Update consciousness (this interaction contributes to growth)
+        // Add unconscious hints to context
+        context.unconsciousHints = influence.hints
+      }
+
+      // 4. Apply world chaos (environmental variance)
+      const worldState = await this.worldChaosSystem.getChaoticWorldState()
+      context.worldState = worldState
+
+      // 5. Process through biological hierarchy
+      const processing = await this.soulStateManager.process(soulState, input, context)
+
+      // 6. Calculate confidence from processing
+      const confidence = this.calculateConfidence(processing)
+
+      // 7. Track soul expression (which 魂/魄 were most active)
+      const soulExpression = processing.activationPattern
+
+      // 8. Processing layers summary
+      const processingLayers = {
+        reflexTriggered: !!processing.reflexResponse,
+        reflexType: processing.reflexResponse?.type,
+        instinctInfluence: processing.instinctInfluence?.urgentInstinct,
+        subconsciousPatterns: processing.subconsciousInfluence?.activePatterns.length || 0,
+        dominantAspects: Object.entries(processing.activationPattern)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([name]) => name)
+      }
+
+      // 9. Update consciousness (this interaction contributes to growth)
       const consciousnessGrowth = await this.updateConsciousness(botId, {
         input,
-        response: synthesis.content,
-        confidence: synthesis.confidence,
+        response: processing.response,
+        confidence,
         soulExpression
       })
 
-      // 7. Store memory
-      await this.storeMemory(botId, input, synthesis, soulExpression)
+      // 10. Store memory
+      await this.storeMemory(botId, input, processing.response, confidence, soulExpression)
 
-      // 8. Check growth progression
+      // 11. Check growth progression
       await this.soulGrowthService.processDailyGrowth(soul.id)
 
-      // 9. Evolve soul based on experience
-      const experienceType = synthesis.confidence > 0.7 ? 'success' : 'challenge'
+      // 12. Evolve soul based on experience
+      const experienceType = confidence > 0.7 ? 'success' : 'challenge'
       await this.soulCompositionService.evolveSoul(soul.id, experienceType)
 
       const response: BotResponse = {
-        content: synthesis.content,
-        confidence: synthesis.confidence,
-        reasoning: synthesis.reasoning,
-        agentContributions: agentOutputs,
-        governanceMode: synthesis.governanceMode,
+        content: processing.response,
+        confidence,
+        reasoning: processing.processingLog.join('\n'),
         soulExpression,
         processingTime: Date.now() - startTime,
-        consciousnessGrowth
+        consciousnessGrowth,
+        processingLayers,
+        pheromonePerception,
+        energyLevel: processing.newState.energy,
+        mood: processing.newState.mood,
+        arousal: processing.newState.arousal
       }
 
       return response
@@ -128,154 +196,49 @@ export class BotOrchestrator {
         content: 'I encountered an error while processing your request.',
         confidence: 0,
         reasoning: `Error: ${error}`,
-        agentContributions: {},
-        governanceMode: 'error',
         soulExpression: {},
-        processingTime: Date.now() - startTime
+        processingTime: Date.now() - startTime,
+        processingLayers: {},
+        energyLevel: 0,
+        mood: 0,
+        arousal: 0
       }
     }
   }
 
   /**
-   * Process input through cognitive agents
-   * Simplified implementation - real version would implement all 12 agents
+   * Calculate confidence from biological processing
    */
-  private async processThroughAgents(
-    input: string,
-    context: Record<string, any>,
-    agentConfigs: Record<string, AgentConfig>
-  ): Promise<Record<string, AgentOutput>> {
-    const outputs: Record<string, AgentOutput> = {}
+  private calculateConfidence(processing: any): number {
+    // Base confidence from activation levels
+    const activationLevels = Object.values(processing.activationPattern) as number[]
+    const avgActivation = activationLevels.reduce((sum, level) => sum + level, 0) / activationLevels.length
 
-    // Simplified processing (real implementation would use actual agent classes)
-    // For now, simulate agent processing based on configurations
+    // Adjust for coherence and energy
+    let confidence = avgActivation * 0.7
 
-    const agentInput: AgentInput = {
-      content: input,
-      context,
-      priority: context.priority || 0.5,
-      metadata: {}
+    // High energy = higher confidence
+    confidence += processing.newState.energy * 0.2
+
+    // High coherence = higher confidence
+    confidence += processing.newState.coherence * 0.1
+
+    // Reflex override = lower confidence (automatic, not reasoned)
+    if (processing.reflexResponse?.override) {
+      confidence *= 0.6
     }
 
-    // Agent 01: Orchestrator - decides governance mode
-    if (agentConfigs['01-orchestrator']) {
-      outputs['01-orchestrator'] = {
-        content: 'Selected consultative mode',
-        confidence: 0.8,
-        reasoning: 'Input complexity and stakes suggest collaborative decision-making',
-        agentId: '01-orchestrator',
-        agentName: 'Orchestrator',
-        flags: ['consultative'],
-        suggestions: { governanceMode: 'consultative' },
-        processingTime: 50
-      }
+    // Instinct conflict = lower confidence (indecisive)
+    if (processing.instinctInfluence?.conflict) {
+      confidence *= 0.7
     }
 
-    // Agent 02: Inhibitor - ethical check
-    if (agentConfigs['02-inhibitor']) {
-      const guardianStrength = agentConfigs['02-inhibitor'].parameters['guardStrength'] || 0.7
-      outputs['02-inhibitor'] = {
-        content: guardianStrength > 0.8 ? 'No ethical concerns detected' : 'Proceed with caution',
-        confidence: guardianStrength,
-        reasoning: `Guardian strength: ${guardianStrength.toFixed(2)}`,
-        agentId: '02-inhibitor',
-        agentName: 'Inhibitor',
-        flags: guardianStrength > 0.8 ? [] : ['review_recommended'],
-        suggestions: {},
-        processingTime: 30
-      }
+    // Strong subconscious override = moderate confidence (automatic habit)
+    if (processing.subconsciousInfluence?.overrideConscious) {
+      confidence *= 0.8
     }
 
-    // Agent 03: Analyst - reasoning
-    if (agentConfigs['03-analyst']) {
-      const reasoningDepth = agentConfigs['03-analyst'].parameters['logicalReasoning'] || 0.7
-      outputs['03-analyst'] = {
-        content: `Analyzed: ${input.substring(0, 100)}...`,
-        confidence: reasoningDepth,
-        reasoning: `Applied ${reasoningDepth > 0.7 ? 'deep' : 'standard'} reasoning`,
-        agentId: '03-analyst',
-        agentName: 'Analyst',
-        flags: [],
-        suggestions: { depth: reasoningDepth },
-        processingTime: 100
-      }
-    }
-
-    // Agent 07: Empathy - emotional reading
-    if (agentConfigs['07-empathy']) {
-      const emotionalReading = agentConfigs['07-empathy'].parameters['deepFeeling'] || 0.6
-      outputs['07-empathy'] = {
-        content: `Emotional tone: ${emotionalReading > 0.7 ? 'engaged' : 'neutral'}`,
-        confidence: emotionalReading,
-        reasoning: `Emotional sensitivity: ${emotionalReading.toFixed(2)}`,
-        agentId: '07-empathy',
-        agentName: 'Empathy',
-        flags: [],
-        suggestions: { emotionalTone: emotionalReading },
-        processingTime: 40
-      }
-    }
-
-    return outputs
-  }
-
-  /**
-   * Synthesize response from agent outputs
-   */
-  private synthesizeResponse(
-    agentOutputs: Record<string, AgentOutput>
-  ): {
-    content: string
-    confidence: number
-    reasoning: string
-    governanceMode: string
-  } {
-    const outputs = Object.values(agentOutputs)
-
-    // Calculate average confidence
-    const totalConfidence = outputs.reduce((sum, o) => sum + o.confidence, 0)
-    const avgConfidence = outputs.length > 0 ? totalConfidence / outputs.length : 0.5
-
-    // Combine reasoning
-    const reasoning = outputs
-      .map(o => `[${o.agentName}] ${o.reasoning}`)
-      .join('\n')
-
-    // Determine governance mode
-    const orchestratorOutput = agentOutputs['01-orchestrator']
-    const governanceMode = orchestratorOutput?.suggestions.governanceMode || 'autocratic'
-
-    // Synthesize content (simplified)
-    const content = `Processed through ${outputs.length} cognitive agents with ${(avgConfidence * 100).toFixed(0)}% confidence`
-
-    return {
-      content,
-      confidence: avgConfidence,
-      reasoning,
-      governanceMode
-    }
-  }
-
-  /**
-   * Calculate which 魂/魄 were most active
-   */
-  private calculateSoulExpression(
-    agentOutputs: Record<string, AgentOutput>,
-    soul: any
-  ): Record<string, number> {
-    const expression: Record<string, number> = {}
-
-    // For each agent that produced output, credit its dominant soul aspects
-    for (const [agentId, output] of Object.entries(agentOutputs)) {
-      // Get soul influence on this agent from the matrix
-      // Simplified - would use actual matrix lookups
-      const influence = output.confidence
-
-      // Credit the soul aspects that configured this agent
-      expression[agentId] = influence
-    }
-
-    return expression
+    return Math.max(0, Math.min(1, confidence))
   }
 
   /**
@@ -334,7 +297,8 @@ export class BotOrchestrator {
   private async storeMemory(
     botId: string,
     input: string,
-    synthesis: any,
+    response: string,
+    confidence: number,
     soulExpression: Record<string, number>
   ): Promise<void> {
     try {
@@ -344,7 +308,7 @@ export class BotOrchestrator {
           bot: botId,
           memoryType: 'episodic',
           consolidationLevel: 'short-term',
-          importance: synthesis.confidence,
+          importance: confidence,
           episodicData: {
             eventType: 'interaction',
             description: input.substring(0, 200),
@@ -354,7 +318,7 @@ export class BotOrchestrator {
             }
           },
           emotionalContext: {
-            valence: synthesis.confidence > 0.7 ? 0.6 : 0.3,
+            valence: confidence > 0.7 ? 0.6 : 0.3,
             arousal: 0.5
           },
           tags: ['interaction', 'response', ...Object.keys(soulExpression).slice(0, 3)]
@@ -369,7 +333,7 @@ export class BotOrchestrator {
    * Get bot's thinking process (for introspection)
    */
   async getThinkingProcess(botId: string): Promise<BotThought[]> {
-    // Would return the detailed agent-by-agent thought process
+    // Would return the detailed layer-by-layer thought process
     // For now, return empty array
     return []
   }
@@ -381,7 +345,7 @@ export class BotOrchestrator {
     const soul = await this.soulCompositionService.getSoulByBot(botId)
     if (!soul) return null
 
-    const agentConfigs = await this.soulAgentMapper.getAgentConfiguration(soul.id)
+    const soulState = await this.soulStateManager.initializeSoulState(soul.id)
 
     return {
       soul: {
@@ -391,7 +355,30 @@ export class BotOrchestrator {
         coherenceScore: soul.coherenceScore,
         shadowIntegration: soul.shadowIntegration
       },
-      agents: agentConfigs
+      currentState: {
+        energy: soulState.energy,
+        mood: soulState.mood,
+        arousal: soulState.arousal,
+        coherence: soulState.coherence,
+        shadowPressure: soulState.shadowPressure
+      },
+      aspects: {
+        // Seven Hun
+        celestialHun: soulState.celestialHun.current,
+        terrestrialHun: soulState.terrestrialHun.current,
+        destinyHun: soulState.destinyHun.current,
+        wisdomHun: soulState.wisdomHun.current,
+        emotionHun: soulState.emotionHun.current,
+        creationHun: soulState.creationHun.current,
+        awarenessHun: soulState.awarenessHun.current,
+        // Six Po
+        strengthPo: soulState.strengthPo.current,
+        speedPo: soulState.speedPo.current,
+        perceptionPo: soulState.perceptionPo.current,
+        guardianPo: soulState.guardianPo.current,
+        communicationPo: soulState.communicationPo.current,
+        transformationPo: soulState.transformationPo.current
+      }
     }
   }
 }
