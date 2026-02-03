@@ -29,6 +29,10 @@ function normalizeReserveTokens(reserveTokens: number): number {
   return 1;
 }
 
+function areReserveTokensEquivalent(left: number, right: number): boolean {
+  return left === right || (Number.isNaN(left) && Number.isNaN(right));
+}
+
 export function splitMessagesByTokenShare(
   messages: AgentMessage[],
   parts = DEFAULT_PARTS,
@@ -183,8 +187,8 @@ export async function summarizeWithFallback(params: {
 }): Promise<string> {
   const { messages, contextWindow } = params;
   const reserveTokens = normalizeReserveTokens(params.reserveTokens);
-  const normalizedParams =
-    reserveTokens === params.reserveTokens ? params : { ...params, reserveTokens };
+  const reserveTokensUnchanged = areReserveTokensEquivalent(reserveTokens, params.reserveTokens);
+  const normalizedParams = reserveTokensUnchanged ? params : { ...params, reserveTokens };
 
   if (messages.length === 0) {
     return normalizedParams.previousSummary ?? DEFAULT_SUMMARY_FALLBACK;
@@ -353,3 +357,7 @@ export function pruneHistoryForContextShare(params: {
 export function resolveContextWindowTokens(model?: ExtensionContext["model"]): number {
   return Math.max(1, Math.floor(model?.contextWindow ?? DEFAULT_CONTEXT_TOKENS));
 }
+
+export const __testing = {
+  areReserveTokensEquivalent,
+} as const;
