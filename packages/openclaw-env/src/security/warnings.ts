@@ -67,7 +67,6 @@ export function evaluateSafety(cfg: ResolvedOpenClawEnvConfig): SafetyEvaluation
   const homeDir = normalizeAbs(os.homedir());
   const bannedDirs = resolveBannedMountDirs(homeDir, process.platform);
   const dockerSock = normalizeAbs("/var/run/docker.sock");
-  const rootPath = normalizeAbs(path.parse(process.cwd()).root || "/");
 
   const allMounts: Array<{ hostPath: string; mode: "ro" | "rw"; label: string }> = [
     { hostPath: cfg.workspace.hostPath, mode: cfg.workspace.mode, label: "workspace" },
@@ -76,6 +75,7 @@ export function evaluateSafety(cfg: ResolvedOpenClawEnvConfig): SafetyEvaluation
 
   for (const mount of allMounts) {
     const hostPath = normalizeAbs(mount.hostPath);
+    const mountRoot = normalizeAbs(path.parse(hostPath).root || "/");
 
     if (hostPath === dockerSock) {
       findings.push({
@@ -95,11 +95,11 @@ export function evaluateSafety(cfg: ResolvedOpenClawEnvConfig): SafetyEvaluation
       });
     }
 
-    if (hostPath === rootPath) {
+    if (hostPath === mountRoot) {
       findings.push({
         kind: "requires_override",
         code: "mount_root",
-        message: `Mounting the filesystem root is dangerous (${rootPath}).`,
+        message: `Mounting the filesystem root is dangerous (${mountRoot}).`,
       });
     }
 

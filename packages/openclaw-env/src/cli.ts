@@ -43,6 +43,11 @@ program
   .option("--yes", "Skip confirmation prompts", false)
   .option("--attach", "Run docker compose up in the foreground", false)
   .option("--i-know-what-im-doing", "Acknowledge dangerous mounts", false)
+  .option(
+    "--accept-risk",
+    "Acknowledge risk warnings (e.g. writable mounts with full network egress)",
+    false,
+  )
   .action(async (opts) => {
     await upCommand({
       cwd: process.cwd(),
@@ -50,6 +55,7 @@ program
       yes: Boolean(opts.yes),
       attach: Boolean(opts.attach),
       iKnowWhatImDoing: Boolean(opts.iKnowWhatImDoing),
+      acceptRisk: Boolean(opts.acceptRisk),
     });
   });
 

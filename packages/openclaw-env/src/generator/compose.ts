@@ -82,7 +82,6 @@ export function generateProxyServerJs(): string {
   // Intentionally plain JS (no deps) to keep the proxy image tiny and deterministic.
   return `/* eslint-disable no-console */
 import http from "node:http";
-import https from "node:https";
 import net from "node:net";
 import fs from "node:fs";
 
@@ -110,7 +109,27 @@ function loadAllowlist(filePath) {
   }
 }
 
-const allowlist = loadAllowlist(allowlistPath);
+let allowlist = [];
+let allowlistMtimeMs = -1;
+
+function refreshAllowlistIfChanged() {
+  try {
+    const st = fs.statSync(allowlistPath);
+    const nextMtime = typeof st.mtimeMs === "number" ? st.mtimeMs : 0;
+    if (nextMtime !== allowlistMtimeMs) {
+      allowlist = loadAllowlist(allowlistPath);
+      allowlistMtimeMs = nextMtime;
+    }
+  } catch {
+    if (allowlistMtimeMs !== 0) {
+      allowlist = [];
+      allowlistMtimeMs = 0;
+    }
+  }
+  return allowlist;
+}
+
+refreshAllowlistIfChanged();
 
 function isIpLiteral(host) {
   return net.isIP(host) !== 0;
@@ -118,7 +137,8 @@ function isIpLiteral(host) {
 
 function isAllowedHost(host) {
   const h = host.toLowerCase();
-  for (const entry of allowlist) {
+  const entries = refreshAllowlistIfChanged();
+  for (const entry of entries) {
     if (h === entry) return true;
     if (h.endsWith("." + entry)) return true;
   }
@@ -258,7 +278,7 @@ server.on("connect", (req, clientSocket, head) => {
 
 server.listen(listenPort, listenHost, () => {
   console.log("egress-proxy listening on " + listenHost + ":" + String(listenPort));
-  console.log("allowlist entries=" + String(allowlist.length));
+  console.log("allowlist entries=" + String(refreshAllowlistIfChanged().length));
 });
 `;
 }

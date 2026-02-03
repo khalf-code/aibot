@@ -12,6 +12,7 @@ export type UpCommandOptions = {
   yes: boolean;
   attach: boolean;
   iKnowWhatImDoing: boolean;
+  acceptRisk: boolean;
 };
 
 function formatFindings(findings: ReturnType<typeof evaluateSafety>): string {
@@ -89,8 +90,19 @@ export async function upCommand(opts: UpCommandOptions): Promise<void> {
     );
   }
 
+  const hasRiskFindings = findings.requiresConfirmation.length > 0;
+  if (hasRiskFindings && opts.yes && !opts.acceptRisk) {
+    throw new Error(
+      "This configuration is flagged as risky (e.g. writable mounts with full network egress). Re-run with --accept-risk to proceed with --yes.",
+    );
+  }
+
   if (!opts.yes) {
-    const ok = await confirmProceed("Proceed with these permissions and start the sandbox?");
+    const ok = await confirmProceed(
+      hasRiskFindings
+        ? "This configuration is flagged as risky. Proceed anyway?"
+        : "Proceed with these permissions and start the sandbox?",
+    );
     if (!ok) {
       process.stdout.write("Aborted.\n");
       return;

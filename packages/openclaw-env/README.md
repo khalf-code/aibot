@@ -52,5 +52,5 @@ Note: `openclaw-env init` defaults `openclaw.image` to `openclaw:local`. You can
 
 - **Hard error (no override)**: mounting `/var/run/docker.sock`
 - **Requires `--i-know-what-im-doing`**: mounting your home dir, `/`, or common secret dirs (`~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.config`, browser profiles)
-- **Warning**: any `rw` mounts with `network.mode=full`
+- **Warning**: any `rw` mounts with `network.mode=full` (requires interactive confirmation; with `--yes`, pass `--accept-risk`)
 
