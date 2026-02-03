@@ -150,12 +150,48 @@ const difyAuthPlugin = {
   },
 };
 
-const conversationMap = new Map<string, string>();
+const CONVERSATION_TTL_MS = 30 * 60 * 1000;
+const MAX_CONVERSATIONS = 1000;
+
+const conversationMap = new Map<string, { id: string; lastSeen: number }>();
+
+const pruneConversationMap = (now: number) => {
+  for (const [key, entry] of conversationMap) {
+    if (now - entry.lastSeen > CONVERSATION_TTL_MS) {
+      conversationMap.delete(key);
+    }
+  }
+  if (conversationMap.size <= MAX_CONVERSATIONS) {
+    return;
+  }
+  const entries = Array.from(conversationMap.entries()).toSorted(
+    (a, b) => a[1].lastSeen - b[1].lastSeen,
+  );
+  const overflow = entries.length - MAX_CONVERSATIONS;
+  for (let i = 0; i < overflow; i += 1) {
+    conversationMap.delete(entries[i][0]);
+  }
+};
+
+const getConversationId = (sessionKey: string, now: number) => {
+  const entry = conversationMap.get(sessionKey);
+  if (!entry) {
+    return "";
+  }
+  entry.lastSeen = now;
+  return entry.id;
+};
+
+const setConversationId = (sessionKey: string, id: string, now: number) => {
+  conversationMap.set(sessionKey, { id, lastSeen: now });
+};
 
 // Proxy Handler
 async function handleProxyRequest(req: IncomingMessage, res: ServerResponse) {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept");
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
     res.end();
@@ -227,7 +263,9 @@ async function handleProxyRequest(req: IncomingMessage, res: ServerResponse) {
 
   const userId = body.user || "openclaw-user";
   const sessionKey = `${apiKey}:${userId}`;
-  let conversationId = conversationMap.get(sessionKey) || "";
+  const now = Date.now();
+  pruneConversationMap(now);
+  let conversationId = getConversationId(sessionKey, now);
 
   const isReset =
     typeof lastMessage === "string" && lastMessage.includes("A new session was started");
@@ -356,15 +394,17 @@ async function handleProxyRequest(req: IncomingMessage, res: ServerResponse) {
             const data = JSON.parse(line.slice(6));
 
             if (data.conversation_id && !conversationMap.has(sessionKey)) {
-              conversationMap.set(sessionKey, data.conversation_id);
+              setConversationId(sessionKey, data.conversation_id, Date.now());
               console.log(
                 `[dify-auth] New session started: ${data.conversation_id} for user ${userId}`,
               );
             } else if (
               data.conversation_id &&
-              conversationMap.get(sessionKey) !== data.conversation_id
+              conversationMap.get(sessionKey)?.id !== data.conversation_id
             ) {
-              conversationMap.set(sessionKey, data.conversation_id);
+              setConversationId(sessionKey, data.conversation_id, Date.now());
+            } else if (data.conversation_id) {
+              setConversationId(sessionKey, data.conversation_id, Date.now());
             }
 
             if (data.event === "tool_call") {
