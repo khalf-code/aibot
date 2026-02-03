@@ -46,7 +46,7 @@ export function getShellConfig(): { shell: string; args: string[] } {
     }
   }
   const shell = envShell && envShell.length > 0 ? envShell : "sh";
-  return { shell, args: ["-c"] };
+  return { shell, args: ["-l", "-c"] };
 }
 
 function resolveShellFromPath(name: string): string | undefined {
