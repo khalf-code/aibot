@@ -31,6 +31,8 @@ export type RouteReplyParams = {
   accountId?: string;
   /** Thread id for replies (Telegram topic id or Matrix thread event id). */
   threadId?: string | number;
+  /** Chat type for send policy evaluation (e.g., group vs direct). */
+  chatType?: string;
   /** Config for provider-specific settings. */
   cfg: OpenClawConfig;
   /** Optional abort signal for cooperative cancellation. */
@@ -106,7 +108,7 @@ export async function routeReply(params: RouteReplyParams): Promise<RouteReplyRe
       entry,
       sessionKey: params.sessionKey,
       channel,
-      chatType: entry?.chatType,
+      chatType: params.chatType ?? entry?.chatType,
     });
     if (sendPolicy === "deny") {
       return { ok: true };

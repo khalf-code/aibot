@@ -111,13 +111,18 @@ export async function dispatchReplyFromConfig(params: {
   const startTime = diagnosticsEnabled ? Date.now() : 0;
   const canTrackSession = diagnosticsEnabled && Boolean(sessionKey);
   const sessionEntry = resolveSessionEntry(ctx, cfg);
-  const policyChannel = ctx.OriginatingChannel ?? ctx.Provider ?? ctx.Surface;
+  const rawPolicyChannel = ctx.OriginatingChannel ?? ctx.Provider ?? ctx.Surface;
+  const policyChannel =
+    typeof rawPolicyChannel === "string" && rawPolicyChannel.trim()
+      ? rawPolicyChannel.trim().toLowerCase()
+      : undefined;
+  const chatType = ctx.ChatType ?? sessionEntry?.chatType;
   const sendPolicy = resolveSendPolicy({
     cfg,
     entry: sessionEntry,
     sessionKey,
     channel: policyChannel,
-    chatType: ctx.ChatType ?? sessionEntry?.chatType,
+    chatType,
   });
   const sendBlocked = sendPolicy === "deny";
 
@@ -273,6 +278,7 @@ export async function dispatchReplyFromConfig(params: {
       sessionKey: ctx.SessionKey,
       accountId: ctx.AccountId,
       threadId: ctx.MessageThreadId,
+      chatType,
       cfg,
       abortSignal,
       mirror,
@@ -305,6 +311,7 @@ export async function dispatchReplyFromConfig(params: {
           sessionKey: ctx.SessionKey,
           accountId: ctx.AccountId,
           threadId: ctx.MessageThreadId,
+          chatType,
           cfg,
         });
         queuedFinal = result.ok;
@@ -410,6 +417,7 @@ export async function dispatchReplyFromConfig(params: {
           sessionKey: ctx.SessionKey,
           accountId: ctx.AccountId,
           threadId: ctx.MessageThreadId,
+          chatType,
           cfg,
         });
         if (!result.ok) {
@@ -460,6 +468,7 @@ export async function dispatchReplyFromConfig(params: {
               sessionKey: ctx.SessionKey,
               accountId: ctx.AccountId,
               threadId: ctx.MessageThreadId,
+              chatType,
               cfg,
             });
             queuedFinal = result.ok || queuedFinal;
