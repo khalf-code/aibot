@@ -151,7 +151,7 @@ export function isTimeoutError(err: unknown): boolean {
  * - 503: Service Unavailable (server overloaded or down)
  * - 529: Site Overloaded (Cloudflare/custom rate limiting)
  */
-const FAILOVER_WORTHY_5XX_CODES = new Set([500, 502, 503, 529]);
+const FAILOVER_WORTHY_5XX_CODES = new Set([500, 502, 503, 504, 529]);
 
 export function resolveFailoverReasonFromError(err: unknown): FailoverReason | null {
   if (isFailoverError(err)) {

@@ -21,8 +21,8 @@ describe("failover-error", () => {
   });
 
   it("does not treat other 5xx codes as failover-worthy", () => {
-    // 504 Gateway Timeout is not in our list (could be added later if needed)
-    expect(resolveFailoverReasonFromError({ status: 504 })).toBe(null);
+    // 504 Gateway Timeout - common during provider outages
+    expect(resolveFailoverReasonFromError({ status: 504 })).toBe("server_error");
     expect(resolveFailoverReasonFromError({ status: 501 })).toBe(null);
   });
 

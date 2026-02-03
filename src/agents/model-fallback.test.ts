@@ -138,6 +138,25 @@ describe("runWithModelFallback", () => {
     expect(result.attempts[0]?.reason).toBe("server_error");
   });
 
+  it("falls back on HTTP 504 gateway timeout", async () => {
+    const cfg = makeCfg();
+    const run = vi
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error("Gateway Timeout"), { status: 504 }))
+      .mockResolvedValueOnce("ok");
+
+    const result = await runWithModelFallback({
+      cfg,
+      provider: "anthropic",
+      model: "claude-sonnet-4",
+      run,
+    });
+
+    expect(result.result).toBe("ok");
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(result.attempts[0]?.reason).toBe("server_error");
+  });
+
   it("falls back on HTTP 529 site overloaded (Anthropic)", async () => {
     const cfg = makeCfg();
     const run = vi
