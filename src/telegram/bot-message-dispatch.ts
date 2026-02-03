@@ -103,15 +103,15 @@ export const dispatchTelegramMessage = async ({
         warn: logVerbose,
       })
     : undefined;
-  let lastPartialText = "";
+  let lastDraftPartialText = "";
   const updateDraftFromPartial = (text?: string) => {
     if (!draftStream || !text) {
       return;
     }
-    if (text === lastPartialText) {
+    if (text === lastDraftPartialText) {
       return;
     }
-    lastPartialText = text;
+    lastDraftPartialText = text;
     draftStream.update(text);
   };
   const flushDraft = async () => {
@@ -138,7 +138,7 @@ export const dispatchTelegramMessage = async ({
     : undefined;
   let editStreamingDisabled = !editStream;
   let editText = "";
-  let lastPartialText = "";
+  let lastEditPartialText = "";
   const mergeEditText = (next: string, mode: "block" | "partial") => {
     if (!next) {
       return editText;
@@ -164,25 +164,25 @@ export const dispatchTelegramMessage = async ({
     if (!next) {
       return editText;
     }
-    if (!lastPartialText) {
-      lastPartialText = next;
+    if (!lastEditPartialText) {
+      lastEditPartialText = next;
       editText = next;
       return editText;
     }
-    if (next.startsWith(lastPartialText)) {
-      const delta = next.slice(lastPartialText.length);
-      lastPartialText = next;
+    if (next.startsWith(lastEditPartialText)) {
+      const delta = next.slice(lastEditPartialText.length);
+      lastEditPartialText = next;
       if (delta) {
         editText += delta;
       }
       return editText;
     }
-    if (lastPartialText.startsWith(next)) {
-      lastPartialText = next;
+    if (lastEditPartialText.startsWith(next)) {
+      lastEditPartialText = next;
       editText = next;
       return editText;
     }
-    lastPartialText = next;
+    lastEditPartialText = next;
     editText += next;
     return editText;
   };
@@ -288,7 +288,7 @@ export const dispatchTelegramMessage = async ({
               ? Number.parseInt(payload.replyToId, 10)
               : undefined;
             const merged = mergeEditText(text, "block");
-            lastPartialText = merged;
+            lastEditPartialText = merged;
             const handled = Number.isFinite(replyToMessageId)
               ? editStream.update(merged, { replyToMessageId })
               : editStream.update(merged);
