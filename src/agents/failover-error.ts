@@ -50,6 +50,8 @@ export function resolveFailoverStatus(reason: FailoverReason): number | undefine
       return 408;
     case "format":
       return 400;
+    case "server_error":
+      return 500;
     default:
       return undefined;
   }
@@ -142,7 +144,10 @@ export function isTimeoutError(err: unknown): boolean {
   return hasTimeoutHint(cause) || hasTimeoutHint(reason);
 }
 
-export function resolveFailoverReasonFromError(err: unknown): FailoverReason | null {
+export function resolveFailoverReasonFromError(
+  err: unknown,
+  opts?: { fallbackHttpCodes?: number[] },
+): FailoverReason | null {
   if (isFailoverError(err)) {
     return err.reason;
   }
@@ -161,6 +166,12 @@ export function resolveFailoverReasonFromError(err: unknown): FailoverReason | n
     return "timeout";
   }
 
+  // Check for configured HTTP codes (default: [500, 502, 503])
+  const fallbackCodes = opts?.fallbackHttpCodes ?? [500, 502, 503];
+  if (status && fallbackCodes.includes(status)) {
+    return "server_error";
+  }
+
   const code = (getErrorCode(err) ?? "").toUpperCase();
   if (["ETIMEDOUT", "ESOCKETTIMEDOUT", "ECONNRESET", "ECONNABORTED"].includes(code)) {
     return "timeout";
@@ -176,7 +187,10 @@ export function resolveFailoverReasonFromError(err: unknown): FailoverReason | n
   return classifyFailoverReason(message);
 }
 
-export function describeFailoverError(err: unknown): {
+export function describeFailoverError(
+  err: unknown,
+  opts?: { fallbackHttpCodes?: number[] },
+): {
   message: string;
   reason?: FailoverReason;
   status?: number;
@@ -193,7 +207,7 @@ export function describeFailoverError(err: unknown): {
   const message = getErrorMessage(err) || String(err);
   return {
     message,
-    reason: resolveFailoverReasonFromError(err) ?? undefined,
+    reason: resolveFailoverReasonFromError(err, opts) ?? undefined,
     status: getStatusCode(err),
     code: getErrorCode(err),
   };
@@ -205,12 +219,15 @@ export function coerceToFailoverError(
     provider?: string;
     model?: string;
     profileId?: string;
+    fallbackHttpCodes?: number[];
   },
 ): FailoverError | null {
   if (isFailoverError(err)) {
     return err;
   }
-  const reason = resolveFailoverReasonFromError(err);
+  const reason = resolveFailoverReasonFromError(err, {
+    fallbackHttpCodes: context?.fallbackHttpCodes,
+  });
   if (!reason) {
     return null;
   }

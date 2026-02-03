@@ -21,6 +21,8 @@ export type AgentModelEntryConfig = {
 export type AgentModelListConfig = {
   primary?: string;
   fallbacks?: string[];
+  /** HTTP status codes that trigger fallback to next model (default: [500, 502, 503]). */
+  fallbackHttpCodes?: number[];
 };
 
 export type AgentContextPruningConfig = {

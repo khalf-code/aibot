@@ -136,6 +136,35 @@ timeouts that exhausted profile rotation (other errors do not advance fallback).
 When a run starts with a model override (hooks or CLI), fallbacks still end at
 `agents.defaults.model.primary` after trying any configured fallbacks.
 
+### HTTP status code fallback
+
+OpenClaw treats certain HTTP status codes as failover-worthy errors that trigger
+fallback to the next model. By default, OpenClaw falls back on these server errors:
+
+- **500** (Internal Server Error)
+- **502** (Bad Gateway)
+- **503** (Service Unavailable)
+
+You can customize which HTTP status codes trigger fallback via the
+`agents.defaults.model.fallbackHttpCodes` configuration:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-opus-4-5",
+        "fallbacks": ["openai/gpt-5-mini"],
+        "fallbackHttpCodes": [500, 502, 503, 504]
+      }
+    }
+  }
+}
+```
+
+Setting `fallbackHttpCodes` to an empty array (`[]`) disables HTTP status code
+fallback entirely. If unset, the default list `[500, 502, 503]` is used.
+
 ## Related config
 
 See [Gateway configuration](/gateway/configuration) for:

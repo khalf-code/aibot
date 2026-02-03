@@ -253,6 +253,13 @@ export async function runWithModelFallback<T>(params: {
   const attempts: FallbackAttempt[] = [];
   let lastError: unknown;
 
+  // Extract fallbackHttpCodes from config
+  const modelConfig = params.cfg?.agents?.defaults?.model;
+  const fallbackHttpCodes =
+    typeof modelConfig === "object" && modelConfig && "fallbackHttpCodes" in modelConfig
+      ? modelConfig.fallbackHttpCodes
+      : undefined;
+
   for (let i = 0; i < candidates.length; i += 1) {
     const candidate = candidates[i];
     if (authStore) {
@@ -290,13 +297,14 @@ export async function runWithModelFallback<T>(params: {
         coerceToFailoverError(err, {
           provider: candidate.provider,
           model: candidate.model,
+          fallbackHttpCodes,
         }) ?? err;
       if (!isFailoverError(normalized)) {
         throw err;
       }
 
       lastError = normalized;
-      const described = describeFailoverError(normalized);
+      const described = describeFailoverError(normalized, { fallbackHttpCodes });
       attempts.push({
         provider: candidate.provider,
         model: candidate.model,
