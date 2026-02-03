@@ -198,8 +198,8 @@ const txHash = await sdk.readWriteFlaunchZap.flaunch({
   name: "Agent Coin",
   symbol: "AGENT",
   tokenUri: "ipfs://Qm...", // Use IPFS hash from image upload
-  fairLaunchPercent: 0, // Deprecated - must be 0
-  fairLaunchDuration: 0, // Deprecated - must be 0
+  fairLaunchPercent: 0, // SDK requires 0 (protocol supports fair launch via direct contract)
+  fairLaunchDuration: 0, // SDK requires 0 (protocol supports fair launch via direct contract)
   initialMarketCapUSD: 10000, // $10k starting mcap
   creator: "0x...", // Your wallet address
   creatorFeeAllocationPercent: 20, // 20% of BidWall fees
@@ -224,8 +224,8 @@ const txHashWithManager = await sdk.readWriteFlaunchZap.flaunchWithSplitManager(
   name: "Split Token",
   symbol: "SPLIT",
   tokenUri: "ipfs://Qm...",
-  fairLaunchPercent: 0, // Deprecated - must be 0
-  fairLaunchDuration: 0,
+  fairLaunchPercent: 0, // SDK requires 0
+  fairLaunchDuration: 0, // SDK requires 0
   initialMarketCapUSD: 10000,
   creator: "0x...",
   creatorFeeAllocationPercent: 20,
@@ -252,8 +252,8 @@ struct FlaunchParams {
     string name;                    // Token name
     string symbol;                  // Token symbol
     string tokenUri;                // IPFS metadata URI
-    uint initialTokenFairLaunch;    // DEPRECATED - set to 0
-    uint fairLaunchDuration;        // DEPRECATED - set to 0
+    uint initialTokenFairLaunch;    // SDK requires 0 (protocol supports fair launch)
+    uint fairLaunchDuration;        // SDK requires 0 (protocol supports fair launch)
     uint premineAmount;             // Tokens creator buys at launch (e.g., 5e27 = 5%)
     address creator;                // Receives ERC721 + premined tokens
     uint24 creatorFeeAllocation;    // Fee share (2dp: 2000 = 20%)
@@ -294,18 +294,27 @@ When you launch on Flaunch, you receive an ERC721 that represents ownership of t
 Use the `TreasuryManagerFactory` to deploy managers:
 
 ```solidity
+// Build recipient shares array (must sum to 100%)
+AddressFeeSplitManager.RecipientShare[] memory recipientShares = 
+    new AddressFeeSplitManager.RecipientShare[](2);
+recipientShares[0] = AddressFeeSplitManager.RecipientShare({
+    recipient: addr1,
+    share: 50_00000   // 50% of split share
+});
+recipientShares[1] = AddressFeeSplitManager.RecipientShare({
+    recipient: addr2,
+    share: 50_00000   // 50% of split share
+});
+
 // Deploy an AddressFeeSplitManager
 address manager = treasuryManagerFactory.deployAndInitializeManager(
     addressFeeSplitManagerImpl,
     owner,
     abi.encode(
         AddressFeeSplitManager.InitializeParams({
-            creatorShare: 10_00000,  // 10% to token creators
+            creatorShare: 10_00000,   // 10% to token creators
             ownerShare: 5_00000,      // 5% to manager owner
-            recipientShares: [
-                RecipientShare({ recipient: addr1, share: 42_50000 }), // 42.5%
-                RecipientShare({ recipient: addr2, share: 42_50000 })  // 42.5%
-            ]
+            recipientShares: recipientShares  // remaining 85% split per shares above
         })
     )
 );
@@ -504,7 +513,7 @@ Create custom manager:
 
 1. **Start with gasless API** for quick experiments - no wallet needed
 2. **Use SDK** when you need programmatic control with a wallet
-3. **Set `fairLaunchPercent: 0`** - fair launch is deprecated
+3. **Set `fairLaunchPercent: 0`** - SDK requires 0 (protocol supports fair launch via direct contract)
 4. **Deploy managers** for sophisticated tokenomics
 5. **Test on Base Sepolia** before mainnet
 6. **creatorFeeAllocation** caps your max take from BidWall fees (2000 = 20%)
