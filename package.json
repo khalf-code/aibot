@@ -1,5 +1,5 @@
 {
-  "name": "@ldraney/openclaw",
+  "name": "ldraney-openclaw",
   "version": "0.1.0",
   "description": "Personal AI assistant fork with pre-configured Notion & Telegram support",
   "keywords": [],
