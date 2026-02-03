@@ -1,4 +1,4 @@
-import type { AudioTranscriptionRequest, AudioTranscriptionResult } from "../../types.js";
+﻿import type { AudioTranscriptionRequest, AudioTranscriptionResult } from "../../types.js";
 import { fetchWithTimeout, normalizeBaseUrl, readErrorResponse } from "../shared.js";
 
 export const DEFAULT_SARVAM_AUDIO_BASE_URL = "https://api.sarvam.ai";
