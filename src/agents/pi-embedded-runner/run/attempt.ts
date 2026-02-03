@@ -85,6 +85,7 @@ import {
   createSystemPromptOverride,
 } from "../system-prompt.js";
 import { splitSdkTools } from "../tool-split.js";
+import { ToolBlockedError } from "../../tool-blocked-error.js";
 import { describeUnknownError, mapThinkingLevel } from "../utils.js";
 import { detectAndLoadPromptImages } from "./images.js";
 
@@ -472,6 +473,45 @@ export async function runEmbeddedAttempt(
         : [];
 
       const allCustomTools = [...customTools, ...clientToolDefs];
+
+      const hookRunner = getGlobalHookRunner();
+
+      // Hook injection: wrap tools to enforce before_tool_call policies
+      // Tool execute signature: (toolCallId, args, signal, onUpdate)
+      const wrapToolForHooks = (tool: any) => {
+        const originalExecute = tool.execute;
+        tool.execute = async (toolCallId: any, args: any, signal?: any, onUpdate?: any) => {
+          if (hookRunner?.hasHooks("before_tool_call")) {
+            let hookResult;
+            try {
+              hookResult = await hookRunner.runBeforeToolCall(
+                { toolName: tool.name, params: args },
+                {
+                  agentId: sessionAgentId,
+                  sessionKey: params.sessionKey,
+                  toolName: tool.name,
+                },
+              );
+            } catch (err) {
+              // Hook execution failed - block for safety (fail-closed)
+              log.warn(`before_tool_call hook execution error for ${tool.name}, blocking: ${err}`);
+              throw new ToolBlockedError(`Hook error (blocked for safety): ${err instanceof Error ? err.message : String(err)}`);
+            }
+
+            // Block check happens OUTSIDE try/catch - cannot be accidentally swallowed
+            if (hookResult?.block) {
+              throw new ToolBlockedError(hookResult.blockReason || "Tool call blocked by policy");
+            }
+            if (hookResult?.params) {
+              args = hookResult.params;
+            }
+          }
+          return originalExecute.call(tool, toolCallId, args, signal, onUpdate);
+        };
+      };
+
+      builtInTools.forEach(wrapToolForHooks);
+      allCustomTools.forEach(wrapToolForHooks);
 
       ({ session } = await createAgentSession({
         cwd: resolvedWorkspace,
