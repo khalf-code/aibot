@@ -16,6 +16,7 @@ const {
   detectAuthRequired,
   getTransportHint,
   buildEnhancedDescription,
+  enhanceParameterDescription,
 } = __testing;
 
 // ---------------------------------------------------------------------------
@@ -1676,6 +1677,37 @@ describe("buildEnhancedDescription", () => {
     const result = __testing.buildEnhancedDescription("Open API", config, "OpenWeather");
     expect(result).not.toContain("Requires Auth");
     expect(result).toContain("[HTTP]");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enhanceParameterDescription
+// ---------------------------------------------------------------------------
+
+describe("enhanceParameterDescription", () => {
+  it("preserves existing description", () => {
+    const schema = {
+      type: "string",
+      description: "The issue title",
+    };
+    const result = __testing.enhanceParameterDescription(schema);
+    expect(result).toEqual("The issue title");
+  });
+
+  it("adds type when description missing", () => {
+    const schema = { type: "string" };
+    const result = __testing.enhanceParameterDescription(schema);
+    expect(result).toContain("string");
+  });
+
+  it("includes enum values in description", () => {
+    const schema = {
+      type: "string",
+      enum: ["open", "closed", "draft"],
+    };
+    const result = __testing.enhanceParameterDescription(schema);
+    expect(result).toContain("string");
+    expect(result).toMatch(/open.*closed.*draft/);
   });
 });
 

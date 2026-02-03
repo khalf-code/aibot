@@ -124,6 +124,27 @@ function buildEnhancedDescription(
   return parts.join(" ");
 }
 
+function enhanceParameterDescription(schema: Record<string, unknown>): string {
+  // Preserve existing description
+  if (typeof schema.description === "string" && schema.description.trim()) {
+    return schema.description;
+  }
+
+  // Build description from type and enum
+  const parts: string[] = [];
+
+  if (typeof schema.type === "string") {
+    parts.push(schema.type);
+  }
+
+  if (Array.isArray(schema.enum) && schema.enum.length > 0) {
+    const enumValues = schema.enum.map((v) => JSON.stringify(v)).join(", ");
+    parts.push(`values: ${enumValues}`);
+  }
+
+  return parts.join("; ") || "Parameter";
+}
+
 function coerceHeaders(headers: Record<string, string> | undefined): HeadersInit | undefined {
   if (!headers) {
     return undefined;
@@ -485,4 +506,5 @@ export const __testing = {
   detectAuthRequired,
   getTransportHint,
   buildEnhancedDescription,
+  enhanceParameterDescription,
 };
