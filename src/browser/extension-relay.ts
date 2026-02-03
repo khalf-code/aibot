@@ -87,14 +87,12 @@ export type ChromeExtensionRelayServer = {
 
 function isLoopbackHost(host: string) {
   const h = host.trim().toLowerCase();
+  // Strict loopback only - no wildcard addresses (0.0.0.0, ::)
   return (
     h === "localhost" ||
     h === "127.0.0.1" ||
-    h === "0.0.0.0" ||
     h === "[::1]" ||
-    h === "::1" ||
-    h === "[::]" ||
-    h === "::"
+    h === "::1"
   );
 }
 
