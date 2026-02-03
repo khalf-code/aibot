@@ -9,6 +9,7 @@ import { syncUrlWithSessionKey } from "./app-settings";
 import { loadChatHistory } from "./controllers/chat";
 import { icons } from "./icons";
 import { iconForTab, pathForTab, titleForTab, type Tab } from "./navigation";
+import { t } from "../i18n";
 
 export function renderTab(state: AppViewState, tab: Tab) {
   const href = pathForTab(tab, state.basePath);
@@ -125,7 +126,7 @@ export function renderChatControls(state: AppViewState) {
           state.resetToolStream();
           void refreshChat(state as unknown as Parameters<typeof refreshChat>[0]);
         }}
-        title="Refresh chat data"
+        title=${t("chat.refreshTitle")}
       >
         ${refreshIcon}
       </button>
@@ -143,8 +144,8 @@ export function renderChatControls(state: AppViewState) {
         aria-pressed=${showThinking}
         title=${
           disableThinkingToggle
-            ? "Disabled during onboarding"
-            : "Toggle assistant thinking/working output"
+            ? t("chat.onboardingDisabled")
+            : t("chat.thinkingToggle")
         }
       >
         ${icons.brain}
@@ -162,8 +163,8 @@ export function renderChatControls(state: AppViewState) {
         aria-pressed=${focusActive}
         title=${
           disableFocusToggle
-            ? "Disabled during onboarding"
-            : "Toggle focus mode (hide sidebar + page header)"
+            ? t("chat.onboardingDisabled")
+            : t("chat.focusToggle")
         }
       >
         ${focusIcon}

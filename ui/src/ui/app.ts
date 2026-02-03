@@ -74,6 +74,7 @@ import { resolveInjectedAssistantIdentity } from "./assistant-identity";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity";
 import { loadSettings, type UiSettings } from "./storage";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types";
+import { i18n, I18nController, type Locale } from "../i18n";
 
 declare global {
   interface Window {
@@ -94,7 +95,14 @@ function resolveOnboardingMode(): boolean {
 
 @customElement("openclaw-app")
 export class OpenClawApp extends LitElement {
+  private i18nController = new I18nController(this);
   @state() settings: UiSettings = loadSettings();
+  constructor() {
+    super();
+    if (this.settings.locale) {
+      void i18n.setLocale(this.settings.locale as Locale);
+    }
+  }
   @state() password = "";
   @state() tab: Tab = "chat";
   @state() onboarding = resolveOnboardingMode();
