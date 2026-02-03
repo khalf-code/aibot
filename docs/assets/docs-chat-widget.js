@@ -27,7 +27,13 @@
   const style = document.createElement("style");
   style.textContent = `
 #docs-chat-root { position: fixed; right: 20px; bottom: 20px; z-index: 9999; font-family: var(--font-body, system-ui, -apple-system, sans-serif); }
-#docs-chat-root.docs-chat-expanded { right: 0; bottom: 0; }
+#docs-chat-root.docs-chat-expanded { right: 0; bottom: 0; top: 0; }
+/* Thin scrollbar styling */
+#docs-chat-root ::-webkit-scrollbar { width: 6px; height: 6px; }
+#docs-chat-root ::-webkit-scrollbar-track { background: transparent; }
+#docs-chat-root ::-webkit-scrollbar-thumb { background: var(--docs-chat-panel-border); border-radius: 3px; }
+#docs-chat-root ::-webkit-scrollbar-thumb:hover { background: var(--docs-chat-muted); }
+#docs-chat-root * { scrollbar-width: thin; scrollbar-color: var(--docs-chat-panel-border) transparent; }
 :root {
   --docs-chat-accent: var(--accent, #ff7d60);
   --docs-chat-text: #1a1a1a;
@@ -67,8 +73,8 @@ html[data-theme="dark"] {
 #docs-chat-button span { font-weight: 600; letter-spacing: 0.04em; font-size: 14px; }
 .docs-chat-logo { width: 20px; height: 20px; }
 #docs-chat-panel {
-  width: 360px;
-  height: 460px;
+  width: min(440px, calc(100vw - 40px));
+  height: min(696px, calc(100vh - 80px));
   background: var(--docs-chat-panel);
   color: var(--docs-chat-text);
   border-radius: 16px;
@@ -81,9 +87,19 @@ html[data-theme="dark"] {
   -webkit-backdrop-filter: blur(16px);
 }
 #docs-chat-root.docs-chat-expanded #docs-chat-panel {
-  width: min(520px, 100vw);
+  width: min(512px, 100vw);
   height: 100vh;
+  height: 100dvh;
   border-radius: 18px 0 0 18px;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+@media (max-width: 520px) {
+  #docs-chat-root.docs-chat-expanded #docs-chat-panel {
+    width: 100vw;
+    border-radius: 0;
+  }
+  #docs-chat-root.docs-chat-expanded { right: 0; left: 0; bottom: 0; top: 0; }
 }
 #docs-chat-header {
   padding: 12px 14px;
@@ -158,11 +174,16 @@ html[data-theme="dark"] {
   max-width: 92%;
 }
 .docs-chat-user {
-  background: var(--docs-chat-accent);
-  color: #fff;
+  background: rgba(255, 125, 96, 0.15);
+  color: var(--docs-chat-text);
+  border: 1px solid rgba(255, 125, 96, 0.3);
   align-self: flex-end;
   white-space: pre-wrap;
   margin-left: auto;
+}
+html[data-theme="dark"] .docs-chat-user {
+  background: rgba(255, 125, 96, 0.18);
+  border-color: rgba(255, 125, 96, 0.35);
 }
 .docs-chat-assistant {
   background: var(--docs-chat-assistant-bg);
@@ -190,6 +211,12 @@ html[data-theme="dark"] {
   max-width: 100%;
   white-space: pre;
   word-wrap: normal;
+}
+.docs-chat-assistant pre::-webkit-scrollbar-thumb { background: transparent; }
+.docs-chat-assistant pre:hover::-webkit-scrollbar-thumb { background: var(--docs-chat-panel-border); }
+@media (hover: none) {
+  .docs-chat-assistant pre { -webkit-overflow-scrolling: touch; }
+  .docs-chat-assistant pre::-webkit-scrollbar-thumb { background: var(--docs-chat-panel-border); }
 }
 .docs-chat-assistant pre code {
   background: transparent;
