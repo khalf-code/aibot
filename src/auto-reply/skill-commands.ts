@@ -42,6 +42,10 @@ export function listSkillCommandsForAgents(params: {
   const used = resolveReservedCommandNames();
   const entries: SkillCommandSpec[] = [];
   const agentIds = params.agentIds ?? listAgentIds(params.cfg);
+
+  // Track unique skill names (case-insensitive) to prevent duplicates across agents
+  const seenSkillNames = new Set<string>();
+
   for (const agentId of agentIds) {
     const workspaceDir = resolveAgentWorkspaceDir(params.cfg, agentId);
     if (!fs.existsSync(workspaceDir)) {
@@ -53,6 +57,10 @@ export function listSkillCommandsForAgents(params: {
       reservedNames: used,
     });
     for (const command of commands) {
+      if (seenSkillNames.has(command.skillName.toLowerCase())) {
+        continue;
+      }
+      seenSkillNames.add(command.skillName.toLowerCase());
       used.add(command.name.toLowerCase());
       entries.push(command);
     }
