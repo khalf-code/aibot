@@ -549,12 +549,15 @@
   height: 16px;
   vertical-align: middle;
   margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.callout svg:not([fill]) {
   stroke: currentColor;
   fill: none;
   stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
-  flex-shrink: 0;
 }
 
 .callout.danger {
