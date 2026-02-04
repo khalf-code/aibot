@@ -181,6 +181,7 @@ export type AppViewState = {
   authConfigProvider: string | null;
   authConfigSaving: boolean;
   authProvidersList: AuthProviderEntry[] | null;
+  oauthFlow: import("./controllers/auth.ts").OAuthFlowState | null;
   clockDisplay: string;
   toasts: ToastEntry[];
   usageLoading: boolean;

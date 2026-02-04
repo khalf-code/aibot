@@ -13,7 +13,14 @@ export type NormalizedPluginsConfig = {
   entries: Record<string, { enabled?: boolean; config?: unknown }>;
 };
 
-export const BUNDLED_ENABLED_BY_DEFAULT = new Set<string>();
+export const BUNDLED_ENABLED_BY_DEFAULT = new Set<string>([
+  // Auth provider plugins are lightweight (registration-only, no side effects)
+  // and must be enabled for dashboard OAuth configuration to work.
+  "qwen-portal-auth",
+  "minimax-portal-auth",
+  "google-gemini-cli-auth",
+  "google-antigravity-auth",
+]);
 
 const normalizeList = (value: unknown): string[] => {
   if (!Array.isArray(value)) {

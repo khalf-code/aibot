@@ -1,4 +1,5 @@
 import { html, nothing } from "lit";
+import type { AuthProviderEntry, OAuthFlowState } from "../controllers/auth.ts";
 import type {
   ModelCostTier,
   ProviderHealthEntry,
@@ -25,6 +26,7 @@ export type ProvidersProps = {
   authConfigProvider: string | null;
   authConfigSaving: boolean;
   authProvidersList: AuthProviderEntry[] | null;
+  oauthFlow: OAuthFlowState | null;
   onRefresh: () => void;
   onToggleShowAll: () => void;
   onToggleExpand: (id: string) => void;
@@ -38,6 +40,8 @@ export type ProvidersProps = {
     credential: string,
     credentialType: "api_key" | "token",
   ) => void;
+  onStartOAuth: (provider: string) => void;
+  onCancelOAuth: () => void;
 };
 
 export function renderProviders(props: ProvidersProps) {
@@ -117,10 +121,9 @@ function resolveAuthInfo(entry: ProviderHealthEntry, _props: ProvidersProps) {
   const hasApiKey = authModes.includes("api-key");
   const hasToken = authModes.includes("token");
   const hasOAuth = authModes.includes("oauth");
-  const hasOAuthOnly = !hasApiKey && !hasToken && hasOAuth;
   const hasAwsSdk = !hasApiKey && !hasToken && authModes.includes("aws-sdk");
   const canConfigure = hasApiKey || hasToken;
-  return { authModes, hasApiKey, hasToken, hasOAuth, hasOAuthOnly, hasAwsSdk, canConfigure };
+  return { authModes, hasApiKey, hasToken, hasOAuth, hasAwsSdk, canConfigure };
 }
 
 function renderProviderCard(
@@ -140,7 +143,7 @@ function renderProviderCard(
       style="border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; cursor: pointer;"
       @click=${onToggle}
     >
-      <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+      <div style="display: flex; align-items: center; gap: 12px; grid-column: 1 / -1;">
         <div style="${dotStyle}"></div>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -175,7 +178,7 @@ function renderProviderCard(
         expanded
           ? html`
             <div
-              style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); width: 100%;"
+              style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); grid-column: 1 / -1;"
               @click=${(e: Event) => e.stopPropagation()}
             >
               ${renderCredentialInfo(entry)}
@@ -191,7 +194,9 @@ function renderProviderCard(
 }
 
 function renderAuthModeChips(authModes: string[]) {
-  if (authModes.length === 0) return nothing;
+  if (authModes.length === 0) {
+    return nothing;
+  }
   return html`
     <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px;">
       ${authModes.map(
@@ -208,36 +213,157 @@ function renderAuthModeChips(authModes: string[]) {
   `;
 }
 
+function renderOAuthFlowStatus(entry: ProviderHealthEntry, props: ProvidersProps) {
+  const flow = props.oauthFlow;
+  if (!flow || flow.provider !== entry.id) {
+    return nothing;
+  }
+
+  if (flow.status === "starting") {
+    return html`
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px">
+        <span class="spinner"></span>
+        <span>Starting OAuth flow...</span>
+      </div>
+    `;
+  }
+
+  if (flow.status === "waiting") {
+    return html`
+      <div style="margin-top: 8px; padding: 10px; border: 1px dashed var(--info); border-radius: 6px; background: color-mix(in srgb, var(--info) 5%, transparent);">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px;">
+          <span class="spinner"></span>
+          <span style="font-weight: 600;">Waiting for authentication...</span>
+        </div>
+        <div class="muted" style="font-size: 12px; margin-bottom: 8px;">
+          A browser window should have opened. Complete the sign-in flow there, then return here.
+        </div>
+        ${
+          flow.authUrl
+            ? html`
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <a
+                  href=${flow.authUrl}
+                  target="_blank"
+                  rel="noopener"
+                  class="btn btn-sm"
+                  style="text-decoration: none;"
+                  @click=${(e: Event) => e.stopPropagation()}
+                >
+                  Open again
+                </a>
+                <button
+                  class="btn btn-sm"
+                  @click=${(e: Event) => {
+                    e.stopPropagation();
+                    props.onCancelOAuth();
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            `
+            : html`
+              <button
+                class="btn btn-sm"
+                @click=${(e: Event) => {
+                  e.stopPropagation();
+                  props.onCancelOAuth();
+                }}
+              >
+                Cancel
+              </button>
+            `
+        }
+      </div>
+    `;
+  }
+
+  if (flow.status === "error") {
+    return html`
+      <div style="margin-top: 8px; padding: 10px; border: 1px solid var(--danger); border-radius: 6px; background: color-mix(in srgb, var(--danger) 5%, transparent);">
+        <div style="font-size: 13px; color: var(--danger); margin-bottom: 6px;">
+          OAuth failed: ${flow.error ?? "Unknown error"}
+        </div>
+        <button
+          class="btn btn-sm"
+          @click=${(e: Event) => {
+            e.stopPropagation();
+            props.onCancelOAuth();
+          }}
+        >
+          Dismiss
+        </button>
+      </div>
+    `;
+  }
+
+  return nothing;
+}
+
 function renderConfigureSection(
   entry: ProviderHealthEntry,
   props: ProvidersProps,
   isConfiguring: boolean,
 ) {
-  const { authModes, hasApiKey, hasToken, hasOAuth, hasOAuthOnly, hasAwsSdk, canConfigure } =
-    resolveAuthInfo(entry, props);
+  const { authModes, hasApiKey, hasToken, hasOAuth, hasAwsSdk, canConfigure } = resolveAuthInfo(
+    entry,
+    props,
+  );
 
   if (authModes.length === 0) {
     return nothing;
   }
 
-  if (!isConfiguring) {
+  // Check if there's an active OAuth flow for this provider
+  const hasActiveOAuth = props.oauthFlow?.provider === entry.id;
+
+  if (!isConfiguring && !hasActiveOAuth) {
+    const buttons: unknown[] = [];
+
+    if (canConfigure) {
+      buttons.push(html`
+        <button
+          class="btn btn-sm"
+          @click=${(e: Event) => {
+            e.stopPropagation();
+            props.onConfigureProvider(entry.id);
+          }}
+        >
+          ${entry.detected ? "Reconfigure Key" : "Set API Key"}
+        </button>
+      `);
+    }
+
+    if (hasOAuth && entry.oauthAvailable) {
+      buttons.push(html`
+        <button
+          class="btn btn-sm"
+          @click=${(e: Event) => {
+            e.stopPropagation();
+            props.onStartOAuth(entry.id);
+          }}
+        >
+          ${entry.detected ? "Reconfigure OAuth" : "Sign in with OAuth"}
+        </button>
+      `);
+    }
+
     const hints: unknown[] = [];
 
-    if (hasOAuth) {
+    if (hasOAuth && !entry.oauthAvailable) {
       hints.push(html`
         <div class="muted" style="font-size: 12px;">
-          ${icons.key}
-          <span>OAuth: <code style="font-size: 11px">openclaw models auth login</code></span>
+          OAuth: <code style="font-size: 11px">openclaw models auth login --provider ${entry.id}</code>
         </div>
       `);
     }
 
     if (hasAwsSdk) {
       hints.push(html`
-        <div class="muted" style="font-size: 12px;">
-          ${icons.key}
-          <span>AWS SDK: set <code style="font-size: 11px">AWS_ACCESS_KEY_ID</code> and
-          <code style="font-size: 11px">AWS_SECRET_ACCESS_KEY</code> env vars</span>
+        <div class="muted" style="font-size: 12px">
+          AWS SDK: set <code style="font-size: 11px">AWS_ACCESS_KEY_ID</code> and
+          <code style="font-size: 11px">AWS_SECRET_ACCESS_KEY</code> env vars
         </div>
       `);
     }
@@ -251,29 +377,26 @@ function renderConfigureSection(
     }
 
     return html`
-      <div
-        style="margin-bottom: 12px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elevated);"
-      >
+      <div style="margin: 8px 0 12px 0;">
         <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">Authentication</div>
         ${renderAuthModeChips(authModes)}
-        <div style="display: flex; align-items: flex-start; gap: 12px;">
-          ${
-            canConfigure
-              ? html`
-                <button
-                  class="btn btn-sm"
-                  @click=${(e: Event) => {
-                    e.stopPropagation();
-                    props.onConfigureProvider(entry.id);
-                  }}
-                >
-                  ${entry.detected ? "Reconfigure" : "Configure"}
-                </button>
-              `
-              : nothing
-          }
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">${hints}</div>
-        </div>
+        ${
+          buttons.length > 0
+            ? html`<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: ${hints.length > 0 ? "8" : "0"}px;">${buttons}</div>`
+            : nothing
+        }
+        ${hints.length > 0 ? html`<div style="display: flex; flex-direction: column; gap: 4px;">${hints}</div>` : nothing}
+      </div>
+    `;
+  }
+
+  // Active OAuth flow
+  if (hasActiveOAuth) {
+    return html`
+      <div style="margin: 8px 0 12px 0;">
+        <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">Authentication</div>
+        ${renderAuthModeChips(authModes)}
+        ${renderOAuthFlowStatus(entry, props)}
       </div>
     `;
   }
@@ -288,66 +411,74 @@ function renderConfigureSection(
   const inputId = `auth-input-${entry.id}`;
 
   return html`
-    <div
-      style="margin-bottom: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elevated);"
-    >
+    <div style="margin: 8px 0 12px 0;">
       <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">Authentication</div>
       ${renderAuthModeChips(authModes)}
-      <div style="font-size: 13px; margin-bottom: 8px; color: var(--text);">
-        ${inputLabel} for ${entry.name}
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input
-          id=${inputId}
-          type="password"
-          placeholder=${`Enter ${inputLabel.toLowerCase()}...`}
-          style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit;"
-          autocomplete="off"
-          @keydown=${(e: KeyboardEvent) => {
-            if (e.key === "Enter") {
+      <div style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--bg-elevated) 50%, var(--bg));">
+        <div style="font-size: 13px; margin-bottom: 8px; color: var(--text);">
+          ${inputLabel} for ${entry.name}
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input
+            id=${inputId}
+            type="password"
+            placeholder=${`Enter ${inputLabel.toLowerCase()}...`}
+            style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit;"
+            autocomplete="off"
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key === "Enter") {
+                const input = document.getElementById(inputId) as HTMLInputElement | null;
+                const value = input?.value?.trim();
+                if (value) {
+                  props.onSaveCredential(entry.id, value, credentialType);
+                }
+              }
+            }}
+          />
+          <button
+            class="btn btn-sm"
+            ?disabled=${props.authConfigSaving}
+            @click=${(e: Event) => {
+              e.stopPropagation();
               const input = document.getElementById(inputId) as HTMLInputElement | null;
               const value = input?.value?.trim();
               if (value) {
                 props.onSaveCredential(entry.id, value, credentialType);
               }
-            }
-          }}
-        />
-        <button
-          class="btn btn-sm"
-          ?disabled=${props.authConfigSaving}
-          @click=${(e: Event) => {
-            e.stopPropagation();
-            const input = document.getElementById(inputId) as HTMLInputElement | null;
-            const value = input?.value?.trim();
-            if (value) {
-              props.onSaveCredential(entry.id, value, credentialType);
-            }
-          }}
-        >
-          ${props.authConfigSaving ? "Saving..." : "Save"}
-        </button>
-        <button
-          class="btn btn-sm"
-          ?disabled=${props.authConfigSaving}
-          @click=${(e: Event) => {
-            e.stopPropagation();
-            props.onConfigureProvider(null);
-          }}
-        >
-          Cancel
-        </button>
+            }}
+          >
+            ${props.authConfigSaving ? "Saving..." : "Save"}
+          </button>
+          <button
+            class="btn btn-sm"
+            ?disabled=${props.authConfigSaving}
+            @click=${(e: Event) => {
+              e.stopPropagation();
+              props.onConfigureProvider(null);
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+        ${
+          hasOAuth && entry.oauthAvailable
+            ? html`
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
+                  <button
+                    class="btn btn-sm"
+                    @click=${(e: Event) => {
+                      e.stopPropagation();
+                      props.onConfigureProvider(null);
+                      props.onStartOAuth(entry.id);
+                    }}
+                  >
+                    Or sign in with OAuth instead
+                  </button>
+                </div>
+              `
+            : nothing
+        }
       </div>
-      ${
-        hasOAuth
-          ? html`
-              <div class="muted" style="font-size: 11px; margin-top: 6px">
-                Also supports OAuth:
-                <code style="font-size: 11px">openclaw models auth login</code>
-              </div>
-            `
-          : nothing
-      }
     </div>
   `;
 }

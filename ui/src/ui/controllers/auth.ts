@@ -10,10 +10,19 @@ export type AuthProviderEntry = {
   isLocal: boolean;
 };
 
+export type OAuthFlowState = {
+  flowId: string;
+  provider: string;
+  status: "starting" | "waiting" | "success" | "error";
+  authUrl?: string;
+  error?: string;
+};
+
 export type AuthHost = ProvidersHealthHost & {
   authConfigProvider: string | null;
   authConfigSaving: boolean;
   authProvidersList: AuthProviderEntry[] | null;
+  oauthFlow: OAuthFlowState | null;
   showToast: (type: "success" | "error" | "info" | "warn", message: string) => void;
 };
 
@@ -58,4 +67,91 @@ export async function setProviderCredential(
   } finally {
     host.authConfigSaving = false;
   }
+}
+
+// --- OAuth flow ---
+
+let oauthPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopOAuthPolling(): void {
+  if (oauthPollTimer !== null) {
+    clearInterval(oauthPollTimer);
+    oauthPollTimer = null;
+  }
+}
+
+export async function startOAuthFlow(host: AuthHost, provider: string): Promise<void> {
+  if (!host.client || !host.connected) {
+    return;
+  }
+
+  stopOAuthPolling();
+  host.oauthFlow = { flowId: "", provider, status: "starting" };
+
+  try {
+    const result = await host.client.request("auth.startOAuth", { provider });
+    const data = result as
+      | {
+          flowId?: string;
+          authUrl?: string;
+          userCode?: string;
+          verificationUri?: string;
+          flowType?: string;
+        }
+      | undefined;
+
+    if (!data?.flowId) {
+      host.oauthFlow = null;
+      host.showToast("error", "Failed to start OAuth flow.");
+      return;
+    }
+
+    host.oauthFlow = {
+      flowId: data.flowId,
+      provider,
+      status: "waiting",
+      authUrl: data.authUrl,
+    };
+
+    // Open the auth URL in a new tab
+    if (data.authUrl) {
+      window.open(data.authUrl, "_blank");
+    }
+
+    // Start polling for completion
+    oauthPollTimer = setInterval(async () => {
+      if (!host.client || !host.connected || !host.oauthFlow) {
+        stopOAuthPolling();
+        return;
+      }
+      try {
+        const check = await host.client.request("auth.checkOAuth", {
+          flowId: host.oauthFlow.flowId,
+        });
+        const status = (check as { status?: string })?.status;
+        if (status === "success") {
+          stopOAuthPolling();
+          host.oauthFlow = null;
+          host.authConfigProvider = null;
+          host.showToast("success", `OAuth configured for ${provider}.`);
+          await Promise.all([loadProvidersHealth(host), loadProvidersList(host)]);
+        } else if (status === "error") {
+          stopOAuthPolling();
+          const error = (check as { error?: string })?.error ?? "OAuth flow failed";
+          host.oauthFlow = { ...host.oauthFlow, status: "error", error };
+          host.showToast("error", error);
+        }
+      } catch {
+        // Polling error, keep trying
+      }
+    }, 2000);
+  } catch (err) {
+    host.oauthFlow = null;
+    host.showToast("error", `Failed to start OAuth: ${String(err)}`);
+  }
+}
+
+export function cancelOAuthFlow(host: AuthHost): void {
+  stopOAuthPolling();
+  host.oauthFlow = null;
 }

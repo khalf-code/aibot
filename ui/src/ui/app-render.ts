@@ -8,7 +8,13 @@ import { loadAgentFileContent, loadAgentFiles, saveAgentFile } from "./controlle
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents } from "./controllers/agents.ts";
-import { loadProvidersList, setProviderCredential, type AuthHost } from "./controllers/auth.ts";
+import {
+  cancelOAuthFlow,
+  loadProvidersList,
+  setProviderCredential,
+  startOAuthFlow,
+  type AuthHost,
+} from "./controllers/auth.ts";
 import { loadChannels } from "./controllers/channels.ts";
 import { ChatState, loadChatHistory } from "./controllers/chat.ts";
 import {
@@ -409,6 +415,7 @@ export function renderApp(state: AppViewState) {
                 authConfigProvider: state.authConfigProvider,
                 authConfigSaving: state.authConfigSaving,
                 authProvidersList: state.authProvidersList,
+                oauthFlow: state.oauthFlow,
                 onRefresh: () => {
                   void loadProvidersHealth(state);
                   void loadProvidersList(state as unknown as AuthHost);
@@ -448,6 +455,12 @@ export function renderApp(state: AppViewState) {
                     credential,
                     credentialType,
                   );
+                },
+                onStartOAuth: (provider) => {
+                  void startOAuthFlow(state as unknown as AuthHost, provider);
+                },
+                onCancelOAuth: () => {
+                  cancelOAuthFlow(state as unknown as AuthHost);
                 },
               })
             : nothing

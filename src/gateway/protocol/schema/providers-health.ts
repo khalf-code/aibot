@@ -40,6 +40,7 @@ export const ProviderHealthEntrySchema = Type.Object(
     authModes: Type.Optional(Type.Array(Type.String())),
     envVars: Type.Optional(Type.Array(Type.String())),
     configured: Type.Optional(Type.Boolean()),
+    oauthAvailable: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );

@@ -43,6 +43,7 @@ export type ProviderHealthEntry = {
   authModes?: string[];
   envVars?: string[];
   configured?: boolean;
+  oauthAvailable?: boolean;
 };
 
 export type ProvidersHealthHost = {
@@ -85,6 +86,7 @@ type RawEntry = {
   authModes?: string[];
   envVars?: string[];
   configured?: boolean;
+  oauthAvailable?: boolean;
 };
 
 function mapEntry(raw: RawEntry, models: ProviderModelEntry[] = []): ProviderHealthEntry {
@@ -118,6 +120,7 @@ function mapEntry(raw: RawEntry, models: ProviderModelEntry[] = []): ProviderHea
     authModes: raw.authModes,
     envVars: raw.envVars,
     configured: raw.configured,
+    oauthAvailable: raw.oauthAvailable,
   };
 }
 

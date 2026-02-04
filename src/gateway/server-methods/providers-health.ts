@@ -8,10 +8,12 @@ import type { GatewayRequestHandlers } from "./types.js";
 import { buildAuthHealthSummary } from "../../agents/auth-health.js";
 import { ensureAuthProfileStore, listProfilesForProvider } from "../../agents/auth-profiles.js";
 import { getProfileHealthStatus } from "../../agents/auth-profiles/usage.js";
+import { normalizeProviderId } from "../../agents/model-selection.js";
 import { detectProviders } from "../../commands/providers/detection.js";
 import { getProviderById } from "../../commands/providers/registry.js";
 import { loadConfig } from "../../config/config.js";
 import { loadProviderUsageSummary } from "../../infra/provider-usage.load.js";
+import { resolvePluginProviders } from "../../plugins/providers.js";
 import {
   ErrorCodes,
   errorShape,
@@ -83,6 +85,23 @@ export const providersHealthHandlers: GatewayRequestHandlers = {
 
       // 4. Build auth health by provider for quick lookup
       const authByProvider = new Map(authHealth.providers.map((p) => [p.provider, p]));
+
+      // 4b. Check which providers have plugin-based OAuth methods
+      const pluginOAuthProviders = new Set<string>();
+      try {
+        const plugins = resolvePluginProviders({ config: cfg });
+        for (const plugin of plugins) {
+          const hasOAuth = plugin.auth.some((m) => m.kind === "oauth" || m.kind === "device_code");
+          if (hasOAuth) {
+            pluginOAuthProviders.add(normalizeProviderId(plugin.id));
+            for (const alias of plugin.aliases ?? []) {
+              pluginOAuthProviders.add(normalizeProviderId(alias));
+            }
+          }
+        }
+      } catch {
+        // Non-fatal: plugin loading may fail
+      }
 
       // 5. Compose final entries
       const now = Date.now();
@@ -174,6 +193,9 @@ export const providersHealthHandlers: GatewayRequestHandlers = {
             ? { envVars: definition.envVars }
             : {}),
           configured: provider.detected,
+          ...(pluginOAuthProviders.has(normalizeProviderId(provider.id))
+            ? { oauthAvailable: true }
+            : {}),
         };
 
         return entry;

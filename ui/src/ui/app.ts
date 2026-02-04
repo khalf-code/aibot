@@ -262,6 +262,7 @@ export class OpenClawApp extends LitElement {
   @state() authConfigProvider: string | null = null;
   @state() authConfigSaving = false;
   @state() authProvidersList: AuthProviderEntry[] | null = null;
+  @state() oauthFlow: import("./controllers/auth.ts").OAuthFlowState | null = null;
   @state() clockDisplay = "";
 
   // Toast notifications

@@ -87,6 +87,8 @@ const BASE_METHODS = [
   "chat.send",
   "auth.setKey",
   "auth.listProviders",
+  "auth.startOAuth",
+  "auth.checkOAuth",
 ];
 
 export function listGatewayMethods(): string[] {
