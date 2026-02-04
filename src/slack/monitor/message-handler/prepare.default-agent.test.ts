@@ -1,3 +1,4 @@
+import os from "node:os";
 import { describe, expect, it, vi } from "vitest";
 import type { SlackMonitorContext } from "../context.js";
 import { prepareSlackMessage } from "./prepare.js";
@@ -7,7 +8,7 @@ describe("prepareSlackMessage default agent routing", () => {
     const ctx: SlackMonitorContext = {
       cfg: {
         agents: {
-          defaults: { model: "anthropic/claude-opus-4-5", workspace: "/tmp/openclaw" },
+          defaults: { model: "anthropic/claude-opus-4-5", workspace: os.tmpdir() },
           list: [{ id: "jeeves", default: true, name: "Jeeves" }, { id: "main" }],
         },
         channels: { slack: {} },
@@ -84,7 +85,7 @@ describe("prepareSlackMessage default agent routing", () => {
     const ctx: SlackMonitorContext = {
       cfg: {
         agents: {
-          defaults: { model: "anthropic/claude-opus-4-5", workspace: "/tmp/openclaw" },
+          defaults: { model: "anthropic/claude-opus-4-5", workspace: os.tmpdir() },
           list: [{ id: "jeeves", default: true, name: "Jeeves" }, { id: "devops" }],
         },
         channels: { slack: {} },
@@ -169,7 +170,7 @@ describe("prepareSlackMessage default agent routing", () => {
     const ctx: SlackMonitorContext = {
       cfg: {
         agents: {
-          defaults: { model: "anthropic/claude-opus-4-5", workspace: "/tmp/openclaw" },
+          defaults: { model: "anthropic/claude-opus-4-5", workspace: os.tmpdir() },
           list: [{ id: "main", default: true }],
         },
         channels: { slack: {} },

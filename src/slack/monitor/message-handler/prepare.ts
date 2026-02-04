@@ -193,7 +193,7 @@ export async function prepareSlackMessage(params: {
     },
   });
 
-  // Only the default agent should handle Slack channel messages.
+  // Only the default agent should handle all Slack inbound messages (DMs, channels, groups).
   // Sub-agents should only be invoked explicitly via sessions_spawn/sessions_send.
   const defaultAgentId = resolveDefaultAgentId(cfg);
   if (route.agentId !== defaultAgentId) {
