@@ -1,0 +1,15 @@
+{
+  "name": "@openclaw/china-shared",
+  "version": "2026.2.1",
+  "description": "Shared utilities for OpenClaw China channel plugins",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "openclaw": "workspace:*"
+  },
+  "openclaw": {
+    "extensions": []
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@openclaw/qqbot",
+  "version": "2026.2.1",
+  "description": "OpenClaw QQ Bot channel plugin (Official QQ Bot API)",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0",
+    "openclaw": "workspace:*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "qqbot",
+      "label": "QQ Bot",
+      "selectionLabel": "QQ Bot (官方API)",
+      "docsPath": "/channels/qqbot",
+      "docsLabel": "qqbot",
+      "blurb": "QQ 开放平台官方机器人 API",
+      "aliases": [
+        "qq-official"
+      ],
+      "order": 80
+    },
+    "install": {
+      "npmSpec": "@openclaw/qqbot",
+      "localPath": "extensions/qqbot",
+      "defaultChoice": "local"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "qq",
+  "name": "NapCatQQ",
+  "description": "QQ channel plugin (via NapCatQQ/OneBot v11)",
+  "version": "1.0.0",
+  "channels": ["qq"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": { "type": "boolean" },
+      "wsUrl": { "type": "string" },
+      "accessToken": { "type": "string" },
+      "dmPolicy": { "type": "string", "enum": ["open", "pairing", "allowlist"] },
+      "groupPolicy": { "type": "string", "enum": ["open", "allowlist", "disabled"] },
+      "allowFrom": { "type": "array", "items": { "type": "string" } },
+      "groupAllowFrom": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+  "uiHints": {
+    "wsUrl": { "label": "WebSocket URL" },
+    "accessToken": { "label": "Access Token", "sensitive": true }
+  }
+}

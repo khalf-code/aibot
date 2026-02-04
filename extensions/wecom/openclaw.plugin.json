@@ -1,0 +1,25 @@
+{
+  "id": "wecom",
+  "name": "WeCom",
+  "description": "企业微信智能机器人回调插件",
+  "version": "0.1.0",
+  "channels": ["wecom"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": { "type": "boolean" },
+      "webhookPath": { "type": "string" },
+      "token": { "type": "string" },
+      "encodingAESKey": { "type": "string" },
+      "dmPolicy": { "type": "string", "enum": ["open", "pairing", "allowlist"] },
+      "groupPolicy": { "type": "string", "enum": ["open", "allowlist", "disabled"] },
+      "allowFrom": { "type": "array", "items": { "type": "string" } },
+      "groupAllowFrom": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+  "uiHints": {
+    "token": { "label": "Token", "sensitive": true },
+    "encodingAESKey": { "label": "EncodingAESKey", "sensitive": true }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "qqbot",
+  "name": "QQ Bot",
+  "description": "QQ 开放平台官方机器人插件",
+  "version": "1.2.3",
+  "channels": ["qqbot"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": { "type": "boolean" },
+      "appId": { "type": "string" },
+      "clientSecret": { "type": "string" },
+      "clientSecretFile": { "type": "string" },
+      "name": { "type": "string" },
+      "systemPrompt": { "type": "string" }
+    }
+  },
+  "uiHints": {
+    "appId": { "label": "App ID" },
+    "clientSecret": { "label": "Client Secret (AppSecret)", "sensitive": true }
+  }
+}

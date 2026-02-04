@@ -1,0 +1,37 @@
+{
+  "name": "@openclaw/wecom",
+  "version": "2026.2.1",
+  "description": "OpenClaw WeCom (WeChat Work) channel plugin",
+  "type": "module",
+  "dependencies": {
+    "@openclaw/china-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "openclaw": "workspace:*",
+    "zod": "^3.23.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "wecom",
+      "label": "WeCom",
+      "selectionLabel": "WeCom (企业微信)",
+      "docsPath": "/channels/wecom",
+      "docsLabel": "wecom",
+      "blurb": "企业微信智能机器人回调",
+      "aliases": [
+        "wechatwork",
+        "wework",
+        "qywx"
+      ],
+      "order": 85
+    },
+    "install": {
+      "npmSpec": "@openclaw/wecom",
+      "localPath": "extensions/wecom",
+      "defaultChoice": "local"
+    }
+  }
+}
