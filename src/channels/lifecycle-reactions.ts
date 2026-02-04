@@ -127,9 +127,11 @@ export async function transitionLifecycleStage(params: {
     if (oldEmoji && oldEmoji !== newEmoji) {
       try {
         await adapter.removeReaction(oldEmoji);
+        // Clear state after successful removal
+        state.currentEmoji = null;
       } catch (err) {
         adapter.onError?.(stage, "remove", err);
-        // Continue even if removal fails
+        // Continue even if removal fails, but don't clear state
       }
     }
 
@@ -145,6 +147,8 @@ export async function transitionLifecycleStage(params: {
       } catch (err) {
         adapter.onError?.(stage, "add", err);
       }
+      // Failed to add - state.currentEmoji already cleared above or stays null
+      state.currentStage = stage;
       return false;
     }
 
