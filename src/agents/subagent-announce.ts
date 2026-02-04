@@ -379,6 +379,9 @@ export async function runSubagentAnnounceFlow(params: {
         startedAt?: number;
         endedAt?: number;
         error?: string;
+        lastTool?: string;
+        completedSteps?: number;
+        partialProgress?: string;
       }>({
         method: "agent.wait",
         params: {
@@ -388,12 +391,17 @@ export async function runSubagentAnnounceFlow(params: {
         timeoutMs: waitMs + 2000,
       });
       const waitError = typeof wait?.error === "string" ? wait.error : undefined;
+      const lastTool = typeof wait?.lastTool === "string" ? wait.lastTool : undefined;
+      const completedSteps =
+        typeof wait?.completedSteps === "number" ? wait.completedSteps : undefined;
+      const partialProgress =
+        typeof wait?.partialProgress === "string" ? wait.partialProgress : undefined;
       if (wait?.status === "timeout") {
-        outcome = { status: "timeout" };
+        outcome = { status: "timeout", lastTool, completedSteps, partialProgress };
       } else if (wait?.status === "error") {
-        outcome = { status: "error", error: waitError };
+        outcome = { status: "error", error: waitError, lastTool, completedSteps, partialProgress };
       } else if (wait?.status === "ok") {
-        outcome = { status: "ok" };
+        outcome = { status: "ok", lastTool, completedSteps, partialProgress };
       }
       if (typeof wait?.startedAt === "number" && !params.startedAt) {
         params.startedAt = wait.startedAt;
