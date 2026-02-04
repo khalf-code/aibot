@@ -547,6 +547,8 @@ export function createChannelMessageHandler(deps: {
       if (!entry) {
         // Create new session entry
         const defaults = getSessionDefaults(cfg);
+        deps.log.info(`[${channelId}] Initializing new session ${sessionKey} with defaults: model=${defaults.model}, provider=${defaults.modelProvider}`);
+
         entry = {
           sessionId: randomUUID(),
           updatedAt: Date.now(),
@@ -559,7 +561,8 @@ export function createChannelMessageHandler(deps: {
           origin: { type: "user" },
           lastChannel: channelId,
           lastTo: msg.from,
-          sendPolicy: "auto",
+          // FORCE ALLOW to ensure it replies
+          sendPolicy: "allow",
           contextTokens: defaults.contextTokens,
           model: defaults.model ?? undefined,
           modelProvider: defaults.modelProvider ?? undefined,
@@ -571,6 +574,10 @@ export function createChannelMessageHandler(deps: {
         entry.updatedAt = Date.now();
         entry.lastChannel = channelId;
         entry.lastTo = msg.from;
+        // Ensure policy is allow if it was auto/missing
+        if (!entry.sendPolicy || entry.sendPolicy === "auto") {
+          entry.sendPolicy = "allow";
+        }
       }
       sessionId = entry.sessionId;
       sessionFile = entry.sessionFile;
