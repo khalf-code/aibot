@@ -18,11 +18,15 @@ if (process.argv.includes("--no-color")) {
 
 const WARNING_FLAGS = "--disable-warning=ExperimentalWarning --disable-warning=DEP0040";
 
-function hasExperimentalWarningSuppressed(nodeOptions: string): boolean {
+function hasWarningsSuppressed(nodeOptions: string): boolean {
   if (!nodeOptions) {
     return false;
   }
-  return nodeOptions.includes("--disable-warning=ExperimentalWarning") || nodeOptions.includes("--no-warnings");
+  return (
+    nodeOptions.includes("--no-warnings") ||
+    (nodeOptions.includes("--disable-warning=ExperimentalWarning") &&
+     nodeOptions.includes("--disable-warning=DEP0040"))
+  );
 }
 
 function ensureExperimentalWarningSuppressed(): boolean {
@@ -33,7 +37,7 @@ function ensureExperimentalWarningSuppressed(): boolean {
     return false;
   }
   const nodeOptions = process.env.NODE_OPTIONS ?? "";
-  if (hasExperimentalWarningSuppressed(nodeOptions)) {
+  if (hasWarningsSuppressed(nodeOptions)) {
     return false;
   }
 
