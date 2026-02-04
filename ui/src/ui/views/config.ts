@@ -1,5 +1,7 @@
 import { html, nothing } from "lit";
 import type { ConfigUiHints } from "../types.ts";
+import type { DetectedProvider } from "./config-form.ts";
+import type { GatewayCatalogModel } from "./models-settings.ts";
 import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared.ts";
 import { analyzeConfigSchema, renderConfigForm, SECTION_META } from "./config-form.ts";
 
@@ -22,6 +24,16 @@ export type ConfigProps = {
   searchQuery: string;
   activeSection: string | null;
   activeSubsection: string | null;
+  /** Whether the config file exists on disk */
+  configExists: boolean | null;
+  /** Path to the config file */
+  configPath: string | null;
+  /** Detected providers from environment variables */
+  detectedProviders?: Record<string, DetectedProvider>;
+  /** Models from gateway catalog (models.list RPC) */
+  gatewayCatalog?: GatewayCatalogModel[];
+  /** Whether catalog is loading */
+  catalogLoading?: boolean;
   onRawChange: (next: string) => void;
   onFormModeChange: (mode: "form" | "raw") => void;
   onFormPatch: (path: Array<string | number>, value: unknown) => void;
@@ -32,6 +44,8 @@ export type ConfigProps = {
   onSave: () => void;
   onApply: () => void;
   onUpdate: () => void;
+  onRefreshModels?: () => void;
+  onAuthProvider?: (providerId: string, authType: string) => void;
 };
 
 // SVG Icons for sidebar (Lucide-style)
@@ -521,17 +535,32 @@ export function renderConfig(props: ConfigProps) {
             <button
               class="config-mode-toggle__btn ${props.formMode === "form" ? "active" : ""}"
               ?disabled=${props.schemaLoading || !props.schema}
+              title=${
+                props.schemaLoading
+                  ? "Loading config schema..."
+                  : !props.schema
+                    ? "Form mode unavailable: schema not loaded. Try reloading the page."
+                    : "Edit config using a form interface"
+              }
               @click=${() => props.onFormModeChange("form")}
             >
               Form
             </button>
             <button
               class="config-mode-toggle__btn ${props.formMode === "raw" ? "active" : ""}"
+              title="Edit config as raw JSON5 text"
               @click=${() => props.onFormModeChange("raw")}
             >
               Raw
             </button>
           </div>
+          ${
+            !props.schema && !props.schemaLoading
+              ? html`
+                  <div class="config-mode-hint">Schema unavailable. Use Raw mode to edit.</div>
+                `
+              : nothing
+          }
         </div>
       </aside>
 
@@ -654,7 +683,7 @@ export function renderConfig(props: ConfigProps) {
             : nothing
         }
         ${
-          allowSubnav
+          allowSubnav && props.activeSection !== "models"
             ? html`
               <div class="config-subnav">
                 <button
@@ -681,6 +710,44 @@ export function renderConfig(props: ConfigProps) {
             : nothing
         }
 
+        <!-- Config missing banner -->
+        ${
+          props.configExists === false
+            ? html`
+                <div class="config-missing-banner">
+                  <div class="config-missing-banner__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="12" y1="18" x2="12" y2="12"></line>
+                      <line x1="12" y1="9" x2="12.01" y2="9"></line>
+                    </svg>
+                  </div>
+                  <div class="config-missing-banner__content">
+                    <div class="config-missing-banner__title">No configuration file found</div>
+                    <div class="config-missing-banner__desc">
+                      OpenClaw will use default settings. Edit below and click <strong>Save</strong> to create your config file.
+                    </div>
+                    ${props.configPath ? html`<code class="config-missing-banner__path">${props.configPath}</code>` : nothing}
+                  </div>
+                  <a
+                    class="config-missing-banner__link"
+                    href="https://docs.openclaw.ai/gateway/configuration"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View configuration guide
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </div>
+              `
+            : nothing
+        }
+
         <!-- Form content -->
         <div class="config-content">
           ${
@@ -704,6 +771,11 @@ export function renderConfig(props: ConfigProps) {
                         searchQuery: props.searchQuery,
                         activeSection: props.activeSection,
                         activeSubsection: effectiveSubsection,
+                        detectedProviders: props.detectedProviders,
+                        gatewayCatalog: props.gatewayCatalog,
+                        catalogLoading: props.catalogLoading,
+                        onRefreshModels: props.onRefreshModels,
+                        onAuthProvider: props.onAuthProvider,
                       })
                 }
                 ${

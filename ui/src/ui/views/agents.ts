@@ -26,6 +26,16 @@ import {
 
 export type AgentsPanel = "overview" | "files" | "tools" | "skills" | "channels" | "cron";
 
+/** Model choice from gateway models.list */
+export type GatewayModelChoice = {
+  id: string;
+  name: string;
+  provider: string;
+  contextWindow?: number;
+  reasoning?: boolean;
+  vision?: boolean;
+};
+
 export type AgentsProps = {
   loading: boolean;
   error: string | null;
@@ -36,6 +46,11 @@ export type AgentsProps = {
   configLoading: boolean;
   configSaving: boolean;
   configDirty: boolean;
+  /** Available models from gateway catalog */
+  modelCatalog: GatewayModelChoice[];
+  modelsLoading: boolean;
+  /** Model IDs that are disabled (format: "provider/model-id") */
+  disabledModels: string[];
   channelsLoading: boolean;
   channelsError: string | null;
   channelsSnapshot: ChannelsStatusSnapshot | null;
@@ -197,6 +212,10 @@ type ConfigSnapshot = {
   agents?: {
     defaults?: { workspace?: string; model?: unknown; models?: Record<string, { alias?: string }> };
     list?: AgentConfigEntry[];
+  };
+  models?: {
+    mode?: "merge" | "replace";
+    providers?: Record<string, unknown>;
   };
   tools?: {
     profile?: string;
@@ -399,16 +418,10 @@ function resolveModelFallbacks(model?: unknown): string[] | null {
   return null;
 }
 
-function parseFallbackList(value: string): string[] {
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
 type ConfiguredModelOption = {
   value: string;
   label: string;
+  provider?: string;
 };
 
 function resolveConfiguredModels(
@@ -437,18 +450,262 @@ function resolveConfiguredModels(
   return options;
 }
 
-function buildModelOptions(configForm: Record<string, unknown> | null, current?: string | null) {
-  const options = resolveConfiguredModels(configForm);
-  const hasCurrent = current ? options.some((option) => option.value === current) : false;
-  if (current && !hasCurrent) {
-    options.unshift({ value: current, label: `Current (${current})` });
+function buildModelOptionsFromCatalog(
+  catalog: GatewayModelChoice[],
+  current?: string | null,
+): ConfiguredModelOption[] {
+  // Group models by provider
+  const byProvider = new Map<string, GatewayModelChoice[]>();
+  for (const model of catalog) {
+    const provider = model.provider || "other";
+    const existing = byProvider.get(provider) || [];
+    existing.push(model);
+    byProvider.set(provider, existing);
   }
+
+  const options: ConfiguredModelOption[] = [];
+
+  // Sort providers alphabetically, but put common ones first
+  const providerOrder = ["anthropic", "openai", "google", "github-copilot", "groq", "xai"];
+  const sortedProviders = [...byProvider.keys()].toSorted((a, b) => {
+    const aIdx = providerOrder.indexOf(a);
+    const bIdx = providerOrder.indexOf(b);
+    if (aIdx !== -1 && bIdx !== -1) {
+      return aIdx - bIdx;
+    }
+    if (aIdx !== -1) {
+      return -1;
+    }
+    if (bIdx !== -1) {
+      return 1;
+    }
+    return a.localeCompare(b);
+  });
+
+  for (const provider of sortedProviders) {
+    const models = byProvider.get(provider) || [];
+    for (const model of models) {
+      const modelId = `${provider}/${model.id}`;
+      const label = model.name || model.id;
+      options.push({ value: modelId, label: `${label} (${provider})`, provider });
+    }
+  }
+
+  // Add current model if not in catalog
+  if (current) {
+    const hasCurrent = options.some((o) => o.value === current);
+    if (!hasCurrent) {
+      options.unshift({ value: current, label: `Current (${current})` });
+    }
+  }
+
+  return options;
+}
+
+function buildModelOptions(
+  configForm: Record<string, unknown> | null,
+  catalog: GatewayModelChoice[],
+  current?: string | null,
+  disabledModels?: string[],
+) {
+  // Filter out disabled models from catalog
+  const disabledSet = new Set(disabledModels ?? []);
+  const enabledCatalog = catalog.filter((m) => !disabledSet.has(`${m.provider}/${m.id}`));
+
+  // Use catalog if available, fall back to config-based models
+  const options =
+    enabledCatalog.length > 0
+      ? buildModelOptionsFromCatalog(enabledCatalog, current)
+      : (() => {
+          const configOptions = resolveConfiguredModels(configForm);
+          const hasCurrent = current
+            ? configOptions.some((option) => option.value === current)
+            : false;
+          if (current && !hasCurrent) {
+            configOptions.unshift({ value: current, label: `Current (${current})` });
+          }
+          return configOptions;
+        })();
+
   if (options.length === 0) {
     return html`
-      <option value="" disabled>No configured models</option>
+      <option value="" disabled>No models available</option>
     `;
   }
+
+  // Group by provider for optgroup rendering
+  if (enabledCatalog.length > 0) {
+    const byProvider = new Map<string, ConfiguredModelOption[]>();
+    for (const option of options) {
+      const provider = option.provider || "other";
+      const existing = byProvider.get(provider) || [];
+      existing.push(option);
+      byProvider.set(provider, existing);
+    }
+
+    const providerOrder = ["anthropic", "openai", "google", "github-copilot", "groq", "xai"];
+    const sortedProviders = [...byProvider.keys()].toSorted((a, b) => {
+      const aIdx = providerOrder.indexOf(a);
+      const bIdx = providerOrder.indexOf(b);
+      if (aIdx !== -1 && bIdx !== -1) {
+        return aIdx - bIdx;
+      }
+      if (aIdx !== -1) {
+        return -1;
+      }
+      if (bIdx !== -1) {
+        return 1;
+      }
+      return a.localeCompare(b);
+    });
+
+    return sortedProviders.map((provider) => {
+      const providerOptions = byProvider.get(provider) || [];
+      const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+      return html`
+        <optgroup label=${providerLabel}>
+          ${providerOptions.map(
+            (option) => html`<option value=${option.value}>${option.label}</option>`,
+          )}
+        </optgroup>
+      `;
+    });
+  }
+
   return options.map((option) => html`<option value=${option.value}>${option.label}</option>`);
+}
+
+/** Chip-based fallback model selector */
+function renderFallbackChips(params: {
+  selected: string[];
+  catalog: GatewayModelChoice[];
+  disabledModels: string[];
+  disabled: boolean;
+  onChange: (fallbacks: string[]) => void;
+}) {
+  const { selected, catalog, disabledModels, disabled, onChange } = params;
+  const disabledSet = new Set(disabledModels);
+  const selectedSet = new Set(selected);
+
+  // Filter enabled models and exclude already selected ones
+  const availableModels = catalog.filter((m) => {
+    const fullId = `${m.provider}/${m.id}`;
+    return !disabledSet.has(fullId) && !selectedSet.has(fullId);
+  });
+
+  // Group available models by provider
+  const byProvider = new Map<string, GatewayModelChoice[]>();
+  for (const model of availableModels) {
+    const provider = model.provider || "other";
+    const existing = byProvider.get(provider) || [];
+    existing.push(model);
+    byProvider.set(provider, existing);
+  }
+
+  const providerOrder = ["anthropic", "openai", "google", "github-copilot", "groq", "xai"];
+  const sortedProviders = [...byProvider.keys()].toSorted((a, b) => {
+    const aIdx = providerOrder.indexOf(a);
+    const bIdx = providerOrder.indexOf(b);
+    if (aIdx !== -1 && bIdx !== -1) {
+      return aIdx - bIdx;
+    }
+    if (aIdx !== -1) {
+      return -1;
+    }
+    if (bIdx !== -1) {
+      return 1;
+    }
+    return a.localeCompare(b);
+  });
+
+  const addFallback = (modelId: string) => {
+    if (!selected.includes(modelId)) {
+      onChange([...selected, modelId]);
+    }
+  };
+
+  const removeFallback = (modelId: string) => {
+    onChange(selected.filter((id) => id !== modelId));
+  };
+
+  const getModelLabel = (modelId: string): string => {
+    const model = catalog.find((m) => `${m.provider}/${m.id}` === modelId);
+    if (model) {
+      return model.name || model.id.split("/").pop() || model.id;
+    }
+    // Fallback for models not in catalog
+    return modelId.split("/").pop() || modelId;
+  };
+
+  const getProviderFromId = (modelId: string): string => {
+    return modelId.split("/")[0] || "other";
+  };
+
+  return html`
+    <div class="fallback-selector ${disabled ? "fallback-selector--disabled" : ""}">
+      ${
+        selected.length > 0
+          ? html`
+            <div class="fallback-chips">
+              ${selected.map(
+                (modelId, index) => html`
+                  <div class="fallback-chip" title=${modelId}>
+                    <span class="fallback-chip__order">${index + 1}</span>
+                    <span class="fallback-chip__label">${getModelLabel(modelId)}</span>
+                    <span class="fallback-chip__provider">${getProviderFromId(modelId)}</span>
+                    <button
+                      class="fallback-chip__remove"
+                      @click=${() => removeFallback(modelId)}
+                      ?disabled=${disabled}
+                      title="Remove fallback"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                `,
+              )}
+            </div>
+          `
+          : html`
+              <div class="fallback-empty">No fallback models configured</div>
+            `
+      }
+      <div class="fallback-add">
+        <select
+          class="fallback-add__select"
+          ?disabled=${disabled || availableModels.length === 0}
+          @change=${(e: Event) => {
+            const select = e.target as HTMLSelectElement;
+            if (select.value) {
+              addFallback(select.value);
+              select.value = "";
+            }
+          }}
+        >
+          <option value="">+ Add fallback model</option>
+          ${sortedProviders.map((provider) => {
+            const models = byProvider.get(provider) || [];
+            const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+            return html`
+              <optgroup label=${providerLabel}>
+                ${models.map((model) => {
+                  const fullId = `${provider}/${model.id}`;
+                  const label = model.name || model.id;
+                  return html`<option value=${fullId}>${label}</option>`;
+                })}
+              </optgroup>
+            `;
+          })}
+        </select>
+      </div>
+      <span class="fallback-hint">
+        ${selected.length > 0 ? `${selected.length} fallback${selected.length > 1 ? "s" : ""} (priority order)` : "Add models to use as fallbacks if primary fails"}
+      </span>
+    </div>
+  `;
 }
 
 type CompiledPattern =
@@ -617,6 +874,8 @@ export function renderAgents(props: AgentsProps) {
                       configLoading: props.configLoading,
                       configSaving: props.configSaving,
                       configDirty: props.configDirty,
+                      modelCatalog: props.modelCatalog,
+                      disabledModels: props.disabledModels,
                       onConfigReload: props.onConfigReload,
                       onConfigSave: props.onConfigSave,
                       onModelChange: props.onModelChange,
@@ -785,6 +1044,8 @@ function renderAgentOverview(params: {
   configLoading: boolean;
   configSaving: boolean;
   configDirty: boolean;
+  modelCatalog: GatewayModelChoice[];
+  disabledModels: string[];
   onConfigReload: () => void;
   onConfigSave: () => void;
   onModelChange: (agentId: string, modelId: string | null) => void;
@@ -800,6 +1061,8 @@ function renderAgentOverview(params: {
     configLoading,
     configSaving,
     configDirty,
+    modelCatalog,
+    disabledModels,
     onConfigReload,
     onConfigSave,
     onModelChange,
@@ -821,7 +1084,6 @@ function renderAgentOverview(params: {
     (defaultModel !== "-" ? normalizeModelValue(defaultModel) : null);
   const effectivePrimary = modelPrimary ?? defaultPrimary ?? null;
   const modelFallbacks = resolveModelFallbacks(config.entry?.model);
-  const fallbackText = modelFallbacks ? modelFallbacks.join(", ") : "";
   const identityName =
     agentIdentity?.name?.trim() ||
     agent.identity?.name?.trim() ||
@@ -885,22 +1147,19 @@ function renderAgentOverview(params: {
               <option value="">
                 ${defaultPrimary ? `Inherit default (${defaultPrimary})` : "Inherit default"}
               </option>
-              ${buildModelOptions(configForm, effectivePrimary ?? undefined)}
+              ${buildModelOptions(configForm, modelCatalog, effectivePrimary ?? undefined, disabledModels)}
             </select>
           </label>
-          <label class="field" style="min-width: 260px; flex: 1;">
-            <span>Fallbacks (comma-separated)</span>
-            <input
-              .value=${fallbackText}
-              ?disabled=${!configForm || configLoading || configSaving}
-              placeholder="provider/model, provider/model"
-              @input=${(e: Event) =>
-                onModelFallbacksChange(
-                  agent.id,
-                  parseFallbackList((e.target as HTMLInputElement).value),
-                )}
-            />
-          </label>
+          <div class="field" style="min-width: 260px; flex: 1;">
+            <span>Fallback models</span>
+            ${renderFallbackChips({
+              selected: modelFallbacks ?? [],
+              catalog: modelCatalog,
+              disabledModels,
+              disabled: !configForm || configLoading || configSaving,
+              onChange: (fallbacks) => onModelFallbacksChange(agent.id, fallbacks),
+            })}
+          </div>
         </div>
         <div class="row" style="justify-content: flex-end; gap: 8px;">
           <button

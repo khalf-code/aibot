@@ -290,6 +290,10 @@ export type ConfigUiHint = {
   sensitive?: boolean;
   placeholder?: string;
   itemTemplate?: unknown;
+  /** URL to the documentation page for this config option */
+  docUrl?: string;
+  /** Recommended value or usage tip */
+  recommendation?: string;
 };
 
 export type ConfigUiHints = Record<string, ConfigUiHint>;

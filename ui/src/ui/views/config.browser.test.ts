@@ -25,6 +25,8 @@ describe("config view", () => {
     searchQuery: "",
     activeSection: null,
     activeSubsection: null,
+    configExists: true,
+    configPath: "~/.openclaw/openclaw.json",
     onRawChange: vi.fn(),
     onFormModeChange: vi.fn(),
     onFormPatch: vi.fn(),

@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
-import type { ConfigUiHints } from "../types.ts";
+import type { ConfigUiHint, ConfigUiHints } from "../types.ts";
+import { getConfigTooltip } from "../data/config-tooltips.ts";
 import {
   defaultValue,
   hintForPath,
@@ -93,7 +94,85 @@ const icons = {
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
     </svg>
   `,
+  info: html`
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  `,
+  externalLink: html`
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+      <polyline points="15 3 21 3 21 9"></polyline>
+      <line x1="10" y1="14" x2="21" y2="3"></line>
+    </svg>
+  `,
 };
+
+/**
+ * Render a field label with optional tooltip info icon.
+ * When tooltip has docUrl or recommendation, shows an info button that reveals a popover.
+ */
+function renderLabelWithTooltip(
+  label: string,
+  path: Array<string | number>,
+  hint?: ConfigUiHint,
+): TemplateResult {
+  const key = pathKey(path);
+  const tooltip = getConfigTooltip(key) ?? hint;
+  const hasExtra = tooltip?.docUrl || tooltip?.recommendation;
+
+  if (!hasExtra) {
+    return html`<label class="cfg-field__label">${label}</label>`;
+  }
+
+  return html`
+    <div class="cfg-field__label-row">
+      <label class="cfg-field__label">${label}</label>
+      <div class="cfg-tooltip">
+        <button type="button" class="cfg-tooltip__trigger" aria-label="More info">
+          ${icons.info}
+        </button>
+        <div class="cfg-tooltip__content">
+          ${
+            tooltip?.recommendation
+              ? html`<div class="cfg-tooltip__tip">
+                <strong>Tip:</strong> ${tooltip.recommendation}
+              </div>`
+              : nothing
+          }
+          ${
+            tooltip?.docUrl
+              ? html`<a
+                class="cfg-tooltip__link"
+                href=${tooltip.docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View documentation ${icons.externalLink}
+              </a>`
+              : nothing
+          }
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 export function renderNode(params: {
   schema: JsonSchema;
@@ -149,7 +228,7 @@ export function renderNode(params: {
       const resolvedValue = value ?? schema.default;
       return html`
         <div class="cfg-field">
-          ${showLabel ? html`<label class="cfg-field__label">${label}</label>` : nothing}
+          ${showLabel ? renderLabelWithTooltip(label, path, hint) : nothing}
           ${help ? html`<div class="cfg-field__help">${help}</div>` : nothing}
           <div class="cfg-segmented">
             ${literals.map(
@@ -214,7 +293,7 @@ export function renderNode(params: {
       const resolvedValue = value ?? schema.default;
       return html`
         <div class="cfg-field">
-          ${showLabel ? html`<label class="cfg-field__label">${label}</label>` : nothing}
+          ${showLabel ? renderLabelWithTooltip(label, path, hint) : nothing}
           ${help ? html`<div class="cfg-field__help">${help}</div>` : nothing}
           <div class="cfg-segmented">
             ${options.map(
@@ -254,20 +333,57 @@ export function renderNode(params: {
         : typeof schema.default === "boolean"
           ? schema.default
           : false;
+    const tooltip = getConfigTooltip(key) ?? hint;
+    const hasExtra = tooltip?.docUrl || tooltip?.recommendation;
     return html`
       <label class="cfg-toggle-row ${disabled ? "disabled" : ""}">
         <div class="cfg-toggle-row__content">
           <span class="cfg-toggle-row__label">${label}</span>
           ${help ? html`<span class="cfg-toggle-row__help">${help}</span>` : nothing}
         </div>
-        <div class="cfg-toggle">
-          <input
-            type="checkbox"
-            .checked=${displayValue}
-            ?disabled=${disabled}
-            @change=${(e: Event) => onPatch(path, (e.target as HTMLInputElement).checked)}
-          />
-          <span class="cfg-toggle__track"></span>
+        <div class="cfg-toggle-row__actions">
+          ${
+            hasExtra
+              ? html`
+              <div class="cfg-tooltip cfg-tooltip--inline">
+                <button type="button" class="cfg-tooltip__trigger" aria-label="More info" @click=${(e: Event) => e.preventDefault()}>
+                  ${icons.info}
+                </button>
+                <div class="cfg-tooltip__content">
+                  ${
+                    tooltip?.recommendation
+                      ? html`<div class="cfg-tooltip__tip">
+                        <strong>Tip:</strong> ${tooltip.recommendation}
+                      </div>`
+                      : nothing
+                  }
+                  ${
+                    tooltip?.docUrl
+                      ? html`<a
+                        class="cfg-tooltip__link"
+                        href=${tooltip.docUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        @click=${(e: Event) => e.stopPropagation()}
+                      >
+                        View documentation ${icons.externalLink}
+                      </a>`
+                      : nothing
+                  }
+                </div>
+              </div>
+            `
+              : nothing
+          }
+          <div class="cfg-toggle">
+            <input
+              type="checkbox"
+              .checked=${displayValue}
+              ?disabled=${disabled}
+              @change=${(e: Event) => onPatch(path, (e.target as HTMLInputElement).checked)}
+            />
+            <span class="cfg-toggle__track"></span>
+          </div>
         </div>
       </label>
     `;
@@ -320,7 +436,7 @@ function renderTextInput(params: {
 
   return html`
     <div class="cfg-field">
-      ${showLabel ? html`<label class="cfg-field__label">${label}</label>` : nothing}
+      ${showLabel ? renderLabelWithTooltip(label, path, hint) : nothing}
       ${help ? html`<div class="cfg-field__help">${help}</div>` : nothing}
       <div class="cfg-input-wrap">
         <input
@@ -387,7 +503,7 @@ function renderNumberInput(params: {
 
   return html`
     <div class="cfg-field">
-      ${showLabel ? html`<label class="cfg-field__label">${label}</label>` : nothing}
+      ${showLabel ? renderLabelWithTooltip(label, path, hint) : nothing}
       ${help ? html`<div class="cfg-field__help">${help}</div>` : nothing}
       <div class="cfg-number">
         <button
@@ -441,7 +557,7 @@ function renderSelect(params: {
 
   return html`
     <div class="cfg-field">
-      ${showLabel ? html`<label class="cfg-field__label">${label}</label>` : nothing}
+      ${showLabel ? renderLabelWithTooltip(label, path, hint) : nothing}
       ${help ? html`<div class="cfg-field__help">${help}</div>` : nothing}
       <select
         class="cfg-select"
