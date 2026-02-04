@@ -127,27 +127,10 @@ async function getFileMtimeMs(path: string): Promise<number | null> {
 }
 
 export async function ensureLoaded(state: CronServiceState, opts?: { forceReload?: boolean }) {
-  // Fast path: store is already in memory.  The timer path passes
-  // forceReload=true so that cross-service writes to the same store file
-  // are always picked up.  Other callers (add, list, run, …) trust the
-  // in-memory copy to avoid a stat syscall on every operation.
+  // Fast path: store is already in memory. Other callers (add, list, run, …)
+  // trust the in-memory copy to avoid a stat syscall on every operation.
   if (state.store && !opts?.forceReload) {
     return;
-  }
-
-  if (opts?.forceReload && state.store) {
-    // Only pay for the stat when we're explicitly checking for external edits.
-    // In test environments, mtime resolution can be unreliable due to fake timers.
-    const isTest = process.env.NODE_ENV === "test";
-    const mtime = await getFileMtimeMs(state.deps.storePath);
-    if (
-      !isTest &&
-      mtime !== null &&
-      state.storeFileMtimeMs !== null &&
-      mtime === state.storeFileMtimeMs
-    ) {
-      return; // File unchanged since our last load/persist.
-    }
   }
 
   const fileMtimeMs = await getFileMtimeMs(state.deps.storePath);
