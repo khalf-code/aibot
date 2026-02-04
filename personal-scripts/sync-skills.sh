@@ -7,7 +7,7 @@ cd /Users/steve/clawd
 UPSTREAM_CHANGES=0
 LOCAL_CHANGES=0
 
-# 1. Pull latest from upstream moltbot
+# 1. Pull latest from upstream openclaw
 echo "Fetching upstream..."
 git fetch upstream 2>/dev/null
 
@@ -15,7 +15,7 @@ UPSTREAM_COUNT=$(git log HEAD..upstream/main --oneline 2>/dev/null | wc -l | tr 
 if [ "$UPSTREAM_COUNT" -gt 0 ]; then
     echo "Merging $UPSTREAM_COUNT upstream changes..."
     UPSTREAM_CHANGES=1
-    git merge upstream/main -m "Auto-merge upstream moltbot" --no-edit || {
+    git merge upstream/main -m "Auto-merge upstream openclaw" --no-edit || {
         # Keep LOCAL versions for personalized workspace files
         git checkout --ours .gitignore AGENTS.md SOUL.md USER.md IDENTITY.md TOOLS.md memory.md memory/ personal-scripts/ 2>/dev/null
         # Take UPSTREAM versions for skills (we want upstream improvements)
@@ -65,8 +65,8 @@ fi
 
 echo "$STATUS"
 
-# 6. Notify via Telegram (if moltbot available and gateway running)
-MOLTBOT="/Users/steve/Library/pnpm/moltbot"
-if [ -x "$MOLTBOT" ] && lsof -i :18789 >/dev/null 2>&1; then
-    "$MOLTBOT" agent --agent main --message "$STATUS" --deliver --reply-channel telegram --reply-account steve --reply-to 1191367022 2>&1 || true
+# 6. Notify via Telegram (if openclaw available and gateway running)
+OPENCLAW="/Users/steve/Library/pnpm/openclaw"
+if [ -x "$OPENCLAW" ] && lsof -i :18789 >/dev/null 2>&1; then
+    "$OPENCLAW" agent --agent main --message "$STATUS" --deliver --reply-channel telegram --reply-account steve --reply-to 1191367022 2>&1 || true
 fi

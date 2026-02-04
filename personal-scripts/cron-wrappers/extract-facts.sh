@@ -11,7 +11,7 @@ source /Users/steve/clawd/personal-scripts/cron-wrappers/ensure-gateway.sh
 ensure_gateway
 
 SCRIPT="/Users/steve/clawd/scripts/extract-facts.sh"
-MOLTBOT="/Users/steve/Library/pnpm/moltbot"
+OPENCLAW="/Users/steve/Library/pnpm/openclaw"
 
 # Run the extraction script
 OUTPUT=$("$SCRIPT" 2>&1)
@@ -23,7 +23,7 @@ echo "$OUTPUT"
 # If facts were extracted and synced, optionally notify (disabled by default)
 # FACT_COUNT=$(echo "$OUTPUT" | grep -oP 'Extracted \K\d+' | tail -1)
 # if [ "${FACT_COUNT:-0}" -gt 0 ]; then
-#     "$MOLTBOT" message send --channel telegram --account steve --target 1191367022 \
+#     "$OPENCLAW" message send --channel telegram --account steve --target 1191367022 \
 #         --message "📝 Extracted $FACT_COUNT facts → ppl.gift" 2>&1
 # fi
 

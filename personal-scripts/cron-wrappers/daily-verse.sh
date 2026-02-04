@@ -6,7 +6,7 @@
 source /Users/steve/clawd/personal-scripts/cron-wrappers/ensure-gateway.sh
 ensure_gateway
 
-MOLTBOT="/Users/steve/Library/pnpm/moltbot"
+OPENCLAW="/Users/steve/Library/pnpm/openclaw"
 
 # Run the verse script and get JSON
 JSON_OUTPUT=$(python3 /Users/steve/clawd/skills/bible/votd.py --download /tmp/votd.jpg 2>&1) || true
@@ -22,9 +22,9 @@ if [ -n "$JSON_OUTPUT" ]; then
 ${TEXT}"
 
         if [ -f /tmp/votd.jpg ]; then
-            "$MOLTBOT" message send --channel telegram --account steve --target 1191367022 --message "$MESSAGE" --media /tmp/votd.jpg 2>&1
+            "$OPENCLAW" message send --channel telegram --account steve --target 1191367022 --message "$MESSAGE" --media /tmp/votd.jpg 2>&1
         else
-            "$MOLTBOT" message send --channel telegram --account steve --target 1191367022 --message "$MESSAGE" 2>&1
+            "$OPENCLAW" message send --channel telegram --account steve --target 1191367022 --message "$MESSAGE" 2>&1
         fi
     fi
 fi

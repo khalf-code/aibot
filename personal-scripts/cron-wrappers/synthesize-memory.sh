@@ -11,7 +11,7 @@ source /Users/steve/clawd/personal-scripts/cron-wrappers/ensure-gateway.sh
 ensure_gateway
 
 SCRIPT="/Users/steve/clawd/scripts/synthesize-memory.sh"
-MOLTBOT="/Users/steve/Library/pnpm/moltbot"
+OPENCLAW="/Users/steve/Library/pnpm/openclaw"
 
 # Run the synthesis script
 OUTPUT=$("$SCRIPT" 2>&1)
@@ -22,7 +22,7 @@ echo "$OUTPUT"
 
 # Notify on completion
 if [ $EXIT_CODE -eq 0 ]; then
-    "$MOLTBOT" message send --channel telegram --account steve --target 1191367022 \
+    "$OPENCLAW" message send --channel telegram --account steve --target 1191367022 \
         --message "🧠 Weekly memory synthesis complete" 2>&1
 fi
 
