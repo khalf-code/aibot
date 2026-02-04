@@ -27,7 +27,10 @@ import {
 import { formatAllowlistMatchMeta } from "../../../channels/allowlist-match.js";
 import { resolveControlCommandGate } from "../../../channels/command-gating.js";
 import { resolveConversationLabel } from "../../../channels/conversation-label.js";
-import { createLifecycleManager } from "../../../channels/lifecycle-reactions.js";
+import {
+  createLifecycleManager,
+  isLifecycleEnabled,
+} from "../../../channels/lifecycle-reactions.js";
 import { logInboundDrop } from "../../../channels/logging.js";
 import { resolveMentionGatingWithBypass } from "../../../channels/mention-gating.js";
 import { recordInboundSession } from "../../../channels/session.js";
@@ -355,10 +358,11 @@ export async function prepareSlackMessage(params: {
   const ackReaction = resolveAckReaction(cfg, route.agentId);
   const ackReactionValue = ackReaction ?? "";
   const lifecycleConfig = cfg.messages?.lifecycleReactions;
+  const lifecycleEnabled = lifecycleConfig && isLifecycleEnabled(lifecycleConfig, ackReaction);
 
   const shouldAckReaction = () =>
     Boolean(
-      (ackReaction || lifecycleConfig?.received) &&
+      (ackReaction || lifecycleEnabled) &&
       shouldAckReactionGate({
         scope: ctx.ackReactionScope as AckReactionScope | undefined,
         isDirect: isDirectMessage,
@@ -373,9 +377,9 @@ export async function prepareSlackMessage(params: {
 
   const ackReactionMessageTs = message.ts;
 
-  // Create lifecycle manager for stage-aware reactions
+  // Create lifecycle manager only when lifecycleReactions is explicitly configured
   const lifecycleManager =
-    shouldAckReaction() && ackReactionMessageTs
+    lifecycleEnabled && shouldAckReaction() && ackReactionMessageTs
       ? createLifecycleManager({
           config: lifecycleConfig,
           fallbackAckReaction: ackReaction,
@@ -393,10 +397,15 @@ export async function prepareSlackMessage(params: {
               }
             },
             removeReaction: async (emoji: string) => {
-              await removeSlackReaction(message.channel, ackReactionMessageTs, emoji, {
-                token: ctx.botToken,
-                client: ctx.app.client,
-              });
+              try {
+                await removeSlackReaction(message.channel, ackReactionMessageTs, emoji, {
+                  token: ctx.botToken,
+                  client: ctx.app.client,
+                });
+              } catch (err) {
+                logVerbose(`slack unreact failed for channel ${message.channel}: ${String(err)}`);
+                throw err; // Re-throw so lifecycle manager can handle via onError
+              }
             },
             onError: (stage, action, err) => {
               logVerbose(`slack lifecycle ${action} (${stage}) failed: ${String(err)}`);
@@ -405,8 +414,21 @@ export async function prepareSlackMessage(params: {
         })
       : undefined;
 
-  // Start at "received" stage
-  const ackReactionPromise = lifecycleManager?.received() ?? null;
+  // Legacy ack reaction when lifecycle is not configured
+  const ackReactionPromise = lifecycleManager
+    ? lifecycleManager.received()
+    : shouldAckReaction() && ackReactionMessageTs && ackReactionValue
+      ? reactSlackMessage(message.channel, ackReactionMessageTs, ackReactionValue, {
+          token: ctx.botToken,
+          client: ctx.app.client,
+        }).then(
+          () => true,
+          (err) => {
+            logVerbose(`slack react failed for channel ${message.channel}: ${String(err)}`);
+            return false;
+          },
+        )
+      : null;
 
   const roomLabel = channelName ? `#${channelName}` : `#${message.channel}`;
   const preview = rawBody.replace(/\s+/g, " ").slice(0, 160);

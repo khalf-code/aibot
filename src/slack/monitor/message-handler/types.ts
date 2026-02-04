@@ -1,5 +1,4 @@
 import type { FinalizedMsgContext } from "../../../auto-reply/templating.js";
-import type { createLifecycleManager } from "../../../channels/lifecycle-reactions.js";
 import type { ResolvedAgentRoute } from "../../../routing/resolve-route.js";
 import type { ResolvedSlackAccount } from "../../accounts.js";
 import type { SlackMessageEvent } from "../../types.js";
@@ -22,5 +21,7 @@ export type PreparedSlackMessage = {
   ackReactionValue: string;
   ackReactionPromise: Promise<boolean> | null;
   /** Lifecycle reaction manager for stage-aware reactions. */
-  lifecycleManager?: ReturnType<typeof createLifecycleManager>;
+  lifecycleManager?: ReturnType<
+    typeof import("../../../channels/lifecycle-reactions.js").createLifecycleManager
+  >;
 };

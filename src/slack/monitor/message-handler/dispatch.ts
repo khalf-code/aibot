@@ -164,11 +164,16 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
     );
   }
 
-  // Transition to "complete" stage when reply is done
+  // Handle reaction cleanup after reply
   if (prepared.lifecycleManager) {
-    void prepared.lifecycleManager.complete();
+    // Transition to "complete" stage, then clear if removeAckAfterReply is set
+    void prepared.lifecycleManager.complete().then(() => {
+      if (ctx.removeAckAfterReply) {
+        void prepared.lifecycleManager?.clear();
+      }
+    });
   } else {
-    // Fall back to legacy removeAckReactionAfterReply when no lifecycle manager
+    // Legacy removeAckReactionAfterReply when no lifecycle manager
     removeAckReactionAfterReply({
       removeAfterReply: ctx.removeAckAfterReply,
       ackReactionPromise: prepared.ackReactionPromise,

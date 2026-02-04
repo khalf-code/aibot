@@ -1578,7 +1578,7 @@ progresses through processing stages.
   messages: {
     lifecycleReactions: {
       received: "👀", // Message received (replaces ackReaction when set)
-      queued: "🕐", // Waiting in queue (when backlogged)
+      queued: "🕐", // Reserved for queue state (not currently emitted)
       processing: "⚙️", // Model is generating response
       complete: "✅", // Response complete (your turn)
     },
