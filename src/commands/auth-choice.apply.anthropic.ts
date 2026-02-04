@@ -57,7 +57,7 @@ export async function applyAuthChoiceAnthropic(
     });
 
     // Also save token to config file as fallback for gateway
-    const existingAnthropic = nextConfig.models?.providers?.anthropic;
+    const existingAnthropic = nextConfig.models?.providers?.anthropic ?? {};
     nextConfig = {
       ...nextConfig,
       models: {
@@ -67,7 +67,7 @@ export async function applyAuthChoiceAnthropic(
           anthropic: {
             ...existingAnthropic,
             apiKey: token,
-          } as any,
+          },
         },
       },
     };
@@ -119,7 +119,7 @@ export async function applyAuthChoiceAnthropic(
 
     // Also save API key to config file as fallback for gateway
     if (apiKey) {
-      const existingAnthropic = nextConfig.models?.providers?.anthropic;
+      const existingAnthropic = nextConfig.models?.providers?.anthropic ?? {};
       nextConfig = {
         ...nextConfig,
         models: {
@@ -129,7 +129,7 @@ export async function applyAuthChoiceAnthropic(
             anthropic: {
               ...existingAnthropic,
               apiKey,
-            } as any,
+            },
           },
         },
       };
