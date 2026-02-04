@@ -123,6 +123,12 @@ if [ -d /data/.openclaw ]; then
     ls -t snapshot-*.json 2>/dev/null | tail -n +$((SNAPSHOT_KEEP + 1)) | xargs rm -f || true
   fi
 
+  # Clean node_modules (biggest space hog)
+  if [ -d /data/workspace ]; then
+    echo "  - Removing node_modules directories..."
+    find /data/workspace -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
+  fi
+
   # Clean large workspace files
   if [ -d /data/workspace ]; then
     if [ "$AGGRESSIVE" = true ]; then

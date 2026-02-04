@@ -11,6 +11,9 @@ echo "Before cleanup:"
 df -h /data || true
 echo ""
 
+echo "Removing node_modules from workspace..."
+find /data/workspace -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
+
 echo "Removing workspace (will be moved to ephemeral storage)..."
 rm -rf /data/workspace 2>/dev/null || true
 
