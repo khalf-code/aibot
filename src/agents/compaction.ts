@@ -237,7 +237,7 @@ export async function summarizeWithFallback(params: {
   return (
     `Context contained ${messages.length} messages (${oversizedNotes.length} oversized). ` +
     `Summary unavailable due to context limits. ` +
-    `CHECK memory/active_work.json and memory/YYYY-MM-DD.md for recent task state.`
+    `If you use workspace memory files, check them for recent task state.`
   );
 }
 
