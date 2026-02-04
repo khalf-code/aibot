@@ -177,6 +177,7 @@ export type AppViewState = {
   providersPrimaryModel: string | null;
   providersConfigHash: string | null;
   providersModelsSaving: boolean;
+  providersModelsDirty: boolean;
   providersModelsCostFilter: "all" | "high" | "medium" | "low";
   authConfigProvider: string | null;
   authConfigSaving: boolean;

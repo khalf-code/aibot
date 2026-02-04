@@ -435,6 +435,7 @@ export function renderApp(state: AppViewState) {
                   if (next.has(key)) next.delete(key);
                   else next.add(key);
                   state.providersModelAllowlist = next;
+                  state.providersModelsDirty = true;
                 },
                 onSetPrimary: (key) => {
                   state.providersPrimaryModel = key;
@@ -443,6 +444,7 @@ export function renderApp(state: AppViewState) {
                     next.add(key);
                     state.providersModelAllowlist = next;
                   }
+                  state.providersModelsDirty = true;
                 },
                 onSaveModels: () => void saveModelSelection(state),
                 onCostFilterChange: (filter) => {

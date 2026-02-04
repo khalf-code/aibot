@@ -60,6 +60,7 @@ export type ProvidersHealthHost = {
   providersPrimaryModel: string | null;
   providersConfigHash: string | null;
   providersModelsSaving: boolean;
+  providersModelsDirty: boolean;
   providersModelsCostFilter: "all" | "high" | "medium" | "low";
 };
 
@@ -215,17 +216,20 @@ export async function loadProvidersHealth(host: ProvidersHealthHost): Promise<vo
       return;
     }
 
-    // Extract allowlist and primary model from config
+    // Extract allowlist and primary model from config.
+    // Skip overwriting when the user has unsaved model changes (dirty flag).
     const config = (configRes as { config?: Record<string, unknown> } | null)?.config;
     const agentsDefaults = (config?.agents as { defaults?: Record<string, unknown> } | undefined)
       ?.defaults;
-    const allowlistRecord = (agentsDefaults?.models ?? {}) as Record<string, unknown>;
-    host.providersModelAllowlist = new Set(Object.keys(allowlistRecord));
-    const primaryRaw = agentsDefaults?.model;
-    host.providersPrimaryModel =
-      typeof primaryRaw === "string"
-        ? primaryRaw
-        : ((primaryRaw as { primary?: string } | undefined)?.primary ?? null);
+    if (!host.providersModelsDirty) {
+      const allowlistRecord = (agentsDefaults?.models ?? {}) as Record<string, unknown>;
+      host.providersModelAllowlist = new Set(Object.keys(allowlistRecord));
+      const primaryRaw = agentsDefaults?.model;
+      host.providersPrimaryModel =
+        typeof primaryRaw === "string"
+          ? primaryRaw
+          : ((primaryRaw as { primary?: string } | undefined)?.primary ?? null);
+    }
     host.providersConfigHash = (configRes as { hash?: string } | null)?.hash ?? null;
 
     // Group models by provider
@@ -290,6 +294,9 @@ export async function saveModelSelection(host: ProvidersHealthHost): Promise<voi
       baseHash: host.providersConfigHash,
       note: "Model selection updated from Providers UI",
     });
+
+    // Clear dirty flag before reloading so the fresh config is accepted
+    host.providersModelsDirty = false;
 
     // Reload to get new hash
     await loadProvidersHealth(host);
