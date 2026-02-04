@@ -104,11 +104,17 @@ export async function parseJsonOrThrow(res: Response): Promise<unknown> {
     const snippet = text.trim().slice(0, 240).replace(/\s+/g, " ");
 
     if (looksLikeHtml) {
+      const likelyCause =
+        res.status >= 500
+          ? "This looks like an upstream/proxy error page (e.g. 502/503 from a reverse proxy, CDN, or load balancer), not a Zulip JSON API response. "
+          : "This typically means an auth/SSO/proxy layer is intercepting API requests. ";
+
       throw new Error(
         "Zulip API error: received HTML instead of JSON from /api. " +
           `HTTP ${res.status} (content-type: ${contentType || "unknown"}). ` +
-          "This typically means an auth/SSO/proxy layer is intercepting API requests. " +
-          "Allow bot access to /api/v1/* (service token / bypass policy) or use an internal API base URL. " +
+          likelyCause +
+          "If Zulip works in one environment but not another, compare DNS (IPv6 vs IPv4), egress network/proxy, and reverse-proxy timeouts for long-polling (/api/v1/events). " +
+          "If applicable, allow bot access to /api/v1/* (service token / bypass policy) or use an internal API base URL. " +
           (snippet ? `Snippet: ${snippet}` : ""),
       );
     }
