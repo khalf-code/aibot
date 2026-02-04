@@ -305,6 +305,7 @@ export async function runPreparedReply(
         sessionKey,
         accountId: ctx.AccountId,
         threadId: ctx.MessageThreadId,
+        chatType: ctx.ChatType,
         cfg,
       });
     }
