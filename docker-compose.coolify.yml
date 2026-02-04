@@ -1,50 +1,45 @@
 services:
   openclaw:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: openclaw/openclaw:latest # Better than 'build' for noobs to avoid build errors
     container_name: openclaw
     ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "${PORT:-18789}:18789"
     environment:
       - NODE_ENV=production
-      # - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
-      - REDIS_URL=redis://redis:6379
-      # Mem0 Memory System
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN} # REQUIRED: Set in Coolify Env Vars
+      - REDIS_URL=redis://openclaw_redis:6379
+      
+      # Mem0 / Memory Configuration
       - MEM0_API_KEY=${MEM0_API_KEY}
-      - MEM0_ORG_ID=${MEM0_ORG_ID:-omnis_default}
-      # LLM Configuration
+      - MEM0_ORG_ID=${MEM0_ORG_ID:-omnis_v3}
+      
+      # AI Model Keys
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      # Eazybe Integration
-      - EAZYBE_WEBHOOK_SECRET=${EAZYBE_WEBHOOK_SECRET}
-      # HubSpot (if needed)
+      
+      # Skills & Integrations
       - HUBSPOT_API_KEY=${HUBSPOT_API_KEY}
+      - BIGQUERY_PROJECT_ID=${BIGQUERY_PROJECT_ID}
     volumes:
-      - openclaw_workspace:/home/node/.openclaw/workspace
-      - openclaw_config:/home/node/.openclaw
+      # We use names instead of paths for better Coolify compatibility
+      - openclaw_workspace:/root/openclaw/workspace
+      - openclaw_config:/root/.openclaw
     depends_on:
       redis:
-        condition: service_started
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:18789/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+        condition: service_healthy
+    restart: always
 
   redis:
     image: redis:7-alpine
     container_name: openclaw_redis
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 3
+      retries: 5
+    volumes:
+      - redis_data:/data
+    restart: always
 
 volumes:
   redis_data:
