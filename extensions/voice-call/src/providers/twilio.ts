@@ -143,6 +143,9 @@ export class TwilioProvider implements VoiceCallProvider {
 
   isValidStreamToken(callSid: string, token?: string): boolean {
     const expected = this.streamAuthTokens.get(callSid);
+    console.log(
+      `[Twilio] Token check: callSid=${callSid}, expected=${expected ? "set" : "missing"}, received=${token ? "set" : "missing"}`,
+    );
     if (!expected || !token) {
       return false;
     }
@@ -349,8 +352,10 @@ export class TwilioProvider implements VoiceCallProvider {
 
       // Conversation mode: return streaming TwiML immediately for outbound calls.
       if (isOutbound) {
-        const streamUrl = callSid ? this.getStreamUrlForCall(callSid) : null;
-        return streamUrl ? this.getStreamConnectXml(streamUrl) : TwilioProvider.PAUSE_TWIML;
+        const stream = callSid ? this.getStreamUrlAndToken(callSid) : null;
+        return stream
+          ? this.getStreamConnectXml(stream.url, stream.token)
+          : TwilioProvider.PAUSE_TWIML;
       }
     }
 
@@ -362,8 +367,10 @@ export class TwilioProvider implements VoiceCallProvider {
     // Handle subsequent webhook requests (status callbacks, etc.)
     // For inbound calls, answer immediately with stream
     if (direction === "inbound") {
-      const streamUrl = callSid ? this.getStreamUrlForCall(callSid) : null;
-      return streamUrl ? this.getStreamConnectXml(streamUrl) : TwilioProvider.PAUSE_TWIML;
+      const stream = callSid ? this.getStreamUrlAndToken(callSid) : null;
+      return stream
+        ? this.getStreamConnectXml(stream.url, stream.token)
+        : TwilioProvider.PAUSE_TWIML;
     }
 
     // For outbound calls, only connect to stream when call is in-progress
@@ -371,8 +378,8 @@ export class TwilioProvider implements VoiceCallProvider {
       return TwilioProvider.EMPTY_TWIML;
     }
 
-    const streamUrl = callSid ? this.getStreamUrlForCall(callSid) : null;
-    return streamUrl ? this.getStreamConnectXml(streamUrl) : TwilioProvider.PAUSE_TWIML;
+    const stream = callSid ? this.getStreamUrlAndToken(callSid) : null;
+    return stream ? this.getStreamConnectXml(stream.url, stream.token) : TwilioProvider.PAUSE_TWIML;
   }
 
   /**
@@ -402,35 +409,41 @@ export class TwilioProvider implements VoiceCallProvider {
   private getStreamAuthToken(callSid: string): string {
     const existing = this.streamAuthTokens.get(callSid);
     if (existing) {
+      console.log(`[Twilio] Token reused for callSid=${callSid}`);
       return existing;
     }
     const token = crypto.randomBytes(16).toString("base64url");
     this.streamAuthTokens.set(callSid, token);
+    console.log(`[Twilio] Token generated for callSid=${callSid}`);
     return token;
   }
 
-  private getStreamUrlForCall(callSid: string): string | null {
+  private getStreamUrlAndToken(callSid: string): { url: string; token: string } | null {
     const baseUrl = this.getStreamUrl();
     if (!baseUrl) {
       return null;
     }
     const token = this.getStreamAuthToken(callSid);
-    const url = new URL(baseUrl);
-    url.searchParams.set("token", token);
-    return url.toString();
+    console.log(`[Twilio] Stream URL for ${callSid}: ${baseUrl} (token via Parameter)`);
+    return { url: baseUrl, token };
   }
 
   /**
    * Generate TwiML to connect a call to a WebSocket media stream.
    * This enables bidirectional audio streaming for real-time STT/TTS.
    *
+   * Token is passed via Parameter element since Twilio strips query params from WebSocket URLs.
+   *
    * @param streamUrl - WebSocket URL (wss://...) for the media stream
+   * @param token - Authentication token for the stream
    */
-  getStreamConnectXml(streamUrl: string): string {
+  getStreamConnectXml(streamUrl: string, token: string): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="${escapeXml(streamUrl)}" />
+    <Stream url="${escapeXml(streamUrl)}">
+      <Parameter name="token" value="${escapeXml(token)}" />
+    </Stream>
   </Connect>
 </Response>`;
   }
@@ -546,31 +559,45 @@ export class TwilioProvider implements VoiceCallProvider {
    * Play TTS via core TTS and Twilio Media Streams.
    * Generates audio with core TTS, converts to mu-law, and streams via WebSocket.
    * Uses a queue to serialize playback and prevent overlapping audio.
+   *
+   * Supports two modes:
+   * 1. Streaming (Cartesia): Forward chunks immediately as they arrive (~90ms TTFA)
+   * 2. Buffered (OpenAI, ElevenLabs): Wait for full synthesis, then chunk and pace
    */
   private async playTtsViaStream(text: string, streamSid: string): Promise<void> {
     if (!this.ttsProvider || !this.mediaStreamHandler) {
       throw new Error("TTS provider and media stream handler required");
     }
 
-    // Stream audio in 20ms chunks (160 bytes at 8kHz mu-law)
+    // Stream audio in 20ms chunks (160 bytes at 8kHz mu-law) for buffered mode
     const CHUNK_SIZE = 160;
     const CHUNK_DELAY_MS = 20;
 
     const handler = this.mediaStreamHandler;
     const ttsProvider = this.ttsProvider;
     await handler.queueTts(streamSid, async (signal) => {
-      // Generate audio with core TTS (returns mu-law at 8kHz)
-      const muLawAudio = await ttsProvider.synthesizeForTelephony(text);
-      for (const chunk of chunkAudio(muLawAudio, CHUNK_SIZE)) {
-        if (signal.aborted) {
-          break;
+      // Prefer streaming if available (Cartesia) - chunks forwarded immediately
+      if (ttsProvider.synthesizeForTelephonyStreaming) {
+        for await (const chunk of ttsProvider.synthesizeForTelephonyStreaming(text)) {
+          if (signal.aborted) {
+            break;
+          }
+          handler.sendAudio(streamSid, chunk);
+          // No artificial delay - chunks are naturally paced by Cartesia
         }
-        handler.sendAudio(streamSid, chunk);
-
-        // Pace the audio to match real-time playback
-        await new Promise((resolve) => setTimeout(resolve, CHUNK_DELAY_MS));
-        if (signal.aborted) {
-          break;
+      } else {
+        // Fallback to buffered mode (OpenAI, ElevenLabs)
+        const muLawAudio = await ttsProvider.synthesizeForTelephony(text);
+        for (const chunk of chunkAudio(muLawAudio, CHUNK_SIZE)) {
+          if (signal.aborted) {
+            break;
+          }
+          handler.sendAudio(streamSid, chunk);
+          // Pace the audio to match real-time playback
+          await new Promise((resolve) => setTimeout(resolve, CHUNK_DELAY_MS));
+          if (signal.aborted) {
+            break;
+          }
         }
       }
 
