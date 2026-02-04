@@ -120,7 +120,7 @@ function renderProviderCard(entry: ProviderHealthEntry, expanded: boolean, onTog
         <div style="display: flex; align-items: center; gap: 8px;">
           <span
             class="chip"
-            style="background: ${color}20; color: ${color}; border-color: ${color}40;"
+            style="background: color-mix(in srgb, ${color} 12%, transparent); color: ${color}; border-color: color-mix(in srgb, ${color} 25%, transparent);"
           >
             ${label}
           </span>
