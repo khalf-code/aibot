@@ -139,8 +139,8 @@ export function applySettingsFromUrl(host: SettingsHost) {
   }
 
   if (gatewayUrlRaw != null) {
-    const gatewayUrl = normalizeGatewayUrl(gatewayUrlRaw);
-    if (gatewayUrl && gatewayUrl !== host.settings.gatewayUrl && isTopLevelWindow()) {
+    const gatewayUrl = gatewayUrlRaw.trim();
+    if (gatewayUrl && gatewayUrl !== host.settings.gatewayUrl) {
       host.pendingGatewayUrl = gatewayUrl;
     }
     params.delete("gatewayUrl");
@@ -404,7 +404,7 @@ export function syncUrlWithTab(host: SettingsHost, tab: Tab, replace: boolean) {
   }
 }
 
-export function syncUrlWithSessionKey(sessionKey: string, replace: boolean) {
+export function syncUrlWithSessionKey(host: SettingsHost, sessionKey: string, replace: boolean) {
   if (typeof window === "undefined") {
     return;
   }
