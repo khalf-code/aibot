@@ -966,36 +966,129 @@ export async function applyAuthChoiceApiProviders(
     }
 
     if (serviceType === "foundry") {
-      // Azure Foundry - discover deployments
-      const endpoint = await params.prompter.text({
-        message: "Enter Azure AI Foundry endpoint",
-        placeholder: "https://YOUR-PROJECT.services.ai.azure.com",
-        validate: (input) => {
-          const value = String(input).trim();
-          if (!value) {
-            return "Endpoint is required";
-          }
-          if (!value.startsWith("https://")) {
-            return "Endpoint must start with https://";
-          }
-          if (!value.includes("services.ai.azure.com")) {
-            return "Must be an Azure AI Foundry endpoint (*.services.ai.azure.com)";
-          }
-          return undefined;
-        },
-      });
+      // Azure Foundry - discover projects and deployments
+      let endpoint: string;
 
-      const endpointStr = String(endpoint).trim();
+      if (hasAzureCLI) {
+        const useDiscovery = await params.prompter.confirm({
+          message: "Auto-discover Azure AI Foundry projects using Azure CLI?",
+          initialValue: true,
+        });
+
+        if (useDiscovery) {
+          const spinner = params.prompter.spinner();
+          spinner.start("Discovering Azure AI Foundry projects...");
+
+          try {
+            const { listAzureAIProjects } = await import("../agents/azure-discovery.js");
+            const projects = await listAzureAIProjects();
+
+            spinner.stop(`Found ${projects.length} project${projects.length === 1 ? "" : "s"}`);
+
+            if (projects.length === 0) {
+              await params.prompter.note(
+                "No Azure AI Foundry projects found in your subscription.",
+                "Manual setup required",
+              );
+              endpoint = String(
+                await params.prompter.text({
+                  message: "Enter Azure AI Foundry endpoint",
+                  placeholder: "https://YOUR-PROJECT.services.ai.azure.com",
+                  validate: (input) => {
+                    const value = String(input).trim();
+                    if (!value) return "Endpoint is required";
+                    if (!value.startsWith("https://")) return "Endpoint must start with https://";
+                    if (!value.includes("services.ai.azure.com"))
+                      return "Must be an Azure AI Foundry endpoint";
+                    return undefined;
+                  },
+                }),
+              ).trim();
+            } else if (projects.length === 1) {
+              const project = projects[0];
+              await params.prompter.note(
+                `Using project: ${project.name}\nLocation: ${project.location}`,
+                "Azure AI Foundry project",
+              );
+              // Construct endpoint from project name
+              endpoint = `https://${project.name}.services.ai.azure.com`;
+            } else {
+              const selected = await params.prompter.select({
+                message: "Select Azure AI Foundry project",
+                options: projects.map((p) => ({
+                  value: p.name,
+                  label: p.name,
+                  hint: `${p.location} - ${p.resourceGroup}`,
+                })),
+              });
+              endpoint = `https://${String(selected)}.services.ai.azure.com`;
+            }
+          } catch (error) {
+            spinner.stop("Discovery failed");
+            await params.prompter.note(
+              `Could not discover projects: ${error instanceof Error ? error.message : String(error)}`,
+              "Warning",
+            );
+            endpoint = String(
+              await params.prompter.text({
+                message: "Enter Azure AI Foundry endpoint",
+                placeholder: "https://YOUR-PROJECT.services.ai.azure.com",
+                validate: (input) => {
+                  const value = String(input).trim();
+                  if (!value) return "Endpoint is required";
+                  if (!value.startsWith("https://")) return "Endpoint must start with https://";
+                  if (!value.includes("services.ai.azure.com"))
+                    return "Must be an Azure AI Foundry endpoint";
+                  return undefined;
+                },
+              }),
+            ).trim();
+          }
+        } else {
+          endpoint = String(
+            await params.prompter.text({
+              message: "Enter Azure AI Foundry endpoint",
+              placeholder: "https://YOUR-PROJECT.services.ai.azure.com",
+              validate: (input) => {
+                const value = String(input).trim();
+                if (!value) return "Endpoint is required";
+                if (!value.startsWith("https://")) return "Endpoint must start with https://";
+                if (!value.includes("services.ai.azure.com"))
+                  return "Must be an Azure AI Foundry endpoint";
+                return undefined;
+              },
+            }),
+          ).trim();
+        }
+      } else {
+        endpoint = String(
+          await params.prompter.text({
+            message: "Enter Azure AI Foundry endpoint",
+            placeholder: "https://YOUR-PROJECT.services.ai.azure.com",
+            validate: (input) => {
+              const value = String(input).trim();
+              if (!value) return "Endpoint is required";
+              if (!value.startsWith("https://")) return "Endpoint must start with https://";
+              if (!value.includes("services.ai.azure.com"))
+                return "Must be an Azure AI Foundry endpoint";
+              return undefined;
+            },
+          }),
+        ).trim();
+      }
+
+      const endpointStr = endpoint;
 
       // Discover deployed models
       const spinner = params.prompter.spinner();
-      spinner.start("Discovering Azure AI Foundry deployments...");
+      spinner.start("Discovering deployed models...");
 
       let deployments: Array<{
         name: string;
         model: string;
         api?: string;
         publisher?: string;
+        isEmbedding?: boolean;
       }> = [];
 
       try {
@@ -1008,12 +1101,17 @@ export async function applyAuthChoiceApiProviders(
             const state = d.properties?.provisioningState?.toLowerCase();
             return !state || state === "succeeded";
           })
-          .map((d) => ({
-            name: d.name,
-            model: d.model.name,
-            api: d.api,
-            publisher: d.model.publisher,
-          }));
+          .map((d) => {
+            const modelName = d.model.name.toLowerCase();
+            const isEmbedding = modelName.includes("embed");
+            return {
+              name: d.name,
+              model: d.model.name,
+              api: d.api,
+              publisher: d.model.publisher,
+              isEmbedding,
+            };
+          });
 
         spinner.stop(
           `Found ${deployments.length} deployed model${deployments.length === 1 ? "" : "s"}`,
@@ -1026,80 +1124,129 @@ export async function applyAuthChoiceApiProviders(
         );
       }
 
-      let apiType: string;
-      let modelId: string;
+      // Separate chat and embedding models
+      const chatModels = deployments.filter((d) => !d.isEmbedding);
+      const embeddingModels = deployments.filter((d) => d.isEmbedding);
 
-      if (deployments.length === 0) {
-        // Fall back to manual entry
-        await params.prompter.note(
-          "No deployments found. Please enter details manually.",
-          "Manual setup",
-        );
+      let chatModelId: string;
+      let chatApiType: string;
 
-        apiType = String(
+      // Select chat model
+      if (chatModels.length === 0) {
+        await params.prompter.note("No chat models found. Please enter manually.", "Manual setup");
+
+        chatApiType = String(
           await params.prompter.select({
-            message: "Which model API type?",
+            message: "Which chat model API type?",
             options: [
               { value: "anthropic-messages", label: "Anthropic (Claude)" },
-              { value: "openai-completions", label: "OpenAI-compatible (Llama, Mistral, etc.)" },
+              { value: "openai-completions", label: "OpenAI-compatible (GPT, Llama, Mistral)" },
             ],
           }),
         );
 
-        modelId = String(
+        chatModelId = String(
           await params.prompter.text({
-            message: "Enter model deployment name",
+            message: "Enter chat model deployment name",
             placeholder: "claude-opus-4-5",
           }),
         ).trim();
       } else {
-        // Show deployed models
         const deployment = await params.prompter.select({
-          message: "Select deployed model",
-          options: deployments.map((d) => ({
+          message: "Select chat model",
+          options: chatModels.map((d) => ({
             value: d.name,
             label: `${d.name} (${d.model}${d.publisher ? ` - ${d.publisher}` : ""})`,
             hint: d.api,
           })),
         });
 
-        const selectedDeployment = deployments.find((d) => d.name === deployment);
+        const selectedDeployment = chatModels.find((d) => d.name === deployment);
         if (!selectedDeployment) {
           throw new Error(`Deployment ${String(deployment)} not found`);
         }
 
-        modelId = selectedDeployment.name;
+        chatModelId = selectedDeployment.name;
 
         // Infer API type from publisher/model
         if (
           selectedDeployment.publisher === "anthropic" ||
           selectedDeployment.model.toLowerCase().includes("claude")
         ) {
-          apiType = "anthropic-messages";
+          chatApiType = "anthropic-messages";
         } else {
-          apiType = "openai-completions";
+          chatApiType = "openai-completions";
         }
 
         await params.prompter.note(
-          `Using API type: ${apiType === "anthropic-messages" ? "Anthropic (Claude)" : "OpenAI-compatible"}`,
+          `Chat API: ${chatApiType === "anthropic-messages" ? "Anthropic" : "OpenAI-compatible"}`,
           "Detected",
         );
       }
 
-      const modelIdStr = modelId;
-      const apiTypeStr = apiType;
+      // Ask about embeddings configuration
+      const configureEmbeddings = await params.prompter.confirm({
+        message: "Configure embeddings model for memory search?",
+        initialValue: embeddingModels.length > 0,
+      });
 
-      // Create provider config
-      const providerName = "azure-foundry";
+      let embeddingModelId: string | undefined;
+      let embeddingApiType: string | undefined;
+
+      if (configureEmbeddings) {
+        if (embeddingModels.length === 0) {
+          await params.prompter.note(
+            "No embedding models found. Enter manually or skip.",
+            "Manual setup",
+          );
+
+          const embedModelName = await params.prompter.text({
+            message: "Enter embeddings model deployment name (or leave empty to skip)",
+            placeholder: "text-embedding-3-large",
+            defaultValue: "",
+          });
+
+          if (String(embedModelName).trim()) {
+            embeddingModelId = String(embedModelName).trim();
+            embeddingApiType = "openai-completions";
+          }
+        } else {
+          const embedOptions = [
+            ...embeddingModels.map((d) => ({
+              value: d.name,
+              label: `${d.name} (${d.model}${d.publisher ? ` - ${d.publisher}` : ""})`,
+              hint: d.api,
+            })),
+            { value: "__skip__", label: "Skip embeddings configuration", hint: "Configure later" },
+          ];
+
+          const selectedEmbed = await params.prompter.select({
+            message: "Select embeddings model",
+            options: embedOptions,
+          });
+
+          if (selectedEmbed !== "__skip__") {
+            const selectedDeployment = embeddingModels.find((d) => d.name === selectedEmbed);
+            if (selectedDeployment) {
+              embeddingModelId = selectedDeployment.name;
+              embeddingApiType = "openai-completions";
+              await params.prompter.note(`Embeddings: ${embeddingModelId}`, "Configured");
+            }
+          }
+        }
+      }
+
+      // Create provider config for chat
+      const chatProviderName = "azure-foundry";
       nextConfig = {
         ...nextConfig,
         models: {
           ...nextConfig.models,
           providers: {
             ...nextConfig.models?.providers,
-            [providerName]: {
+            [chatProviderName]: {
               baseUrl: endpointStr,
-              api: apiTypeStr as any,
+              api: chatApiType as any,
               models: [],
             },
           },
@@ -1107,27 +1254,73 @@ export async function applyAuthChoiceApiProviders(
       };
 
       nextConfig = applyAuthProfileConfig(nextConfig, {
-        profileId: `${providerName}:default`,
-        provider: providerName,
+        profileId: `${chatProviderName}:default`,
+        provider: chatProviderName,
         mode: hasAzureCLI ? "azure-cli" : "api_key",
       });
 
-      const modelRef = `${providerName}/${modelIdStr}`;
+      const chatModelRef = `${chatProviderName}/${chatModelId}`;
+
+      // Configure embeddings if selected
+      if (embeddingModelId && embeddingApiType) {
+        const embedProviderName = "azure-foundry-embeddings";
+        nextConfig = {
+          ...nextConfig,
+          models: {
+            ...nextConfig.models,
+            providers: {
+              ...nextConfig.models?.providers,
+              [embedProviderName]: {
+                baseUrl: endpointStr,
+                api: embeddingApiType as any,
+                models: [],
+              },
+            },
+          },
+        };
+
+        nextConfig = applyAuthProfileConfig(nextConfig, {
+          profileId: `${embedProviderName}:default`,
+          provider: embedProviderName,
+          mode: hasAzureCLI ? "azure-cli" : "api_key",
+        });
+
+        // Configure memory search to use Azure embeddings
+        nextConfig = {
+          ...nextConfig,
+          tools: {
+            ...nextConfig.tools,
+            memorySearch: {
+              ...nextConfig.tools?.memorySearch,
+              enabled: true,
+              provider: embedProviderName,
+              model: embeddingModelId,
+            },
+          },
+        };
+
+        await params.prompter.note(
+          `Chat: ${chatModelRef}\nEmbeddings: ${embedProviderName}/${embeddingModelId}`,
+          "Models configured",
+        );
+      } else {
+        await params.prompter.note(`Chat: ${chatModelRef}`, "Model configured");
+      }
+
       if (params.setDefaultModel) {
-        await params.prompter.note(`Set default model to ${modelRef}`, "Model configured");
         nextConfig = {
           ...nextConfig,
           agents: {
             ...nextConfig.agents,
             defaults: {
               ...nextConfig.agents?.defaults,
-              model: modelRef,
+              model: chatModelRef,
             },
           },
         };
       } else if (params.agentId) {
-        await noteAgentModel(modelRef);
-        agentModelOverride = modelRef;
+        await noteAgentModel(chatModelRef);
+        agentModelOverride = chatModelRef;
       }
 
       return { config: nextConfig, agentModelOverride };
