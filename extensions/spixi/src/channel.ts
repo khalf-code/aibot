@@ -4,7 +4,7 @@ import {
   type ChannelGatewayContext,
   buildChannelConfigSchema,
 } from "openclaw/plugin-sdk";
-import { getSpixiRuntime } from "./runtime.js";
+import { getSpixiRuntime, setSpixiBaseUrl } from "./runtime.js";
 import { listSpixiAccountIds, resolveSpixiAccount } from "./accounts.js";
 import { type ResolvedSpixiAccount } from "./types.js";
 import { SpixiConfigSchema } from "./schema.js";
@@ -67,6 +67,11 @@ export const spixiPlugin: ChannelPlugin<ResolvedSpixiAccount> = {
       const mqttUrl = `mqtt://${config.mqttHost || "127.0.0.1"}:${config.mqttPort || 1884}`;
 
       log?.info(`[${account.accountId}] connecting to Spixi MQTT: ${mqttUrl}`);
+
+      // Configure QuIXI API base URL from config
+      if (config.quixiApiUrl) {
+        setSpixiBaseUrl(config.quixiApiUrl);
+      }
 
       const client = mqtt.connect(mqttUrl);
 
