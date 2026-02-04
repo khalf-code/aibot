@@ -118,7 +118,7 @@ describe("CronService - Failure Protection for Isolated Tasks", () => {
     expect(secondBackoff).toBe(2000); // 2 seconds
   });
 
-  it("should not auto-disable main session tasks at same threshold", async () => {
+  it("should auto-disable main session tasks after MAX_CONSECUTIVE_FAILURES", async () => {
     testJob.sessionTarget = "main";
     testJob.payload = {
       kind: "systemEvent",

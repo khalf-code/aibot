@@ -101,8 +101,8 @@ export async function executeJob(
     // Track consecutive failures
     if (status === "error") {
       job.state.consecutiveFailures = (job.state.consecutiveFailures ?? 0) + 1;
-    } else if (status === "ok") {
-      // Reset failure counter on success
+    } else if (status === "ok" || status === "skipped") {
+      // Reset failure counter on success or skipped (skipped = not applicable/no-op)
       job.state.consecutiveFailures = 0;
     }
 
@@ -263,7 +263,8 @@ export async function executeJob(
   } catch (err) {
     await finish("error", String(err));
   } finally {
-    job.updatedAtMs = nowMs;
+    // Use current time for updatedAtMs to reflect actual completion time
+    job.updatedAtMs = state.deps.nowMs();
     // Note: Do not override job.state.nextRunAtMs here, as it has already been
     // set correctly in the finish() callback with proper failure protection logic.
   }
