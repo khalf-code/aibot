@@ -47,9 +47,9 @@ See [Venice AI](/providers/venice).
 - [Xiaomi](/providers/xiaomi)
 - [GLM models](/providers/glm)
 - [MiniMax](/providers/minimax)
+- [FLock.io](/providers/flock)
 - [Venice (Venice AI, privacy-focused)](/providers/venice)
 - [Ollama (local models)](/providers/ollama)
-- [FLock.io](/providers/flock)
 
 ## Transcription providers
 
