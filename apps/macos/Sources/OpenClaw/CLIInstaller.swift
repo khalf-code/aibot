@@ -55,7 +55,26 @@ enum CLIInstaller {
             return
         }
 
-        let detail = response.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Improved error reporting: extract key error info, avoid full stderr dump
+        let stderr = response.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        let errorLines = stderr.split(separator: "\n")
+        
+        // Try to find the actual error message (usually near the beginning or contains "error:")
+        let relevantErrors = errorLines.prefix(5).filter { line in
+            let lower = line.lowercased()
+            return lower.contains("error") || lower.contains("failed") || lower.contains("cannot")
+        }
+        
+        let detail: String
+        if !relevantErrors.isEmpty {
+            detail = relevantErrors.joined(separator: "\n")
+        } else if !errorLines.isEmpty {
+            // Fallback: show first few lines
+            detail = errorLines.prefix(3).joined(separator: "\n")
+        } else {
+            detail = stderr
+        }
+        
         let fallback = response.errorMessage ?? "install failed"
         await statusHandler("Install failed: \(detail.isEmpty ? fallback : detail)")
     }
@@ -73,7 +92,9 @@ enum CLIInstaller {
         curl -fsSL https://openclaw.bot/install-cli.sh | \
         bash -s -- --json --no-onboard --prefix \(escapedPrefix) --version \(escapedVersion)
         """
-        return ["/bin/bash", "-lc", script]
+        // Use -c instead of -lc to avoid loading user's shell config (e.g., Oh My Zsh)
+        // which may contain shell-specific commands that break in bash
+        return ["/bin/bash", "-c", script]
     }
 
     private static func parseInstallEvents(_ output: String) -> [InstallEvent] {

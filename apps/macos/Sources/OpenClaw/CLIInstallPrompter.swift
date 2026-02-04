@@ -53,7 +53,20 @@ final class CLIInstallPrompter {
         if let message = await status.get() {
             let alert = NSAlert()
             alert.messageText = "CLI install finished"
-            alert.informativeText = message
+            
+            // Truncate long error messages to prevent dialog overflow
+            let maxLength = 500
+            let displayMessage: String
+            if message.count > maxLength {
+                let truncated = message.prefix(maxLength)
+                displayMessage = "\(truncated)...\n\n[Message truncated. Full details logged to Console.app]"
+                // Log full message for debugging
+                self.logger.error("CLI install result (full): \(message, privacy: .public)")
+            } else {
+                displayMessage = message
+            }
+            
+            alert.informativeText = displayMessage
             alert.runModal()
         }
     }
