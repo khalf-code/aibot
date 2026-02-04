@@ -46,6 +46,16 @@ describe("VULN-023: OAuth redirect URI validation", () => {
       );
     });
 
+    it("rejects missing port (defaults to 80)", () => {
+      // URL without port defaults to 80 for http, which should be rejected
+      expect(() => validateOAuthRedirectUri("http://localhost/oauth-callback")).toThrow(
+        /Invalid OAuth redirect port/,
+      );
+      expect(() => validateOAuthRedirectUri("http://127.0.0.1/callback")).toThrow(
+        /Invalid OAuth redirect port/,
+      );
+    });
+
     it("rejects https for localhost", () => {
       expect(() => validateOAuthRedirectUri("https://localhost:1456/callback")).toThrow(
         /must use http: protocol/,

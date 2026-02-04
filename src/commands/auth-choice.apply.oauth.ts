@@ -19,7 +19,8 @@ function validateOAuthRedirectUri(uri: string): string {
   try {
     parsed = new URL(trimmed);
   } catch {
-    throw new Error(`Invalid OAuth redirect URI: ${trimmed}`);
+    // Don't echo the full untrusted URI to avoid leaking sensitive data in logs
+    throw new Error("Invalid OAuth redirect URI: failed to parse URL");
   }
 
   // Only allow localhost/127.0.0.1 for local OAuth flows
@@ -31,10 +32,11 @@ function validateOAuthRedirectUri(uri: string): string {
     );
   }
 
-  // Enforce expected port for local flows
+  // Enforce expected port for local flows - port must be explicitly 1456
+  // When URL omits port, parsed.port is "" which would default to 80/443
   const expectedPort = "1456";
-  if (parsed.port && parsed.port !== expectedPort) {
-    throw new Error(`Invalid OAuth redirect port: ${parsed.port}. Expected ${expectedPort}.`);
+  if (parsed.port !== expectedPort) {
+    throw new Error(`Invalid OAuth redirect port. Expected ${expectedPort}.`);
   }
 
   // Must use http for localhost (not https)
