@@ -8,6 +8,7 @@ services:
       - "${PORT:-18789}:18789"
     environment:
       - NODE_ENV=production
+      - OPENCLAW_GATEWAY_HOST=0.0.0.0
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN} # REQUIRED: Set in Coolify Env Vars
       - REDIS_URL=redis://openclaw_redis:6379
       
