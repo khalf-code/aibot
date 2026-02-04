@@ -469,14 +469,17 @@ export function renderConfig(props: ConfigProps) {
   // Compute diff for showing changes (works for both form and raw modes)
   const normalizedOriginal =
     props.formMode === "form"
-      ? (applySchemaDefaults(props.originalValue, analysis.schema) as Record<
+      ? (applySchemaDefaults(props.originalValue, analysis.schema ?? undefined) as Record<
           string,
           unknown
         > | null)
       : props.originalValue;
   const normalizedCurrent =
     props.formMode === "form"
-      ? (applySchemaDefaults(props.formValue, analysis.schema) as Record<string, unknown> | null)
+      ? (applySchemaDefaults(props.formValue, analysis.schema ?? undefined) as Record<
+          string,
+          unknown
+        > | null)
       : props.formValue;
   const diff = props.formMode === "form" ? computeDiff(normalizedOriginal, normalizedCurrent) : [];
   const hasRawChanges = props.formMode === "raw" && props.raw !== props.originalRaw;

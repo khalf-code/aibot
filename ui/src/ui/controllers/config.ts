@@ -41,7 +41,7 @@ export async function loadConfig(state: ConfigState, opts: { resetDirty?: boolea
   state.configLoading = true;
   state.lastError = null;
   try {
-    const res = await state.client.request("config.get", {});
+    const res = await state.client.request<ConfigSnapshot>("config.get", {});
     if (opts.resetDirty) {
       state.configFormDirty = false;
     }
