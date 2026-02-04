@@ -214,9 +214,17 @@ export async function ensureSandboxBrowser(params: {
 
     // Bind to all interfaces so containers can reach the bridge.
     // Use Docker host address in the URL so containers can connect.
-    // Note: Binding to 0.0.0.0 exposes the bridge on all interfaces. The bridge
-    // only responds to ephemeral ports and is short-lived per sandbox session.
-    // Future: add auth token support plumbed through to browser client calls.
+    //
+    // Security note: Binding to 0.0.0.0 exposes the bridge on the host network.
+    // Mitigations in place:
+    // - Ephemeral port (0) - not a well-known port attackers would scan
+    // - Short-lived - only active during sandbox session
+    // - Local traffic only - Docker bridge network is typically not routed externally
+    // - Read-heavy API - bridge primarily serves browser state, limited write operations
+    //
+    // TODO: Add auth token support. The bridge-server.ts already supports authToken,
+    // but it needs to be plumbed through to the sandbox browser client code that
+    // makes requests to the bridge. Track in a follow-up issue.
     const dockerHost = resolveDockerHostAddress();
     return await startBrowserBridgeServer({
       resolved: buildSandboxBrowserResolvedConfig({
