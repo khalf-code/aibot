@@ -1,12 +1,11 @@
+import type { Api, Model } from "@mariozechner/pi-ai";
 import { randomBytes, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
-
-import type { Api, Model } from "@mariozechner/pi-ai";
-import { discoverAuthStorage, discoverModels } from "../agents/pi-model-discovery.js";
 import { describe, it } from "vitest";
+import type { OpenClawConfig, ModelProviderConfig } from "../config/types.js";
 import { resolveOpenClawAgentDir } from "../agents/agent-paths.js";
 import { resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
 import {
@@ -22,8 +21,8 @@ import {
 import { isModernModelRef } from "../agents/live-model-filter.js";
 import { getApiKeyForModel } from "../agents/model-auth.js";
 import { ensureOpenClawModelsJson } from "../agents/models-config.js";
+import { discoverAuthStorage, discoverModels } from "../agents/pi-model-discovery.js";
 import { loadConfig } from "../config/config.js";
-import type { OpenClawConfig, ModelProviderConfig } from "../config/types.js";
 import { isTruthyEnvValue } from "../infra/env.js";
 import { DEFAULT_AGENT_ID } from "../routing/session-key.js";
 import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../utils/message-channel.js";
@@ -603,10 +602,10 @@ async function runGatewayModelSuite(params: GatewayModelSuiteParams) {
           // Ensure session exists + override model for this run.
           // Reset between models: avoids cross-provider transcript incompatibilities
           // (notably OpenAI Responses requiring reasoning replay for function_call items).
-          await client.request<Record<string, unknown>>("sessions.reset", {
+          await client.request("sessions.reset", {
             key: sessionKey,
           });
-          await client.request<Record<string, unknown>>("sessions.patch", {
+          await client.request("sessions.patch", {
             key: sessionKey,
             model: modelKey,
           });
@@ -1164,11 +1163,11 @@ describeLive("gateway live (dev agent, profile keys)", () => {
     try {
       const sessionKey = `agent:${agentId}:live-zai-fallback`;
 
-      await client.request<Record<string, unknown>>("sessions.patch", {
+      await client.request("sessions.patch", {
         key: sessionKey,
         model: "anthropic/claude-opus-4-5",
       });
-      await client.request<Record<string, unknown>>("sessions.reset", {
+      await client.request("sessions.reset", {
         key: sessionKey,
       });
 
@@ -1200,7 +1199,7 @@ describeLive("gateway live (dev agent, profile keys)", () => {
         throw new Error(`anthropic tool probe missing nonce: ${toolText}`);
       }
 
-      await client.request<Record<string, unknown>>("sessions.patch", {
+      await client.request("sessions.patch", {
         key: sessionKey,
         model: "zai/glm-4.7",
       });

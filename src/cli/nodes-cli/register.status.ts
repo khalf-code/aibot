@@ -1,12 +1,12 @@
 import type { Command } from "commander";
-import { defaultRuntime } from "../../runtime.js";
-import { formatAge, formatPermissions, parseNodeList, parsePairingList } from "./format.js";
-import { getNodesTheme, runNodesCommand } from "./cli-utils.js";
-import { callGatewayCli, nodesCallOpts, resolveNodeId } from "./rpc.js";
 import type { NodesRpcOpts } from "./types.js";
+import { defaultRuntime } from "../../runtime.js";
 import { renderTable } from "../../terminal/table.js";
-import { parseDurationMs } from "../parse-duration.js";
 import { shortenHomeInString } from "../../utils.js";
+import { parseDurationMs } from "../parse-duration.js";
+import { getNodesTheme, runNodesCommand } from "./cli-utils.js";
+import { formatAge, formatPermissions, parseNodeList, parsePairingList } from "./format.js";
+import { callGatewayCli, nodesCallOpts, resolveNodeId } from "./rpc.js";
 
 function formatVersionLabel(raw: string) {
   const trimmed = raw.trim();
@@ -107,10 +107,8 @@ export function registerNodesStatusCommands(nodes: Command) {
           const connectedOnly = Boolean(opts.connected);
           const sinceMs = parseSinceMs(opts.lastConnected, "Invalid --last-connected");
           const result = await callGatewayCli("node.list", opts, {});
-          const obj =
-            typeof result === "object" && result !== null
-              ? (result as Record<string, unknown>)
-              : {};
+          const obj: Record<string, unknown> =
+            typeof result === "object" && result !== null ? result : {};
           const { ok, warn, muted } = getNodesTheme();
           const tableWidth = Math.max(60, (process.stdout.columns ?? 120) - 1);
           const now = Date.now();
@@ -227,10 +225,8 @@ export function registerNodesStatusCommands(nodes: Command) {
             return;
           }
 
-          const obj =
-            typeof result === "object" && result !== null
-              ? (result as Record<string, unknown>)
-              : {};
+          const obj: Record<string, unknown> =
+            typeof result === "object" && result !== null ? result : {};
           const displayName = typeof obj.displayName === "string" ? obj.displayName : nodeId;
           const connected = Boolean(obj.connected);
           const paired = Boolean(obj.paired);

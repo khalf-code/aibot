@@ -1,15 +1,15 @@
 import { Type } from "@sinclair/typebox";
-
+import type { AnyAgentTool } from "./common.js";
 import { loadConfig } from "../../config/config.js";
 import { callGateway } from "../../gateway/call.js";
 import { isSubagentSessionKey, resolveAgentIdFromSessionKey } from "../../routing/session-key.js";
-import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readStringParam } from "./common.js";
 import {
   createAgentToAgentPolicy,
   resolveSessionReference,
   resolveMainSessionAlias,
   resolveInternalSessionKey,
+  SessionListRow,
   stripToolMessages,
 } from "./sessions-helpers.js";
 
@@ -28,7 +28,7 @@ async function isSpawnedSessionAllowed(params: {
   targetSessionKey: string;
 }): Promise<boolean> {
   try {
-    const list = await callGateway({
+    const list = await callGateway<{ sessions: Array<SessionListRow> }>({
       method: "sessions.list",
       params: {
         includeGlobal: false,
@@ -126,7 +126,7 @@ export function createSessionsHistoryTool(opts?: {
           ? Math.max(1, Math.floor(params.limit))
           : undefined;
       const includeTools = Boolean(params.includeTools);
-      const result = await callGateway({
+      const result = await callGateway<{ messages: Array<unknown> }>({
         method: "chat.history",
         params: { sessionKey: resolvedKey, limit },
       });

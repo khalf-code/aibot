@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
-
-import { abortEmbeddedPiRun } from "../../agents/pi-embedded.js";
+import type { SubagentRunRecord } from "../../agents/subagent-registry.js";
+import type { CommandHandler } from "./commands-types.js";
 import { AGENT_LANE_SUBAGENT } from "../../agents/lanes.js";
+import { abortEmbeddedPiRun } from "../../agents/pi-embedded.js";
 import { listSubagentRunsForRequester } from "../../agents/subagent-registry.js";
 import {
   extractAssistantText,
@@ -10,12 +11,13 @@ import {
   sanitizeTextContent,
   stripToolMessages,
 } from "../../agents/tools/sessions-helpers.js";
-import type { SubagentRunRecord } from "../../agents/subagent-registry.js";
 import { loadSessionStore, resolveStorePath, updateSessionStore } from "../../config/sessions.js";
 import { callGateway } from "../../gateway/call.js";
 import { logVerbose } from "../../globals.js";
 import { parseAgentSessionKey } from "../../routing/session-key.js";
 import { INTERNAL_MESSAGE_CHANNEL } from "../../utils/message-channel.js";
+import { stopSubagentsForRequester } from "./abort.js";
+import { clearSessionQueues } from "./queue.js";
 import {
   formatAgeShort,
   formatDurationShort,
@@ -23,9 +25,6 @@ import {
   formatRunStatus,
   sortSubagentRuns,
 } from "./subagents-utils.js";
-import { stopSubagentsForRequester } from "./abort.js";
-import type { CommandHandler } from "./commands-types.js";
-import { clearSessionQueues } from "./queue.js";
 
 type SubagentTargetResolution = {
   entry?: SubagentRunRecord;
@@ -338,7 +337,7 @@ export const handleSubagentsCommand: CommandHandler = async (params, allowTextCo
         reply: { text: `⚠️ ${resolved.error ?? "Unknown subagent."}` },
       };
     }
-    const history = await callGateway({
+    const history = await callGateway<{ messages: Array<unknown> }>({
       method: "chat.history",
       params: { sessionKey: resolved.entry.childSessionKey, limit },
     });
@@ -371,7 +370,7 @@ export const handleSubagentsCommand: CommandHandler = async (params, allowTextCo
     const idempotencyKey = crypto.randomUUID();
     let runId: string = idempotencyKey;
     try {
-      const response = await callGateway({
+      const response = await callGateway<{ runId: string }>({
         method: "agent",
         params: {
           message,
@@ -383,8 +382,9 @@ export const handleSubagentsCommand: CommandHandler = async (params, allowTextCo
         },
         timeoutMs: 10_000,
       });
-      if (response?.runId) {
-        runId = response.runId;
+      const responseRunId = typeof response?.runId === "string" ? response.runId : undefined;
+      if (responseRunId) {
+        runId = responseRunId;
       }
     } catch (err) {
       const messageText =
@@ -393,7 +393,7 @@ export const handleSubagentsCommand: CommandHandler = async (params, allowTextCo
     }
 
     const waitMs = 30_000;
-    const wait = await callGateway({
+    const wait = await callGateway<{ status?: string; error?: string }>({
       method: "agent.wait",
       params: { runId, timeoutMs: waitMs },
       timeoutMs: waitMs + 2000,
@@ -405,15 +405,16 @@ export const handleSubagentsCommand: CommandHandler = async (params, allowTextCo
       };
     }
     if (wait?.status === "error") {
+      const waitError = typeof wait.error === "string" ? wait.error : "unknown error";
       return {
         shouldContinue: false,
         reply: {
-          text: `⚠️ Subagent error: ${wait.error ?? "unknown error"} (run ${runId.slice(0, 8)}).`,
+          text: `⚠️ Subagent error: ${waitError} (run ${runId.slice(0, 8)}).`,
         },
       };
     }
 
-    const history = await callGateway({
+    const history = await callGateway<{ messages: Array<unknown> }>({
       method: "chat.history",
       params: { sessionKey: resolved.entry.childSessionKey, limit: 50 },
     });

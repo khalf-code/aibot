@@ -2,9 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-
 import { describe, expect, it } from "vitest";
-
 import { GatewayClient } from "../src/gateway/client.js";
 import { startGatewayServer } from "../src/gateway/server.js";
 import { getDeterministicFreePortBlock } from "../src/test-utils/ports.js";
@@ -240,7 +238,7 @@ describe("provider timeouts (e2e)", () => {
 
       try {
         const sessionKey = "agent:dev:timeout-fallback";
-        await client.request<Record<string, unknown>>("sessions.patch", {
+        await client.request("sessions.patch", {
           key: sessionKey,
           model: "primary/gpt-5.2",
         });

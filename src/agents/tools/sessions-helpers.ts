@@ -1,12 +1,12 @@
 import type { OpenClawConfig } from "../../config/config.js";
 import { callGateway } from "../../gateway/call.js";
+import { isAcpSessionKey, normalizeMainKey } from "../../routing/session-key.js";
 import { sanitizeUserFacingText } from "../pi-embedded-helpers.js";
 import {
   stripDowngradedToolCallText,
   stripMinimaxToolCallXml,
   stripThinkingTagsFromText,
 } from "../pi-embedded-utils.js";
-import { isAcpSessionKey, normalizeMainKey } from "../../routing/session-key.js";
 
 export type SessionKind = "main" | "group" | "cron" | "hook" | "node" | "other";
 
@@ -167,7 +167,7 @@ async function resolveSessionKeyFromSessionId(params: {
 }): Promise<SessionReferenceResolution> {
   try {
     // Resolve via gateway so we respect store routing and visibility rules.
-    const result = await callGateway({
+    const result = await callGateway<{ key?: string }>({
       method: "sessions.resolve",
       params: {
         sessionId: params.sessionId,
@@ -220,7 +220,7 @@ async function resolveSessionKeyFromKey(params: {
 }): Promise<SessionReferenceResolution | null> {
   try {
     // Try key-based resolution first so non-standard keys keep working.
-    const result = await callGateway({
+    const result = await callGateway<{ key?: string }>({
       method: "sessions.resolve",
       params: {
         key: params.key,

@@ -1,11 +1,9 @@
-import path from "node:path";
-
 import { Type } from "@sinclair/typebox";
-
+import path from "node:path";
+import type { AnyAgentTool } from "./common.js";
 import { loadConfig } from "../../config/config.js";
 import { callGateway } from "../../gateway/call.js";
 import { isSubagentSessionKey, resolveAgentIdFromSessionKey } from "../../routing/session-key.js";
-import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readStringArrayParam } from "./common.js";
 import {
   createAgentToAgentPolicy,
@@ -79,7 +77,7 @@ export function createSessionsListTool(opts?: {
           : 0;
       const messageLimit = Math.min(messageLimitRaw, 20);
 
-      const list = await callGateway({
+      const list = await callGateway<{ sessions: Array<SessionListRow>; path: string }>({
         method: "sessions.list",
         params: {
           limit,
@@ -196,7 +194,7 @@ export function createSessionsListTool(opts?: {
             alias,
             mainKey,
           });
-          const history = await callGateway({
+          const history = await callGateway<{ messages: Array<unknown> }>({
             method: "chat.history",
             params: { sessionKey: resolvedKey, limit: messageLimit },
           });
