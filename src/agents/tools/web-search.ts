@@ -154,8 +154,12 @@ function resolveSearchProvider(
       ? search.provider.trim().toLowerCase()
       : undefined;
 
-  if (raw === "perplexity") return "perplexity";
-  if (raw === "brave") return "brave";
+  if (raw === "perplexity") {
+    return "perplexity";
+  }
+  if (raw === "brave") {
+    return "brave";
+  }
 
   // If user explicitly set an invalid provider → throw
   if (hasProviderField && raw) {
@@ -164,8 +168,8 @@ function resolveSearchProvider(
     );
   }
 
-  // Auto-detect only when provider not specified
-  if (perplexitySource !== "none") {
+  // Only auto-detect when provider is completely absent
+  if (!hasProviderField && perplexitySource !== "none") {
     return "perplexity";
   }
 
@@ -249,8 +253,12 @@ function resolvePerplexityBaseUrl(
   // 3. For keys provided in config, we infer based on known patterns.
   if (apiKeySource === "config" && apiKey) {
     const inferred = inferPerplexityBaseUrlFromApiKey(apiKey);
-    if (inferred === "direct") return PERPLEXITY_DIRECT_BASE_URL;
-    if (inferred === "openrouter") return DEFAULT_PERPLEXITY_BASE_URL;
+    if (inferred === "direct") {
+      return PERPLEXITY_DIRECT_BASE_URL;
+    }
+    if (inferred === "openrouter") {
+      return DEFAULT_PERPLEXITY_BASE_URL;
+    }
 
     // Safety: Refuse to guess. Force the user to be explicit.
     throw new Error(

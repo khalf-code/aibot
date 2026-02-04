@@ -387,8 +387,10 @@ export async function runCronIsolatedAgentTurn(params: {
   // Update token+model fields in the session store.
   {
     const usage = runResult.meta.agentMeta?.usage;
-    const modelUsed = runResult.meta.agentMeta?.model ?? fallbackModel ?? model;
-    const providerUsed = runResult.meta.agentMeta?.provider ?? fallbackProvider ?? provider;
+    const modelUsed = runResult.meta.agentMeta?.model ?? fallbackModel ?? model ?? DEFAULT_MODEL;
+    const providerUsed =
+      runResult.meta.agentMeta?.provider ?? fallbackProvider ?? provider ?? DEFAULT_PROVIDER;
+
     const contextTokens =
       agentCfg?.contextTokens ?? lookupContextTokens(modelUsed) ?? DEFAULT_CONTEXT_TOKENS;
 
