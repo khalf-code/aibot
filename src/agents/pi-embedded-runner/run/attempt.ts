@@ -479,17 +479,14 @@ export async function runEmbeddedAttempt(
       // Hook injection: wrap tools to enforce before_tool_call policies
       // Tool execute signature: (toolCallId, args, signal, onUpdate)
       // oxlint-disable-next-line typescript/no-explicit-any -- tool types vary between AgentTool and ToolDefinition
-      const wrapToolForHooks = (tool: {
-        name: string;
-        execute?: (...args: unknown[]) => unknown;
-      }) => {
+      const wrapToolForHooks = (tool: any) => {
         // Guard: only wrap tools that have a callable execute function
         if (typeof tool.execute !== "function") {
           return;
         }
         const originalExecute = tool.execute;
-        tool.execute = async (...executeArgs: unknown[]) => {
-          let [toolCallId, args, ...rest] = executeArgs;
+        // oxlint-disable-next-line typescript/no-explicit-any -- preserving original signature
+        tool.execute = async (toolCallId: any, args: any, signal?: any, onUpdate?: any) => {
           if (hookRunner?.hasHooks("before_tool_call")) {
             let hookResult;
             try {
@@ -518,7 +515,7 @@ export async function runEmbeddedAttempt(
               args = hookResult.params;
             }
           }
-          return originalExecute.call(tool, toolCallId, args, ...rest);
+          return originalExecute.call(tool, toolCallId, args, signal, onUpdate);
         };
       };
 
