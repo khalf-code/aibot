@@ -4,33 +4,22 @@ description: Use when you need to send or manage iMessages via BlueBubbles (reco
 metadata: {"openclaw":{"emoji":"🫧","requires":{"config":["channels.bluebubbles"]}}}
 ---
 
-# BlueBubbles (iMessage)
+# BlueBubbles Actions
 
-BlueBubbles is OpenClaw’s **recommended** iMessage integration.
+## Overview
 
-Use the **`message` tool** with `channel: "bluebubbles"` to:
+BlueBubbles is OpenClaw’s recommended iMessage integration. Use the `message` tool with `channel: "bluebubbles"` to send messages and manage iMessage conversations: send texts and attachments, react (tapbacks), edit/unsend, reply in threads, and manage group participants/names/icons.
 
-- send texts and attachments
-- react (tapbacks)
-- edit / unsend
-- reply-to (threading)
-- rename groups / set group icon
-- add/remove participants / leave groups
+## Inputs to collect
 
-## What to collect
+- `target` (prefer `chat_guid:...`; also `+15551234567` in E.164 or `user@example.com`)
+- `message` text for send/edit/reply
+- `messageId` for react/edit/unsend/reply
+- Attachment `path` for local files, or `buffer` + `filename` for base64
 
-- **Target** (required for most actions):
-  - best: `chat_guid:...` (stable for groups)
-  - ok: `+15551234567` (E.164), `user@example.com`
-- **Text** (for send/edit/reply)
-- **Message id** (for react/edit/unsend/reply)
-- **Attachment** (path or base64 buffer + filename)
+If the user is vague ("text my mom"), ask for the recipient handle or chat guid and the exact message content.
 
-If the user is vague (“text my mom”), ask for:
-- recipient handle (phone/email) or explicit chat guid
-- the exact message content
-
-## Common actions
+## Actions
 
 ### Send a message
 
@@ -55,7 +44,7 @@ If the user is vague (“text my mom”), ask for:
 }
 ```
 
-Remove a reaction:
+### Remove a reaction
 
 ```json
 {
@@ -80,7 +69,7 @@ Remove a reaction:
 }
 ```
 
-### Unsend
+### Unsend a message
 
 ```json
 {
@@ -132,3 +121,9 @@ Remove a reaction:
 - Prefer `chat_guid` targets when you have them (especially for group chats).
 - BlueBubbles supports rich actions, but some are macOS-version dependent (for example, edit may be broken on macOS 26 Tahoe).
 - The gateway may expose both short and full message ids; full ids are more durable across restarts.
+
+## Ideas to try
+
+- React with a tapback to acknowledge a request.
+- Reply in-thread when a user references a specific message.
+- Send a file attachment with a short caption.
