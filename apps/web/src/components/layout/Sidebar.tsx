@@ -21,6 +21,7 @@ import {
   Calendar,
   Monitor,
   Share2,
+  Activity,
 } from "lucide-react";
 import { useUIStore } from "@/stores/useUIStore";
 import { NavItem } from "./NavItem";
@@ -180,6 +181,12 @@ export function Sidebar({ className }: SidebarProps) {
               href="/agents"
               icon={Bot}
               label="Agents"
+              collapsed={sidebarCollapsed}
+            />
+            <NavItem
+              href="/agent-status"
+              icon={Activity}
+              label="Agent Status"
               collapsed={sidebarCollapsed}
             />
             <NavItem

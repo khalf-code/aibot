@@ -18,6 +18,7 @@ import type { SdkRunnerParams, SdkRunnerResult } from "./sdk-runner.types.js";
 import type { SdkRunnerQueryOptions } from "./tool-bridge.types.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import { formatMcpToolNamesForLog } from "../../mcp/tool-name-format.js";
+import { stripReasoningTagsFromText } from "../../shared/text/reasoning-tags.js";
 import { normalizeToolName } from "../tool-policy.js";
 
 const log = createSubsystemLogger("sdk-runner");
@@ -98,6 +99,12 @@ function classifyEvent(event: unknown): { kind: EventKind; event: unknown } {
 
   // System/lifecycle events.
   if (type === "system" || type === "agent_start" || type === "agent_end" || type === "error") {
+    return { kind: "system", event };
+  }
+
+  // Thinking/reasoning events should NOT be classified as assistant messages.
+  // These should never produce text output that reaches channels.
+  if (type === "thinking" || type === "thinking_delta" || type === "reasoning") {
     return { kind: "system", event };
   }
 
@@ -463,6 +470,21 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
       sdkOptions.env = env;
     }
   }
+
+  // Suppress SDK subprocess stdout/stderr output (thinking blocks, etc.).
+  // The SDK spawns the `claude` CLI as a subprocess, and we want to prevent
+  // verbose output from leaking into our gateway logs.
+  if (!sdkOptions.env) {
+    sdkOptions.env = { ...process.env } as Record<string, string>;
+  }
+  sdkOptions.env.NO_COLOR = "1";
+
+  // Tell the SDK to redirect subprocess stdio to prevent thinking blocks and
+  // other formatted output from leaking to the parent process's stdout/stderr.
+  // The SDK should capture and parse all output via its event stream.
+  // NOTE: If the SDK doesn't respect this option, we may need to manually
+  // redirect process.stdout/stderr around the SDK call or use executableArgs.
+  (sdkOptions as Record<string, unknown>).stdio = "pipe";
 
   // Model override from provider config.
   if (params.provider?.model) {
@@ -880,7 +902,11 @@ export async function runSdkAgent(params: SdkRunnerParams): Promise<SdkRunnerRes
     `Building result: resultText=${resultText?.length ?? 0} chars, chunks=${chunks.length}, aborted=${aborted}`,
   );
 
-  const text = (resultText ?? chunks.join("\n\n")).trim();
+  // Strip thinking/reasoning tags from the final text before delivering to channels.
+  const text = stripReasoningTagsFromText((resultText ?? chunks.join("\n\n")).trim(), {
+    mode: "strict",
+    trim: "both",
+  });
 
   if (!text) {
     log.warn("No text output after stream — returning error");

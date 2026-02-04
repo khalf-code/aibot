@@ -30,6 +30,7 @@ import type {
 } from "./tool-bridge.types.js";
 import { logDebug, logError } from "../../logger.js";
 import { redactSensitiveText } from "../../logging/redact.js";
+import { truncateForLog } from "../../logging/truncate.js";
 import { normalizeToolName } from "../tool-policy.js";
 
 // ---------------------------------------------------------------------------
@@ -137,11 +138,19 @@ function convertJsonSchemaPropertyToZod(
     }
 
     case "object": {
+      const additionalProperties = propSchema.additionalProperties;
+      const allowsAdditional =
+        additionalProperties === true ||
+        (typeof additionalProperties === "object" && additionalProperties !== null);
+
       // Nested object - recursively convert properties if available
       const nestedProps = propSchema.properties as
         | Record<string, Record<string, unknown>>
         | undefined;
-      if (nestedProps && typeof nestedProps === "object") {
+      const hasNestedProps =
+        nestedProps && typeof nestedProps === "object" && Object.keys(nestedProps).length > 0;
+
+      if (hasNestedProps) {
         const nestedRequired = new Set(
           Array.isArray(propSchema.required)
             ? (propSchema.required as string[]).filter((k) => typeof k === "string")
@@ -161,13 +170,61 @@ function convertJsonSchemaPropertyToZod(
           }
           shape[nestedKey] = nestedZod;
         }
+
         let schema = z.object(shape);
+        // Preserve additionalProperties semantics so we don't silently strip
+        // payload keys (critical for "any object" tool params like cron.job/patch).
+        if (additionalProperties === true) {
+          schema = schema.passthrough();
+        } else if (typeof additionalProperties === "object" && additionalProperties !== null) {
+          schema = schema.catchall(
+            convertJsonSchemaPropertyToZod(
+              additionalProperties as Record<string, unknown>,
+              `${propName}.*`,
+            ),
+          );
+        }
+
         if (description) {
           schema = schema.describe(description);
         }
         return schema;
       }
-      // Generic object without defined properties
+
+      // No defined properties: honor additionalProperties. If the schema
+      // explicitly forbids additional properties, this represents an empty
+      // object. Otherwise, accept an arbitrary key/value map.
+      if (!allowsAdditional && additionalProperties === false) {
+        let schema = z.object({});
+        if (description) {
+          schema = schema.describe(description);
+        }
+        return schema;
+      }
+
+      if (additionalProperties === true || additionalProperties === undefined) {
+        let schema = z.record(z.string(), z.unknown());
+        if (description) {
+          schema = schema.describe(description);
+        }
+        return schema;
+      }
+
+      if (typeof additionalProperties === "object" && additionalProperties !== null) {
+        let schema = z.record(
+          z.string(),
+          convertJsonSchemaPropertyToZod(
+            additionalProperties as Record<string, unknown>,
+            `${propName}.*`,
+          ),
+        );
+        if (description) {
+          schema = schema.describe(description);
+        }
+        return schema;
+      }
+
+      // Fallback: permissive object.
       let schema = z.record(z.string(), z.unknown());
       if (description) {
         schema = schema.describe(description);
@@ -372,7 +429,13 @@ export function wrapToolHandler(tool: AnyAgentTool, abortSignal?: AbortSignal): 
     const toolCallId = `mcp-bridge-${normalizedName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     // Debug: log received args for troubleshooting parameter issues
-    logDebug(`[tool-bridge] ${normalizedName} received args: ${JSON.stringify(rawArgs)}`);
+    try {
+      const argsJson = JSON.stringify(rawArgs);
+      const redacted = redactSensitiveText(argsJson);
+      logDebug(`[tool-bridge] ${normalizedName} received args: ${truncateForLog(redacted)}`);
+    } catch {
+      logDebug(`[tool-bridge] ${normalizedName} received args: (unserializable)`);
+    }
 
     // Use the abort signal from extra if available, falling back to the shared one
     const effectiveSignal = extra?.signal ?? abortSignal;
@@ -425,7 +488,7 @@ export function wrapToolHandler(tool: AnyAgentTool, abortSignal?: AbortSignal): 
       const debugDetail =
         err instanceof Error ? (err as unknown as Record<string, unknown>)._debugDetail : undefined;
       if (typeof debugDetail === "string") {
-        logDebug(`[tool-bridge] ${normalizedName} debug detail:\n${debugDetail}`);
+        logDebug(`[tool-bridge] ${normalizedName} debug detail:\n${truncateForLog(debugDetail)}`);
       }
 
       if (err instanceof Error && err.stack) {
