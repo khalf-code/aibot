@@ -2,20 +2,16 @@ import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import crypto from "node:crypto";
 import path from "node:path";
 import type {
-  MeridiaExperienceRecordV2,
-  MeridiaToolResultContextV2,
-  MeridiaTraceEventV2,
+  MeridiaExperienceRecord,
+  MeridiaToolResultContext,
+  MeridiaTraceEvent,
 } from "../../src/meridia/types.js";
-import {
-  openMeridiaDb,
-  insertExperienceRecord,
-  insertTraceEvent,
-} from "../../src/meridia/db/sqlite.js";
+import { createBackend } from "../../src/meridia/db/index.js";
 import { evaluateHeuristic, evaluateWithLlm } from "../../src/meridia/evaluate.js";
 import { resolveMeridiaDir } from "../../src/meridia/paths.js";
+import { resolveMeridiaPluginConfig } from "../../src/meridia/config.js";
 import {
   appendJsonl,
-  resolveRecordsJsonlPath,
   resolveTraceJsonlPath,
   writeJson,
   readJsonIfExists,
@@ -187,11 +183,11 @@ const handler = async (event: HookEvent): Promise<void> => {
   const result = context.result;
 
   const meridiaDir = resolveMeridiaDir(cfg, "experiential-capture");
-  const recordPath = resolveRecordsJsonlPath({ meridiaDir, date: event.timestamp });
   const tracePath = resolveTraceJsonlPath({ meridiaDir, date: event.timestamp });
   const bufferPath = resolveBufferPath(meridiaDir, sessionId, sessionKey, event.sessionKey);
   const now = nowIso();
   const nowMs = Date.now();
+  const writeTraceJsonl = resolveMeridiaPluginConfig(cfg).debug.writeTraceJsonl;
 
   const minThreshold = readNumber(
     hookCfg,
@@ -208,7 +204,7 @@ const handler = async (event: HookEvent): Promise<void> => {
   const evaluationModel =
     readString(hookCfg, ["evaluation_model", "evaluationModel", "model"]) ?? "";
 
-  const ctx: MeridiaToolResultContextV2 = {
+  const ctx: MeridiaToolResultContext = {
     session: { id: sessionId, key: sessionKey, runId },
     tool: { name: toolName, callId: toolCallId, meta, isError },
     args,
@@ -267,8 +263,7 @@ const handler = async (event: HookEvent): Promise<void> => {
   let recordId: string | undefined;
   if (shouldCapture) {
     recordId = crypto.randomUUID();
-    const record: MeridiaExperienceRecordV2 = {
-      v: 2,
+    const record: MeridiaExperienceRecord = {
       id: recordId,
       ts: now,
       kind: "tool_result",
@@ -285,9 +280,12 @@ const handler = async (event: HookEvent): Promise<void> => {
       data: { args, result },
     };
 
-    const db = openMeridiaDb({ cfg, hookKey: "experiential-capture" });
-    insertExperienceRecord(db, record);
-    await appendJsonl(recordPath, record);
+    try {
+      const backend = createBackend({ cfg, hookKey: "experiential-capture" });
+      backend.insertExperienceRecord(record);
+    } catch {
+      // ignore
+    }
 
     buffer.captured += 1;
     buffer.lastCapturedAt = now;
@@ -295,8 +293,7 @@ const handler = async (event: HookEvent): Promise<void> => {
     buffer = pruneOld(buffer, nowMs);
   }
 
-  const traceEvent: MeridiaTraceEventV2 = {
-    v: 2,
+  const traceEvent: MeridiaTraceEvent = {
     id: crypto.randomUUID(),
     ts: now,
     kind: "tool_result_eval",
@@ -313,12 +310,14 @@ const handler = async (event: HookEvent): Promise<void> => {
     },
   };
   try {
-    const db = openMeridiaDb({ cfg, hookKey: "experiential-capture" });
-    insertTraceEvent(db, traceEvent);
+    const backend = createBackend({ cfg, hookKey: "experiential-capture" });
+    backend.insertTraceEvent(traceEvent);
   } catch {
     // ignore
   }
-  await appendJsonl(tracePath, traceEvent);
+  if (writeTraceJsonl) {
+    await appendJsonl(tracePath, traceEvent);
+  }
   await writeJson(bufferPath, buffer);
 };
 

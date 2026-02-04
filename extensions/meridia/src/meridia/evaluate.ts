@@ -1,6 +1,6 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import { completeTextWithModelRef } from "openclaw/plugin-sdk";
-import type { MeridiaEvaluationV2, MeridiaToolResultContextV2 } from "./types.js";
+import type { MeridiaEvaluation, MeridiaToolResultContext } from "./types.js";
 
 function clamp01(value: number): number {
   if (value <= 0) {
@@ -42,7 +42,7 @@ function extractFirstJsonObject(raw: string): Record<string, unknown> | null {
   }
 }
 
-export function evaluateHeuristic(ctx: MeridiaToolResultContextV2): MeridiaEvaluationV2 {
+export function evaluateHeuristic(ctx: MeridiaToolResultContext): MeridiaEvaluation {
   const tool = ctx.tool.name.trim().toLowerCase();
   const isError = ctx.tool.isError;
   let score = 0.1;
@@ -86,10 +86,10 @@ export function evaluateHeuristic(ctx: MeridiaToolResultContextV2): MeridiaEvalu
 
 export async function evaluateWithLlm(params: {
   cfg: OpenClawConfig;
-  ctx: MeridiaToolResultContextV2;
+  ctx: MeridiaToolResultContext;
   modelRef: string;
   timeoutMs: number;
-}): Promise<MeridiaEvaluationV2> {
+}): Promise<MeridiaEvaluation> {
   const startedAt = Date.now();
   const prompt = [
     "You are scoring whether a tool result should be captured as an experiential continuity record.",

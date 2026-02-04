@@ -2,10 +2,9 @@ import type { OpenClawConfig, AnyAgentTool } from "openclaw/plugin-sdk";
 import { Type } from "@sinclair/typebox";
 import crypto from "node:crypto";
 import { jsonResult, readNumberParam, readStringParam } from "openclaw/plugin-sdk";
-import type { MeridiaExperienceRecordV2 } from "../meridia/types.js";
-import { openMeridiaDb, insertExperienceRecord } from "../meridia/db/sqlite.js";
+import type { MeridiaExperienceRecord } from "../meridia/types.js";
+import { createBackend } from "../meridia/db/index.js";
 import { resolveMeridiaDir } from "../meridia/paths.js";
-import { resolveRecordsJsonlPath, appendJsonl } from "../meridia/storage.js";
 
 const ExperienceCaptureSchema = Type.Object({
   topic: Type.String({
@@ -78,8 +77,7 @@ export function createExperienceCaptureTool(opts?: {
       try {
         const recordId = crypto.randomUUID();
         const now = new Date().toISOString();
-        const record: MeridiaExperienceRecordV2 = {
-          v: 2,
+        const record: MeridiaExperienceRecord = {
           id: recordId,
           ts: now,
           kind: "manual",
@@ -110,12 +108,10 @@ export function createExperienceCaptureTool(opts?: {
           },
         };
 
-        const db = openMeridiaDb({ cfg: opts?.config });
-        insertExperienceRecord(db, record);
+        const backend = createBackend({ cfg: opts?.config });
+        backend.insertExperienceRecord(record);
 
         const meridiaDir = resolveMeridiaDir(opts?.config);
-        const recordPath = resolveRecordsJsonlPath({ meridiaDir, date: new Date() });
-        await appendJsonl(recordPath, record);
 
         return jsonResult({
           success: true,
@@ -125,7 +121,7 @@ export function createExperienceCaptureTool(opts?: {
           significance,
           reason: record.capture.evaluation.reason,
           sessionKey: sessionKey ?? null,
-          storagePath: recordPath,
+          meridiaDir,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

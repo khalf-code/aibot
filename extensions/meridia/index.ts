@@ -1,7 +1,7 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { emptyPluginConfigSchema, registerPluginHooksFromDir } from "openclaw/plugin-sdk";
 import { registerMeridiaCli } from "./src/cli/meridia-cli.js";
-import { closeMeridiaDb } from "./src/meridia/db/sqlite.js";
+import { closeBackend } from "./src/meridia/db/index.js";
 import { createExperienceCaptureTool } from "./src/tools/experience-capture-tool.js";
 import { createExperienceReflectTool } from "./src/tools/experience-reflect-tool.js";
 import { createExperienceSearchTool } from "./src/tools/experience-search-tool.js";
@@ -41,7 +41,7 @@ const meridiaPlugin = {
       id: "meridia-db",
       start: () => undefined,
       stop: () => {
-        closeMeridiaDb();
+        closeBackend();
       },
     });
   },

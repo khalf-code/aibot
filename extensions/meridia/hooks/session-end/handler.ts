@@ -1,17 +1,13 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import crypto from "node:crypto";
 import path from "node:path";
-import type { MeridiaExperienceRecordV2, MeridiaTraceEventV2 } from "../../src/meridia/types.js";
-import {
-  openMeridiaDb,
-  insertExperienceRecord,
-  insertTraceEvent,
-} from "../../src/meridia/db/sqlite.js";
+import type { MeridiaExperienceRecord, MeridiaTraceEvent } from "../../src/meridia/types.js";
+import { createBackend } from "../../src/meridia/db/index.js";
 import { resolveMeridiaDir, dateKeyUtc } from "../../src/meridia/paths.js";
+import { resolveMeridiaPluginConfig } from "../../src/meridia/config.js";
 import {
   appendJsonl,
   readJsonIfExists,
-  resolveRecordsJsonlPath,
   resolveTraceJsonlPath,
   writeJson,
 } from "../../src/meridia/storage.js";
@@ -105,7 +101,7 @@ const handler = async (event: HookEvent): Promise<void> => {
   const dateKey = dateKeyUtc(event.timestamp);
   const ts = nowIso();
   const tracePath = resolveTraceJsonlPath({ meridiaDir, date: event.timestamp });
-  const recordPath = resolveRecordsJsonlPath({ meridiaDir, date: event.timestamp });
+  const writeTraceJsonl = resolveMeridiaPluginConfig(cfg).debug.writeTraceJsonl;
 
   const bufferKey = safeFileKey(sessionId ?? sessionKey ?? event.sessionKey ?? "unknown");
   const bufferPath = path.join(meridiaDir, "buffers", `${bufferKey}.json`);
@@ -126,8 +122,7 @@ const handler = async (event: HookEvent): Promise<void> => {
   await writeJson(summaryPath, summary);
 
   const recordId = crypto.randomUUID();
-  const record: MeridiaExperienceRecordV2 = {
-    v: 2,
+  const record: MeridiaExperienceRecord = {
     id: recordId,
     ts,
     kind: "session_end",
@@ -151,8 +146,7 @@ const handler = async (event: HookEvent): Promise<void> => {
     data: { summary },
   };
 
-  const traceEvent: MeridiaTraceEventV2 = {
-    v: 2,
+  const traceEvent: MeridiaTraceEvent = {
     id: crypto.randomUUID(),
     ts,
     kind: "session_end_snapshot",
@@ -162,15 +156,16 @@ const handler = async (event: HookEvent): Promise<void> => {
   };
 
   try {
-    const db = openMeridiaDb({ cfg, hookKey: "session-end" });
-    insertExperienceRecord(db, record);
-    insertTraceEvent(db, traceEvent);
+    const backend = createBackend({ cfg, hookKey: "session-end" });
+    backend.insertExperienceRecord(record);
+    backend.insertTraceEvent(traceEvent);
   } catch {
     // ignore
   }
 
-  await appendJsonl(recordPath, record);
-  await appendJsonl(tracePath, traceEvent);
+  if (writeTraceJsonl) {
+    await appendJsonl(tracePath, traceEvent);
+  }
 };
 
 export default handler;

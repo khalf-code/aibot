@@ -1,8 +1,9 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import crypto from "node:crypto";
-import type { MeridiaTraceEventV2 } from "../../src/meridia/types.js";
-import { openMeridiaDb, insertTraceEvent } from "../../src/meridia/db/sqlite.js";
+import type { MeridiaTraceEvent } from "../../src/meridia/types.js";
+import { createBackend } from "../../src/meridia/db/index.js";
 import { resolveMeridiaDir } from "../../src/meridia/paths.js";
+import { resolveMeridiaPluginConfig } from "../../src/meridia/config.js";
 import { generateReconstitution } from "../../src/meridia/reconstitute.js";
 import { resolveTraceJsonlPath, appendJsonl } from "../../src/meridia/storage.js";
 
@@ -91,8 +92,7 @@ const handler = async (event: HookEvent): Promise<void> => {
     });
 
     const ts = new Date().toISOString();
-    const traceEvent: MeridiaTraceEventV2 = {
-      v: 2,
+    const traceEvent: MeridiaTraceEvent = {
       id: crypto.randomUUID(),
       ts,
       kind: "bootstrap_inject",
@@ -102,13 +102,16 @@ const handler = async (event: HookEvent): Promise<void> => {
 
     const meridiaDir = resolveMeridiaDir(cfg, "meridia-reconstitution");
     const tracePath = resolveTraceJsonlPath({ meridiaDir, date: event.timestamp });
+    const writeTraceJsonl = resolveMeridiaPluginConfig(cfg).debug.writeTraceJsonl;
     try {
-      const db = openMeridiaDb({ cfg, hookKey: "meridia-reconstitution" });
-      insertTraceEvent(db, traceEvent);
+      const backend = createBackend({ cfg, hookKey: "meridia-reconstitution" });
+      backend.insertTraceEvent(traceEvent);
     } catch {
       // ignore
     }
-    await appendJsonl(tracePath, traceEvent);
+    if (writeTraceJsonl) {
+      await appendJsonl(tracePath, traceEvent);
+    }
   } catch (err) {
     // Non-fatal — session starts without experiential context
     console.error(

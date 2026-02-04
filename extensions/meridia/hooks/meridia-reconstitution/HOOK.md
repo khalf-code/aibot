@@ -15,7 +15,7 @@ metadata:
 
 # Meridia Reconstitution (Morning Briefing)
 
-On `agent:bootstrap`, queries Meridia v2 records and injects a compact continuity briefing.
+On `agent:bootstrap`, queries Meridia records and injects a compact continuity briefing.
 
 ## Configuration
 

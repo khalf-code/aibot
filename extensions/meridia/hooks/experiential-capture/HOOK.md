@@ -15,7 +15,7 @@ metadata:
 
 # Experiential Capture (Meridia)
 
-Captures significant tool results into Meridia v2 records (SQLite + JSONL debug stream).
+Captures significant tool results into Meridia records (SQLite + optional trace JSONL).
 
 ## Configuration
 

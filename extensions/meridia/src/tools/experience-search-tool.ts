@@ -1,14 +1,7 @@
 import type { AnyAgentTool, OpenClawConfig } from "openclaw/plugin-sdk";
 import { Type } from "@sinclair/typebox";
 import { jsonResult, readNumberParam, readStringParam } from "openclaw/plugin-sdk";
-import { openMeridiaDb, getMeridiaDbStats } from "../meridia/db/sqlite.js";
-import {
-  getRecordsByDateRange,
-  getRecordsBySession,
-  getRecordsByTool,
-  getRecentRecords,
-  searchRecords,
-} from "../meridia/query.js";
+import { createBackend } from "../meridia/db/index.js";
 
 const ExperienceSearchSchema = Type.Object({
   query: Type.Optional(
@@ -88,7 +81,7 @@ export function createExperienceSearchTool(opts?: { config?: OpenClawConfig }): 
       }
 
       try {
-        const db = openMeridiaDb({ cfg: opts?.config });
+        const backend = createBackend({ cfg: opts?.config });
 
         const filters = {
           sessionKey,
@@ -102,24 +95,21 @@ export function createExperienceSearchTool(opts?: { config?: OpenClawConfig }): 
 
         const results =
           recent && !query && !from && !to
-            ? getRecentRecords(db, limit, { sessionKey, toolName, minScore, tag })
+            ? backend.getRecentRecords(limit, { sessionKey, toolName, minScore, tag })
             : query
-              ? searchRecords(db, query, filters)
+              ? backend.searchRecords(query, filters)
               : from || to
-                ? getRecordsByDateRange(db, from ?? "1970-01-01", to ?? new Date().toISOString(), {
-                    sessionKey,
-                    toolName,
-                    minScore,
+                ? backend.getRecordsByDateRange(from ?? "1970-01-01", to ?? new Date().toISOString(), {
+                    ...filters,
                     limit,
-                    tag,
                   })
                 : sessionKey
-                  ? getRecordsBySession(db, sessionKey, limit)
+                  ? backend.getRecordsBySession(sessionKey, { limit })
                   : toolName
-                    ? getRecordsByTool(db, toolName, limit)
-                    : getRecentRecords(db, limit, { sessionKey, toolName, minScore, tag });
+                    ? backend.getRecordsByTool(toolName, { limit })
+                    : backend.getRecentRecords(limit, { sessionKey, toolName, minScore, tag });
 
-        const stats = getMeridiaDbStats(db);
+        const stats = backend.getStats();
 
         const formatted = results.map((r) => ({
           id: r.record.id,

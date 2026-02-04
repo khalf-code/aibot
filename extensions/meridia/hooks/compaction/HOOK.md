@@ -15,4 +15,4 @@ metadata:
 
 # Compaction (Meridia)
 
-Creates a snapshot before embedded-agent auto-compaction, and records a v2 trace event.
+Creates a snapshot before embedded-agent auto-compaction, and records a trace event.

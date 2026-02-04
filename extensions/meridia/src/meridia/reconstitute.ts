@@ -1,7 +1,6 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
-import type { MeridiaExperienceRecordV2 } from "./types.js";
-import { openMeridiaDb } from "./db/sqlite.js";
-import { getRecordsByDateRange, getRecentRecords } from "./query.js";
+import type { MeridiaExperienceRecord } from "./types.js";
+import { createBackend } from "./db/index.js";
 
 export interface ReconstitutionOptions {
   maxTokens?: number;
@@ -51,7 +50,7 @@ function formatTimestamp(isoStr: string): string {
   }
 }
 
-function recordTopic(record: MeridiaExperienceRecordV2): string {
+function recordTopic(record: MeridiaExperienceRecord): string {
   if (record.content?.topic) {
     return record.content.topic;
   }
@@ -77,14 +76,14 @@ export async function generateReconstitution(
   const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS;
   const maxChars = maxTokens * CHARS_PER_TOKEN;
 
-  const db = openMeridiaDb({ cfg: opts.config });
+  const backend = createBackend({ cfg: opts.config });
 
   const now = new Date();
   const fromDate = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
   const fromIso = fromDate.toISOString();
   const toIso = now.toISOString();
 
-  const dateRangeResults = getRecordsByDateRange(db, fromIso, toIso, {
+  const dateRangeResults = backend.getRecordsByDateRange(fromIso, toIso, {
     minScore,
     limit: maxRecords,
   });
@@ -92,7 +91,7 @@ export async function generateReconstitution(
   const records =
     dateRangeResults.length > 0
       ? dateRangeResults.map((r) => r.record)
-      : getRecentRecords(db, Math.min(maxRecords, 10), { minScore }).map((r) => r.record);
+      : backend.getRecentRecords(Math.min(maxRecords, 10), { minScore }).map((r) => r.record);
 
   if (records.length === 0) {
     return null;

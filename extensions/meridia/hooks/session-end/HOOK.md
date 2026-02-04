@@ -15,4 +15,4 @@ metadata:
 
 # Session End (Meridia)
 
-Writes a session summary artifact and records a Meridia v2 session_end experience.
+Writes a session summary artifact and records a Meridia session_end experience.

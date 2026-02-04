@@ -26,11 +26,6 @@ export async function writeJson(filePath: string, value: unknown): Promise<void>
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
 }
 
-export function resolveRecordsJsonlPath(params: { meridiaDir: string; date?: Date }): string {
-  const dateKey = dateKeyUtc(params.date ?? new Date());
-  return path.join(params.meridiaDir, "records", "experiential", `${dateKey}.jsonl`);
-}
-
 export function resolveTraceJsonlPath(params: { meridiaDir: string; date?: Date }): string {
   const dateKey = dateKeyUtc(params.date ?? new Date());
   return path.join(params.meridiaDir, "trace", `${dateKey}.jsonl`);

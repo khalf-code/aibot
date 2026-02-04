@@ -3,13 +3,21 @@ import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import fs from "node:fs";
 import path from "node:path";
 import { probeModelRefAuth } from "openclaw/plugin-sdk";
-import { openMeridiaDb, getMeridiaDbStats, resetMeridiaDir } from "../meridia/db/sqlite.js";
+import { createBackend } from "../meridia/db/index.js";
+import { createSqliteBackend } from "../meridia/db/backends/sqlite.js";
+import { wipeDir } from "../meridia/fs.js";
 import { resolveMeridiaDir } from "../meridia/paths.js";
-import { getTraceEventsByDateRange } from "../meridia/query.js";
 
 type MeridiaStatusOptions = { json?: boolean; since?: string };
 type MeridiaDoctorOptions = { json?: boolean };
-type MeridiaResetOptions = { json?: boolean; dir?: string };
+type MeridiaResetOptions = { json?: boolean; dir?: string; force?: boolean };
+type MeridiaExportFormatOptions = { json?: boolean; jsonl?: boolean; out?: string };
+type MeridiaExportRecordsOptions = MeridiaExportFormatOptions & { since?: string; limit?: number };
+type MeridiaExportTraceOptions = MeridiaExportFormatOptions & {
+  since?: string;
+  limit?: number;
+  kind?: string;
+};
 
 function parseDurationMs(raw: string): number | null {
   const trimmed = raw.trim();
@@ -44,6 +52,30 @@ function readConfiguredModelRef(cfg: OpenClawConfig): string | null {
   return value ? value : null;
 }
 
+function resolveFormat(opts: MeridiaExportFormatOptions): {
+  mode: "json" | "jsonl";
+  outPath?: string;
+} {
+  const json = opts.json === true;
+  const jsonl = opts.jsonl === true;
+  if (json && jsonl) {
+    throw new Error("Choose at most one: --json or --jsonl");
+  }
+  const mode: "json" | "jsonl" = jsonl ? "jsonl" : "json";
+  const outPath = opts.out?.trim() ? path.resolve(opts.out.trim()) : undefined;
+  return { mode, ...(outPath ? { outPath } : {}) };
+}
+
+function writeOutput(params: { outPath?: string; content: string }): void {
+  if (params.outPath) {
+    fs.mkdirSync(path.dirname(params.outPath), { recursive: true });
+    fs.writeFileSync(params.outPath, params.content, "utf-8");
+    return;
+  }
+  // eslint-disable-next-line no-console
+  console.log(params.content);
+}
+
 export function registerMeridiaCli(program: Command, config: OpenClawConfig): void {
   const meridia = program.command("meridia").description("Meridia experiential continuity tools");
 
@@ -66,9 +98,9 @@ export function registerMeridiaCli(program: Command, config: OpenClawConfig): vo
       const toIso = new Date(nowMs).toISOString();
 
       try {
-        const db = openMeridiaDb({ cfg: config });
-        const stats = getMeridiaDbStats(db);
-        const events = getTraceEventsByDateRange(db, fromIso, toIso);
+        const backend = createBackend({ cfg: config });
+        const stats = backend.getStats();
+        const events = backend.getTraceEventsByDateRange(fromIso, toIso);
 
         const toolEvals = events.filter((e) => e.kind === "tool_result_eval");
         const captured = toolEvals.filter((e) => e.decision?.decision === "capture");
@@ -106,6 +138,7 @@ export function registerMeridiaCli(program: Command, config: OpenClawConfig): vo
             schemaVersion: stats.schemaVersion,
             recordCount: stats.recordCount,
             traceCount: stats.traceCount,
+            sessionCount: stats.sessionCount,
             oldestRecord: stats.oldestRecord,
             newestRecord: stats.newestRecord,
           },
@@ -242,8 +275,9 @@ export function registerMeridiaCli(program: Command, config: OpenClawConfig): vo
 
   meridia
     .command("reset")
-    .description("Backup + wipe Meridia directory, then reinitialize v2 schema")
+    .description("Wipe Meridia directory and recreate the database schema")
     .option("--dir <path>", "Meridia dir to reset (defaults to resolved Meridia dir)")
+    .option("--force", "Required: confirm destructive wipe", false)
     .option("--json", "Machine-readable output", false)
     .action(async (opts: MeridiaResetOptions) => {
       const targetDir = opts.dir?.trim()
@@ -251,16 +285,23 @@ export function registerMeridiaCli(program: Command, config: OpenClawConfig): vo
         : resolveMeridiaDir(config);
 
       try {
-        const exists = fs.existsSync(targetDir);
-        const { backupDir } = resetMeridiaDir({ meridiaDir: targetDir });
-        const db = openMeridiaDb({ meridiaDir: targetDir, allowAutoReset: false });
-        const stats = getMeridiaDbStats(db);
+        if (opts.force !== true) {
+          throw new Error("Reset is destructive. Re-run with --force.");
+        }
+
+        const existed = fs.existsSync(targetDir);
+        wipeDir(targetDir);
+        const backend = createSqliteBackend({
+          cfg: config,
+          dbPath: path.join(targetDir, "meridia.sqlite"),
+        });
+        const stats = backend.getStats();
+        backend.close();
 
         const out = {
           ok: true,
           meridiaDir: targetDir,
-          existed: exists,
-          backupDir,
+          existed,
           schemaVersion: stats.schemaVersion,
         };
 
@@ -269,12 +310,109 @@ export function registerMeridiaCli(program: Command, config: OpenClawConfig): vo
           return;
         }
         console.log(`Reset Meridia dir: ${targetDir}`);
-        if (backupDir) {
-          console.log(`Backup: ${backupDir}`);
-        }
-        console.log(`Schema: v${stats.schemaVersion ?? "unknown"}`);
+        console.log(`Schema: ${stats.schemaVersion ?? "unknown"}`);
       } catch (err) {
         console.error(`Meridia reset failed: ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = 1;
+      }
+    });
+
+  const exportCmd = meridia.command("export").description("Export Meridia data from SQLite");
+
+  exportCmd
+    .command("records")
+    .description("Export experiential records")
+    .option("--since <duration>", "Lookback window (e.g. 30m, 6h, 7d)", "24h")
+    .option("--limit <n>", "Max records to export (default 200)", "200")
+    .option("--json", "Output JSON array", false)
+    .option("--jsonl", "Output JSONL (one record per line)", false)
+    .option("--out <path>", "Write to a file instead of stdout")
+    .action(async (opts: MeridiaExportRecordsOptions) => {
+      try {
+        const { mode, outPath } = resolveFormat(opts);
+        const sinceMs = parseDurationMs(opts.since ?? "24h");
+        if (!sinceMs) {
+          throw new Error("--since must be a duration like 30m, 6h, 7d");
+        }
+        const limitRaw =
+          typeof opts.limit === "number"
+            ? opts.limit
+            : Number.parseInt(String(opts.limit ?? "200"), 10);
+        const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 5000) : 200;
+
+        const nowMs = Date.now();
+        const startMs = nowMs - sinceMs;
+        const fromIso = new Date(startMs).toISOString();
+        const toIso = new Date(nowMs).toISOString();
+
+        const backend = createBackend({ cfg: config });
+        const records = backend
+          .getRecordsByDateRange(fromIso, toIso, { limit })
+          .map((r) => r.record);
+
+        if (mode === "jsonl") {
+          writeOutput({ outPath, content: `${records.map((r) => JSON.stringify(r)).join("\n")}\n` });
+          return;
+        }
+
+        writeOutput({
+          outPath,
+          content: `${JSON.stringify({ from: fromIso, to: toIso, records }, null, 2)}\n`,
+        });
+      } catch (err) {
+        console.error(
+          `Meridia export records failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        process.exitCode = 1;
+      }
+    });
+
+  exportCmd
+    .command("trace")
+    .description("Export trace events")
+    .option("--since <duration>", "Lookback window (e.g. 30m, 6h, 7d)", "24h")
+    .option("--kind <kind>", "Filter by trace kind (optional)")
+    .option("--limit <n>", "Max trace events to export (default 5000)", "5000")
+    .option("--json", "Output JSON array", false)
+    .option("--jsonl", "Output JSONL (one event per line)", false)
+    .option("--out <path>", "Write to a file instead of stdout")
+    .action(async (opts: MeridiaExportTraceOptions) => {
+      try {
+        const { mode, outPath } = resolveFormat(opts);
+        const sinceMs = parseDurationMs(opts.since ?? "24h");
+        if (!sinceMs) {
+          throw new Error("--since must be a duration like 30m, 6h, 7d");
+        }
+        const limitRaw =
+          typeof opts.limit === "number"
+            ? opts.limit
+            : Number.parseInt(String(opts.limit ?? "5000"), 10);
+        const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50_000) : 5000;
+
+        const nowMs = Date.now();
+        const startMs = nowMs - sinceMs;
+        const fromIso = new Date(startMs).toISOString();
+        const toIso = new Date(nowMs).toISOString();
+
+        const backend = createBackend({ cfg: config });
+        const events = backend.getTraceEventsByDateRange(fromIso, toIso, {
+          kind: opts.kind,
+          limit,
+        });
+
+        if (mode === "jsonl") {
+          writeOutput({ outPath, content: `${events.map((e) => JSON.stringify(e)).join("\n")}\n` });
+          return;
+        }
+
+        writeOutput({
+          outPath,
+          content: `${JSON.stringify({ from: fromIso, to: toIso, events }, null, 2)}\n`,
+        });
+      } catch (err) {
+        console.error(
+          `Meridia export trace failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
         process.exitCode = 1;
       }
     });

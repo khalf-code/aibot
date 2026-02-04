@@ -1,4 +1,4 @@
-export type MeridiaEvaluationV2 = {
+export type MeridiaEvaluation = {
   kind: "heuristic" | "llm";
   score: number;
   reason?: string;
@@ -7,19 +7,18 @@ export type MeridiaEvaluationV2 = {
   error?: string;
 };
 
-export type MeridiaExperienceKindV2 = "tool_result" | "manual" | "precompact" | "session_end";
+export type MeridiaExperienceKind = "tool_result" | "manual" | "precompact" | "session_end";
 
-export type MeridiaExperienceRecordV2 = {
-  v: 2;
+export type MeridiaExperienceRecord = {
   id: string;
   ts: string;
-  kind: MeridiaExperienceKindV2;
+  kind: MeridiaExperienceKind;
   session?: { key?: string; id?: string; runId?: string };
   tool?: { name: string; callId: string; meta?: string; isError: boolean };
   capture: {
     score: number;
     threshold?: number;
-    evaluation: MeridiaEvaluationV2;
+    evaluation: MeridiaEvaluation;
     limited?: { reason: "min_interval" | "max_per_hour"; detail?: string };
   };
   content?: {
@@ -38,18 +37,17 @@ export type MeridiaExperienceRecordV2 = {
   data?: { args?: unknown; result?: unknown; snapshot?: unknown; summary?: unknown };
 };
 
-export type MeridiaTraceEventKindV2 =
+export type MeridiaTraceEventKind =
   | "tool_result_eval"
   | "precompact_snapshot"
   | "compaction_end"
   | "session_end_snapshot"
   | "bootstrap_inject";
 
-export type MeridiaTraceEventV2 = {
-  v: 2;
+export type MeridiaTraceEvent = {
   id: string;
   ts: string;
-  kind: MeridiaTraceEventKindV2;
+  kind: MeridiaTraceEventKind;
   session?: { key?: string; id?: string; runId?: string };
   tool?: { name?: string; callId?: string; meta?: string; isError?: boolean };
   decision?: {
@@ -57,14 +55,14 @@ export type MeridiaTraceEventV2 = {
     score?: number;
     threshold?: number;
     limited?: { reason: "min_interval" | "max_per_hour"; detail?: string };
-    evaluation?: MeridiaEvaluationV2;
+    evaluation?: MeridiaEvaluation;
     recordId?: string;
     error?: string;
   };
   paths?: { snapshotPath?: string; summaryPath?: string };
 };
 
-export type MeridiaToolResultContextV2 = {
+export type MeridiaToolResultContext = {
   session?: { key?: string; id?: string; runId?: string };
   tool: { name: string; callId: string; meta?: string; isError: boolean };
   args?: unknown;

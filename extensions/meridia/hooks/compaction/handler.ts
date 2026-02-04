@@ -1,16 +1,12 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import crypto from "node:crypto";
 import path from "node:path";
-import type { MeridiaExperienceRecordV2, MeridiaTraceEventV2 } from "../../src/meridia/types.js";
-import {
-  openMeridiaDb,
-  insertExperienceRecord,
-  insertTraceEvent,
-} from "../../src/meridia/db/sqlite.js";
+import type { MeridiaExperienceRecord, MeridiaTraceEvent } from "../../src/meridia/types.js";
+import { createBackend } from "../../src/meridia/db/index.js";
 import { resolveMeridiaDir, dateKeyUtc } from "../../src/meridia/paths.js";
+import { resolveMeridiaPluginConfig } from "../../src/meridia/config.js";
 import {
   appendJsonl,
-  resolveRecordsJsonlPath,
   resolveTraceJsonlPath,
   writeJson,
 } from "../../src/meridia/storage.js";
@@ -63,8 +59,8 @@ const handler = async (event: HookEvent): Promise<void> => {
 
   const meridiaDir = resolveMeridiaDir(cfg, "compaction");
   const tracePath = resolveTraceJsonlPath({ meridiaDir, date: event.timestamp });
-  const recordPath = resolveRecordsJsonlPath({ meridiaDir, date: event.timestamp });
   const ts = nowIso();
+  const writeTraceJsonl = resolveMeridiaPluginConfig(cfg).debug.writeTraceJsonl;
 
   if (event.action === "precompact") {
     const dateKey = dateKeyUtc(event.timestamp);
@@ -87,8 +83,7 @@ const handler = async (event: HookEvent): Promise<void> => {
     await writeJson(snapshotPath, snapshot);
 
     const recordId = crypto.randomUUID();
-    const record: MeridiaExperienceRecordV2 = {
-      v: 2,
+    const record: MeridiaExperienceRecord = {
       id: recordId,
       ts,
       kind: "precompact",
@@ -108,26 +103,7 @@ const handler = async (event: HookEvent): Promise<void> => {
       data: { snapshot },
     };
 
-    try {
-      const db = openMeridiaDb({ cfg, hookKey: "compaction" });
-      insertExperienceRecord(db, record);
-      insertTraceEvent(db, {
-        v: 2,
-        id: crypto.randomUUID(),
-        ts,
-        kind: "precompact_snapshot",
-        session: { id: sessionId, key: sessionKey, runId },
-        paths: { snapshotPath },
-        decision: { decision: "capture", recordId },
-      });
-    } catch {
-      // ignore
-    }
-
-    await appendJsonl(recordPath, record);
-
-    const traceEvent: MeridiaTraceEventV2 = {
-      v: 2,
+    const traceEvent: MeridiaTraceEvent = {
       id: crypto.randomUUID(),
       ts,
       kind: "precompact_snapshot",
@@ -135,12 +111,22 @@ const handler = async (event: HookEvent): Promise<void> => {
       paths: { snapshotPath },
       decision: { decision: "capture", recordId },
     };
-    await appendJsonl(tracePath, traceEvent);
+
+    try {
+      const backend = createBackend({ cfg, hookKey: "compaction" });
+      backend.insertExperienceRecord(record);
+      backend.insertTraceEvent(traceEvent);
+    } catch {
+      // ignore
+    }
+
+    if (writeTraceJsonl) {
+      await appendJsonl(tracePath, traceEvent);
+    }
     return;
   }
 
-  const traceEvent: MeridiaTraceEventV2 = {
-    v: 2,
+  const traceEvent: MeridiaTraceEvent = {
     id: crypto.randomUUID(),
     ts,
     kind: "compaction_end",
@@ -148,12 +134,14 @@ const handler = async (event: HookEvent): Promise<void> => {
     decision: { decision: "skip" },
   };
   try {
-    const db = openMeridiaDb({ cfg, hookKey: "compaction" });
-    insertTraceEvent(db, traceEvent);
+    const backend = createBackend({ cfg, hookKey: "compaction" });
+    backend.insertTraceEvent(traceEvent);
   } catch {
     // ignore
   }
-  await appendJsonl(tracePath, traceEvent);
+  if (writeTraceJsonl) {
+    await appendJsonl(tracePath, traceEvent);
+  }
 };
 
 export default handler;

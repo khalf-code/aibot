@@ -6,9 +6,8 @@ import {
   readNumberParam,
   readStringParam,
 } from "openclaw/plugin-sdk";
-import type { MeridiaExperienceRecordV2 } from "../meridia/types.js";
-import { openMeridiaDb, getMeridiaDbStats } from "../meridia/db/sqlite.js";
-import { getRecordsByDateRange, getRecordsBySession, getRecentRecords } from "../meridia/query.js";
+import type { MeridiaExperienceRecord } from "../meridia/types.js";
+import { createBackend } from "../meridia/db/index.js";
 
 const ExperienceReflectSchema = Type.Object({
   scope: optionalStringEnum(["recent", "session", "date_range"], {
@@ -46,24 +45,37 @@ const ExperienceReflectSchema = Type.Object({
   ),
 });
 
-function analyzeRecords(records: MeridiaExperienceRecordV2[]) {
+type ReflectionAnalysis = {
+  recordCount: number;
+  timeRange: { earliest: string; latest: string } | null;
+  toolDistribution: Record<string, number>;
+  scoreDistribution: { high: number; medium: number; low: number };
+  errorRate: number;
+  sessions: string[];
+  patterns: string[];
+  topRecords: Array<{
+    id: string;
+    timestamp: string;
+    kind: string;
+    tool: string | null;
+    score: number;
+    reason: string | undefined;
+    isError: boolean;
+  }>;
+  reflectionPrompts: string[];
+};
+
+function analyzeRecords(records: MeridiaExperienceRecord[]): ReflectionAnalysis {
   if (records.length === 0) {
     return {
       recordCount: 0,
-      timeRange: null as { earliest: string; latest: string } | null,
-      toolDistribution: {} as Record<string, number>,
+      timeRange: null,
+      toolDistribution: {},
       scoreDistribution: { high: 0, medium: 0, low: 0 },
       errorRate: 0,
-      sessions: [] as string[],
-      topRecords: [] as Array<{
-        id: string;
-        timestamp: string;
-        kind: string;
-        tool: string | null;
-        score: number;
-        reason: string | undefined;
-        isError: boolean;
-      }>,
+      sessions: [],
+      patterns: [],
+      topRecords: [],
       reflectionPrompts: [
         "No experiential records found for this scope. Consider what might be worth capturing.",
       ],
@@ -104,7 +116,7 @@ function analyzeRecords(records: MeridiaExperienceRecordV2[]) {
 
   const topRecords = [...records]
     .sort((a, b) => b.capture.score - a.capture.score || b.ts.localeCompare(a.ts))
-    .slice(0, 8)
+    .slice(0, 5)
     .map((r) => ({
       id: r.id,
       timestamp: r.ts,
@@ -115,21 +127,86 @@ function analyzeRecords(records: MeridiaExperienceRecordV2[]) {
       isError: r.tool?.isError ?? false,
     }));
 
+  const patterns: string[] = [];
+  const recordCount = records.length;
+  const errorRate = recordCount > 0 ? errorCount / recordCount : 0;
+
+  const toolEntries = Object.entries(toolDist).sort(([, a], [, b]) => b - a);
+  if (toolEntries.length > 0) {
+    const [topTool, topCount] = toolEntries[0] ?? ["(none)", 0];
+    const pct = recordCount > 0 ? ((topCount / recordCount) * 100).toFixed(0) : "0";
+    patterns.push(`Most used tool: ${topTool} (${topCount} records, ${pct}% of total)`);
+  }
+
+  if (errorRate > 0.3) {
+    patterns.push(`High error rate: ${(errorRate * 100).toFixed(0)}% of records involved errors`);
+    const errorTools = records
+      .filter((r) => r.tool?.isError)
+      .reduce(
+        (acc, r) => {
+          const key = r.tool?.name ?? "(none)";
+          acc[key] = (acc[key] ?? 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+    const topErrorTool = Object.entries(errorTools).sort(([, a], [, b]) => b - a)[0];
+    if (topErrorTool) {
+      patterns.push(`Most error-prone tool: ${topErrorTool[0]} (${topErrorTool[1]} errors)`);
+    }
+  } else if (errorRate === 0) {
+    patterns.push("No errors captured in this scope.");
+  }
+
+  if (high > recordCount * 0.5) {
+    patterns.push(
+      `${high} out of ${recordCount} records are high significance (≥0.8) — an intense period.`,
+    );
+  }
+
+  if (sessions.size > 1) {
+    patterns.push(`Spans ${sessions.size} sessions — cross-session patterns may be present.`);
+  }
+
+  if (earliest && latest) {
+    const spanMs = new Date(latest).getTime() - new Date(earliest).getTime();
+    if (Number.isFinite(spanMs)) {
+      const spanHours = spanMs / (1000 * 60 * 60);
+      if (spanHours < 1) {
+        patterns.push(`All records within ~${Math.ceil(spanHours * 60)} minutes — a focused burst.`);
+      } else if (spanHours > 24) {
+        patterns.push(
+          `Records span ${Math.ceil(spanHours / 24)} days — look for evolution over time.`,
+        );
+      }
+    }
+  }
+
   const reflectionPrompts: string[] = [];
-  reflectionPrompts.push("What patterns do you notice across the top experiences?");
+  reflectionPrompts.push("What themes or threads connect these experiences?");
+  reflectionPrompts.push("Which moments felt most significant then vs now?");
   if (errorCount > 0) {
-    reflectionPrompts.push("Which errors were most meaningful, and what changed afterward?");
+    reflectionPrompts.push("What can you learn from the errors encountered?");
+  }
+  if (sessions.size > 1) {
+    reflectionPrompts.push("How does the experiential quality differ across sessions?");
+  }
+  if (high >= 3) {
+    reflectionPrompts.push(
+      "What do the high-significance experiences have in common? What made them important?",
+    );
   }
   reflectionPrompts.push("What should you do differently next time based on these experiences?");
   reflectionPrompts.push("What anchors or phrases would best reconstitute the underlying state?");
 
   return {
-    recordCount: records.length,
+    recordCount,
     timeRange: earliest && latest ? { earliest, latest } : null,
     toolDistribution: toolDist,
     scoreDistribution: { high, medium, low },
-    errorRate: records.length > 0 ? errorCount / records.length : 0,
+    errorRate: Math.round(errorRate * 100) / 100,
     sessions: Array.from(sessions),
+    patterns,
     topRecords,
     reflectionPrompts,
   };
@@ -156,57 +233,73 @@ export function createExperienceReflectTool(opts?: {
       const focus = readStringParam(params, "focus");
 
       try {
-        const db = openMeridiaDb({ cfg: opts?.config });
+        const backend = createBackend({ cfg: opts?.config });
+        const stats = backend.getStats();
 
-        let records: MeridiaExperienceRecordV2[] = [];
+        if (stats.recordCount === 0) {
+          return jsonResult({
+            scope,
+            focus: focus ?? null,
+            dbStats: {
+              totalRecords: 0,
+              totalSessions: 0,
+              oldest: null,
+              newest: null,
+            },
+            reflection: analyzeRecords([]),
+          });
+        }
+
+        const baseLimit = Math.max(limit, 50);
+
+        let scopeResults: MeridiaExperienceRecord[] = [];
         if (scope === "session") {
           if (!sessionKey) {
             return jsonResult({ error: "session_key is required when scope='session'." });
           }
-          records = getRecordsBySession(db, sessionKey, Math.max(limit, 50)).map((r) => r.record);
+          scopeResults = backend
+            .getRecordsBySession(sessionKey, { limit: baseLimit })
+            .map((r) => r.record);
         } else if (scope === "date_range") {
           if (!from) {
             return jsonResult({ error: "from is required when scope='date_range'." });
           }
-          records = getRecordsByDateRange(db, from, to ?? new Date().toISOString(), {
-            limit: Math.max(limit, 50),
-          }).map((r) => r.record);
+          scopeResults = backend
+            .getRecordsByDateRange(from, to ?? new Date().toISOString(), { limit: baseLimit })
+            .map((r) => r.record);
         } else {
-          records = getRecentRecords(db, Math.max(limit, 50)).map((r) => r.record);
+          scopeResults = backend.getRecentRecords(baseLimit).map((r) => r.record);
         }
 
-        if (focus) {
-          const focusLower = focus.toLowerCase();
-          records = records.filter((r) => {
-            const haystack = [
-              r.tool?.name ?? "",
-              r.capture.evaluation.reason ?? "",
-              r.content?.topic ?? "",
-              r.content?.summary ?? "",
-              r.content?.context ?? "",
-              ...(r.content?.tags ?? []),
-            ]
-              .join(" ")
-              .toLowerCase();
-            return haystack.includes(focusLower);
-          });
+        let records = scopeResults;
+        let focusNote: string | null = null;
+        if (focus && focus.trim()) {
+          const focusResults = backend.searchRecords(focus, { limit: baseLimit });
+          if (focusResults.length > 0) {
+            const scopeIds = new Set(scopeResults.map((r) => r.id));
+            const intersected = focusResults.filter((r) => scopeIds.has(r.record.id));
+            if (intersected.length > 0) {
+              records = intersected.map((r) => r.record);
+            } else {
+              records = focusResults.map((r) => r.record);
+              focusNote = "Focus search did not intersect with selected scope; using focus results.";
+            }
+          }
         }
 
         const analysis = analyzeRecords(records.slice(0, limit));
-        const stats = getMeridiaDbStats(db);
 
         return jsonResult({
           scope,
           focus: focus ?? null,
-          recordCount: analysis.recordCount,
-          totalRecords: stats.recordCount,
-          timeRange: analysis.timeRange,
-          toolDistribution: analysis.toolDistribution,
-          scoreDistribution: analysis.scoreDistribution,
-          errorRate: analysis.errorRate,
-          sessions: analysis.sessions,
-          topRecords: analysis.topRecords,
-          reflectionPrompts: analysis.reflectionPrompts,
+          ...(focusNote ? { focusNote } : {}),
+          dbStats: {
+            totalRecords: stats.recordCount,
+            totalSessions: stats.sessionCount,
+            oldest: stats.oldestRecord,
+            newest: stats.newestRecord,
+          },
+          reflection: analysis,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
