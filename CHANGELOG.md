@@ -46,6 +46,7 @@ Docs: https://docs.openclaw.ai
 
 - Security: require operator.approvals for gateway /approve commands. (#1) Thanks @mitsuhiko, @yueyueL.
 - Updates: honor update.channel for update.run (Control UI) and channel-based npm tags for global installs.
+- GitHub Copilot: add required IDE headers to fix HTTP 421 Misdirected Request for Enterprise accounts. (#1797) Thanks @at10ti0n.
 - Security: Matrix allowlists now require full MXIDs; ambiguous name resolution no longer grants access. Thanks @MegaManSec.
 - Security: enforce access-group gating for Slack slash commands when channel type lookup fails.
 - Security: require validated shared-secret auth before skipping device identity on gateway connect.
