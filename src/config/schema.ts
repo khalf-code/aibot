@@ -133,6 +133,8 @@ const FIELD_LABELS: Record<string, string> = {
   "gateway.remote.tlsFingerprint": "Remote Gateway TLS Fingerprint",
   "gateway.auth.token": "Gateway Token",
   "gateway.auth.password": "Gateway Password",
+  "logging.enhanced.gatewayHealthSuppressCliConnectDisconnect":
+    "Gateway Health Suppress CLI Connect/Disconnect",
   "logging.enhanced.gatewayHealthSuppressMethods": "Gateway Health Suppressed Methods",
   "tools.media.image.enabled": "Enable Image Understanding",
   "tools.media.image.maxBytes": "Image Understanding Max Bytes",
@@ -281,6 +283,8 @@ const FIELD_LABELS: Record<string, string> = {
   "memory.qmd.limits.maxInjectedChars": "QMD Max Injected Chars",
   "memory.qmd.limits.timeoutMs": "QMD Search Timeout (ms)",
   "memory.qmd.scope": "QMD Surface Scope",
+  "memory.progressive": "Progressive Memory",
+  "memory.progressive.enabled": "Enable Progressive Memory",
   "auth.profiles": "Auth Profiles",
   "auth.order": "Auth Profile Order",
   "auth.cooldowns.billingBackoffHours": "Billing Backoff (hours)",
