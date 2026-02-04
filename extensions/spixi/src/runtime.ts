@@ -76,6 +76,23 @@ export const getSpixiRuntime = () => {
             } catch (e: any) {
               throw new Error(`Spixi getFriendList failed: ${e.message}`);
             }
+          },
+          acceptContact: async (address: string, opts?: { baseUrl?: string }) => {
+            const baseUrl = opts?.baseUrl || defaultBaseUrl;
+            try {
+              // QuIXI uses GET: /acceptContact?address=
+              const url = new URL("/acceptContact", baseUrl);
+              url.searchParams.set("address", address);
+
+              const res = await axios.get(url.toString());
+              return {
+                success: true,
+                address,
+                ...res.data
+              };
+            } catch (e: any) {
+              throw new Error(`Spixi acceptContact failed: ${e.message}`);
+            }
           }
         }
       }
