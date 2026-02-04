@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { OpenClawConfig } from "../../config/config.js";
 import type { FinalizedMsgContext } from "../templating.js";
 import type { GetReplyOptions, ReplyPayload } from "../types.js";
@@ -141,6 +142,26 @@ export async function dispatchReplyFromConfig(params: {
   };
 
   if (shouldSkipDuplicateInbound(ctx)) {
+    // #region agent log
+    const _logPayload = {
+      location: "dispatch-from-config.ts:skip",
+      message: "skipped duplicate inbound",
+      data: { sessionKey: ctx.SessionKey },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      hypothesisId: "H2",
+    };
+    fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_logPayload),
+    }).catch(() => {});
+    fs.appendFile(
+      "/home/JuliusHalm/.cursor/debug.log",
+      JSON.stringify(_logPayload) + "\n",
+      () => {},
+    );
+    // #endregion
     recordProcessed("skipped", { reason: "duplicate" });
     return { queuedFinal: false, counts: dispatcher.getQueuedCounts() };
   }
@@ -251,6 +272,26 @@ export async function dispatchReplyFromConfig(params: {
   try {
     const fastAbort = await tryFastAbortFromMessage({ ctx, cfg });
     if (fastAbort.handled) {
+      // #region agent log
+      const _logPayload = {
+        location: "dispatch-from-config.ts:fastAbort",
+        message: "fast abort handled, skipping getReplyFromConfig",
+        data: { sessionKey: ctx.SessionKey },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        hypothesisId: "H2",
+      };
+      fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(_logPayload),
+      }).catch(() => {});
+      fs.appendFile(
+        "/home/JuliusHalm/.cursor/debug.log",
+        JSON.stringify(_logPayload) + "\n",
+        () => {},
+      );
+      // #endregion
       const payload = {
         text: formatAbortReplyText(fastAbort.stoppedSubagents),
       } satisfies ReplyPayload;
@@ -292,6 +333,29 @@ export async function dispatchReplyFromConfig(params: {
     let accumulatedBlockText = "";
     let blockCount = 0;
 
+    // #region agent log
+    const _logPayload = {
+      location: "dispatch-from-config.ts:getReply",
+      message: "calling getReplyFromConfig",
+      data: {
+        sessionKey: ctx.SessionKey,
+        bodyLen: typeof ctx.Body === "string" ? ctx.Body.length : 0,
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      hypothesisId: "H3",
+    };
+    fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_logPayload),
+    }).catch(() => {});
+    fs.appendFile(
+      "/home/JuliusHalm/.cursor/debug.log",
+      JSON.stringify(_logPayload) + "\n",
+      () => {},
+    );
+    // #endregion
     const replyResult = await (params.replyResolver ?? getReplyFromConfig)(
       ctx,
       {

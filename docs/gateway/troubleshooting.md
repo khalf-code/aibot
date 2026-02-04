@@ -442,16 +442,53 @@ ls -la /path/to/your/image.jpg
 grep "media\\|fetch\\|download" "$(ls -t /tmp/openclaw/openclaw-*.log | head -1)" | tail -20
 ```
 
-### High Memory Usage
+### High Memory Usage / Gateway shuts down when starting TUI
 
-OpenClaw keeps conversation history in memory.
+The gateway monitors its own heap and, by default, **shuts down gracefully** when usage exceeds a fatal threshold (95%) to avoid OOM. If the gateway keeps shutting down when you start the TUI or under load (e.g. "Memory usage FATAL" in logs), you can:
 
-**Fix:** Restart periodically or set session limits:
+**Option 1 – Disable fatal shutdown (gateway stays up, cleanup only)**  
+Set this in the **gateway process** environment (e.g. in `~/.openclaw/.env` or in the systemd/launchd service environment):
+
+```bash
+OPENCLAW_MEMORY_FATAL_DISABLED=1
+```
+
+Then the gateway will still run cleanup and GC at the fatal threshold but **will not shut down**. Restart the gateway after adding the variable.
+
+**Option 2 – Run within a fixed memory budget (recommended on servers)**  
+To keep the gateway and agent within a given memory limit:
+
+1. **Cap Node heap** (so the process doesn’t grow unbounded):
+   - In the **service** environment set `NODE_OPTIONS=--max-old-space-size=512` (MB), or
+   - `OPENCLAW_MEMORY_MAX_HEAP_SIZE_MB=512`
+2. **Optionally disable fatal shutdown** so the gateway doesn’t exit when near the cap:
+   - `OPENCLAW_MEMORY_FATAL_DISABLED=1`
+
+Example for a systemd user service: add to the unit (or use `systemctl --user edit openclaw-gateway.service` and add under `[Service]`):
+
+```ini
+Environment=OPENCLAW_MEMORY_FATAL_DISABLED=1
+Environment=OPENCLAW_MEMORY_MAX_HEAP_SIZE_MB=512
+```
+
+Or put the same in `~/.openclaw/.env` (the gateway loads it when the service starts).
+
+**All memory-related env vars (gateway):**
+
+| Variable | Default | Effect |
+| -------- | ------- | ------ |
+| `OPENCLAW_MEMORY_WARNING_THRESHOLD` | 0.75 | Log warning above this ratio (0–1). |
+| `OPENCLAW_MEMORY_CRITICAL_THRESHOLD` | 0.85 | Aggressive cleanup + GC above this. |
+| `OPENCLAW_MEMORY_FATAL_THRESHOLD` | 0.95 | Graceful shutdown above this (unless disabled). |
+| `OPENCLAW_MEMORY_FATAL_DISABLED` | (unset) | Set to `1` to disable shutdown at fatal; only cleanup/GC. |
+| `OPENCLAW_MEMORY_MAX_HEAP_SIZE_MB` | (unset) | Cap used for usage ratio; use with Node’s `--max-old-space-size` for a hard heap limit. |
+
+**Session history:** OpenClaw also keeps conversation history in memory. You can lower load with session limits:
 
 ```json
 {
   "session": {
-    "historyLimit": 100 // Max messages to keep
+    "historyLimit": 100
   }
 }
 ```

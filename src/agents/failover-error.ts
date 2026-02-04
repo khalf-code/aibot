@@ -59,9 +59,12 @@ function getStatusCode(err: unknown): number | undefined {
   if (!err || typeof err !== "object") {
     return undefined;
   }
-  const candidate =
-    (err as { status?: unknown; statusCode?: unknown }).status ??
-    (err as { statusCode?: unknown }).statusCode;
+  const o = err as {
+    status?: unknown;
+    statusCode?: unknown;
+    response?: { status?: unknown; statusCode?: unknown };
+  };
+  const candidate = o.status ?? o.statusCode ?? o.response?.status ?? o.response?.statusCode;
   if (typeof candidate === "number") {
     return candidate;
   }

@@ -6,6 +6,7 @@ import { enqueueCommandInLane } from "../../process/command-queue.js";
 import { resolveUserPath } from "../../utils.js";
 import { isMarkdownCapableMessageChannel } from "../../utils/message-channel.js";
 import { resolveOpenClawAgentDir } from "../agent-paths.js";
+import { resolveAgentModelFallbacksOverride, resolveSessionAgentId } from "../agent-scope.js";
 import {
   isProfileInCooldown,
   markAuthProfileFailure,
@@ -96,8 +97,19 @@ export async function runEmbeddedPiAgent(
       const provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
       const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
       const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
-      const fallbackConfigured =
-        (params.config?.agents?.defaults?.model?.fallbacks?.length ?? 0) > 0;
+      const defaultsFallbacks =
+        params.config?.agents?.defaults?.model &&
+        typeof params.config.agents.defaults.model === "object" &&
+        Array.isArray(params.config.agents.defaults.model.fallbacks)
+          ? params.config.agents.defaults.model.fallbacks.length
+          : 0;
+      const agentId = resolveSessionAgentId({
+        sessionKey: params.sessionKey ?? params.sessionId,
+        config: params.config,
+      });
+      const agentFallbacks =
+        resolveAgentModelFallbacksOverride(params.config ?? {}, agentId)?.length ?? 0;
+      const fallbackConfigured = defaultsFallbacks > 0 || agentFallbacks > 0;
       await ensureOpenClawModelsJson(params.config, agentDir);
 
       const { model, error, authStorage, modelRegistry } = resolveModel(

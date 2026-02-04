@@ -196,6 +196,8 @@ export function createFollowupRunner(params: {
       if (storePath && sessionKey) {
         const usage = runResult.meta.agentMeta?.usage;
         const modelUsed = runResult.meta.agentMeta?.model ?? fallbackModel ?? defaultModel;
+        const usedFallback =
+          fallbackProvider !== queued.run.provider || fallbackModel !== queued.run.model;
         const contextTokensUsed =
           agentCfgContextTokens ??
           lookupContextTokens(modelUsed) ??
@@ -206,8 +208,8 @@ export function createFollowupRunner(params: {
           storePath,
           sessionKey,
           usage,
-          modelUsed,
-          providerUsed: fallbackProvider,
+          modelUsed: usedFallback ? undefined : modelUsed,
+          providerUsed: usedFallback ? undefined : fallbackProvider,
           contextTokensUsed,
           logLabel: "followup",
         });

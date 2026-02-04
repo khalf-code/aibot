@@ -374,6 +374,8 @@ export async function runReplyAgent(params: {
     const modelUsed = runResult.meta.agentMeta?.model ?? fallbackModel ?? defaultModel;
     const providerUsed =
       runResult.meta.agentMeta?.provider ?? fallbackProvider ?? followupRun.run.provider;
+    const usedFallback =
+      providerUsed !== followupRun.run.provider || modelUsed !== followupRun.run.model;
     const cliSessionId = isCliProvider(providerUsed, cfg)
       ? runResult.meta.agentMeta?.sessionId?.trim()
       : undefined;
@@ -387,8 +389,8 @@ export async function runReplyAgent(params: {
       storePath,
       sessionKey,
       usage,
-      modelUsed,
-      providerUsed,
+      modelUsed: usedFallback ? undefined : modelUsed,
+      providerUsed: usedFallback ? undefined : providerUsed,
       contextTokensUsed,
       systemPromptReport: runResult.meta.systemPromptReport,
       cliSessionId,

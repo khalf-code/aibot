@@ -445,6 +445,7 @@ export async function startGatewayServer(
     }
   };
 
+  const memoryFatalDisabled = process.env.OPENCLAW_MEMORY_FATAL_DISABLED === "1";
   const memoryMonitor = createMemoryMonitor({
     thresholds: memoryThresholds,
     checkIntervalMs: 30000, // Check every 30 seconds
@@ -469,24 +470,37 @@ export async function startGatewayServer(
       // Force GC if available
       memoryMonitor.forceGC();
     },
-    onFatal: (stats) => {
-      logMemory.error("Memory usage FATAL - initiating graceful shutdown", {
-        heapUsed: `${(stats.heapUsed / 1024 / 1024).toFixed(2)} MB`,
-        heapTotal: `${(stats.heapTotal / 1024 / 1024).toFixed(2)} MB`,
-        rss: `${(stats.rss / 1024 / 1024).toFixed(2)} MB`,
-        usageRatio: `${(stats.usageRatio * 100).toFixed(1)}%`,
-      });
-      performMemoryCleanup();
-      memoryMonitor.forceGC();
-      // Schedule graceful shutdown after a short delay to allow cleanup
-      setTimeout(() => {
-        logMemory.error("Memory fatal threshold exceeded - shutting down gracefully");
-        void close({ reason: "memory_fatal_threshold_exceeded" }).catch((err) => {
-          logMemory.error("Error during memory-triggered shutdown", { error: String(err) });
-          process.exit(1);
-        });
-      }, 5000); // 5 second grace period
-    },
+    onFatal: memoryFatalDisabled
+      ? (stats) => {
+          logMemory.warn(
+            "Memory usage FATAL - cleanup only (shutdown disabled via OPENCLAW_MEMORY_FATAL_DISABLED)",
+            {
+              heapUsed: `${(stats.heapUsed / 1024 / 1024).toFixed(2)} MB`,
+              heapTotal: `${(stats.heapTotal / 1024 / 1024).toFixed(2)} MB`,
+              rss: `${(stats.rss / 1024 / 1024).toFixed(2)} MB`,
+              usageRatio: `${(stats.usageRatio * 100).toFixed(1)}%`,
+            },
+          );
+          performMemoryCleanup();
+          memoryMonitor.forceGC();
+        }
+      : (stats) => {
+          logMemory.error("Memory usage FATAL - initiating graceful shutdown", {
+            heapUsed: `${(stats.heapUsed / 1024 / 1024).toFixed(2)} MB`,
+            heapTotal: `${(stats.heapTotal / 1024 / 1024).toFixed(2)} MB`,
+            rss: `${(stats.rss / 1024 / 1024).toFixed(2)} MB`,
+            usageRatio: `${(stats.usageRatio * 100).toFixed(1)}%`,
+          });
+          performMemoryCleanup();
+          memoryMonitor.forceGC();
+          setTimeout(() => {
+            logMemory.error("Memory fatal threshold exceeded - shutting down gracefully");
+            void close({ reason: "memory_fatal_threshold_exceeded" }).catch((err) => {
+              logMemory.error("Error during memory-triggered shutdown", { error: String(err) });
+              process.exit(1);
+            });
+          }, 5000);
+        },
   });
   memoryMonitor.start();
 

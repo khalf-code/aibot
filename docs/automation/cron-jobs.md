@@ -19,8 +19,10 @@ cron is the mechanism.
 
 ## TL;DR
 
+- **Cron runs only while the Gateway process is running.** After `openclaw gateway install`, the gateway is enabled and started by default, and the service restarts automatically if it stops (so cron keeps running).
 - Cron runs **inside the Gateway** (not inside the model).
 - Jobs persist under `~/.openclaw/cron/` so restarts don’t lose schedules.
+- **Run a job on demand:** `openclaw cron run <job-id> --force`.
 - Two execution styles:
   - **Main session**: enqueue a system event, then run on the next heartbeat.
   - **Isolated**: run a dedicated agent turn in `cron:<jobId>`, optionally deliver output.

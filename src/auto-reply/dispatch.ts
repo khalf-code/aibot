@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { OpenClawConfig } from "../config/config.js";
 import type { DispatchFromConfigResult } from "./reply/dispatch-from-config.js";
 import type { FinalizedMsgContext, MsgContext } from "./templating.js";
@@ -21,6 +22,24 @@ export async function dispatchInboundMessage(params: {
   replyOptions?: Omit<GetReplyOptions, "onToolResult" | "onBlockReply">;
   replyResolver?: typeof import("./reply.js").getReplyFromConfig;
 }): Promise<DispatchInboundResult> {
+  // #region agent log
+  const sk = params.ctx.SessionKey ?? "";
+  const bodyLen = typeof params.ctx.Body === "string" ? params.ctx.Body.length : 0;
+  const _logPayload = {
+    location: "dispatch.ts:dispatchInboundMessage",
+    message: "dispatchInboundMessage entry",
+    data: { SessionKey: sk, bodyLen, Provider: params.ctx.Provider },
+    timestamp: Date.now(),
+    sessionId: "debug-session",
+    hypothesisId: "H2",
+  };
+  fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(_logPayload),
+  }).catch(() => {});
+  fs.appendFile("/home/JuliusHalm/.cursor/debug.log", JSON.stringify(_logPayload) + "\n", () => {});
+  // #endregion
   const finalized = finalizeInboundContext(params.ctx);
   return await dispatchReplyFromConfig({
     ctx: finalized,

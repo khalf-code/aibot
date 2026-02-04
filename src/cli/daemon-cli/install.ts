@@ -121,6 +121,13 @@ export async function runDaemonInstall(opts: DaemonInstallOptions) {
     return;
   }
 
+  // Default state: gateway running. On Linux, enable linger so it keeps running after logout.
+  if (process.platform === "linux") {
+    const { ensureSystemdUserLingerNonInteractive } =
+      await import("../../commands/systemd-linger.js");
+    await ensureSystemdUserLingerNonInteractive({ runtime: defaultRuntime });
+  }
+
   let installed = true;
   try {
     installed = await service.isLoaded({ env: process.env });

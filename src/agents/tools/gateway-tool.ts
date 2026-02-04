@@ -26,6 +26,7 @@ function resolveBaseHashFromSnapshot(snapshot: unknown): string | undefined {
 }
 
 const GATEWAY_ACTIONS = [
+  "status",
   "restart",
   "config.get",
   "config.schema",
@@ -67,11 +68,42 @@ export function createGatewayTool(opts?: {
     label: "Gateway",
     name: "gateway",
     description:
-      "Restart, apply config, or update the gateway in-place (SIGUSR1). Use config.patch for safe partial config updates (merges with existing). Use config.apply only when replacing entire config. Both trigger restart after writing.",
+      "Check gateway status (action=status), restart, apply config, or update in-place (SIGUSR1). Use config.patch for safe partial config updates. Use config.apply only when replacing entire config. Both trigger restart after writing.",
     parameters: GatewayToolSchema,
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
       const action = readStringParam(params, "action", { required: true });
+      if (action === "status") {
+        const gatewayUrl =
+          typeof params.gatewayUrl === "string" && params.gatewayUrl.trim()
+            ? params.gatewayUrl.trim()
+            : undefined;
+        const gatewayToken =
+          typeof params.gatewayToken === "string" && params.gatewayToken.trim()
+            ? params.gatewayToken.trim()
+            : undefined;
+        const timeoutMs =
+          typeof params.timeoutMs === "number" && Number.isFinite(params.timeoutMs)
+            ? Math.max(1, Math.floor(params.timeoutMs))
+            : undefined;
+        const gatewayOpts = { gatewayUrl, gatewayToken, timeoutMs };
+        try {
+          const snapshot = await callGatewayTool("config.get", gatewayOpts, {});
+          const hash = resolveBaseHashFromSnapshot(snapshot);
+          return jsonResult({
+            ok: true,
+            status: "reachable",
+            configHash: hash ?? undefined,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          return jsonResult({
+            ok: false,
+            status: "unreachable",
+            error: message.slice(0, 200),
+          });
+        }
+      }
       if (action === "restart") {
         if (opts?.config?.commands?.restart !== true) {
           throw new Error("Gateway restart is disabled. Set commands.restart=true to enable.");

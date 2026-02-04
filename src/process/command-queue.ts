@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { diagnosticLogger as diag, logLaneDequeue, logLaneEnqueue } from "../logging/diagnostic.js";
 import { CommandLane } from "./lanes.js";
 
@@ -116,7 +117,30 @@ export function enqueueCommandInLane<T>(
       warnAfterMs,
       onWait: opts?.onWait,
     });
-    logLaneEnqueue(cleaned, state.queue.length + state.active);
+    const qLen = state.queue.length + state.active;
+    logLaneEnqueue(cleaned, qLen);
+    // #region agent log
+    if (cleaned === "main") {
+      const _logPayload = {
+        location: "command-queue.ts:enqueue",
+        message: "enqueue Main lane",
+        data: { lane: cleaned, queueLength: qLen },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        hypothesisId: "H3",
+      };
+      fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(_logPayload),
+      }).catch(() => {});
+      fs.appendFile(
+        "/home/JuliusHalm/.cursor/debug.log",
+        JSON.stringify(_logPayload) + "\n",
+        () => {},
+      );
+    }
+    // #endregion
     drainLane(cleaned);
   });
 }

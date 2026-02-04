@@ -451,6 +451,27 @@ export const chatHandlers: GatewayRequestHandlers = {
       return;
     }
 
+    // #region agent log
+    const _logPayload = {
+      location: "chat.ts:chat.send",
+      message: "chat.send entry",
+      data: { sessionKey: p.sessionKey, messageLen: rawMessage.length, clientRunId },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      hypothesisId: "H1",
+    };
+    fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_logPayload),
+    }).catch(() => {});
+    fs.appendFile(
+      "/home/JuliusHalm/.cursor/debug.log",
+      JSON.stringify(_logPayload) + "\n",
+      () => {},
+    );
+    // #endregion
+
     try {
       const abortController = new AbortController();
       context.chatAbortControllers.set(clientRunId, {
@@ -530,6 +551,26 @@ export const chatHandlers: GatewayRequestHandlers = {
         clientRunId: clientRunId,
       });
       let agentRunStarted = false;
+      // #region agent log
+      const _logPayload2 = {
+        location: "chat.ts:dispatchInboundMessage",
+        message: "about to call dispatchInboundMessage",
+        data: { sessionKey: p.sessionKey, runId: clientRunId },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        hypothesisId: "H2",
+      };
+      fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(_logPayload2),
+      }).catch(() => {});
+      fs.appendFile(
+        "/home/JuliusHalm/.cursor/debug.log",
+        JSON.stringify(_logPayload2) + "\n",
+        () => {},
+      );
+      // #endregion
       void dispatchInboundMessage({
         ctx,
         cfg,

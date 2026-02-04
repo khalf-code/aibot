@@ -74,6 +74,17 @@ You can reference env vars directly in config string values using `${VAR_NAME}` 
 
 See [Configuration: Env var substitution](/gateway/configuration#env-var-substitution-in-config) for full details.
 
+## Gateway memory (low-RAM / avoid shutdown)
+
+When the gateway runs on a memory-constrained server or with the TUI (which adds load), it may hit the default **fatal** memory threshold (95%) and shut down. To keep it running and/or cap memory:
+
+- **`OPENCLAW_MEMORY_FATAL_DISABLED=1`** – At the fatal threshold the gateway only runs cleanup and GC; it does **not** shut down. Set in the gateway process environment (e.g. `~/.openclaw/.env` or the systemd/launchd service).
+- **`OPENCLAW_MEMORY_MAX_HEAP_SIZE_MB`** – Used for the usage ratio; combine with Node’s `--max-old-space-size` for a hard heap cap.
+- **`OPENCLAW_MEMORY_FATAL_THRESHOLD`** – Fraction 0–1 (default 0.95). Set to `1` to effectively disable shutdown by threshold.
+- **`OPENCLAW_MEMORY_WARNING_THRESHOLD`** / **`OPENCLAW_MEMORY_CRITICAL_THRESHOLD`** – Tune when warnings and aggressive cleanup run.
+
+Details and examples: [Troubleshooting: High Memory Usage](/gateway/troubleshooting#high-memory-usage--gateway-shuts-down-when-starting-tui).
+
 ## Related
 
 - [Gateway configuration](/gateway/configuration)

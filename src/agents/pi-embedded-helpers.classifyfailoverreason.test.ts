@@ -38,4 +38,9 @@ describe("classifyFailoverReason", () => {
       "rate_limit",
     );
   });
+  it("classifies HTTP 429 and 'please try again later' as rate_limit", () => {
+    expect(classifyFailoverReason("HTTP 429: Rate limit exceeded. Please try again later.")).toBe(
+      "rate_limit",
+    );
+  });
 });

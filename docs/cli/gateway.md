@@ -158,6 +158,7 @@ openclaw gateway uninstall
 
 Notes:
 
+- **Default state after install:** The gateway is **enabled and started** (running). If it stops (crash or exit), the service **restarts automatically** (systemd/launchd Restart=always). On Linux, install also enables **linger** when possible so the gateway keeps running after logout.
 - `gateway install` supports `--port`, `--runtime`, `--token`, `--force`, `--json`.
 - Lifecycle commands accept `--json` for scripting.
 

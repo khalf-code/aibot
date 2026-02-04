@@ -1,3 +1,4 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { ReplyPayload } from "../auto-reply/types.js";
@@ -499,6 +500,20 @@ export async function runHeartbeatOnce(opts: {
   }
 
   const queueSize = (opts.deps?.getQueueSize ?? getQueueSize)(CommandLane.Main);
+  // #region agent log
+  fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "heartbeat-runner.ts:runHeartbeatOnce",
+      message: "heartbeat check queue",
+      data: { queueSize, reason: opts.reason, agentId },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      hypothesisId: "H4",
+    }),
+  }).catch(() => {});
+  // #endregion
   if (queueSize > 0) {
     return { status: "skipped", reason: "requests-in-flight" };
   }
@@ -594,6 +609,26 @@ export async function runHeartbeatOnce(opts: {
   };
 
   try {
+    // #region agent log
+    const _logPayload2 = {
+      location: "heartbeat-runner.ts:getReplyFromConfig",
+      message: "heartbeat calling getReplyFromConfig",
+      data: { sessionKey, reason: opts.reason },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      hypothesisId: "H4",
+    };
+    fetch("http://127.0.0.1:7246/ingest/b02451f9-6e27-4887-8d0c-0147964fda2b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_logPayload2),
+    }).catch(() => {});
+    fsSync.appendFile(
+      "/home/JuliusHalm/.cursor/debug.log",
+      JSON.stringify(_logPayload2) + "\n",
+      () => {},
+    );
+    // #endregion
     const replyResult = await getReplyFromConfig(ctx, { isHeartbeat: true }, cfg);
     const replyPayload = resolveHeartbeatReplyPayload(replyResult);
     const includeReasoning = heartbeat?.includeReasoning === true;
