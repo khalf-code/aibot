@@ -40,3 +40,4 @@ Captures significant tool results into a local, append-only record stream (JSONL
   }
 }
 ```
+

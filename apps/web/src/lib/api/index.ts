@@ -180,6 +180,16 @@ export {
   type CronJobRunResult,
 } from "./cron";
 
+// Agent Status API functions
+export {
+  getAgentStatus,
+  type AgentHealthStatus,
+  type AgentResourceUsage,
+  type AgentStatusEntry,
+  type AgentStatusSnapshot,
+  type AgentStatusEvent,
+} from "./agent-status";
+
 // Skills API functions
 export {
   getSkillsStatus,

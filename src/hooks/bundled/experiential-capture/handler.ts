@@ -146,9 +146,8 @@ const experientialCapture: HookHandler = async (event) => {
     ["evaluation_timeout_ms", "evaluationTimeoutMs"],
     3500,
   );
-  // Intentionally fixed to a single model so Meridia capture behavior is stable across machines.
-  // Config overrides are ignored (but may still be recorded in trace by downstream tooling).
-  const evaluationModel = MERIDIA_DEFAULT_EVALUATION_MODEL;
+  const evaluationModel =
+    readString(hookCfg, ["evaluation_model", "evaluationModel", "model"]) ?? "";
 
   const ctx: MeridiaToolResultContext = {
     cfg,
@@ -185,9 +184,8 @@ const experientialCapture: HookHandler = async (event) => {
   })();
 
   let evaluation = evaluateHeuristic(ctx);
-  let evaluationError: string | undefined;
   try {
-    if (cfg) {
+    if (cfg && evaluationModel) {
       evaluation = await evaluateWithLlm({
         cfg,
         ctx,
@@ -196,8 +194,28 @@ const experientialCapture: HookHandler = async (event) => {
       });
     }
   } catch (err) {
-    evaluationError = err instanceof Error ? err.message : String(err);
-    buffer.lastError = { ts: now, toolName, message: evaluationError };
+    buffer.lastError = {
+      ts: now,
+      toolName,
+      message: err instanceof Error ? err.message : String(err),
+    };
+    const traceEvent: MeridiaTraceEvent = {
+      type: "tool_result",
+      ts: now,
+      sessionId,
+      sessionKey,
+      runId,
+      toolName,
+      toolCallId,
+      meta,
+      isError,
+      decision: "error",
+      error: buffer.lastError.message,
+      threshold: minThreshold,
+    };
+    await appendJsonl(tracePath, traceEvent);
+    await writeJson(bufferPath, buffer);
+    return;
   }
 
   const shouldCapture =

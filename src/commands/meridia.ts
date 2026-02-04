@@ -3,9 +3,9 @@ import path from "node:path";
 import type { MeridiaTraceEvent } from "../meridia/types.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { resolveApiKeyForProvider } from "../agents/model-auth.js";
-import { loadConfig } from "../config/config.js";
 import { resolveHookConfig } from "../hooks/config.js";
 import { MERIDIA_DEFAULT_EVALUATION_MODEL } from "../meridia/constants.js";
+import { loadConfig } from "../config/config.js";
 import { dateKeyUtc, resolveMeridiaDir } from "../meridia/storage.js";
 import { theme } from "../terminal/theme.js";
 
