@@ -98,7 +98,7 @@ Common components:
 
 ## Adding pages to navigation
 
-After creating a new page, add it to `docs.json` in the appropriate navigation group:
+After creating a new page, add it to `docs.json` (in this directory) in the appropriate navigation group:
 
 ```json
 {
@@ -123,9 +123,7 @@ Store images in the `/images` directory and reference them with absolute paths:
 
 ## Translations
 
-OpenClaw documentation supports English and Chinese. Only edit English content when contributing. Translations are handled separately through an automated pipeline.
-
-Do not modify files in the `/zh-CN` directory unless you are specifically contributing translations. See `.i18n/README.md` for details on the translation workflow.
+Files in `zh-CN/` are generated. Only edit English content when contributing — do not modify `zh-CN/` files unless explicitly working on i18n. See `.i18n/README.md` for the translation workflow.
 
 ## Before submitting
 
