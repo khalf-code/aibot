@@ -59,7 +59,7 @@ Params:
 - `baseHash` (optional) — config hash from `config.get` (required when a config already exists)
 - `sessionKey` (optional) — last active session key for the wake-up ping
 - `note` (optional) — note to include in the restart sentinel
-- `resumeMessage` (optional) — custom message to send upon resume (overrides default "Restart complete")
+- `resumeMessage` (optional) — context to inject into the session after restart (helps the agent resume where it left off)
 - `restartDelayMs` (optional) — delay before restart (default 2000)
 
 Example (via `gateway call`):

@@ -41,7 +41,7 @@ export type RestartSentinelPayload = {
   /** Thread ID for reply threading (e.g., Slack thread_ts). */
   threadId?: string;
   /** Context to inject into the session after restart to help the agent resume. */
-  resumeMessage?: string | null;
+  resumeMessage?: string;
   message?: string | null;
   doctorHint?: string | null;
   stats?: RestartSentinelStats | null;
