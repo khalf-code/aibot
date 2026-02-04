@@ -1,0 +1,59 @@
+{
+  "id": "slack-inbox",
+  "uiHints": {
+    "enabled": {
+      "label": "Enable Plugin"
+    },
+    "botToken": {
+      "label": "Slack Bot Token",
+      "sensitive": true,
+      "help": "Bot token (xoxb-...) with channels:history and channels:read scopes"
+    },
+    "memberId": {
+      "label": "Your Member ID",
+      "help": "Your Slack user ID to watch for mentions (e.g., U02T6CMF0)"
+    },
+    "accountId": {
+      "label": "Account ID",
+      "help": "Identifier for multi-workspace support"
+    },
+    "autoSyncIntervalMin": {
+      "label": "Auto-sync Interval (min)",
+      "help": "0 = disabled",
+      "advanced": true
+    },
+    "channelAllowlist": {
+      "label": "Channel Allowlist",
+      "help": "Channels to monitor (IDs or names). Empty = all channels. Use 'openclaw inbox list-channels' to see available channels.",
+      "advanced": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "botToken": {
+        "type": "string"
+      },
+      "memberId": {
+        "type": "string"
+      },
+      "accountId": {
+        "type": "string"
+      },
+      "autoSyncIntervalMin": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "channelAllowlist": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
