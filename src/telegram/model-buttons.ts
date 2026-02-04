@@ -31,7 +31,6 @@ export type ModelsKeyboardParams = {
 };
 
 const MODELS_PAGE_SIZE = 8;
-const MAX_CALLBACK_DATA_BYTES = 64;
 
 /**
  * Parse a model callback_data string into a structured object.
@@ -133,12 +132,6 @@ export function buildModelsKeyboard(params: ModelsKeyboardParams): ButtonRow[] {
     : currentModel;
 
   for (const model of pageModels) {
-    const callbackData = `mdl_sel_${provider}/${model}`;
-    // Skip models that would exceed Telegram's callback_data limit
-    if (Buffer.byteLength(callbackData, "utf8") > MAX_CALLBACK_DATA_BYTES) {
-      continue;
-    }
-
     const isCurrentModel = model === currentModelId;
     const displayText = truncateModelId(model, 38);
     const text = isCurrentModel ? `${displayText} ✓` : displayText;
@@ -146,7 +139,7 @@ export function buildModelsKeyboard(params: ModelsKeyboardParams): ButtonRow[] {
     rows.push([
       {
         text,
-        callback_data: callbackData,
+        callback_data: `mdl_sel_${provider}/${model}`,
       },
     ]);
   }
