@@ -46,5 +46,17 @@ fi
 # Create workspace directory
 mkdir -p "${OPENCLAW_WORKSPACE_DIR:-/data/workspace}"
 
+# Clean disk space before starting (Render has limited disk: 1GB)
+echo "Checking disk space..."
+df -h /data || true
+
+echo "Running disk cleanup..."
+bash scripts/cleanup-disk-space.sh <<< "n" || {
+  echo "Warning: Disk cleanup failed, continuing anyway..."
+}
+
+echo "Disk space after cleanup:"
+df -h /data || true
+
 # Start the gateway
 exec node --max-old-space-size=768 dist/index.js gateway --port "${PORT:-8080}" --bind lan --allow-unconfigured
