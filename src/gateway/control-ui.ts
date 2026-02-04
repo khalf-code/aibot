@@ -249,6 +249,7 @@ export function handleControlUiHttpRequest(
   const url = new URL(urlRaw, "http://localhost");
   const basePath = normalizeControlUiBasePath(opts?.basePath);
   const pathname = url.pathname;
+  const isReadMethod = req.method === "GET" || req.method === "HEAD";
   const isApiPath = (value: string) => value === "/api" || value.startsWith("/api/");
 
   if (!basePath) {
@@ -257,7 +258,7 @@ export function handleControlUiHttpRequest(
       respondNotFound(res);
       return true;
     }
-    if (isApiPath(pathname)) {
+    if (isApiPath(pathname) && isReadMethod) {
       return false;
     }
   }
@@ -283,13 +284,13 @@ export function handleControlUiHttpRequest(
 
   const uiPath =
     basePath && pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname;
-  if (isApiPath(uiPath)) {
+  if (isApiPath(uiPath) && isReadMethod) {
     return false;
   }
 
   applyControlUiSecurityHeaders(res);
 
-  if (req.method !== "GET" && req.method !== "HEAD") {
+  if (!isReadMethod) {
     res.statusCode = 405;
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.end("Method Not Allowed");

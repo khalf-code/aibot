@@ -1,18 +1,13 @@
 import { IncomingMessage, ServerResponse } from "node:http";
-import { Socket } from "node:net";
 import { describe, expect, it } from "vitest";
 import { handleControlUiHttpRequest } from "./control-ui.js";
 
 function createMockRequest(method: string, url: string): IncomingMessage {
-  const socket = new Socket();
-  const req = new IncomingMessage(socket);
-  req.method = method;
-  req.url = url;
-  req.headers = { host: "localhost" };
-  process.nextTick(() => {
-    req.emit("end");
-  });
-  return req;
+  return {
+    method,
+    url,
+    headers: { host: "localhost" },
+  } as IncomingMessage;
 }
 
 describe("handleControlUiHttpRequest", () => {
