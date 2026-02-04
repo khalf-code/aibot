@@ -171,16 +171,45 @@ export async function createSecretsRegistry(agentDir?: string): Promise<SecretRe
 
 /**
  * Resolve an OAuth token for a profile, refreshing if needed.
+ * Returns the raw access token for use in Authorization headers.
  */
 export async function resolveOAuthToken(
   registry: SecretRegistry,
   profileId: string,
 ): Promise<string | null> {
-  const result = await resolveApiKeyForProfile({
-    store: registry.authStore,
-    profileId,
-    agentDir: registry.agentDir,
-  });
+  // Get the credential directly from the store
+  const cred = registry.oauthProfiles.get(profileId);
+  if (!cred) {
+    return null;
+  }
   
-  return result?.apiKey ?? null;
+  // Check if token is expired and needs refresh
+  if (Date.now() >= cred.expires) {
+    // Let resolveApiKeyForProfile handle the refresh
+    const result = await resolveApiKeyForProfile({
+      store: registry.authStore,
+      profileId,
+      agentDir: registry.agentDir,
+    });
+    
+    if (!result?.apiKey) {
+      return null;
+    }
+    
+    // For google-gemini-cli, the apiKey is JSON - extract the token
+    if (cred.provider === "google-gemini-cli" || cred.provider === "google-antigravity") {
+      try {
+        const parsed = JSON.parse(result.apiKey);
+        return parsed.token ?? null;
+      } catch {
+        // If not JSON, return as-is
+        return result.apiKey;
+      }
+    }
+    
+    return result.apiKey;
+  }
+  
+  // Token is still valid, return the access token directly
+  return cred.access;
 }

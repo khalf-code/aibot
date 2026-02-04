@@ -19,6 +19,9 @@ export const DEFAULT_ALLOWED_DOMAINS = [
   // Audio transcription
   "api.groq.com",
 
+  // Messaging channels
+  "api.telegram.org",
+
   // Alternative providers
   "api.minimax.chat",
   "api.minimax.io",
