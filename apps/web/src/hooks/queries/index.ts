@@ -143,6 +143,18 @@ export type {
   NotificationPreference,
 } from "./useUserSettings";
 
+// Agent Status Dashboard
+export {
+  useAgentStatusDashboard,
+  useAgentStatusSummary,
+  agentStatusKeys,
+} from "./useAgentStatus";
+export type {
+  AgentStatusEntry,
+  AgentHealthStatus,
+  AgentStatusSnapshot,
+} from "./useAgentStatus";
+
 // Sessions
 export {
   useSessions,
