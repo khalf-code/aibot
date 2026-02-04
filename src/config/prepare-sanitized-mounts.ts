@@ -157,8 +157,8 @@ export async function prepareSanitizedMounts(): Promise<SanitizedMounts> {
           const sanitizedAuth = { ...authProfiles, profiles: sanitizedProfiles };
           await fs.promises.writeFile(sanitizedAuthPath, JSON.stringify(sanitizedAuth, null, 2), "utf8");
           
-          // Mount sanitized auth file (read-only)
-          binds.push(`${sanitizedAuthPath}:/home/node/.openclaw/agents/${agentId}/agent/auth-profiles.json:ro`);
+          // Mount sanitized auth file (read-write for OAuth token refresh)
+          binds.push(`${sanitizedAuthPath}:/home/node/.openclaw/agents/${agentId}/agent/auth-profiles.json:rw`);
         } catch (err) {
           console.warn(`Skipping auth profiles for agent ${agentId}: ${err}`);
         }
