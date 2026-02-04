@@ -723,6 +723,9 @@ export async function runEmbeddedAttempt(
                 messageProvider: params.messageProvider ?? undefined,
               },
             );
+            if (hookResult?.systemPrompt) {
+              applySystemPromptOverrideToSession(activeSession, hookResult.systemPrompt);
+            }
             if (hookResult?.promptOverride) {
               effectivePrompt = hookResult.promptOverride;
             }
