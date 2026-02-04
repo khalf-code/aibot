@@ -16,6 +16,7 @@ import { loadCronJobs, loadCronStatus } from "./controllers/cron.ts";
 import { loadDebug } from "./controllers/debug.ts";
 import { loadDevices } from "./controllers/devices.ts";
 import { loadExecApprovals } from "./controllers/exec-approvals.ts";
+import { loadHealth, loadHealthChannels, type HealthState } from "./controllers/health.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
@@ -28,6 +29,8 @@ import {
 } from "./controllers/providers-health.ts";
 import { loadSessions } from "./controllers/sessions.ts";
 import { loadSkills } from "./controllers/skills.ts";
+import { loadUsage, loadUsageCost, type UsageState } from "./controllers/usage.ts";
+import { loadVoiceStatus, type VoiceState } from "./controllers/voice.ts";
 import {
   inferBasePathFromPathname,
   normalizeBasePath,
@@ -257,6 +260,21 @@ export async function refreshActiveTab(host: SettingsHost) {
     host.logsAtBottom = true;
     await loadLogs(host as unknown as OpenClawApp, { reset: true });
     scheduleLogsScroll(host as unknown as Parameters<typeof scheduleLogsScroll>[0], true);
+  }
+  if (host.tab === "health") {
+    await Promise.all([
+      loadHealth(host as unknown as HealthState),
+      loadHealthChannels(host as unknown as HealthState),
+    ]);
+  }
+  if (host.tab === "usage") {
+    await Promise.all([
+      loadUsage(host as unknown as UsageState),
+      loadUsageCost(host as unknown as UsageState),
+    ]);
+  }
+  if (host.tab === "voice") {
+    await loadVoiceStatus(host as unknown as VoiceState);
   }
 }
 

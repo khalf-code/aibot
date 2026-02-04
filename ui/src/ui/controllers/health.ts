@@ -1,12 +1,69 @@
 import type { GatewayBrowserClient } from "../gateway.ts";
 
+export type HealthChannelEntry = {
+  id: string;
+  label: string;
+  configured: boolean;
+  linked: boolean;
+};
+
+export type HealthAgentEntry = {
+  agentId: string;
+  name?: string;
+  isDefault: boolean;
+  heartbeatAlive: boolean;
+  heartbeatAgeMs: number | null;
+  sessionCount: number;
+};
+
+export type HealthData = {
+  ok: boolean;
+  ts: number;
+  durationMs: number;
+  heartbeatSeconds: number;
+  defaultAgentId: string;
+  sessionCount: number;
+  sessionPath: string;
+  channels: HealthChannelEntry[];
+  agents: HealthAgentEntry[];
+};
+
 export type HealthState = {
   client: GatewayBrowserClient | null;
   connected: boolean;
   healthLoading: boolean;
   healthError: string | null;
-  healthData: unknown;
+  healthData: HealthData | null;
   healthChannels: Array<{ id: string; status: string }>;
+};
+
+type RawHealthResponse = {
+  ok?: boolean;
+  ts?: number;
+  durationMs?: number;
+  heartbeatSeconds?: number;
+  defaultAgentId?: string;
+  channelOrder?: string[];
+  channelLabels?: Record<string, string>;
+  channels?: Record<
+    string,
+    {
+      configured?: boolean;
+      linked?: boolean;
+      accounts?: Record<string, unknown>;
+    }
+  >;
+  agents?: Array<{
+    agentId: string;
+    name?: string;
+    isDefault: boolean;
+    heartbeat?: { alive?: boolean; ageMs?: number | null };
+    sessions?: { count?: number };
+  }>;
+  sessions?: {
+    path?: string;
+    count?: number;
+  };
 };
 
 export async function loadHealth(state: HealthState) {
@@ -19,8 +76,51 @@ export async function loadHealth(state: HealthState) {
   state.healthLoading = true;
   state.healthError = null;
   try {
-    const res = await state.client.request("health", {});
-    state.healthData = res;
+    const raw = (await state.client.request("health", {})) as RawHealthResponse | undefined;
+    if (!raw) {
+      return;
+    }
+
+    const channelOrder = raw.channelOrder ?? [];
+    const channelLabels = raw.channelLabels ?? {};
+    const rawChannels = raw.channels ?? {};
+
+    const channels: HealthChannelEntry[] = channelOrder.map((id) => {
+      const ch = rawChannels[id];
+      return {
+        id,
+        label: channelLabels[id] ?? id,
+        configured: ch?.configured ?? false,
+        linked: ch?.linked ?? false,
+      };
+    });
+
+    // Also build the simple status array for the view
+    state.healthChannels = channels.map((ch) => ({
+      id: ch.label,
+      status: ch.linked ? "connected" : ch.configured ? "warning" : "disconnected",
+    }));
+
+    const agents: HealthAgentEntry[] = (raw.agents ?? []).map((a) => ({
+      agentId: a.agentId,
+      name: a.name,
+      isDefault: a.isDefault,
+      heartbeatAlive: a.heartbeat?.alive ?? false,
+      heartbeatAgeMs: a.heartbeat?.ageMs ?? null,
+      sessionCount: a.sessions?.count ?? 0,
+    }));
+
+    state.healthData = {
+      ok: raw.ok ?? false,
+      ts: raw.ts ?? Date.now(),
+      durationMs: raw.durationMs ?? 0,
+      heartbeatSeconds: raw.heartbeatSeconds ?? 0,
+      defaultAgentId: raw.defaultAgentId ?? "",
+      sessionCount: raw.sessions?.count ?? 0,
+      sessionPath: raw.sessions?.path ?? "",
+      channels,
+      agents,
+    };
   } catch (err) {
     state.healthError = String(err);
   } finally {
@@ -29,22 +129,6 @@ export async function loadHealth(state: HealthState) {
 }
 
 export async function loadHealthChannels(state: HealthState) {
-  if (!state.client || !state.connected) {
-    return;
-  }
-  try {
-    const res = await state.client.request<{ channels?: Array<{ id: string; status: string }> }>(
-      "channels.status",
-      {},
-    );
-    const channels = res?.channels;
-    if (Array.isArray(channels)) {
-      state.healthChannels = channels.map((ch) => ({
-        id: typeof ch.id === "string" ? ch.id : String(ch.id ?? ""),
-        status: typeof ch.status === "string" ? ch.status : "unknown",
-      }));
-    }
-  } catch {
-    // Non-critical; channel health is supplementary
-  }
+  // Channel data is now extracted from the health response directly.
+  // This function is kept for compatibility but is a no-op.
 }

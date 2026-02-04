@@ -2,6 +2,7 @@ import type { EventLogEntry } from "./app-events.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
+import type { HealthData } from "./controllers/health.ts";
 import type { ProviderHealthEntry } from "./controllers/providers-health.ts";
 import type { SkillMessage } from "./controllers/skills.ts";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
@@ -185,7 +186,7 @@ export type AppViewState = {
   usagePeriod: "24h" | "7d" | "30d" | "all";
   healthLoading: boolean;
   healthError: string | null;
-  healthData: unknown;
+  healthData: HealthData | null;
   healthChannels: Array<{ id: string; status: string }>;
   voiceLoading: boolean;
   voiceError: string | null;

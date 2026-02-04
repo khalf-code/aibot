@@ -5,6 +5,7 @@ import type { AppViewState } from "./app-view-state.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
+import type { HealthData } from "./controllers/health.ts";
 import type { ProviderHealthEntry } from "./controllers/providers-health.ts";
 import type { SkillMessage } from "./controllers/skills.ts";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
@@ -250,7 +251,7 @@ export class OpenClawApp extends LitElement {
   @state() providersHealthError: string | null = null;
   @state() providersHealthEntries: ProviderHealthEntry[] = [];
   @state() providersHealthUpdatedAt: number | null = null;
-  @state() providersHealthShowAll = false;
+  @state() providersHealthShowAll = true;
   @state() providersHealthExpanded: string | null = null;
   @state() providersModelAllowlist: Set<string> = new Set();
   @state() providersPrimaryModel: string | null = null;
@@ -274,7 +275,7 @@ export class OpenClawApp extends LitElement {
   // Health monitor tab
   @state() healthLoading = false;
   @state() healthError: string | null = null;
-  @state() healthData: unknown = null;
+  @state() healthData: HealthData | null = null;
   @state() healthChannels: Array<{ id: string; status: string }> = [];
   private healthPollInterval: number | null = null;
 
