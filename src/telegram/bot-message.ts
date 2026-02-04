@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createInternalHookEvent, triggerInternalHook } from "../hooks/internal-hooks.js";
 import { buildTelegramMessageContext } from "./bot-message-context.js";
 import { dispatchTelegramMessage } from "./bot-message-dispatch.js";
 
@@ -49,6 +50,25 @@ export const createTelegramMessageProcessor = (deps) => {
     if (!context) {
       return;
     }
+
+    // Trigger message:received hook
+    const { ctxPayload, chatId, isGroup, msg } = context;
+    await triggerInternalHook(
+      createInternalHookEvent("message", "received", ctxPayload.SessionKey ?? "", {
+        ctxPayload,
+        channel: "telegram",
+        messageId: ctxPayload.MessageSid ?? String(msg.message_id),
+        from: ctxPayload.From ?? "",
+        to: ctxPayload.To ?? "",
+        isGroup,
+        chatId: String(chatId),
+        senderId: ctxPayload.SenderId || undefined,
+        hasMedia: Boolean(ctxPayload.MediaPath),
+        mediaCount: ctxPayload.MediaPaths?.length ?? (ctxPayload.MediaPath ? 1 : 0),
+        timestamp: msg.date ? msg.date * 1000 : undefined,
+      }),
+    );
+
     await dispatchTelegramMessage({
       context,
       bot,
