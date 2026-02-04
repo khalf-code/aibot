@@ -34,7 +34,9 @@ export function execDocker(args: string[], opts?: { allowFailure?: boolean }) {
       stderr += chunk.toString();
     });
     child.on("error", (err) => {
-      if (resolved) return;
+      if (resolved) {
+        return;
+      }
       resolved = true;
       const message =
         (err as NodeJS.ErrnoException).code === "ENOENT"
@@ -43,7 +45,9 @@ export function execDocker(args: string[], opts?: { allowFailure?: boolean }) {
       reject(new Error(message));
     });
     child.on("close", (code) => {
-      if (resolved) return;
+      if (resolved) {
+        return;
+      }
       resolved = true;
       const exitCode = code ?? 0;
       if (exitCode !== 0 && !opts?.allowFailure) {
