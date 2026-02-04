@@ -2,9 +2,9 @@
  * Safe Executor Configuration
  */
 
-import * as nodeFs from 'node:fs';
-import * as nodePath from 'node:path';
-import * as nodeOs from 'node:os';
+import * as nodeFs from "node:fs";
+import * as nodeOs from "node:os";
+import * as nodePath from "node:path";
 
 export type SafeExecutorConfig = {
   enabled: boolean;
@@ -33,12 +33,12 @@ export const DEFAULT_SAFE_EXECUTOR_CONFIG: SafeExecutorConfig = {
   },
 };
 
-const CONFIG_PATH = nodePath.join(nodeOs.homedir(), '.openclaw', 'safe-executor.json');
+const CONFIG_PATH = nodePath.join(nodeOs.homedir(), ".openclaw", "safe-executor.json");
 
 export function loadSafeExecutorConfig(): SafeExecutorConfig {
   try {
     if (nodeFs.existsSync(CONFIG_PATH)) {
-      const raw = nodeFs.readFileSync(CONFIG_PATH, 'utf-8');
+      const raw = nodeFs.readFileSync(CONFIG_PATH, "utf-8");
       const parsed = JSON.parse(raw);
       return { ...DEFAULT_SAFE_EXECUTOR_CONFIG, ...parsed };
     }

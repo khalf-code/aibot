@@ -1,19 +1,24 @@
 /**
  * OpenClaw-specific Executor Integration
- * 
+ *
  * Bridges OpenClaw's message sources and channels to ajs-clawbot's trust levels.
  */
 
-import { SafeExecutor } from 'ajs-clawbot';
-import type { TrustLevel, ExecutionContext, ExecutionResult, RateLimiterOptions } from 'ajs-clawbot';
-import { loadSafeExecutorConfig, type SafeExecutorConfig } from './config.js';
+import type {
+  TrustLevel,
+  ExecutionContext,
+  ExecutionResult,
+  RateLimiterOptions,
+} from "ajs-clawbot";
+import { SafeExecutor } from "ajs-clawbot";
+import { loadSafeExecutorConfig, type SafeExecutorConfig } from "./config.js";
 
 /**
  * Message source information from OpenClaw
  */
 export type MessageSource = {
-  provider: 'discord' | 'telegram' | 'whatsapp' | 'slack' | 'line' | 'web' | 'cli';
-  channelType: 'dm' | 'group' | 'public';
+  provider: "discord" | "telegram" | "whatsapp" | "slack" | "line" | "web" | "cli";
+  channelType: "dm" | "group" | "public";
   userId?: string;
   channelId?: string;
   isOwner?: boolean;
@@ -26,25 +31,25 @@ export type MessageSource = {
 export interface OpenClawExecutorOptions {
   /** Workspace root directory */
   workspaceRoot: string;
-  
+
   /** LLM predict function */
-  llmPredict?: (prompt: string, options?: any) => Promise<string>;
-  
+  llmPredict?: (prompt: string, options?: unknown) => Promise<string>;
+
   /** Allowed hosts for fetch capability */
   allowedHosts?: string[];
-  
+
   /** Bot's own user IDs (for self-message rejection) */
   selfIds?: string[];
-  
+
   /** Use strict rate limiting (for public channels) */
   strictRateLimiting?: boolean;
-  
+
   /** Callback when execution completes */
   onExecute?: (skill: string, result: ExecutionResult) => void;
-  
+
   /** Callback when rate limited */
   onRateLimited?: (context: ExecutionContext, reason: string, retryAfterMs?: number) => void;
-  
+
   /** Custom config (otherwise loads from ~/.openclaw/safe-executor.json) */
   config?: SafeExecutorConfig;
 }
@@ -54,39 +59,49 @@ export interface OpenClawExecutorOptions {
  */
 export function getTrustLevelFromSource(source: MessageSource): TrustLevel {
   // CLI is always the local owner
-  if (source.provider === 'cli') return 'full';
-  
+  if (source.provider === "cli") {
+    return "full";
+  }
+
   // Owner flag from OpenClaw's user system
-  if (source.isOwner) return 'full';
-  
+  if (source.isOwner) {
+    return "full";
+  }
+
   // Trusted users (explicitly configured in OpenClaw)
-  if (source.isTrusted) return 'shell';
-  
+  if (source.isTrusted) {
+    return "shell";
+  }
+
   // DMs get write access (can create files, etc.)
-  if (source.channelType === 'dm') return 'write';
-  
+  if (source.channelType === "dm") {
+    return "write";
+  }
+
   // Group chats get LLM access but no filesystem write
-  if (source.channelType === 'group') return 'llm';
-  
+  if (source.channelType === "group") {
+    return "llm";
+  }
+
   // Public channels get minimal access
-  return 'network';
+  return "network";
 }
 
 /**
  * Map trust level to execution context source
  */
-function trustLevelToSource(trust: TrustLevel): 'main' | 'dm' | 'group' | 'public' {
+function trustLevelToSource(trust: TrustLevel): "main" | "dm" | "group" | "public" {
   switch (trust) {
-    case 'full':
-    case 'shell':
-      return 'main';
-    case 'write':
-      return 'dm';
-    case 'llm':
-    case 'read':
-      return 'group';
+    case "full":
+    case "shell":
+      return "main";
+    case "write":
+      return "dm";
+    case "llm":
+    case "read":
+      return "group";
     default:
-      return 'public';
+      return "public";
   }
 }
 
@@ -97,13 +112,13 @@ export function createOpenClawExecutor(options: OpenClawExecutorOptions): {
   executor: SafeExecutor;
   execute: (
     skillPath: string,
-    args: Record<string, any>,
-    source: MessageSource
+    args: Record<string, unknown>,
+    source: MessageSource,
   ) => Promise<ExecutionResult>;
 } {
   const config = options.config ?? loadSafeExecutorConfig();
   const selfIds = options.selfIds ?? config.selfIds ?? [];
-  
+
   // Build rate limiter options based on strictness
   const rateLimiterOptions: RateLimiterOptions = {
     selfIds,
@@ -115,20 +130,20 @@ export function createOpenClawExecutor(options: OpenClawExecutorOptions): {
       : { maxRequests: 200, windowMs: 60000, maxConcurrent: 20 },
     cooldownMs: options.strictRateLimiting ? 60000 : 30000,
   };
-  
+
   const executor = new SafeExecutor({
     selfIds,
     rateLimiter: rateLimiterOptions,
     onRateLimited: options.onRateLimited,
   });
-  
+
   async function execute(
     skillPath: string,
-    args: Record<string, any>,
-    source: MessageSource
+    args: Record<string, unknown>,
+    source: MessageSource,
   ): Promise<ExecutionResult> {
     const trustLevel = getTrustLevelFromSource(source);
-    
+
     const context: ExecutionContext = {
       source: trustLevelToSource(trustLevel),
       userId: source.userId,
@@ -137,13 +152,13 @@ export function createOpenClawExecutor(options: OpenClawExecutorOptions): {
       allowedHosts: options.allowedHosts ?? config.allowedHosts ?? [],
       llmPredict: options.llmPredict,
     };
-    
+
     const result = await executor.execute(skillPath, args, context);
-    
+
     options.onExecute?.(skillPath, result);
-    
+
     return result;
   }
-  
+
   return { executor, execute };
 }
