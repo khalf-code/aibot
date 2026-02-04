@@ -75,16 +75,25 @@ export function extractGeminiCliCredentials(): { clientId: string; clientSecret:
     // If realpath points to 'mise' (or 'rtx'), it's a shim.
     // Execute `mise which gemini` to get the real path.
     if (resolvedPath.endsWith("/mise") || resolvedPath.endsWith("/rtx")) {
-      try {
-        const actualGeminiPath = execSync(`mise which gemini`, { encoding: "utf-8" }).trim();
-        if (actualGeminiPath) {
-          // Now, re-resolve the path with the actual gemini executable
-          resolvedPath = realpathSync(actualGeminiPath);
+      const misePath = findInPath("mise");
+      const rtxPath = findInPath("rtx");
+      let actualCommand = "";
+
+      if (misePath) {
+        actualCommand = `"${misePath}" which gemini`;
+      } else if (rtxPath) {
+        actualCommand = `"${rtxPath}" which gemini`;
+      }
+
+      if (actualCommand) {
+        try {
+          const actualGeminiPath = execSync(actualCommand, { encoding: "utf-8" }).trim();
+          if (actualGeminiPath) {
+            resolvedPath = realpathSync(actualGeminiPath);
+          }
+        } catch {
+          // Fallback to original resolvedPath if shim resolution fails
         }
-      } catch {
-        // If `mise which` fails, we can't find the real path.
-        // We'll proceed with the original resolvedPath and likely fail,
-        // which is the intended behavior.
       }
     }
 
