@@ -157,13 +157,20 @@ gh pr comment <PR#> --body "<review content>"
 
 ## Claude Code
 
-```bash
-# With PTY for proper terminal output
-bash pty:true workdir:~/project command:"claude 'Your task'"
+**Important:** Use `-p` flag for non-interactive mode. Without `-p`, Claude Code enters interactive mode and won't exit after completion.
 
-# Background
-bash pty:true workdir:~/project background:true command:"claude 'Your task'"
+```bash
+# One-shot task (exits after completion)
+bash pty:true workdir:~/project command:"claude -p 'Your task' --dangerously-skip-permissions"
+
+# Background task (also use -p to auto-exit)
+bash pty:true workdir:~/project background:true command:"claude -p 'Your task' --dangerously-skip-permissions"
 ```
+
+| Flag | Effect |
+| ---- | ------ |
+| `-p "prompt"` | Non-interactive mode, exits after completion |
+| `--dangerously-skip-permissions` | Auto-approve file operations (alias: `--yolo`) |
 
 ---
 
