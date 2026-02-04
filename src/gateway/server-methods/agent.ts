@@ -214,7 +214,7 @@ export const agentHandlers: GatewayRequestHandlers = {
       const { cfg, storePath, entry, canonicalKey } = loadSessionEntry(requestedSessionKey);
       cfgForAgent = cfg;
       const now = Date.now();
-      const sessionId = entry?.sessionId ?? randomUUID();
+      const generatedSessionId = entry?.sessionId ?? randomUUID();
       const labelValue = request.label?.trim() || entry?.label;
       spawnedByValue = spawnedByValue || entry?.spawnedBy;
       let inheritedGroup:
@@ -235,32 +235,7 @@ export const agentHandlers: GatewayRequestHandlers = {
       resolvedGroupId = resolvedGroupId || inheritedGroup?.groupId;
       resolvedGroupChannel = resolvedGroupChannel || inheritedGroup?.groupChannel;
       resolvedGroupSpace = resolvedGroupSpace || inheritedGroup?.groupSpace;
-      const deliveryFields = normalizeSessionDeliveryFields(entry);
-      const nextEntry: SessionEntry = {
-        sessionId,
-        updatedAt: now,
-        thinkingLevel: entry?.thinkingLevel,
-        verboseLevel: entry?.verboseLevel,
-        reasoningLevel: entry?.reasoningLevel,
-        systemSent: entry?.systemSent,
-        sendPolicy: entry?.sendPolicy,
-        skillsSnapshot: entry?.skillsSnapshot,
-        deliveryContext: deliveryFields.deliveryContext,
-        lastChannel: deliveryFields.lastChannel ?? entry?.lastChannel,
-        lastTo: deliveryFields.lastTo ?? entry?.lastTo,
-        lastAccountId: deliveryFields.lastAccountId ?? entry?.lastAccountId,
-        modelOverride: entry?.modelOverride,
-        providerOverride: entry?.providerOverride,
-        label: labelValue,
-        spawnedBy: spawnedByValue,
-        channel: entry?.channel ?? request.channel?.trim(),
-        groupId: resolvedGroupId ?? entry?.groupId,
-        groupChannel: resolvedGroupChannel ?? entry?.groupChannel,
-        space: resolvedGroupSpace ?? entry?.space,
-        cliSessionIds: entry?.cliSessionIds,
-        claudeCliSessionId: entry?.claudeCliSessionId,
-      };
-      sessionEntry = nextEntry;
+      // Policy check uses initial entry (acceptable for pre-flight validation)
       const sendPolicy = resolveSendPolicy({
         cfg,
         entry,
@@ -276,15 +251,72 @@ export const agentHandlers: GatewayRequestHandlers = {
         );
         return;
       }
-      resolvedSessionId = sessionId;
       const canonicalSessionKey = canonicalKey;
       const agentId = resolveAgentIdFromSessionKey(canonicalSessionKey);
       const mainSessionKey = resolveAgentMainSessionKey({ cfg, agentId });
       if (storePath) {
-        await updateSessionStore(storePath, (store) => {
+        // Build entry inside updateSessionStore to use fresh store data.
+        // This avoids race conditions where sessions.patch sets modelOverride
+        // between our initial read and this write (issue #5369).
+        sessionEntry = await updateSessionStore(storePath, (store) => {
+          const freshEntry = store[canonicalSessionKey];
+          const deliveryFields = normalizeSessionDeliveryFields(freshEntry);
+          const nextEntry: SessionEntry = {
+            sessionId: freshEntry?.sessionId ?? generatedSessionId,
+            updatedAt: now,
+            thinkingLevel: freshEntry?.thinkingLevel,
+            verboseLevel: freshEntry?.verboseLevel,
+            reasoningLevel: freshEntry?.reasoningLevel,
+            systemSent: freshEntry?.systemSent,
+            sendPolicy: freshEntry?.sendPolicy,
+            skillsSnapshot: freshEntry?.skillsSnapshot,
+            deliveryContext: deliveryFields.deliveryContext,
+            lastChannel: deliveryFields.lastChannel ?? freshEntry?.lastChannel,
+            lastTo: deliveryFields.lastTo ?? freshEntry?.lastTo,
+            lastAccountId: deliveryFields.lastAccountId ?? freshEntry?.lastAccountId,
+            modelOverride: freshEntry?.modelOverride,
+            providerOverride: freshEntry?.providerOverride,
+            label: labelValue ?? freshEntry?.label,
+            spawnedBy: spawnedByValue ?? freshEntry?.spawnedBy,
+            channel: freshEntry?.channel ?? request.channel?.trim(),
+            groupId: resolvedGroupId ?? freshEntry?.groupId,
+            groupChannel: resolvedGroupChannel ?? freshEntry?.groupChannel,
+            space: resolvedGroupSpace ?? freshEntry?.space,
+            cliSessionIds: freshEntry?.cliSessionIds,
+            claudeCliSessionId: freshEntry?.claudeCliSessionId,
+          };
           store[canonicalSessionKey] = nextEntry;
+          return nextEntry;
         });
+      } else {
+        // No store path - build entry from initial read (fallback)
+        const deliveryFields = normalizeSessionDeliveryFields(entry);
+        sessionEntry = {
+          sessionId: generatedSessionId,
+          updatedAt: now,
+          thinkingLevel: entry?.thinkingLevel,
+          verboseLevel: entry?.verboseLevel,
+          reasoningLevel: entry?.reasoningLevel,
+          systemSent: entry?.systemSent,
+          sendPolicy: entry?.sendPolicy,
+          skillsSnapshot: entry?.skillsSnapshot,
+          deliveryContext: deliveryFields.deliveryContext,
+          lastChannel: deliveryFields.lastChannel ?? entry?.lastChannel,
+          lastTo: deliveryFields.lastTo ?? entry?.lastTo,
+          lastAccountId: deliveryFields.lastAccountId ?? entry?.lastAccountId,
+          modelOverride: entry?.modelOverride,
+          providerOverride: entry?.providerOverride,
+          label: labelValue,
+          spawnedBy: spawnedByValue,
+          channel: entry?.channel ?? request.channel?.trim(),
+          groupId: resolvedGroupId ?? entry?.groupId,
+          groupChannel: resolvedGroupChannel ?? entry?.groupChannel,
+          space: resolvedGroupSpace ?? entry?.space,
+          cliSessionIds: entry?.cliSessionIds,
+          claudeCliSessionId: entry?.claudeCliSessionId,
+        };
       }
+      resolvedSessionId = sessionEntry.sessionId;
       if (canonicalSessionKey === mainSessionKey || canonicalSessionKey === "global") {
         context.addChatRun(idem, {
           sessionKey: requestedSessionKey,
