@@ -68,6 +68,10 @@ export function isGatewaySigusr1RestartRecentlyScheduled(now = Date.now()): bool
   return elapsed < SIGUSR1_DEBOUNCE_WINDOW_MS;
 }
 
+export function resetScheduledRestartTracking() {
+  lastScheduledRestartTs = 0;
+}
+
 function formatSpawnDetail(result: {
   error?: unknown;
   status?: number | null;
@@ -229,6 +233,6 @@ export const __testing = {
     sigusr1AuthorizedCount = 0;
     sigusr1AuthorizedUntil = 0;
     sigusr1ExternalAllowed = false;
-    lastScheduledRestartTs = 0;
+    resetScheduledRestartTracking();
   },
 };
