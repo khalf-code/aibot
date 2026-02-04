@@ -157,6 +157,8 @@ type AzureAIProject = {
   resourceGroup: string;
   discoveryUrl?: string;
   workspaceId?: string;
+  kind?: string;
+  sku?: string;
 };
 
 export async function listAzureAIProjects(): Promise<AzureAIProject[]> {
@@ -166,7 +168,7 @@ export async function listAzureAIProjects(): Promise<AzureAIProject[]> {
     const execAsync = promisify(exec);
 
     const { stdout } = await execAsync(
-      `az resource list --resource-type "Microsoft.MachineLearningServices/workspaces" --query '[].{name:name,id:id,location:location,resourceGroup:resourceGroup}' -o json`,
+      `az resource list --resource-type "Microsoft.MachineLearningServices/workspaces" --query '[].{name:name,id:id,location:location,resourceGroup:resourceGroup,kind:kind,sku:sku.name}' -o json`,
       { timeout: 30000 },
     );
 
@@ -177,12 +179,13 @@ export async function listAzureAIProjects(): Promise<AzureAIProject[]> {
       projects.map(async (project) => {
         try {
           const { stdout: detailStdout } = await execAsync(
-            `az resource show --ids "${project.id}" --query '{discoveryUrl:properties.discoveryUrl,workspaceId:properties.workspaceId}' -o json`,
+            `az resource show --ids "${project.id}" --query '{discoveryUrl:properties.discoveryUrl,workspaceId:properties.workspaceId,kind:kind}' -o json`,
             { timeout: 10000 },
           );
           const details = JSON.parse(detailStdout.trim()) as {
             discoveryUrl?: string;
             workspaceId?: string;
+            kind?: string;
           };
           return { ...project, ...details };
         } catch {
@@ -230,9 +233,11 @@ type AzureFoundryDeployment = {
     publisher?: string;
     name: string;
     version?: string;
+    capabilities?: Record<string, any>;
   };
-  properties?: {
-    provisioningState?: string;
+  sku?: {
+    name?: string;
+    capacity?: number;
   };
   api?: string;
 };
@@ -258,7 +263,9 @@ export async function listAzureFoundryDeployments(
   endpoint: string,
   apiKey: string | null,
 ): Promise<AzureFoundryDeployment[]> {
-  const url = `${endpoint}/models?api-version=2024-08-01-preview`;
+  // Try multiple API versions and endpoints for compatibility
+  const apiVersions = ["2024-08-01-preview", "2024-05-01-preview", "2023-12-01-preview"];
+  const paths = ["/models", "/deployments"];
 
   const headers: Record<string, string> = {};
   if (apiKey) {
@@ -271,13 +278,43 @@ export async function listAzureFoundryDeployments(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, { headers });
-  if (!response.ok) {
-    throw new Error(`Azure AI Foundry API error: ${response.status} ${response.statusText}`);
+  let lastError: Error | null = null;
+
+  // Try different combinations of paths and API versions
+  for (const path of paths) {
+    for (const apiVersion of apiVersions) {
+      try {
+        const url = `${endpoint}${path}?api-version=${apiVersion}`;
+        const response = await fetch(url, { headers });
+
+        if (response.ok) {
+          const data = (await response.json()) as {
+            data?: AzureFoundryDeployment[];
+            value?: AzureFoundryDeployment[];
+          };
+          const deployments = data.data ?? data.value ?? [];
+          if (deployments.length > 0) {
+            return deployments;
+          }
+        } else if (response.status !== 404) {
+          // Store non-404 errors for reporting
+          lastError = new Error(
+            `API ${path} ${apiVersion}: ${response.status} ${response.statusText}`,
+          );
+        }
+      } catch (error) {
+        lastError = error as Error;
+        continue; // Try next combination
+      }
+    }
   }
 
-  const data = (await response.json()) as { data?: AzureFoundryDeployment[] };
-  return data.data ?? [];
+  // If we got here, all attempts failed
+  if (lastError) {
+    throw new Error(`Could not discover models: ${lastError.message}`);
+  }
+
+  return [];
 }
 
 export function resetAzureDiscoveryCacheForTest(): void {

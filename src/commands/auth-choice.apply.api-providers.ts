@@ -1006,8 +1006,9 @@ export async function applyAuthChoiceApiProviders(
               ).trim();
             } else if (projects.length === 1) {
               const project = projects[0];
+              const projectType = project.kind || "Standard workspace";
               await params.prompter.note(
-                `Using project: ${project.name}\nLocation: ${project.location}`,
+                `Project: ${project.name}\nLocation: ${project.location}\nType: ${projectType}`,
                 "Azure AI Foundry project",
               );
               // Construct endpoint from project name
@@ -1015,11 +1016,15 @@ export async function applyAuthChoiceApiProviders(
             } else {
               const selected = await params.prompter.select({
                 message: "Select Azure AI Foundry project",
-                options: projects.map((p) => ({
-                  value: p.name,
-                  label: p.name,
-                  hint: `${p.location} - ${p.resourceGroup}`,
-                })),
+                options: projects.map((p) => {
+                  const projectType = p.kind || "Workspace";
+                  const sku = p.sku ? ` [${p.sku}]` : "";
+                  return {
+                    value: p.name,
+                    label: p.name,
+                    hint: `${p.location} - ${projectType}${sku}`,
+                  };
+                }),
               });
               endpoint = `https://${String(selected)}.services.ai.azure.com`;
             }
@@ -1081,7 +1086,7 @@ export async function applyAuthChoiceApiProviders(
 
       // Discover deployed models
       const spinner = params.prompter.spinner();
-      spinner.start("Discovering deployed models...");
+      spinner.start("Discovering deployed models (trying multiple API versions)...");
 
       let deployments: Array<{
         name: string;
@@ -1113,13 +1118,15 @@ export async function applyAuthChoiceApiProviders(
             };
           });
 
+        const chatCount = deployments.filter((d) => !d.isEmbedding).length;
+        const embedCount = deployments.filter((d) => d.isEmbedding).length;
         spinner.stop(
-          `Found ${deployments.length} deployed model${deployments.length === 1 ? "" : "s"}`,
+          `Found ${deployments.length} model${deployments.length === 1 ? "" : "s"} (${chatCount} chat, ${embedCount} embeddings)`,
         );
       } catch (error) {
         spinner.stop("Could not discover deployments");
         await params.prompter.note(
-          `Discovery failed: ${error instanceof Error ? error.message : String(error)}`,
+          `Discovery failed: ${error instanceof Error ? error.message : String(error)}\nTry manual setup or check endpoint/permissions.`,
           "Warning",
         );
       }
@@ -1153,12 +1160,17 @@ export async function applyAuthChoiceApiProviders(
         ).trim();
       } else {
         const deployment = await params.prompter.select({
-          message: "Select chat model",
-          options: chatModels.map((d) => ({
-            value: d.name,
-            label: `${d.name} (${d.model}${d.publisher ? ` - ${d.publisher}` : ""})`,
-            hint: d.api,
-          })),
+          message: `Select chat model (${chatModels.length} available)`,
+          options: chatModels.map((d) => {
+            const modelInfo = d.model;
+            const publisher = d.publisher ? ` by ${d.publisher}` : "";
+            const apiHint = d.api || "unknown API";
+            return {
+              value: d.name,
+              label: `${d.name} - ${modelInfo}${publisher}`,
+              hint: apiHint,
+            };
+          }),
         });
 
         const selectedDeployment = chatModels.find((d) => d.name === deployment);
@@ -1212,16 +1224,21 @@ export async function applyAuthChoiceApiProviders(
           }
         } else {
           const embedOptions = [
-            ...embeddingModels.map((d) => ({
-              value: d.name,
-              label: `${d.name} (${d.model}${d.publisher ? ` - ${d.publisher}` : ""})`,
-              hint: d.api,
-            })),
+            ...embeddingModels.map((d) => {
+              const modelInfo = d.model;
+              const publisher = d.publisher ? ` by ${d.publisher}` : "";
+              const apiHint = d.api || "openai-completions";
+              return {
+                value: d.name,
+                label: `${d.name} - ${modelInfo}${publisher}`,
+                hint: apiHint,
+              };
+            }),
             { value: "__skip__", label: "Skip embeddings configuration", hint: "Configure later" },
           ];
 
           const selectedEmbed = await params.prompter.select({
-            message: "Select embeddings model",
+            message: `Select embeddings model (${embeddingModels.length} available)`,
             options: embedOptions,
           });
 
