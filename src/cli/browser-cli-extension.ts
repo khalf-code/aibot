@@ -14,7 +14,11 @@ import { formatCliCommand } from "./command-format.js";
 
 function bundledExtensionRootDir() {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(here, "../../assets/chrome-extension");
+  const candidate1 = path.resolve(here, "../../assets/chrome-extension");
+  if (fs.existsSync(path.join(candidate1, "manifest.json"))) {
+    return candidate1;
+  }
+  return path.resolve(here, "../assets/chrome-extension");
 }
 
 function installedExtensionRootDir() {
