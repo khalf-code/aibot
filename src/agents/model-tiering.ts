@@ -25,12 +25,11 @@
 
 import type { OpenClawConfig } from "../config/config.js";
 import { parseModelRef, type ModelRef } from "./model-selection.js";
-import { DEFAULT_PROVIDER } from "./defaults.js";
 
 export type QueryComplexity = "simple" | "complex";
 
 export type TieringConfig = {
-  enabled: boolean;
+  enabled?: boolean;
   /** Model to use for simple queries (e.g., "ollama/llama3.3") */
   simple?: string;
   /** Custom patterns that indicate complex queries (regex strings) */

@@ -22,14 +22,6 @@ export const ModelTieringSchema = z
   })
   .strict();
 
-export const RateLimitStrategySchema = z
-  .object({
-    strategy: z.union([z.literal("switch"), z.literal("wait"), z.literal("ask")]).optional(),
-    maxWaitSeconds: z.number().int().positive().optional(),
-    backupModel: z.string().optional(),
-  })
-  .strict();
-
 export const AgentDefaultsSchema = z
   .object({
     model: z
@@ -186,7 +178,6 @@ export const AgentDefaultsSchema = z
       })
       .strict()
       .optional(),
-    rateLimitStrategy: RateLimitStrategySchema.optional(),
   })
   .strict()
   .optional();
