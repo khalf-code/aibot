@@ -112,3 +112,7 @@ skills/video-frames/SKILL.md -> internal/behavioral-core/skills/utility/video-fr
 # ---
 # TOTAL FILES MIGRATED: 65
 # ============================================================================
+
+# Phase 2 fix: Added missing template mappings
+docs/reference/templates/IDENTITY.md -> internal/behavioral-core/identity/IDENTITY.md
+docs/reference/templates/USER.md -> internal/behavioral-core/user/USER.md

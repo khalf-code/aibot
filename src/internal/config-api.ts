@@ -38,6 +38,8 @@ const FILE_MAPPINGS: Record<string, string> = {
   "/config/tools": "tools/TOOLS.md",
   "/config/bootstrap": "bootstrap/BOOTSTRAP.md",
   "/config/heartbeat": "heartbeat/HEARTBEAT.md",
+  "/config/identity": "identity/IDENTITY.md",
+  "/config/user": "user/USER.md",
   "/config/repo-agents": "agents/REPO_AGENTS.md",
 
   // Hook configs

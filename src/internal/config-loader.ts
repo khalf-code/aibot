@@ -134,6 +134,8 @@ function fileNameToDiskPath(fileName: string): string | null {
     "TOOLS.md": "tools/TOOLS.md",
     "BOOTSTRAP.md": "bootstrap/BOOTSTRAP.md",
     "HEARTBEAT.md": "heartbeat/HEARTBEAT.md",
+    "IDENTITY.md": "identity/IDENTITY.md",
+    "USER.md": "user/USER.md",
   };
   const relative = mapping[fileName];
   if (!relative) return null;
