@@ -156,7 +156,8 @@ export async function startGatewayContainer(opts: GatewayContainerOptions): Prom
   args.push(GATEWAY_IMAGE);
   
   // Run gateway with allow-unconfigured flag for secure mode
-  args.push("node", "dist/index.js", "gateway", "--allow-unconfigured");
+  // --bind lan makes gateway listen on 0.0.0.0 so Docker port mapping works
+  args.push("node", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan");
 
   logger.info(`Starting gateway container: ${GATEWAY_CONTAINER_NAME}`);
   await execDocker(args);
