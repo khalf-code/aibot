@@ -294,6 +294,7 @@ export function buildSubagentSystemPrompt(params: {
   childSessionKey: string;
   label?: string;
   task?: string;
+  context?: string;
 }) {
   const taskText =
     typeof params.task === "string" && params.task.trim()
@@ -336,6 +337,7 @@ export function buildSubagentSystemPrompt(params: {
       : undefined,
     `- Your session: ${params.childSessionKey}.`,
     "",
+    ...(params.context ? ["## Background Context", "", params.context, ""] : []),
   ].filter((line): line is string => line !== undefined);
   return lines.join("\n");
 }
