@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings2,
   Shield,
@@ -34,6 +35,7 @@ import type { ChannelConfig, ChannelStatus, PlatformType, ChannelActivityItem } 
 interface ChannelCardProps {
   channel: ChannelConfig;
   currentPlatform?: PlatformType;
+  variant?: "expanded" | "compact";
   onConfigure: () => void;
   onUninstall?: () => void;
   className?: string;
@@ -82,6 +84,7 @@ function isPlatformSupported(supported: PlatformType[], current: PlatformType): 
 export function ChannelCard({
   channel,
   currentPlatform = "any",
+  variant = "expanded",
   onConfigure,
   onUninstall,
   className,
@@ -89,6 +92,7 @@ export function ChannelCard({
   const IconComponent = channelIconMap[channel.id];
   const channelColor = channelColorMap[channel.id];
   const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
 
   // Determine if the channel is supported on current platform
   const isSupported = channel.platform
@@ -132,6 +136,102 @@ export function ChannelCard({
     if (activity.sessionId) {params.set("sessionId", activity.sessionId);}
     return `/agents/${encodeURIComponent(activity.agentId)}?${params.toString()}`;
   };
+
+  // Compact variant - minimal footprint, ideal for list views
+  if (variant === "compact") {
+    return (
+      <TooltipProvider>
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <Card
+            className={cn(
+              "cursor-pointer overflow-hidden transition-all duration-200 hover:border-primary/30",
+              effectiveStatus === "connected" && "border-success/30",
+              effectiveStatus === "error" && "border-error/30",
+              effectiveStatus === "unsupported" && "opacity-60",
+              className
+            )}
+            onClick={onConfigure}
+          >
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                {/* Icon */}
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    effectiveStatus === "unsupported" && "opacity-50"
+                  )}
+                  style={{ backgroundColor: `${channelColor}15` }}
+                >
+                  <IconComponent className="h-4 w-4" style={{ color: channelColor }} />
+                </div>
+
+                {/* Name */}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium text-foreground truncate">{channel.name}</h3>
+                </div>
+
+                {/* Status indicator */}
+                <div className="flex items-center gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="relative flex h-4 w-4 items-center justify-center">
+                        {effectiveStatus === "connecting" ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-yellow-500" />
+                        ) : (
+                          <span className={cn("h-2 w-2 rounded-full", status.dotClass)} />
+                        )}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{statusTooltip}</TooltipContent>
+                  </Tooltip>
+                  <span className="text-xs text-muted-foreground">{status.label}</span>
+                </div>
+
+                {/* Action button - shown on hover */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-7 px-2 text-xs transition-opacity",
+                    isHovered ? "opacity-100" : "opacity-0"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfigure();
+                  }}
+                >
+                  {effectiveStatus === "connected" ? "Settings" : effectiveStatus === "not_configured" ? "Connect" : "Configure"}
+                </Button>
+              </div>
+
+              {/* Hover-revealed description */}
+              <AnimatePresence>
+                {isHovered && channel.description && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="overflow-hidden"
+                  >
+                    <p className="pt-2 text-xs text-muted-foreground">
+                      {channel.description}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <TooltipProvider>
