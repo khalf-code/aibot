@@ -10,12 +10,14 @@ import type { OpenClawConfig } from "../../config/config.js";
 import type { OutboundSendDeps } from "./deliver.js";
 import type { MessagePollResult, MessageSendResult } from "./message.js";
 import { resolveSessionAgentId } from "../../agents/agent-scope.js";
+import { resolveEffectiveMessagesConfig, resolveIdentityName } from "../../agents/identity.js";
 import {
   readNumberParam,
   readStringArrayParam,
   readStringParam,
 } from "../../agents/tools/common.js";
 import { parseReplyDirectives } from "../../auto-reply/reply/reply-directives.js";
+import { resolveResponsePrefixTemplate } from "../../auto-reply/reply/response-prefix-template.js";
 import { dispatchChannelMessageAction } from "../../channels/plugins/message-actions.js";
 import { extensionForMime } from "../../media/mime.js";
 import { parseSlackTarget } from "../../slack/targets.js";
@@ -720,6 +722,22 @@ async function handleSendAction(ctx: ResolvedActionContext): Promise<MessageActi
     message,
     preferEmbeds: true,
   });
+
+  // Apply responsePrefix for agent identification (e.g., "[Aria]")
+  if (agentId && message) {
+    const messagesConfig = resolveEffectiveMessagesConfig(cfg, agentId);
+    if (messagesConfig.responsePrefix) {
+      const identityName = resolveIdentityName(cfg, agentId);
+      const resolvedPrefix = resolveResponsePrefixTemplate(messagesConfig.responsePrefix, {
+        identityName,
+      });
+      // Only prepend if message doesn't already start with the prefix (trim to handle whitespace)
+      const trimmedPrefix = resolvedPrefix?.trim();
+      if (trimmedPrefix && !message.trim().startsWith(trimmedPrefix)) {
+        message = `${trimmedPrefix} ${message}`;
+      }
+    }
+  }
 
   const mediaUrl = readStringParam(params, "media", { trim: false });
   const gifPlayback = readBooleanParam(params, "gifPlayback") ?? false;

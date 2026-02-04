@@ -28,8 +28,8 @@ export class ChatLog extends Container {
     return runId ?? "default";
   }
 
-  startAssistant(text: string, runId?: string) {
-    const component = new AssistantMessageComponent(text);
+  startAssistant(text: string, runId?: string, agentName?: string) {
+    const component = new AssistantMessageComponent(text, agentName);
     this.streamingRuns.set(this.resolveRunId(runId), component);
     this.addChild(component);
     return component;
@@ -45,7 +45,7 @@ export class ChatLog extends Container {
     existing.setText(text);
   }
 
-  finalizeAssistant(text: string, runId?: string) {
+  finalizeAssistant(text: string, runId?: string, agentName?: string) {
     const effectiveRunId = this.resolveRunId(runId);
     const existing = this.streamingRuns.get(effectiveRunId);
     if (existing) {
@@ -53,7 +53,7 @@ export class ChatLog extends Container {
       this.streamingRuns.delete(effectiveRunId);
       return;
     }
-    this.addChild(new AssistantMessageComponent(text));
+    this.addChild(new AssistantMessageComponent(text, agentName));
   }
 
   startTool(toolCallId: string, toolName: string, args: unknown) {

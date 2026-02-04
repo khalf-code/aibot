@@ -526,12 +526,25 @@ export async function runTui(opts: TuiOptions) {
   const { refreshAgents, refreshSessionInfo, loadHistory, setSession, abortActive } =
     sessionActions;
 
+  const getAgentDisplayName = (agentId: string): string => {
+    const name = agentNames.get(agentId);
+    if (name) {
+      return name;
+    }
+    // Fallback mapping for common agent ids
+    if (agentId === "main") {
+      return "Aria";
+    }
+    return agentId.charAt(0).toUpperCase() + agentId.slice(1);
+  };
+
   const { handleChatEvent, handleAgentEvent } = createEventHandlers({
     chatLog,
     tui,
     state,
     setActivityStatus,
     refreshSessionInfo,
+    getAgentDisplayName,
   });
 
   const { handleCommand, sendMessage, openModelSelector, openAgentSelector, openSessionSelector } =

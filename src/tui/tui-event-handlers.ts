@@ -1,6 +1,7 @@
 import type { TUI } from "@mariozechner/pi-tui";
 import type { ChatLog } from "./components/chat-log.js";
 import type { AgentEvent, ChatEvent, TuiStateAccess } from "./tui-types.js";
+import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
 import { asString, extractTextFromMessage, isCommandMessage } from "./tui-formatters.js";
 import { TuiStreamAssembler } from "./tui-stream-assembler.js";
 
@@ -10,10 +11,32 @@ type EventHandlerContext = {
   state: TuiStateAccess;
   setActivityStatus: (text: string) => void;
   refreshSessionInfo?: () => Promise<void>;
+  getAgentDisplayName?: (agentId: string) => string;
 };
 
 export function createEventHandlers(context: EventHandlerContext) {
-  const { chatLog, tui, state, setActivityStatus, refreshSessionInfo } = context;
+  const { chatLog, tui, state, setActivityStatus, refreshSessionInfo, getAgentDisplayName } =
+    context;
+
+  // Helper to get agent's display name from sessionKey or current state
+  const getAgentNameFromSession = (sessionKey?: string) => {
+    // Parse agentId from sessionKey (format: agent:<id>:main)
+    let agentId = state.currentAgentId;
+    if (sessionKey) {
+      const parts = sessionKey.split(":");
+      if (parts.length >= 2 && parts[0] === "agent") {
+        agentId = parts[1];
+      }
+    }
+    if (getAgentDisplayName) {
+      return getAgentDisplayName(agentId);
+    }
+    // Fallback: capitalize first letter of agentId
+    if (agentId === "main") {
+      return "Aria";
+    }
+    return agentId.charAt(0).toUpperCase() + agentId.slice(1);
+  };
   const finalizedRuns = new Map<string, number>();
   const sessionRuns = new Map<string, number>();
   let streamAssembler = new TuiStreamAssembler();
@@ -115,7 +138,10 @@ export function createEventHandlers(context: EventHandlerContext) {
           : "";
 
       const finalText = streamAssembler.finalize(evt.runId, evt.message, state.showThinking);
-      chatLog.finalizeAssistant(finalText, evt.runId);
+      // Filter out NO_REPLY silent responses from display
+      if (!isSilentReplyText(finalText, SILENT_REPLY_TOKEN)) {
+        chatLog.finalizeAssistant(finalText, evt.runId, getAgentNameFromSession(evt.sessionKey));
+      }
       noteFinalizedRun(evt.runId);
       state.activeChatRunId = null;
       setActivityStatus(stopReason === "error" ? "error" : "idle");
