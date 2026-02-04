@@ -6,13 +6,31 @@ import { handleDailyflowsInbound } from "./inbound.js";
 import { isDailyflowsSignatureValid } from "./signature.js";
 
 const MAX_SKEW_MS = 5 * 60 * 1000;
+const MAX_BODY_SIZE = 1024 * 1024; // 1MB
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
+    let received = 0;
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-    req.on("error", reject);
+
+    const onData = (chunk: Buffer) => {
+      received += chunk.length;
+      if (received > MAX_BODY_SIZE) {
+        req.off("data", onData);
+        req.off("end", onEnd);
+        req.off("error", onError);
+        reject(new Error("PayloadTooLarge"));
+        return;
+      }
+      chunks.push(chunk);
+    };
+
+    const onEnd = () => resolve(Buffer.concat(chunks).toString("utf-8"));
+    const onError = (err: Error) => reject(err);
+
+    req.on("data", onData);
+    req.on("end", onEnd);
+    req.on("error", onError);
   });
 }
 
@@ -64,7 +82,20 @@ export function createDailyflowsWebhookHandler(api: OpenClawPluginApi) {
       return true;
     }
 
-    const body = await readBody(req);
+    let body: string;
+    try {
+      body = await readBody(req);
+    } catch (err) {
+      if ((err as Error).message === "PayloadTooLarge") {
+        res.statusCode = 413;
+        res.end("Payload Too Large");
+        return true;
+      }
+      res.statusCode = 400;
+      res.end("read error");
+      return true;
+    }
+
     const payload = parseJson(body);
     if (!payload) {
       res.statusCode = 400;
