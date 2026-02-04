@@ -189,6 +189,7 @@ export const configHandlers: GatewayRequestHandlers = {
     }
 
     // Validate model references against the catalog
+    let modelValidationSkipped = false;
     try {
       const catalog = await loadGatewayModelCatalog();
       const modelIssues = validateConfigModels(validated.config, catalog);
@@ -211,6 +212,7 @@ export const configHandlers: GatewayRequestHandlers = {
       }
     } catch {
       // Model catalog load failed; skip validation rather than blocking config changes
+      modelValidationSkipped = true;
     }
 
     await writeConfigFile(validated.config);
@@ -220,6 +222,9 @@ export const configHandlers: GatewayRequestHandlers = {
         ok: true,
         path: CONFIG_PATH,
         config: validated.config,
+        ...(modelValidationSkipped && {
+          warnings: ["Model validation skipped: unable to load model catalog. Model references were not verified."],
+        }),
       },
       undefined,
     );
@@ -293,6 +298,7 @@ export const configHandlers: GatewayRequestHandlers = {
     }
 
     // Validate model references against the catalog
+    let modelValidationSkipped = false;
     try {
       const catalog = await loadGatewayModelCatalog();
       const modelIssues = validateConfigModels(validated.config, catalog);
@@ -315,6 +321,7 @@ export const configHandlers: GatewayRequestHandlers = {
       }
     } catch {
       // Model catalog load failed; skip validation rather than blocking config changes
+      modelValidationSkipped = true;
     }
 
     await writeConfigFile(validated.config);
@@ -366,6 +373,9 @@ export const configHandlers: GatewayRequestHandlers = {
           path: sentinelPath,
           payload,
         },
+        ...(modelValidationSkipped && {
+          warnings: ["Model validation skipped: unable to load model catalog. Model references were not verified."],
+        }),
       },
       undefined,
     );
@@ -416,6 +426,7 @@ export const configHandlers: GatewayRequestHandlers = {
     }
 
     // Validate model references against the catalog
+    let modelValidationSkipped = false;
     try {
       const catalog = await loadGatewayModelCatalog();
       const modelIssues = validateConfigModels(validated.config, catalog);
@@ -438,6 +449,7 @@ export const configHandlers: GatewayRequestHandlers = {
       }
     } catch {
       // Model catalog load failed; skip validation rather than blocking config changes
+      modelValidationSkipped = true;
     }
 
     await writeConfigFile(validated.config);
@@ -489,6 +501,9 @@ export const configHandlers: GatewayRequestHandlers = {
           path: sentinelPath,
           payload,
         },
+        ...(modelValidationSkipped && {
+          warnings: ["Model validation skipped: unable to load model catalog. Model references were not verified."],
+        }),
       },
       undefined,
     );

@@ -8,8 +8,26 @@ export type ModelValidationIssue = {
   suggestions?: string[];
 };
 
-function isModelRef(value: unknown): value is string {
-  return typeof value === "string" && value.includes("/");
+// Known aliases that resolve at runtime (from config/defaults.ts DEFAULT_MODEL_ALIASES)
+const KNOWN_ALIASES = new Set([
+  "opus",
+  "sonnet",
+  "gpt",
+  "gpt-mini",
+  "gemini",
+  "gemini-flash",
+]);
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isQualifiedModelRef(value: string): boolean {
+  return value.includes("/");
+}
+
+function isKnownAlias(value: string): boolean {
+  return KNOWN_ALIASES.has(value.toLowerCase());
 }
 
 function extractModelRefs(cfg: OpenClawConfig): Array<{ path: string; model: string }> {
@@ -18,12 +36,12 @@ function extractModelRefs(cfg: OpenClawConfig): Array<{ path: string; model: str
   // agents.defaults.model
   const defaultModel = cfg.agents?.defaults?.model;
   if (defaultModel) {
-    if (isModelRef(defaultModel.primary)) {
+    if (isNonEmptyString(defaultModel.primary)) {
       refs.push({ path: "agents.defaults.model.primary", model: defaultModel.primary });
     }
     if (Array.isArray(defaultModel.fallbacks)) {
       defaultModel.fallbacks.forEach((m, i) => {
-        if (isModelRef(m)) {
+        if (isNonEmptyString(m)) {
           refs.push({ path: `agents.defaults.model.fallbacks[${i}]`, model: m });
         }
       });
@@ -33,12 +51,12 @@ function extractModelRefs(cfg: OpenClawConfig): Array<{ path: string; model: str
   // agents.defaults.imageModel
   const defaultImageModel = cfg.agents?.defaults?.imageModel;
   if (defaultImageModel) {
-    if (isModelRef(defaultImageModel.primary)) {
+    if (isNonEmptyString(defaultImageModel.primary)) {
       refs.push({ path: "agents.defaults.imageModel.primary", model: defaultImageModel.primary });
     }
     if (Array.isArray(defaultImageModel.fallbacks)) {
       defaultImageModel.fallbacks.forEach((m, i) => {
-        if (isModelRef(m)) {
+        if (isNonEmptyString(m)) {
           refs.push({ path: `agents.defaults.imageModel.fallbacks[${i}]`, model: m });
         }
       });
@@ -50,12 +68,12 @@ function extractModelRefs(cfg: OpenClawConfig): Array<{ path: string; model: str
     cfg.agents.list.forEach((agent, idx) => {
       const agentModel = agent.model;
       if (agentModel) {
-        if (isModelRef(agentModel.primary)) {
+        if (isNonEmptyString(agentModel.primary)) {
           refs.push({ path: `agents.list[${idx}].model.primary`, model: agentModel.primary });
         }
         if (Array.isArray(agentModel.fallbacks)) {
           agentModel.fallbacks.forEach((m, i) => {
-            if (isModelRef(m)) {
+            if (isNonEmptyString(m)) {
               refs.push({ path: `agents.list[${idx}].model.fallbacks[${i}]`, model: m });
             }
           });
@@ -68,6 +86,15 @@ function extractModelRefs(cfg: OpenClawConfig): Array<{ path: string; model: str
 }
 
 function findSuggestions(model: string, catalog: ModelCatalogEntry[]): string[] {
+  if (!isQualifiedModelRef(model)) {
+    // For unqualified IDs, suggest qualified versions from any provider
+    const lowerModel = model.toLowerCase();
+    return catalog
+      .filter((entry) => entry.id?.toLowerCase().includes(lowerModel))
+      .map((entry) => `${entry.provider}/${entry.id}`)
+      .slice(0, 3);
+  }
+
   const [provider, modelId] = model.split("/", 2);
   if (!provider || !modelId) return [];
 
@@ -84,6 +111,12 @@ function findSuggestions(model: string, catalog: ModelCatalogEntry[]): string[] 
     .slice(0, 3);
 }
 
+export type ModelValidationResult = {
+  issues: ModelValidationIssue[];
+  catalogLoadFailed?: boolean;
+  catalogLoadError?: string;
+};
+
 export function validateConfigModels(
   cfg: OpenClawConfig,
   catalog: ModelCatalogEntry[],
@@ -96,12 +129,31 @@ export function validateConfigModels(
   );
 
   for (const ref of refs) {
-    if (!catalogSet.has(ref.model.toLowerCase())) {
-      const suggestions = findSuggestions(ref.model, catalog);
+    const model = ref.model.trim();
+
+    // Skip known aliases - they resolve at runtime
+    if (isKnownAlias(model)) {
+      continue;
+    }
+
+    if (isQualifiedModelRef(model)) {
+      // Qualified ref (provider/model) - validate against catalog
+      if (!catalogSet.has(model.toLowerCase())) {
+        const suggestions = findSuggestions(model, catalog);
+        issues.push({
+          path: ref.path,
+          model: model,
+          message: `Unknown model "${model}"`,
+          suggestions: suggestions.length > 0 ? suggestions : undefined,
+        });
+      }
+    } else {
+      // Unqualified string that's not a known alias - likely missing provider prefix
+      const suggestions = findSuggestions(model, catalog);
       issues.push({
         path: ref.path,
-        model: ref.model,
-        message: `Unknown model "${ref.model}"`,
+        model: model,
+        message: `Model "${model}" may need a provider prefix (e.g., "provider/${model}")`,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
       });
     }
