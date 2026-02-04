@@ -21,14 +21,23 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-$HOME/.openclaw}"
-OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$HOME/.openclaw/workspace}"
+OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-$HOME/workspace/.openclaw}"
+OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$HOME/workspace/.openclaw/workspace}"
+
+OPENCLAW_UID="${OPENCLAW_UID:-$(id -u)}"
+OPENCLAW_GID="${OPENCLAW_GID:-$(id -g)}"
 
 mkdir -p "$OPENCLAW_CONFIG_DIR"
 mkdir -p "$OPENCLAW_WORKSPACE_DIR"
 
 export OPENCLAW_CONFIG_DIR
 export OPENCLAW_WORKSPACE_DIR
+export OPENCLAW_UID
+export OPENCLAW_GID
+
+# Set ownership to container user so the container can write to mounted volumes
+chown -R "$OPENCLAW_UID:$OPENCLAW_GID" "$OPENCLAW_CONFIG_DIR" 2>/dev/null || chmod -R a+w "$OPENCLAW_CONFIG_DIR"
+chown -R "$OPENCLAW_UID:$OPENCLAW_GID" "$OPENCLAW_WORKSPACE_DIR" 2>/dev/null || chmod -R a+w "$OPENCLAW_WORKSPACE_DIR"
 export OPENCLAW_GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
 export OPENCLAW_BRIDGE_PORT="${OPENCLAW_BRIDGE_PORT:-18790}"
 export OPENCLAW_GATEWAY_BIND="${OPENCLAW_GATEWAY_BIND:-lan}"
@@ -161,6 +170,8 @@ upsert_env() {
 upsert_env "$ENV_FILE" \
   OPENCLAW_CONFIG_DIR \
   OPENCLAW_WORKSPACE_DIR \
+  OPENCLAW_UID \
+  OPENCLAW_GID \
   OPENCLAW_GATEWAY_PORT \
   OPENCLAW_BRIDGE_PORT \
   OPENCLAW_GATEWAY_BIND \
