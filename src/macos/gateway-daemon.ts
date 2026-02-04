@@ -52,6 +52,8 @@ async function main() {
     { consumeGatewaySigusr1RestartAuthorization, isGatewaySigusr1RestartExternallyAllowed },
     { defaultRuntime },
     { enableConsoleCapture, setConsoleTimestampPrefix },
+    { clearCommitHashCache },
+    { clearVersionCache },
   ] = await Promise.all([
     import("../config/config.js"),
     import("../gateway/server.js"),
@@ -61,6 +63,8 @@ async function main() {
     import("../infra/restart.js"),
     import("../runtime.js"),
     import("../logging.js"),
+    import("../infra/git-commit.js"),
+    import("../version.js"),
   ] as const);
 
   enableConsoleCapture();
@@ -152,6 +156,9 @@ async function main() {
         }
         server = null;
         if (isRestart) {
+          // Clear version/commit caches so status displays updated values after git pull
+          clearVersionCache();
+          clearCommitHashCache();
           shuttingDown = false;
           restartResolver?.();
         } else {

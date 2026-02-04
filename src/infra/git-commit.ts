@@ -44,6 +44,14 @@ const resolveGitHead = (startDir: string) => {
 
 let cachedCommit: string | null | undefined;
 
+/**
+ * Clear the cached commit hash, forcing a fresh lookup on the next call.
+ * Call this when the gateway restarts (e.g., after git pull + SIGUSR1).
+ */
+export function clearCommitHashCache(): void {
+  cachedCommit = undefined;
+}
+
 const readCommitFromPackageJson = () => {
   try {
     const require = createRequire(import.meta.url);
