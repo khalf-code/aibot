@@ -57,6 +57,7 @@ import {
 } from "../../skills.js";
 import { buildSystemPromptParams } from "../../system-prompt-params.js";
 import { buildSystemPromptReport } from "../../system-prompt-report.js";
+import { createTraceWriterIfEnabled, hashAgentState, TraceWriter } from "../../tracing/index.js";
 import { resolveTranscriptPolicy } from "../../transcript-policy.js";
 import { DEFAULT_BOOTSTRAP_FILENAME } from "../../workspace.js";
 import { isAbortError } from "../abort.js";
@@ -511,6 +512,16 @@ export async function runEmbeddedAttempt(
         workspaceDir: params.workspaceDir,
       });
 
+      // Initialize trace writer if enabled (optional, zero overhead if disabled).
+      // The trace writer records LLM calls and tool execution for deterministic tracing.
+      const traceWriter = await createTraceWriterIfEnabled({
+        tracePath: params.tracePath,
+        sessionId: activeSession.sessionId,
+        sessionKey: params.sessionKey,
+        runId: params.runId,
+        initialPrompt: params.prompt,
+      });
+
       // Force a stable streamFn reference so vitest can reliably mock @mariozechner/pi-ai.
       activeSession.agent.streamFn = streamSimple;
 
@@ -809,6 +820,30 @@ export async function runEmbeddedAttempt(
           } else {
             await abortable(activeSession.prompt(effectivePrompt));
           }
+
+          // Record LLM call to trace file (when --trace flag is provided).
+          // The traceWriter is a no-op when tracing is disabled, so this has zero overhead.
+          if (traceWriter) {
+            const stateSnapshot = {
+              messages: activeSession.messages.slice(),
+              sessionState: {
+                isStreaming: activeSession.isStreaming,
+              },
+            };
+            const stateHash = hashAgentState(stateSnapshot);
+            traceWriter.recordLlmCall({
+              messages: activeSession.messages.slice(),
+              response: activeSession.messages[activeSession.messages.length - 1] ?? null,
+              model: {
+                provider: params.provider,
+                modelId: params.modelId,
+                api: params.model.api,
+                thinkingLevel: params.thinkLevel,
+              },
+              stateHash,
+            });
+            await traceWriter.flush();
+          }
         } catch (err) {
           promptError = err;
         } finally {
@@ -867,6 +902,17 @@ export async function runEmbeddedAttempt(
         unsubscribe();
         clearActiveEmbeddedRun(params.sessionId, queueHandle);
         params.abortSignal?.removeEventListener?.("abort", onAbort);
+
+        // Record run completion to trace (when --trace flag is provided).
+        if (traceWriter) {
+          const outcome = aborted ? "aborted" : promptError ? "errored" : "completed";
+          traceWriter.recordEnd({
+            durationMs: Date.now() - promptStartedAt,
+            outcome,
+            error: promptError ? describeUnknownError(promptError) : undefined,
+          });
+          await traceWriter.flush();
+        }
       }
 
       const lastAssistant = messagesSnapshot
