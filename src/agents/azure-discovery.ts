@@ -124,6 +124,79 @@ async function getAzureAccessToken(): Promise<string | null> {
   }
 }
 
+type AzureOpenAIResource = {
+  name: string;
+  endpoint: string;
+  kind: "OpenAI" | "AIServices";
+  location: string;
+  resourceGroup: string;
+};
+
+export async function listAzureOpenAIResources(): Promise<AzureOpenAIResource[]> {
+  try {
+    const { exec } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execAsync = promisify(exec);
+
+    const { stdout } = await execAsync(
+      `az cognitiveservices account list --query "[?kind=='OpenAI' || kind=='AIServices'].{name:name,endpoint:properties.endpoint,kind:kind,location:location,resourceGroup:resourceGroup}" -o json`,
+      { timeout: 30000 },
+    );
+
+    const resources = JSON.parse(stdout.trim()) as AzureOpenAIResource[];
+    return resources.filter((r) => r.endpoint);
+  } catch {
+    return [];
+  }
+}
+
+type AzureAIProject = {
+  name: string;
+  id: string;
+  location: string;
+  resourceGroup: string;
+  discoveryUrl?: string;
+  workspaceId?: string;
+};
+
+export async function listAzureAIProjects(): Promise<AzureAIProject[]> {
+  try {
+    const { exec } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execAsync = promisify(exec);
+
+    const { stdout } = await execAsync(
+      `az resource list --resource-type "Microsoft.MachineLearningServices/workspaces" --query '[].{name:name,id:id,location:location,resourceGroup:resourceGroup}' -o json`,
+      { timeout: 30000 },
+    );
+
+    const projects = JSON.parse(stdout.trim()) as AzureAIProject[];
+
+    // Fetch additional details for each project
+    const detailedProjects = await Promise.all(
+      projects.map(async (project) => {
+        try {
+          const { stdout: detailStdout } = await execAsync(
+            `az resource show --ids "${project.id}" --query '{discoveryUrl:properties.discoveryUrl,workspaceId:properties.workspaceId}' -o json`,
+            { timeout: 10000 },
+          );
+          const details = JSON.parse(detailStdout.trim()) as {
+            discoveryUrl?: string;
+            workspaceId?: string;
+          };
+          return { ...project, ...details };
+        } catch {
+          return project;
+        }
+      }),
+    );
+
+    return detailedProjects;
+  } catch {
+    return [];
+  }
+}
+
 async function listAzureDeployments(
   endpoint: string,
   apiKey: string | null,
