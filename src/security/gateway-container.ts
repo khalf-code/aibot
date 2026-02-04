@@ -126,6 +126,9 @@ export async function startGatewayContainer(opts: GatewayContainerOptions): Prom
     "-e", "OPENCLAW_SECURE_MODE=1",
     // Tell the container where the proxy is
     "-e", `PROXY_URL=${opts.proxyUrl}`,
+    // Explicitly set container paths to prevent host paths from being used
+    "-e", "OPENCLAW_STATE_DIR=/home/node/.openclaw",
+    "-e", "HOME=/home/node",
   ];
 
   // Add bind mounts for tools/skills
