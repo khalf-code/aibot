@@ -76,10 +76,11 @@ function waitForCallback(
       if (resolved) return;
       resolved = true;
       if (timeout) clearTimeout(timeout);
+      server.removeListener("request", handler);
       resolve(result);
     };
 
-    server.on("request", (req: IncomingMessage, res: ServerResponse) => {
+    const handler = (req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
       // Prevent caching on all callback responses (token may be in URL).
@@ -133,7 +134,9 @@ function waitForCallback(
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.end(successPage());
       finish({ ok: true, token });
-    });
+    };
+
+    server.on("request", handler);
 
     timeout = setTimeout(() => {
       finish({ ok: false, error: "Login timed out" });

@@ -45,6 +45,13 @@ export function getObaKeysDir(): string {
 function ensureKeysDir(): void {
   const dir = getObaKeysDir();
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  // mkdirSync mode is only applied to newly created directories, not existing
+  // ones. Enforce permissions on the leaf directory regardless.
+  try {
+    fs.chmodSync(dir, 0o700);
+  } catch {
+    // Windows ignores POSIX perms
+  }
 }
 
 export function generateObaKeyPair(owner?: string): ObaKeyFile {
