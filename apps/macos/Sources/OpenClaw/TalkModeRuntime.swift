@@ -460,6 +460,9 @@ actor TalkModeRuntime {
             return
         }
         
+        // 设置 lastSpokenText 用于回声检测（避免 TTS 播放的声音被误判为用户打断）
+        self.lastSpokenText = text
+        
         // 只在第一个段落时设置 phase
         if isFirst {
             if self.interruptOnSpeech {
@@ -492,31 +495,12 @@ actor TalkModeRuntime {
             Task { await client.disconnect() }
         }
         
-        // 合成音频
+        // 合成音频 - 使用自定义流式播放器（避免 ElevenLabsKit 信号量 bug）
         let stream = await client.streamSynthesize(text: text, speed: 1.0, volume: 1.0, pitch: 0)
         
-        // 计算收到的音频数据量
-        var chunkCount = 0
-        var totalBytes = 0
-        let monitoredStream = AsyncThrowingStream<Data, Error> { continuation in
-            Task {
-                do {
-                    for try await chunk in stream {
-                        chunkCount += 1
-                        totalBytes += chunk.count
-                        continuation.yield(chunk)
-                    }
-                    self.logger.warning("⏱️ 段落TTS流完成: \(chunkCount, privacy: .public)块 \(totalBytes, privacy: .public)字节")
-                    continuation.finish()
-                } catch {
-                    self.logger.error("⏱️ 段落TTS流错误: \(error.localizedDescription, privacy: .public)")
-                    continuation.finish(throwing: error)
-                }
-            }
-        }
-        
-        let result = await self.playMP3(stream: monitoredStream)
-        self.logger.warning("⏱️ 段落playMP3结果: finished=\(result.finished, privacy: .public)")
+        // 使用 MiniMaxStreamingPlayer 进行流式播放
+        let result = await self.playMiniMaxStream(stream: stream)
+        self.logger.warning("⏱️ 段落播放结果: finished=\(result.finished, privacy: .public)")
         
         if !result.finished, let interruptedAt = result.interruptedAt, self.phase == .speaking {
             if self.interruptOnSpeech {
@@ -954,11 +938,15 @@ actor TalkModeRuntime {
         let usePCM = self.lastPlaybackWasPCM
         let interruptedAt = usePCM ? await self.stopPCM() : await self.stopMP3()
         _ = usePCM ? await self.stopMP3() : await self.stopPCM()
+        // Also stop TalkAudioPlayer (used by MiniMax non-streaming playback)
+        let miniMaxInterruptedAt = await self.stopMiniMaxAudio()
         await TalkSystemSpeechSynthesizer.shared.stop()
         await self.stopMiniMax()
         guard self.phase == .speaking else { return }
-        if reason == .speech, let interruptedAt {
-            self.lastInterruptedAtSeconds = interruptedAt
+        // Use MiniMax interrupted time if available
+        let finalInterruptedAt = miniMaxInterruptedAt ?? interruptedAt
+        if reason == .speech, let finalInterruptedAt {
+            self.lastInterruptedAtSeconds = finalInterruptedAt
         }
         if reason == .manual {
             return
@@ -1263,6 +1251,7 @@ extension TalkModeRuntime {
     // MARK: - MiniMax TTS Integration (WebSocket)
     
     /// Play audio using MiniMax cloud TTS via WebSocket
+    /// Uses non-streaming playback (TalkAudioPlayer) to avoid ElevenLabsKit semaphore bug
     private func playMiniMax(input: TalkPlaybackInput) async throws {
         guard let apiKey = self.miniMaxApiKey, !apiKey.isEmpty else {
             throw MiniMaxTTSError.apiError(0, "MiniMax API key not configured")
@@ -1306,24 +1295,40 @@ extension TalkModeRuntime {
         // MiniMax returns MP3 format
         self.lastPlaybackWasPCM = false
         
-        // Play MP3 audio stream
-        let result = await self.playMP3(stream: stream)
+        // 使用自定义流式播放器（避免 ElevenLabsKit 信号量 bug）
+        let result = await self.playMiniMaxStream(stream: stream)
         
         self.ttsLogger.info(
             "talk MiniMax result finished=\(result.finished, privacy: .public) " +
             "interruptedAt=\(String(describing: result.interruptedAt), privacy: .public)")
-        
-        // Do not throw when stream ended without "finished" - we may have already played most of it.
-        // Throwing would trigger fallback and replay the same text (causing duplicate speech).
-        if !result.finished, result.interruptedAt == nil {
-            self.ttsLogger.warning("MiniMax stream ended without finished flag (partial playback)")
-        }
         
         if !result.finished, let interruptedAt = result.interruptedAt, self.phase == .speaking {
             if self.interruptOnSpeech {
                 self.lastInterruptedAtSeconds = interruptedAt
             }
         }
+    }
+    
+    /// Play MiniMax audio stream using custom streaming player (avoids ElevenLabsKit bug)
+    @MainActor
+    private func playMiniMaxStream(stream: AsyncThrowingStream<Data, Error>) async -> StreamingPlaybackResult {
+        await MiniMaxStreamingPlayer.shared.play(stream: stream)
+    }
+    
+    /// Play MiniMax audio data using non-streaming player
+    @MainActor
+    private func playMiniMaxAudio(data: Data) async -> TalkPlaybackResult {
+        await TalkAudioPlayer.shared.play(data: data)
+    }
+    
+    /// Stop MiniMax audio playback (both streaming and non-streaming)
+    @MainActor
+    private func stopMiniMaxAudio() -> Double? {
+        // Stop streaming player
+        let streamingTime = MiniMaxStreamingPlayer.shared.stop()
+        // Also stop non-streaming player
+        let nonStreamingTime = TalkAudioPlayer.shared.stop()
+        return streamingTime ?? nonStreamingTime
     }
     
     /// Stop MiniMax playback and disconnect WebSocket
