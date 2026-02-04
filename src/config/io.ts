@@ -323,7 +323,18 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
   async function readConfigFileSnapshot(): Promise<ConfigFileSnapshot> {
     const exists = deps.fs.existsSync(configPath);
     if (!exists) {
-      const hash = hashConfigRaw(null);
+      // Generate a sensible default config for UI display instead of null
+      const defaultRaw = `{
+  // OpenClaw Configuration
+  // See https://docs.openclaw.ai/gateway/configuration for full reference
+  agents: {
+    defaults: {
+      workspace: "~/.openclaw/workspace",
+    },
+  },
+}
+`;
+      const hash = hashConfigRaw(defaultRaw);
       const config = applyTalkApiKey(
         applyModelDefaults(
           applyCompactionDefaults(
@@ -337,7 +348,7 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
       return {
         path: configPath,
         exists: false,
-        raw: null,
+        raw: defaultRaw,
         parsed: {},
         valid: true,
         config,
@@ -462,14 +473,21 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
         legacyIssues,
       };
     } catch (err) {
+      // Provide helpful content in raw field so UI can display something meaningful
+      const errorRaw = `{
+  // Failed to read config file: ${String(err).replace(/\n/g, "\n  // ")}
+  // Check file permissions and try again.
+  // See https://docs.openclaw.ai/gateway/configuration for help.
+}
+`;
       return {
         path: configPath,
         exists: true,
-        raw: null,
+        raw: errorRaw,
         parsed: {},
         valid: false,
         config: {},
-        hash: hashConfigRaw(null),
+        hash: hashConfigRaw(errorRaw),
         issues: [{ path: "", message: `read failed: ${String(err)}` }],
         warnings: [],
         legacyIssues: [],

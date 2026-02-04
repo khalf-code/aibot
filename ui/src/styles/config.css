@@ -237,6 +237,26 @@
   box-shadow: var(--shadow-sm);
 }
 
+.config-mode-toggle__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-mode-toggle__btn:disabled:hover {
+  color: var(--muted);
+}
+
+.config-mode-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  line-height: 1.4;
+}
+
 /* ===========================================
    Main Content
    =========================================== */
@@ -1444,4 +1464,207 @@
     flex: 1 0 auto;
     min-width: 70px;
   }
+}
+
+/* ===========================================
+   Config Field Tooltips
+   =========================================== */
+
+.cfg-field__label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cfg-tooltip {
+  position: relative;
+  display: inline-flex;
+}
+
+.cfg-tooltip--inline {
+  margin-right: 8px;
+}
+
+.cfg-tooltip__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) ease,
+    background var(--duration-fast) ease;
+}
+
+.cfg-tooltip__trigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cfg-tooltip__trigger:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.cfg-tooltip__content {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  min-width: 220px;
+  max-width: 300px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) ease,
+    visibility var(--duration-fast) ease;
+}
+
+.cfg-tooltip:hover .cfg-tooltip__content,
+.cfg-tooltip:focus-within .cfg-tooltip__content {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.cfg-tooltip__tip {
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.cfg-tooltip__tip strong {
+  color: var(--accent);
+}
+
+.cfg-tooltip__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-accent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--duration-fast) ease;
+}
+
+.cfg-tooltip__link:hover {
+  background: var(--bg-hover);
+}
+
+.cfg-tooltip__link svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Toggle row with tooltip actions */
+.cfg-toggle-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ===========================================
+   Config Missing Banner
+   =========================================== */
+
+.config-missing-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 20px;
+  margin: 0 20px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--bg-accent);
+}
+
+.config-missing-banner__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.config-missing-banner__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.config-missing-banner__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-missing-banner__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.config-missing-banner__desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.config-missing-banner__desc strong {
+  color: var(--text);
+}
+
+.config-missing-banner__path {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+}
+
+.config-missing-banner__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--duration-fast) ease;
+}
+
+.config-missing-banner__link:hover {
+  background: var(--accent-hover);
+}
+
+.config-missing-banner__link svg {
+  width: 14px;
+  height: 14px;
 }

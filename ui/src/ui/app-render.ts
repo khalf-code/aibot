@@ -932,6 +932,8 @@ export function renderApp(state: AppViewState) {
                 searchQuery: (state as unknown as OpenClawApp).configSearchQuery,
                 activeSection: (state as unknown as OpenClawApp).configActiveSection,
                 activeSubsection: (state as unknown as OpenClawApp).configActiveSubsection,
+                configExists: state.configSnapshot?.exists ?? null,
+                configPath: state.configSnapshot?.path ?? null,
                 onRawChange: (next) => {
                   state.configRaw = next;
                 },
