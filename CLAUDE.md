@@ -51,7 +51,9 @@
 - Mac packaging (dev): `scripts/package-mac-app.sh` defaults to current arch. Release checklist: `docs/platforms/mac/release.md`.
 - Type-check/build: `pnpm build` (tsc)
 - Lint/format: `pnpm lint` (oxlint), `pnpm format` (oxfmt)
-- Tests: `pnpm test` (vitest); coverage: `pnpm test:coverage`
+- Running _all_ tests: `pnpm test` (vitest); coverage: `pnpm test:coverage`
+- Running specific test file `pnpm vitest path/to/test.file.ts
+- Running tests with test name filter: `pnpm vitest -t "should update config"`
 
 ## Coding Style & Naming Conventions
 
