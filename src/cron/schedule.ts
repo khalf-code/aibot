@@ -1,9 +1,15 @@
 import { Cron } from "croner";
 import type { CronSchedule } from "./types.js";
+import { parseAbsoluteTimeMs } from "./parse.js";
 
 export function computeNextRunAtMs(schedule: CronSchedule, nowMs: number): number | undefined {
   if (schedule.kind === "at") {
-    return schedule.atMs;
+    const atMs = parseAbsoluteTimeMs(schedule.at);
+    if (atMs === null) {
+      return undefined;
+    }
+    // Return atMs even when past so callers treat the job as due until it runs.
+    return atMs;
   }
 
   if (schedule.kind === "every") {
