@@ -31,4 +31,11 @@ export default defineConfig([
     fixedExtension: false,
     platform: "node",
   },
+  {
+    entry: "src/infra/agent-events.ts",
+    outDir: "dist/infra",
+    env,
+    fixedExtension: false,
+    platform: "node",
+  },
 ]);
