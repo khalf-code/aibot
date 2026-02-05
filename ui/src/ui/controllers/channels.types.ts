@@ -17,4 +17,5 @@ export type ChannelsState = {
   convosQrDataUrl: string | null;
   convosBusy: boolean;
   convosJoined: boolean;
+  convosResetPending: boolean;
 };

@@ -108,16 +108,23 @@ function stopConvosJoinPolling() {
   }
 }
 
-export async function setupConvos(state: ChannelsState) {
+/**
+ * Shared helper: call a convos setup/reset method and start polling for join.
+ * Used by both `setupConvos` and `resetConvos` to avoid duplicated logic.
+ */
+async function startConvosSetupSession(
+  state: ChannelsState,
+  method: string,
+  params?: Record<string, unknown>,
+) {
   if (!state.client || !state.connected || state.convosBusy) {
     return;
   }
 
-  // Stop any existing polling
   stopConvosJoinPolling();
 
   state.convosBusy = true;
-  state.convosMessage = "Setting up Convos...";
+  state.convosMessage = method === "convos.reset" ? "Resetting Convos..." : "Setting up Convos...";
   state.convosInviteUrl = null;
   state.convosQrDataUrl = null;
   state.convosJoined = false;
@@ -127,7 +134,8 @@ export async function setupConvos(state: ChannelsState) {
       inviteUrl?: string;
       conversationId?: string;
       qrDataUrl?: string;
-    }>("convos.setup", {
+    }>(method, {
+      ...params,
       timeoutMs: 60000,
     });
     state.convosInviteUrl = res.inviteUrl ?? null;
@@ -168,18 +176,30 @@ export async function setupConvos(state: ChannelsState) {
       }, 3000);
 
       // Stop polling after 10 minutes
-      convosJoinPollTimeout = setTimeout(() => {
-        stopConvosJoinPolling();
-        if (!state.convosJoined && state.convosInviteUrl) {
-          state.convosMessage = "Invite still active. Join via the link above.";
-        }
-      }, 10 * 60 * 1000);
+      convosJoinPollTimeout = setTimeout(
+        () => {
+          stopConvosJoinPolling();
+          if (!state.convosJoined && state.convosInviteUrl) {
+            state.convosMessage = "Invite still active. Join via the link above.";
+          }
+        },
+        10 * 60 * 1000,
+      );
     }
   } catch (err) {
-    state.convosMessage = `Setup failed: ${String(err)}`;
+    const label = method === "convos.reset" ? "Reset" : "Setup";
+    state.convosMessage = `${label} failed: ${String(err)}`;
     state.convosInviteUrl = null;
     state.convosQrDataUrl = null;
   } finally {
     state.convosBusy = false;
   }
+}
+
+export async function setupConvos(state: ChannelsState) {
+  await startConvosSetupSession(state, "convos.setup");
+}
+
+export async function resetConvos(state: ChannelsState, deleteDb: boolean) {
+  await startConvosSetupSession(state, "convos.reset", { deleteDb });
 }

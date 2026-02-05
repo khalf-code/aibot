@@ -66,23 +66,26 @@ export function renderConvosCard(params: {
 
       ${
         props.convosJoined
-          ? html`<div class="callout success" style="margin-top: 12px;">
-            <div style="text-align: center; padding: 12px;">
-              <p style="font-weight: bold; color: #22c55e;">Connected!</p>
-              <p style="margin-top: 8px; font-size: 0.85rem; color: #666;">
-                You can now send and receive messages through Convos.
-              </p>
-            </div>
-          </div>`
+          ? html`
+              <div class="callout success" style="margin-top: 12px">
+                <div style="text-align: center; padding: 12px">
+                  <p style="font-weight: bold; color: #22c55e">Connected!</p>
+                  <p style="margin-top: 8px; font-size: 0.85rem; color: #666">
+                    You can now send and receive messages through Convos.
+                  </p>
+                </div>
+              </div>
+            `
           : props.convosInviteUrl
             ? html`<div class="callout" style="margin-top: 12px;">
               <div style="text-align: center; padding: 12px;">
                 <p style="font-weight: bold; margin-bottom: 12px;">Scan with Convos App</p>
-                ${props.convosQrDataUrl
-                  ? html`<div class="qr-wrap" style="margin-bottom: 12px;">
+                ${
+                  props.convosQrDataUrl
+                    ? html`<div class="qr-wrap" style="margin-bottom: 12px;">
                       <img src=${props.convosQrDataUrl} alt="Convos Invite QR" />
                     </div>`
-                  : nothing
+                    : nothing
                 }
                 <div style="margin-bottom: 12px;">
                   <input
@@ -123,6 +126,17 @@ export function renderConvosCard(params: {
         <button class="btn" @click=${() => props.onRefresh(true)}>
           Probe
         </button>
+        ${
+          convos?.configured
+            ? html`<button
+              class="btn danger"
+              ?disabled=${props.convosBusy}
+              @click=${() => props.onConvosReset()}
+            >
+              Reset Integration
+            </button>`
+            : nothing
+        }
       </div>
 
       ${renderChannelConfigSection({ channelId: "convos", props })}

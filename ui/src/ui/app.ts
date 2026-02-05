@@ -33,6 +33,9 @@ import {
   handleChannelConfigReload as handleChannelConfigReloadInternal,
   handleChannelConfigSave as handleChannelConfigSaveInternal,
   handleConvosSetup as handleConvosSetupInternal,
+  handleConvosReset as handleConvosResetInternal,
+  handleConvosResetCancel as handleConvosResetCancelInternal,
+  handleConvosResetConfirm as handleConvosResetConfirmInternal,
   handleNostrProfileCancel as handleNostrProfileCancelInternal,
   handleNostrProfileEdit as handleNostrProfileEditInternal,
   handleNostrProfileFieldChange as handleNostrProfileFieldChangeInternal,
@@ -195,6 +198,7 @@ export class OpenClawApp extends LitElement {
   @state() convosQrDataUrl: string | null = null;
   @state() convosBusy = false;
   @state() convosJoined = false;
+  @state() convosResetPending = false;
   @state() nostrProfileFormState: NostrProfileFormState | null = null;
   @state() nostrProfileAccountId: string | null = null;
 
@@ -415,6 +419,18 @@ export class OpenClawApp extends LitElement {
 
   async handleConvosSetup() {
     await handleConvosSetupInternal(this);
+  }
+
+  handleConvosReset() {
+    handleConvosResetInternal(this);
+  }
+
+  handleConvosResetCancel() {
+    handleConvosResetCancelInternal(this);
+  }
+
+  async handleConvosResetConfirm(deleteDb: boolean) {
+    await handleConvosResetConfirmInternal(this, deleteDb);
   }
 
   async handleChannelConfigSave() {

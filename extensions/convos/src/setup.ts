@@ -5,15 +5,17 @@
 
 import type { InviteContext } from "convos-node-sdk";
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
+import type { ConvosSetupResult } from "./types.js";
 import { resolveConvosAccount, type CoreConfig } from "./accounts.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosSDKClient } from "./sdk-client.js";
-import type { ConvosSetupResult } from "./types.js";
 
 export type SetupConvosParams = {
   accountId?: string;
   env?: "production" | "dev";
   name?: string;
+  /** If true, generates a new XMTP identity even if one already exists in config */
+  forceNewKey?: boolean;
   /** If true, keeps agent running to accept join requests (caller must stop it) */
   keepRunning?: boolean;
   /** Handler for incoming invite/join requests */
@@ -49,7 +51,7 @@ export async function setupConvosWithInvite(
   // Use in-memory DB — setup is temporary; the runtime client will use a
   // persistent dbPath once the identity is saved to config.
   const client = await ConvosSDKClient.create({
-    privateKey: account.privateKey,
+    privateKey: params.forceNewKey ? undefined : account.privateKey,
     env: params.env ?? account.env,
     dbPath: null,
     debug: false,

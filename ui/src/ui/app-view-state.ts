@@ -103,6 +103,7 @@ export type AppViewState = {
   convosQrDataUrl: string | null;
   convosBusy: boolean;
   convosJoined: boolean;
+  convosResetPending: boolean;
   nostrProfileFormState: NostrProfileFormState | null;
   nostrProfileAccountId: string | null;
   configFormDirty: boolean;
@@ -179,6 +180,10 @@ export type AppViewState = {
   handleWhatsAppStart: (force: boolean) => Promise<void>;
   handleWhatsAppWait: () => Promise<void>;
   handleWhatsAppLogout: () => Promise<void>;
+  handleConvosSetup: () => Promise<void>;
+  handleConvosReset: () => void;
+  handleConvosResetConfirm: (deleteDb: boolean) => Promise<void>;
+  handleConvosResetCancel: () => void;
   handleChannelConfigSave: () => Promise<void>;
   handleChannelConfigReload: () => Promise<void>;
   handleNostrProfileEdit: (accountId: string, profile: NostrProfile | null) => void;

@@ -32,6 +32,7 @@ export type ChannelsProps = {
   convosQrDataUrl: string | null;
   convosBusy: boolean;
   convosJoined: boolean;
+  convosResetPending: boolean;
   configSchema: unknown;
   configSchemaLoading: boolean;
   configForm: Record<string, unknown> | null;
@@ -45,6 +46,9 @@ export type ChannelsProps = {
   onWhatsAppWait: () => void;
   onWhatsAppLogout: () => void;
   onConvosSetup: () => void;
+  onConvosReset: () => void;
+  onConvosResetConfirm: (deleteDb: boolean) => void;
+  onConvosResetCancel: () => void;
   onConfigPatch: (path: Array<string | number>, value: unknown) => void;
   onConfigSave: () => void;
   onConfigReload: () => void;

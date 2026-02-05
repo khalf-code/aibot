@@ -1,10 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { OpenClawConfig, OpenClawPluginApi } from "openclaw/plugin-sdk";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { emptyPluginConfigSchema, renderQrPngBase64 } from "openclaw/plugin-sdk";
+import type { ConvosSDKClient } from "./src/sdk-client.js";
+import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
 import { convosPlugin } from "./src/channel.js";
 import { getConvosRuntime, setConvosRuntime } from "./src/runtime.js";
+import { resolveConvosDbPath } from "./src/sdk-client.js";
 import { setupConvosWithInvite } from "./src/setup.js";
-import type { ConvosSDKClient } from "./src/sdk-client.js";
 
 // Module-level state for setup agent (accepts join requests during setup flow)
 let setupAgent: ConvosSDKClient | null = null;
@@ -44,11 +48,47 @@ async function cleanupSetupAgent() {
 
 // --- Core handlers shared by WebSocket gateway methods and HTTP routes ---
 
+/**
+ * Delete the old XMTP DB directory for the current account/env/key.
+ * Only deletes if the resolved path is inside the expected stateDir prefix.
+ */
+function deleteOldDbFiles(accountId?: string, env?: "production" | "dev") {
+  try {
+    const runtime = getConvosRuntime();
+    const cfg = runtime.config.loadConfig() as OpenClawConfig;
+    const account = resolveConvosAccount({ cfg: cfg as CoreConfig, accountId });
+    if (!account.privateKey) return;
+
+    const stateDir = runtime.state.resolveStateDir();
+    const dbPath = resolveConvosDbPath({
+      stateDir,
+      env: env ?? account.env,
+      accountId: account.accountId,
+      privateKey: account.privateKey,
+    });
+
+    // Delete the hash directory (parent of xmtp.db file)
+    const hashDir = path.dirname(dbPath);
+    const safePrefix = path.join(stateDir, "convos", "xmtp");
+    if (!hashDir.startsWith(safePrefix)) {
+      console.error(`[convos-reset] Refusing to delete path outside safe prefix: ${hashDir}`);
+      return;
+    }
+
+    fs.rmSync(hashDir, { recursive: true, force: true });
+    console.log(`[convos-reset] Deleted old DB directory: ${hashDir}`);
+  } catch (err) {
+    console.error(`[convos-reset] Failed to delete old DB files:`, err);
+  }
+}
+
 async function handleSetup(params: {
   accountId?: string;
   env?: "production" | "dev";
   name?: string;
   force?: boolean;
+  forceNewKey?: boolean;
+  deleteDb?: boolean;
 }) {
   // If a setup agent is already running and we have a cached response, return it
   // (prevents repeated calls from destroying the listening agent)
@@ -61,10 +101,16 @@ async function handleSetup(params: {
   setupJoinState = { joined: false, joinerInboxId: null };
   cachedSetupResponse = null;
 
+  // Optionally delete old XMTP DB files before starting fresh setup
+  if (params.deleteDb) {
+    deleteOldDbFiles(params.accountId, params.env);
+  }
+
   const result = await setupConvosWithInvite({
     accountId: params.accountId,
     env: params.env,
     name: params.name,
+    forceNewKey: params.forceNewKey,
     keepRunning: true,
     onInvite: async (ctx) => {
       console.log(`[convos-setup] Join request from ${ctx.joinerInboxId}`);
@@ -81,11 +127,14 @@ async function handleSetup(params: {
   if (result.client) {
     setupAgent = result.client;
     console.log("[convos-setup] Agent kept running to accept join requests");
-    setupCleanupTimer = setTimeout(async () => {
-      console.log("[convos-setup] Timeout - stopping setup agent");
-      setupResult = null;
-      await cleanupSetupAgent();
-    }, 10 * 60 * 1000);
+    setupCleanupTimer = setTimeout(
+      async () => {
+        console.log("[convos-setup] Timeout - stopping setup agent");
+        setupResult = null;
+        await cleanupSetupAgent();
+      },
+      10 * 60 * 1000,
+    );
   }
 
   setupResult = {
@@ -240,6 +289,26 @@ const plugin = {
       respond(true, result, undefined);
     });
 
+    api.registerGatewayMethod("convos.reset", async ({ params, respond }) => {
+      try {
+        const p = params as Record<string, unknown>;
+        const result = await handleSetup({
+          accountId: typeof p.accountId === "string" ? p.accountId : undefined,
+          env: typeof p.env === "string" ? (p.env as "production" | "dev") : undefined,
+          force: true,
+          forceNewKey: true,
+          deleteDb: p.deleteDb === true,
+        });
+        respond(true, result, undefined);
+      } catch (err) {
+        await cleanupSetupAgent();
+        respond(false, undefined, {
+          code: -1,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
     // ---- HTTP routes (for Railway template and other HTTP clients) ----
 
     api.registerHttpRoute({
@@ -301,6 +370,30 @@ const plugin = {
         }
         const result = await handleCancel();
         jsonResponse(res, 200, result);
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/reset",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        try {
+          const body = await readJsonBody(req);
+          const result = await handleSetup({
+            accountId: typeof body.accountId === "string" ? body.accountId : undefined,
+            env: typeof body.env === "string" ? (body.env as "production" | "dev") : undefined,
+            force: true,
+            forceNewKey: true,
+            deleteDb: body.deleteDb === true,
+          });
+          jsonResponse(res, 200, result);
+        } catch (err) {
+          await cleanupSetupAgent();
+          jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
       },
     });
   },
