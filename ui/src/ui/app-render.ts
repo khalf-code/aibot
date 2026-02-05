@@ -267,6 +267,7 @@ export function renderApp(state: AppViewState) {
                 whatsappBusy: state.whatsappBusy,
                 convosMessage: state.convosMessage,
                 convosInviteUrl: state.convosInviteUrl,
+                convosQrDataUrl: state.convosQrDataUrl,
                 convosBusy: state.convosBusy,
                 convosJoined: state.convosJoined,
                 configSchema: state.configSchema,

@@ -77,7 +77,13 @@ export function renderConvosCard(params: {
           : props.convosInviteUrl
             ? html`<div class="callout" style="margin-top: 12px;">
               <div style="text-align: center; padding: 12px;">
-                <p style="font-weight: bold; margin-bottom: 12px;">Open with Convos iOS App</p>
+                <p style="font-weight: bold; margin-bottom: 12px;">Scan with Convos App</p>
+                ${props.convosQrDataUrl
+                  ? html`<div class="qr-wrap" style="margin-bottom: 12px;">
+                      <img src=${props.convosQrDataUrl} alt="Convos Invite QR" />
+                    </div>`
+                  : nothing
+                }
                 <div style="margin-bottom: 12px;">
                   <input
                     type="text"
@@ -99,8 +105,7 @@ export function renderConvosCard(params: {
                   </a>
                 </div>
                 <p style="margin-top: 12px; font-size: 0.85rem; color: #666;">
-                  Copy this link and open it on your phone, or click to open in a new tab.
-                  After joining, accept the request in the Convos app.
+                  Scan the QR code with the Convos iOS app, or copy the link and open it on your phone.
                 </p>
               </div>
             </div>`

@@ -1,8 +1,10 @@
 /**
- * Convos setup - creates XMTP identity and conversation, returns invite URL
+ * Convos setup - creates XMTP identity and conversation, returns invite URL.
+ * Config is NOT written here; the caller persists config after join is confirmed.
  */
 
 import type { InviteContext } from "convos-node-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import { resolveConvosAccount, type CoreConfig } from "./accounts.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosSDKClient } from "./sdk-client.js";
@@ -27,6 +29,9 @@ export type SetupConvosResultWithClient = ConvosSetupResult & {
  * Setup Convos by creating an XMTP identity and owner conversation.
  * Returns an invite URL that can be displayed as a QR code.
  *
+ * Does NOT write config — the caller should persist config after the user
+ * has successfully joined the conversation.
+ *
  * If keepRunning=true, the agent stays running to accept join requests.
  * Caller is responsible for stopping it later.
  */
@@ -34,7 +39,7 @@ export async function setupConvosWithInvite(
   params: SetupConvosParams,
 ): Promise<SetupConvosResultWithClient> {
   const runtime = getConvosRuntime();
-  const cfg = runtime?.config.load() ?? {};
+  const cfg = runtime.config.loadConfig() as OpenClawConfig;
   const account = resolveConvosAccount({
     cfg: cfg as CoreConfig,
     accountId: params.accountId,
@@ -57,23 +62,6 @@ export async function setupConvosWithInvite(
     const result = await client.createConversation(conversationName);
 
     const privateKey = client.getPrivateKey();
-
-    // Save config with new identity and owner conversation
-    const newConfig = {
-      ...cfg,
-      channels: {
-        ...(cfg as CoreConfig).channels,
-        convos: {
-          ...((cfg as CoreConfig).channels?.convos ?? {}),
-          enabled: true,
-          privateKey,
-          env: params.env ?? account.env ?? "production",
-          ownerConversationId: result.conversationId,
-        },
-      },
-    };
-
-    await runtime?.config.write(newConfig);
 
     // Keep running or stop based on option
     if (!params.keepRunning) {

@@ -119,18 +119,21 @@ export async function setupConvos(state: ChannelsState) {
   state.convosBusy = true;
   state.convosMessage = "Setting up Convos...";
   state.convosInviteUrl = null;
+  state.convosQrDataUrl = null;
   state.convosJoined = false;
 
   try {
-    const res = await state.client.request<{ inviteUrl?: string; conversationId?: string }>(
-      "convos.setup",
-      {
-        timeoutMs: 60000,
-      },
-    );
+    const res = await state.client.request<{
+      inviteUrl?: string;
+      conversationId?: string;
+      qrDataUrl?: string;
+    }>("convos.setup", {
+      timeoutMs: 60000,
+    });
     state.convosInviteUrl = res.inviteUrl ?? null;
+    state.convosQrDataUrl = res.qrDataUrl ?? null;
     state.convosMessage = res.inviteUrl
-      ? "Waiting for you to join via the Convos app..."
+      ? "Scan the QR code or open the invite link in the Convos app..."
       : "Setup completed.";
 
     // Start polling for join status if we got an invite URL
@@ -147,25 +150,35 @@ export async function setupConvos(state: ChannelsState) {
 
           if (status.joined) {
             stopConvosJoinPolling();
-            state.convosJoined = true;
-            state.convosMessage = "Connected! You can now message through Convos.";
+            state.convosMessage = "Saving configuration...";
+
+            // Call convos.setup.complete to persist config (deferred write)
+            try {
+              await client.request("convos.setup.complete", { timeoutMs: 15000 });
+              state.convosJoined = true;
+              state.convosQrDataUrl = null;
+              state.convosMessage = "Connected! You can now message through Convos.";
+            } catch (err) {
+              state.convosMessage = `Join detected but config save failed: ${String(err)}`;
+            }
           }
         } catch {
           // Ignore polling errors
         }
       }, 3000);
 
-      // Stop polling after 5 minutes
+      // Stop polling after 10 minutes
       convosJoinPollTimeout = setTimeout(() => {
         stopConvosJoinPolling();
         if (!state.convosJoined && state.convosInviteUrl) {
           state.convosMessage = "Invite still active. Join via the link above.";
         }
-      }, 5 * 60 * 1000);
+      }, 10 * 60 * 1000);
     }
   } catch (err) {
     state.convosMessage = `Setup failed: ${String(err)}`;
     state.convosInviteUrl = null;
+    state.convosQrDataUrl = null;
   } finally {
     state.convosBusy = false;
   }

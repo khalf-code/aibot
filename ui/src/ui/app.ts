@@ -192,6 +192,7 @@ export class OpenClawApp extends LitElement {
   @state() whatsappBusy = false;
   @state() convosMessage: string | null = null;
   @state() convosInviteUrl: string | null = null;
+  @state() convosQrDataUrl: string | null = null;
   @state() convosBusy = false;
   @state() convosJoined = false;
   @state() nostrProfileFormState: NostrProfileFormState | null = null;

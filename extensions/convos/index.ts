@@ -1,7 +1,7 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
+import type { OpenClawConfig, OpenClawPluginApi } from "openclaw/plugin-sdk";
+import { emptyPluginConfigSchema, renderQrPngBase64 } from "openclaw/plugin-sdk";
 import { convosPlugin } from "./src/channel.js";
-import { setConvosRuntime } from "./src/runtime.js";
+import { getConvosRuntime, setConvosRuntime } from "./src/runtime.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 import type { ConvosSDKClient } from "./src/sdk-client.js";
 
@@ -9,6 +9,14 @@ import type { ConvosSDKClient } from "./src/sdk-client.js";
 let setupAgent: ConvosSDKClient | null = null;
 let setupJoinState = { joined: false, joinerInboxId: null as string | null };
 let setupCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Deferred config: stored after setup, written on convos.setup.complete
+let setupResult: {
+  privateKey: string;
+  conversationId: string;
+  env: "production" | "dev";
+  accountId?: string;
+} | null = null;
 
 async function cleanupSetupAgent() {
   if (setupCleanupTimer) {
@@ -42,15 +50,18 @@ const plugin = {
         await cleanupSetupAgent();
         setupJoinState = { joined: false, joinerInboxId: null };
 
+        const accountId =
+          typeof (params as { accountId?: unknown }).accountId === "string"
+            ? (params as { accountId?: string }).accountId
+            : undefined;
+        const env =
+          typeof (params as { env?: unknown }).env === "string"
+            ? ((params as { env?: string }).env as "production" | "dev")
+            : undefined;
+
         const result = await setupConvosWithInvite({
-          accountId:
-            typeof (params as { accountId?: unknown }).accountId === "string"
-              ? (params as { accountId?: string }).accountId
-              : undefined,
-          env:
-            typeof (params as { env?: unknown }).env === "string"
-              ? ((params as { env?: string }).env as "production" | "dev")
-              : undefined,
+          accountId,
+          env,
           name:
             typeof (params as { name?: unknown }).name === "string"
               ? (params as { name?: string }).name
@@ -63,8 +74,7 @@ const plugin = {
               await ctx.accept();
               setupJoinState = { joined: true, joinerInboxId: ctx.joinerInboxId };
               console.log(`[convos-setup] Accepted join from ${ctx.joinerInboxId}`);
-              // Auto-cleanup after successful join (give it a moment)
-              setTimeout(() => cleanupSetupAgent(), 2000);
+              // Don't cleanup here — wait for convos.setup.complete to save config first
             } catch (err) {
               console.error(`[convos-setup] Failed to accept join:`, err);
             }
@@ -76,18 +86,31 @@ const plugin = {
           setupAgent = result.client;
           console.log("[convos-setup] Agent kept running to accept join requests");
 
-          // Auto-cleanup after 5 minutes if no one joins
+          // Auto-cleanup after 10 minutes if no one joins
           setupCleanupTimer = setTimeout(async () => {
             console.log("[convos-setup] Timeout - stopping setup agent");
+            setupResult = null;
             await cleanupSetupAgent();
-          }, 5 * 60 * 1000);
+          }, 10 * 60 * 1000);
         }
+
+        // Store result for deferred config write (convos.setup.complete)
+        setupResult = {
+          privateKey: result.privateKey,
+          conversationId: result.conversationId,
+          env: env ?? "production",
+          accountId,
+        };
+
+        // Generate QR code for the invite URL
+        const qrBase64 = await renderQrPngBase64(result.inviteUrl);
 
         respond(
           true,
           {
             inviteUrl: result.inviteUrl,
             conversationId: result.conversationId,
+            qrDataUrl: `data:image/png;base64,${qrBase64}`,
           },
           undefined,
         );
@@ -111,6 +134,56 @@ const plugin = {
         },
         undefined,
       );
+    });
+
+    // Register convos.setup.complete to persist config after join is confirmed
+    api.registerGatewayMethod("convos.setup.complete", async ({ respond }) => {
+      if (!setupResult) {
+        respond(false, undefined, {
+          code: -1,
+          message: "No active setup to complete. Run convos.setup first.",
+        });
+        return;
+      }
+
+      try {
+        const runtime = getConvosRuntime();
+        const cfg = runtime.config.loadConfig() as OpenClawConfig;
+
+        // Ensure channels.convos section exists
+        const channels = (cfg as Record<string, unknown>).channels as
+          | Record<string, unknown>
+          | undefined;
+        if (!channels) {
+          (cfg as Record<string, unknown>).channels = {};
+        }
+        const convosSection =
+          ((cfg as Record<string, unknown>).channels as Record<string, unknown>).convos ?? {};
+        const convos = convosSection as Record<string, unknown>;
+
+        // Write the identity + conversation config
+        convos.privateKey = setupResult.privateKey;
+        convos.ownerConversationId = setupResult.conversationId;
+        convos.env = setupResult.env;
+        convos.enabled = true;
+
+        ((cfg as Record<string, unknown>).channels as Record<string, unknown>).convos = convos;
+
+        await runtime.config.writeConfigFile(cfg);
+        console.log("[convos-setup] Config saved successfully");
+
+        // Clean up setup agent + state
+        const saved = { ...setupResult };
+        setupResult = null;
+        await cleanupSetupAgent();
+
+        respond(true, { saved: true, conversationId: saved.conversationId }, undefined);
+      } catch (err) {
+        respond(false, undefined, {
+          code: -1,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     });
   },
 };

@@ -29,6 +29,7 @@ export type ChannelsProps = {
   whatsappBusy: boolean;
   convosMessage: string | null;
   convosInviteUrl: string | null;
+  convosQrDataUrl: string | null;
   convosBusy: boolean;
   convosJoined: boolean;
   configSchema: unknown;

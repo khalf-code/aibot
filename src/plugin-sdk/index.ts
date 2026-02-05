@@ -389,3 +389,6 @@ export { monitorFeishuProvider } from "../feishu/monitor.js";
 
 // Media utilities
 export { loadWebMedia, type WebMediaResult } from "../web/media.js";
+
+// QR code generation
+export { renderQrPngBase64 } from "../web/qr-image.js";
