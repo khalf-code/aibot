@@ -134,7 +134,7 @@ function truncateEvidence(evidence: string, maxLen = 120): string {
   if (evidence.length <= maxLen) {
     return evidence;
   }
-  return evidence.slice(0, maxLen);
+  return `${evidence.slice(0, maxLen)}…`;
 }
 
 export function scanSource(source: string, filePath: string): SkillScanFinding[] {
