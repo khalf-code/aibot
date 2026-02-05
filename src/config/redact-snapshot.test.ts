@@ -193,8 +193,35 @@ describe("redactConfigSnapshot", () => {
     });
     const result = redactConfigSnapshot(snapshot);
     const env = result.config.env as Record<string, Record<string, string>>;
+    expect(env.vars.OPENAI_API_KEY).toBe(REDACTED_SENTINEL);
     // NODE_ENV is not sensitive, should be preserved
     expect(env.vars.NODE_ENV).toBe("production");
+  });
+
+  it("redacts raw by key pattern even when parsed config is empty", () => {
+    const snapshot: ConfigFileSnapshot = {
+      path: "/test",
+      exists: true,
+      raw: '{ token: "raw-secret-1234567890" }',
+      parsed: {},
+      valid: false,
+      config: {} as ConfigFileSnapshot["config"],
+      issues: [],
+      warnings: [],
+      legacyIssues: [],
+    };
+    const result = redactConfigSnapshot(snapshot);
+    expect(result.raw).not.toContain("raw-secret-1234567890");
+    expect(result.raw).toContain(REDACTED_SENTINEL);
+  });
+
+  it("redacts sensitive fields even when the value is not a string", () => {
+    const snapshot = makeSnapshot({
+      gateway: { auth: { token: 1234 } },
+    });
+    const result = redactConfigSnapshot(snapshot);
+    const gw = result.config.gateway as Record<string, Record<string, string>>;
+    expect(gw.auth.token).toBe(REDACTED_SENTINEL);
   });
 });
 
@@ -267,9 +294,7 @@ describe("restoreRedactedValues", () => {
       channels: { newChannel: { token: REDACTED_SENTINEL } },
     };
     const original = {};
-    const result = restoreRedactedValues(incoming, original) as typeof incoming;
-    // No original to restore from, sentinel stays
-    expect(result.channels.newChannel.token).toBe(REDACTED_SENTINEL);
+    expect(() => restoreRedactedValues(incoming, original)).toThrow(/redacted/i);
   });
 
   it("handles null and undefined inputs", () => {

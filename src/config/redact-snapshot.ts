@@ -19,8 +19,8 @@ function isSensitiveKey(key: string): boolean {
 }
 
 /**
- * Deep-walk an object and replace string values whose key matches
- * a sensitive pattern with the redaction sentinel.
+ * Deep-walk an object and replace values whose key matches a sensitive pattern
+ * with the redaction sentinel.
  */
 function redactObject(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
@@ -34,7 +34,7 @@ function redactObject(obj: unknown): unknown {
   }
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    if (isSensitiveKey(key) && typeof value === "string") {
+    if (isSensitiveKey(key) && value !== null && value !== undefined) {
       result[key] = REDACTED_SENTINEL;
     } else if (typeof value === "object" && value !== null) {
       result[key] = redactObject(value);
@@ -43,6 +43,10 @@ function redactObject(obj: unknown): unknown {
     }
   }
   return result;
+}
+
+export function redactConfigObject<T>(value: T): T {
+  return redactObject(value) as T;
 }
 
 /**
@@ -82,6 +86,23 @@ function redactRawText(raw: string, config: unknown): string {
     const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     result = result.replace(new RegExp(escaped, "g"), REDACTED_SENTINEL);
   }
+
+  const keyValuePattern =
+    /(^|[{\s,])((["'])([^"']+)\3|([A-Za-z0-9_$.-]+))(\s*:\s*)(["'])([^"']*)\7/g;
+  result = result.replace(
+    keyValuePattern,
+    (match, prefix, keyExpr, _keyQuote, keyQuoted, keyBare, sep, valQuote, val) => {
+      const key = (keyQuoted ?? keyBare) as string | undefined;
+      if (!key || !isSensitiveKey(key)) {
+        return match;
+      }
+      if (val === REDACTED_SENTINEL) {
+        return match;
+      }
+      return `${prefix}${keyExpr}${sep}${valQuote}${REDACTED_SENTINEL}${valQuote}`;
+    },
+  );
+
   return result;
 }
 
@@ -94,9 +115,9 @@ function redactRawText(raw: string, config: unknown): string {
  * so no credential can leak through either path.
  */
 export function redactConfigSnapshot(snapshot: ConfigFileSnapshot): ConfigFileSnapshot {
-  const redactedConfig = redactObject(snapshot.config) as ConfigFileSnapshot["config"];
+  const redactedConfig = redactConfigObject(snapshot.config);
   const redactedRaw = snapshot.raw ? redactRawText(snapshot.raw, snapshot.config) : null;
-  const redactedParsed = snapshot.parsed ? redactObject(snapshot.parsed) : snapshot.parsed;
+  const redactedParsed = snapshot.parsed ? redactConfigObject(snapshot.parsed) : snapshot.parsed;
 
   return {
     ...snapshot,
@@ -130,7 +151,12 @@ export function restoreRedactedValues(incoming: unknown, original: unknown): unk
       : {};
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(incoming as Record<string, unknown>)) {
-    if (isSensitiveKey(key) && value === REDACTED_SENTINEL && typeof orig[key] === "string") {
+    if (isSensitiveKey(key) && value === REDACTED_SENTINEL) {
+      if (!(key in orig)) {
+        throw new Error(
+          `config write rejected: "${key}" is redacted; set an explicit value instead of ${REDACTED_SENTINEL}`,
+        );
+      }
       result[key] = orig[key];
     } else if (typeof value === "object" && value !== null) {
       result[key] = restoreRedactedValues(value, orig[key]);
