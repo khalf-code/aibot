@@ -1,50 +1,3 @@
-import type { ChannelAccountSnapshot, ChannelStatusIssue } from "../types.js";
-import { asString, isRecord } from "./shared.js";
-
-type BlueBubblesAccountStatus = {
-  accountId?: unknown;
-  enabled?: unknown;
-  configured?: unknown;
-  running?: unknown;
-  baseUrl?: unknown;
-  lastError?: unknown;
-  probe?: unknown;
-};
-
-type BlueBubblesProbeResult = {
-  ok?: boolean;
-  status?: number | null;
-  error?: string | null;
-};
-
-function readBlueBubblesAccountStatus(
-  value: ChannelAccountSnapshot,
-): BlueBubblesAccountStatus | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  return {
-    accountId: value.accountId,
-    enabled: value.enabled,
-    configured: value.configured,
-    running: value.running,
-    baseUrl: value.baseUrl,
-    lastError: value.lastError,
-    probe: value.probe,
-  };
-}
-
-function readBlueBubblesProbeResult(value: unknown): BlueBubblesProbeResult | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  return {
-    ok: typeof value.ok === "boolean" ? value.ok : undefined,
-    status: typeof value.status === "number" ? value.status : null,
-    error: asString(value.error) ?? null,
-  };
-}
-
 export function collectBlueBubblesStatusIssues(
   accounts: ChannelAccountSnapshot[],
 ): ChannelStatusIssue[] {
@@ -71,36 +24,38 @@ export function collectBlueBubblesStatusIssues(
         channel: "bluebubbles",
         accountId,
         kind: "config",
-        message: "Not configured (missing serverUrl or password).",
-        fix: "Run: openclaw channels add bluebubbles --http-url <server-url> --password <password>",
+        message: "Not configured (missing serverUrl or password)" // Fixed incomplete message
       });
-      continue;
     }
 
-    // Check for probe failures
-    if (probe && probe.ok === false) {
-      const errorDetail = probe.error
-        ? `: ${probe.error}`
-        : probe.status
-          ? ` (HTTP ${probe.status})`
-          : "";
+    // Check for errors
+    if (lastError) {
+      issues.push({
+        channel: "bluebubbles",
+        accountId,
+        kind: "error",
+        message: lastError
+      });
+    }
+
+    // Check for non-running status
+    if (!running) {
       issues.push({
         channel: "bluebubbles",
         accountId,
         kind: "runtime",
-        message: `BlueBubbles server unreachable${errorDetail}`,
-        fix: "Check that the BlueBubbles server is running and accessible. Verify serverUrl and password in your config.",
+        message: "Service is not running"
       });
     }
 
-    // Check for runtime errors
-    if (running && lastError) {
+    // Check probe results
+    if (probe && !probe.ok) {
+      const probeMessage = `Probe failed with status ${probe.status ?? 'unknown'}: ${probe.error ?? 'no error message provided'}`;
       issues.push({
         channel: "bluebubbles",
         accountId,
-        kind: "runtime",
-        message: `Channel error: ${lastError}`,
-        fix: "Check gateway logs for details. If the webhook is failing, verify the webhook URL is configured in BlueBubbles server settings.",
+        kind: "network",
+        message: probeMessage
       });
     }
   }
