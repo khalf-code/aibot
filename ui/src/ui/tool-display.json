@@ -124,7 +124,7 @@
         "dblclick": { "label": "dblclick", "detailKeys": ["x", "y"] },
         "right_click": { "label": "right click", "detailKeys": ["x", "y"] },
         "scroll": { "label": "scroll", "detailKeys": ["deltaY", "x", "y"] },
-        "drag": { "label": "drag", "detailKeys": ["x", "y", "x2", "y2"] },
+        "drag": { "label": "drag", "detailKeys": ["x", "y", "x2", "y2", "steps", "stepDelayMs"] },
         "type": { "label": "type", "detailKeys": ["text"] },
         "hotkey": { "label": "hotkey", "detailKeys": ["key", "ctrl", "alt", "shift", "meta"] },
         "press": { "label": "press", "detailKeys": ["key"] },

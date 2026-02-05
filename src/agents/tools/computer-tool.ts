@@ -67,6 +67,8 @@ const ComputerToolSchema = Type.Object({
   button: Type.Optional(stringEnum(["left", "right", "middle"] as const)),
   clicks: Type.Optional(Type.Number()),
   delayMs: Type.Optional(Type.Number()),
+  steps: Type.Optional(Type.Number()),
+  stepDelayMs: Type.Optional(Type.Number()),
 
   // scroll
   deltaY: Type.Optional(Type.Number()),
@@ -528,6 +530,8 @@ function formatApprovalCommand(action: string, params: Record<string, unknown>):
     "shift",
     "meta",
     "delayMs",
+    "steps",
+    "stepDelayMs",
   ];
   const parts: string[] = [];
   for (const key of allowedKeys) {
@@ -1072,11 +1076,40 @@ switch ('${action}') {
     Sleep-IfNeeded
   }
   'drag' {
-    [MouseInput]::MoveTo([int]$args.x, [int]$args.y)
+    $x1 = [int]$args.x
+    $y1 = [int]$args.y
+    $x2 = [int]$args.x2
+    $y2 = [int]$args.y2
+
+    $steps = 25
+    if ($args.PSObject.Properties.Name -contains 'steps') { $steps = [int]$args.steps }
+    if ($steps -lt 1) { $steps = 1 }
+    if ($steps -gt 200) { $steps = 200 }
+
+    $stepDelay = 10
+    if ($args.PSObject.Properties.Name -contains 'stepDelayMs') { $stepDelay = [int]$args.stepDelayMs }
+    if ($stepDelay -lt 0) { $stepDelay = 0 }
+    if ($stepDelay -gt 200) { $stepDelay = 200 }
+
+    [MouseInput]::MoveTo($x1, $y1)
+    Start-Sleep -Milliseconds 20
     [MouseInput]::ButtonDown('left')
-    Start-Sleep -Milliseconds 50
-    [MouseInput]::MoveTo([int]$args.x2, [int]$args.y2)
-    Start-Sleep -Milliseconds 50
+    Start-Sleep -Milliseconds 30
+
+    if ($steps -eq 1) {
+      [MouseInput]::MoveTo($x2, $y2)
+    } else {
+      $dx = ($x2 - $x1) / [double]$steps
+      $dy = ($y2 - $y1) / [double]$steps
+      for ($i = 1; $i -le $steps; $i++) {
+        $nx = [int][Math]::Round($x1 + ($dx * $i))
+        $ny = [int][Math]::Round($y1 + ($dy * $i))
+        [MouseInput]::MoveTo($nx, $ny)
+        if ($stepDelay -gt 0) { Start-Sleep -Milliseconds $stepDelay }
+      }
+    }
+
+    Start-Sleep -Milliseconds 30
     [MouseInput]::ButtonUp('left')
     Sleep-IfNeeded
   }
@@ -1398,9 +1431,16 @@ export function createComputerTool(options?: {
         const y = requireNumber(params, "y");
         const x2 = requireNumber(params, "x2");
         const y2 = requireNumber(params, "y2");
-        await runInputAction({ action: "drag", args: { x, y, x2, y2, delayMs } });
+        const steps = readPositiveInt(params, "steps", 25);
+        const stepDelayMs = readPositiveInt(params, "stepDelayMs", 10);
+        await runInputAction({ action: "drag", args: { x, y, x2, y2, steps, stepDelayMs, delayMs } });
         if (agentDir) {
-          await recordTeachStep({ agentDir, sessionKey, action: "drag", stepParams: { x, y, x2, y2, delayMs } });
+          await recordTeachStep({
+            agentDir,
+            sessionKey,
+            action: "drag",
+            stepParams: { x, y, x2, y2, steps, stepDelayMs, delayMs },
+          });
         }
         return jsonResult({ ok: true });
       }
