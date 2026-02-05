@@ -383,7 +383,7 @@ export async function processFeishuMessage(
         logger.error(`Reply error: ${formatErrorMessage(err)}`);
         // Clean up streaming session on error
         if (streamingSession?.isActive()) {
-          streamingSession.close().catch(() => { });
+          streamingSession.close().catch(() => {});
         }
       },
       onReplyStart: async () => {

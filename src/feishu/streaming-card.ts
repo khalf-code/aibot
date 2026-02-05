@@ -89,13 +89,13 @@ export async function createStreamingCard(
     schema: "2.0",
     ...(title
       ? {
-        header: {
-          title: {
-            content: title,
-            tag: "plain_text",
+          header: {
+            title: {
+              content: title,
+              tag: "plain_text",
+            },
           },
-        },
-      }
+        }
       : {}),
     config: {
       streaming_mode: true,
@@ -368,9 +368,8 @@ export class FeishuStreamingSession {
       // Validate text integrity: if final text is significantly shorter than current,
       // it risks truncating the head (if client passed a partial delta mistake).
       // Trust current accumulated text in that case.
-      const effectiveText = (text && text.length >= this.state.currentText.length)
-        ? text
-        : this.state.currentText;
+      const effectiveText =
+        text && text.length >= this.state.currentText.length ? text : this.state.currentText;
 
       // Optimization: If the text hasn't changed from the last update,
       // skip the extra API call and just close.
