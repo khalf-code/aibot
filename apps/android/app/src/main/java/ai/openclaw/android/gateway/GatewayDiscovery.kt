@@ -48,6 +48,41 @@ class GatewayDiscovery(
   context: Context,
   private val scope: CoroutineScope,
 ) {
+  companion object {
+    /**
+     * Discovery timeout in milliseconds for socket connections.
+     * Prevents indefinite hangs when gateways are offline.
+     */
+    const val DISCOVERY_TIMEOUT_MS = 3000L
+
+    private const val BASE_BACKOFF_DELAY_MS = 5000L
+    private const val MAX_BACKOFF_DELAY_MS = 60000L
+
+    /**
+     * Calculate exponential backoff delay with cap.
+     * Formula: min(baseDelay * 2^attempt, maxDelay)
+     *
+     * @param attempt Retry attempt number (0-indexed)
+     * @param baseDelay Base delay in milliseconds
+     * @param maxDelay Maximum delay cap in milliseconds
+     * @return Calculated delay in milliseconds
+     */
+    @JvmStatic
+    fun calculateBackoffDelay(
+      attempt: Int,
+      baseDelay: Long = BASE_BACKOFF_DELAY_MS,
+      maxDelay: Long = MAX_BACKOFF_DELAY_MS,
+    ): Long {
+      if (attempt < 0) return baseDelay
+      if (baseDelay == 0L) return 0L
+      
+      val multiplier = 2.0.pow(attempt).toLong()
+      val calculatedDelay = baseDelay * multiplier
+      
+      return minOf(calculatedDelay, maxDelay)
+    }
+  }
+
   private val nsd = context.getSystemService(NsdManager::class.java)
   private val connectivity = context.getSystemService(ConnectivityManager::class.java)
   private val dns = DnsResolver.getInstance()
@@ -115,13 +150,17 @@ class GatewayDiscovery(
   private fun startUnicastDiscovery(domain: String) {
     unicastJob =
       scope.launch(Dispatchers.IO) {
+        var attempt = 0
         while (true) {
           try {
             refreshUnicast(domain)
+            attempt = 0 // Reset on success
           } catch (_: Throwable) {
-            // ignore (best-effort)
+            // Exponential backoff on failure
           }
-          delay(5000)
+          val delay = calculateBackoffDelay(attempt)
+          delay(delay)
+          attempt++
         }
       }
   }
@@ -421,19 +460,20 @@ class GatewayDiscovery(
     if (servers.isEmpty()) return null
 
     return try {
+      val timeoutSeconds = (DISCOVERY_TIMEOUT_MS / 1000).toInt()
       val resolvers =
         servers.mapNotNull { addr ->
           try {
             SimpleResolver().apply {
               setAddress(InetSocketAddress(addr, 53))
-              setTimeout(3)
+              setTimeout(timeoutSeconds)
             }
           } catch (_: Throwable) {
             null
           }
         }
       if (resolvers.isEmpty()) return null
-      ExtendedResolver(resolvers.toTypedArray()).apply { setTimeout(3) }
+      ExtendedResolver(resolvers.toTypedArray()).apply { setTimeout(timeoutSeconds) }
     } catch (_: Throwable) {
       null
     }
