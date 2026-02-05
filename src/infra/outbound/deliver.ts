@@ -254,18 +254,26 @@ export async function deliverOutboundPayloads(params: {
       return { content };
     }
     // TODO(opik): Message hooks are unparented when sessionKey is unavailable.
-    const result = await hookRunner.runMessageSending(
-      {
-        to,
-        content,
-        metadata: {
-          channel,
-          accountId,
-          threadId: params.threadId ?? null,
+    let result: { cancel?: boolean; content?: string } | undefined;
+    try {
+      result = await hookRunner.runMessageSending(
+        {
+          to,
+          content,
+          metadata: {
+            channel,
+            accountId,
+            threadId: params.threadId ?? null,
+          },
         },
-      },
-      messageHookContext,
-    );
+        messageHookContext,
+      );
+    } catch (err) {
+      log.warn(
+        `message_sending hook failed: channel=${channel} to=${to} error=${err instanceof Error ? err.message : String(err)}`,
+      );
+      return { content };
+    }
     if (result?.cancel) {
       return { content, canceled: true };
     }
