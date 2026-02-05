@@ -156,7 +156,7 @@ export OLLAMA_API_KEY="ollama-local"
     defaults: {
       model: {
         primary: "ollama/llama3.3",
-        fallbacks: ["ollama/qwen2.5-coder:32b"],
+        fallback: ["ollama/qwen2.5-coder:32b"],
       },
     },
   },
