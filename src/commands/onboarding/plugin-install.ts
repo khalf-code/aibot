@@ -114,8 +114,12 @@ function resolveInstallDefaultChoice(params: {
   // For stable/beta channels, respect the plugin's defaultChoice
   // This allows unpublished plugins to default to "local" or "skip"
   if (updateChannel === "stable" || updateChannel === "beta") {
-    if (entryDefault === "local" && localPath) return "local";
-    if (entryDefault === "skip") return "skip";
+    if (entryDefault === "local" && localPath) {
+      return "local";
+    }
+    if (entryDefault === "skip") {
+      return "skip";
+    }
     // Default to npm for stable/beta unless explicitly overridden
     return "npm";
   }
