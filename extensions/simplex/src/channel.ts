@@ -1,19 +1,24 @@
-import type { ChannelGroupContext, ChannelPlugin, GroupToolPolicyConfig } from "openclaw/plugin-sdk";
-import { DEFAULT_ACCOUNT_ID, formatPairingApproveHint, PAIRING_APPROVED_MESSAGE } from "openclaw/plugin-sdk";
+import type {
+  ChannelGroupContext,
+  ChannelPlugin,
+  GroupToolPolicyConfig,
+} from "openclaw/plugin-sdk";
+import {
+  DEFAULT_ACCOUNT_ID,
+  formatPairingApproveHint,
+  PAIRING_APPROVED_MESSAGE,
+} from "openclaw/plugin-sdk";
+import type { ResolvedSimplexAccount } from "./types.js";
 import {
   listSimplexAccountIds,
   resolveDefaultSimplexAccountId,
   resolveSimplexAccount,
 } from "./accounts.js";
+import { simplexMessageActions } from "./actions.js";
 import { SimplexChannelConfigSchema } from "./config-schema.js";
 import { simplexOnboardingAdapter } from "./onboarding.js";
-import { startSimplexMonitor } from "./simplex-monitor.js";
-import { buildSendMessagesCommand, type SimplexComposedMessage } from "./simplex-commands.js";
 import { startSimplexCli } from "./simplex-cli.js";
-import { SimplexWsClient } from "./simplex-ws-client.js";
-import { buildComposedMessages } from "./simplex-media.js";
-import { formatSimplexAllowFrom, resolveSimplexAllowFrom } from "./simplex-security.js";
-import { simplexMessageActions } from "./actions.js";
+import { buildSendMessagesCommand, type SimplexComposedMessage } from "./simplex-commands.js";
 import {
   listSimplexDirectoryGroups,
   listSimplexDirectoryPeers,
@@ -21,7 +26,10 @@ import {
   resolveSimplexSelf,
   resolveSimplexTargets,
 } from "./simplex-directory.js";
-import type { ResolvedSimplexAccount } from "./types.js";
+import { buildComposedMessages } from "./simplex-media.js";
+import { startSimplexMonitor } from "./simplex-monitor.js";
+import { formatSimplexAllowFrom, resolveSimplexAllowFrom } from "./simplex-security.js";
+import { SimplexWsClient } from "./simplex-ws-client.js";
 
 const activeClients = new Map<string, SimplexWsClient>();
 
@@ -179,7 +187,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
     label: "SimpleX",
     selectionLabel: "SimpleX (CLI)",
     docsPath: "/channels/simplex",
-    blurb: "SimpleX Chat via local CLI WebSocket API (user account).",
+    blurb: "SimpleX Chat via local CLI WebSocket API",
     order: 95,
     quickstartAllowFrom: true,
   },
@@ -238,8 +246,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
   },
   actions: simplexMessageActions,
   directory: {
-    self: async ({ cfg, accountId, runtime }) =>
-      resolveSimplexSelf({ cfg, accountId, runtime }),
+    self: async ({ cfg, accountId, runtime }) => resolveSimplexSelf({ cfg, accountId, runtime }),
     listPeers: async (params) => listSimplexDirectoryPeers(params),
     listGroups: async (params) => listSimplexDirectoryGroups(params),
     listGroupMembers: async (params) => listSimplexGroupMembers(params),
@@ -401,7 +408,9 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
           ctx.setStatus({
             accountId: account.accountId,
             running: false,
-            lastError: cliReady ? `SimpleX CLI not ready: ${detail}` : `SimpleX CLI failed: ${detail}`,
+            lastError: cliReady
+              ? `SimpleX CLI not ready: ${detail}`
+              : `SimpleX CLI failed: ${detail}`,
           });
           await cliHandle.stop().catch(() => undefined);
           throw err;
