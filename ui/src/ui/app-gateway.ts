@@ -54,6 +54,8 @@ type GatewayHost = {
   chatLoading: boolean;
   chatMessages: unknown[];
   chatThinkingLevel: string | null;
+  chatStream: string | null;
+  chatStreamStartedAt: number | null;
   refreshSessionsAfterChat: Set<string>;
   execApprovalQueue: ExecApprovalRequest[];
   execApprovalError: string | null;
@@ -140,8 +142,8 @@ export function connectGateway(host: GatewayHost) {
       // Reset orphaned chat run state from before disconnect.
       // Any in-flight run's final event was lost during the disconnect window.
       host.chatRunId = null;
-      (host as unknown as { chatStream: string | null }).chatStream = null;
-      (host as unknown as { chatStreamStartedAt: number | null }).chatStreamStartedAt = null;
+      host.chatStream = null;
+      host.chatStreamStartedAt = null;
       resetToolStream(host as unknown as Parameters<typeof resetToolStream>[0]);
       void loadAssistantIdentity(host as unknown as OpenClawApp);
       void loadAgents(host as unknown as OpenClawApp);
