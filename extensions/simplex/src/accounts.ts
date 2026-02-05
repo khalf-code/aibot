@@ -1,6 +1,10 @@
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId, type OpenClawConfig } from "openclaw/plugin-sdk";
 import type { SimplexAccountConfig, SimplexConfig } from "./config-schema.js";
-import type { ResolvedSimplexAccount, SimplexConnectionConfig, SimplexConnectionMode } from "./types.js";
+import type {
+  ResolvedSimplexAccount,
+  SimplexConnectionConfig,
+  SimplexConnectionMode,
+} from "./types.js";
 
 const DEFAULT_WS_HOST = "127.0.0.1";
 const DEFAULT_WS_PORT = 5225;
@@ -19,7 +23,7 @@ export function listSimplexAccountIds(cfg: OpenClawConfig): string[] {
   if (ids.length === 0) {
     return [DEFAULT_ACCOUNT_ID];
   }
-  return ids.toSorted((a, b) => a.localeCompare(b));
+  return ids.slice().sort((a, b) => a.localeCompare(b));
 }
 
 export function resolveDefaultSimplexAccountId(cfg: OpenClawConfig): string {
