@@ -243,6 +243,8 @@ describe("resolveSlackMedia", () => {
   });
 
   it("rejects HTML response (auth failure) and returns null", async () => {
+    const logWarn = vi.fn();
+    vi.doMock("../../logger.js", () => ({ logWarn }));
     const { resolveSlackMedia } = await import("./media.js");
 
     // Simulate Slack returning an HTML login page instead of the image
@@ -267,9 +269,13 @@ describe("resolveSlackMedia", () => {
 
     // Should reject HTML and return null
     expect(result).toBeNull();
+    expect(logWarn).toHaveBeenCalledTimes(1);
+    expect(logWarn).toHaveBeenCalledWith(expect.stringContaining("received HTML instead of media"));
   });
 
   it("rejects HTML response detected by buffer content even if content-type header is missing", async () => {
+    const logWarn = vi.fn();
+    vi.doMock("../../logger.js", () => ({ logWarn }));
     const { resolveSlackMedia } = await import("./media.js");
 
     // HTML content but no content-type header (edge case)
@@ -287,9 +293,14 @@ describe("resolveSlackMedia", () => {
     });
 
     expect(result).toBeNull();
+    expect(logWarn).toHaveBeenCalledTimes(1);
+    expect(logWarn).toHaveBeenCalledWith(expect.stringContaining("received HTML instead of media"));
   });
 
   it("allows genuine HTML file when mimetype indicates text/html", async () => {
+    const logWarn = vi.fn();
+    vi.doMock("../../logger.js", () => ({ logWarn }));
+
     // Mock the store module
     vi.doMock("../../media/store.js", () => ({
       saveMediaBuffer: vi.fn().mockResolvedValue({
@@ -323,9 +334,13 @@ describe("resolveSlackMedia", () => {
     // Should allow genuine HTML files
     expect(result).not.toBeNull();
     expect(result?.contentType).toBe("text/html");
+    expect(logWarn).not.toHaveBeenCalled();
   });
 
   it("allows HTML file based on .html extension even without mimetype", async () => {
+    const logWarn = vi.fn();
+    vi.doMock("../../logger.js", () => ({ logWarn }));
+
     // Mock the store module
     vi.doMock("../../media/store.js", () => ({
       saveMediaBuffer: vi.fn().mockResolvedValue({
@@ -357,9 +372,13 @@ describe("resolveSlackMedia", () => {
 
     // Should allow based on .html extension
     expect(result).not.toBeNull();
+    expect(logWarn).not.toHaveBeenCalled();
   });
 
   it("falls through to next file when first returns HTML", async () => {
+    const logWarn = vi.fn();
+    vi.doMock("../../logger.js", () => ({ logWarn }));
+
     // Mock the store module
     vi.doMock("../../media/store.js", () => ({
       saveMediaBuffer: vi.fn().mockResolvedValue({
@@ -395,6 +414,8 @@ describe("resolveSlackMedia", () => {
     // Should skip HTML and succeed with the second file
     expect(result).not.toBeNull();
     expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(logWarn).toHaveBeenCalledTimes(1);
+    expect(logWarn).toHaveBeenCalledWith(expect.stringContaining("received HTML instead of media"));
   });
 
   it("falls through to next file when first file returns error", async () => {

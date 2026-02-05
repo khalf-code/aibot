@@ -1,10 +1,9 @@
 import type { WebClient as SlackWebClient } from "@slack/web-api";
-
 import type { FetchLike } from "../../media/fetch.js";
+import type { SlackFile } from "../types.js";
+import { logWarn } from "../../logger.js";
 import { fetchRemoteMedia } from "../../media/fetch.js";
 import { saveMediaBuffer } from "../../media/store.js";
-import { logWarn } from "../../logger.js";
-import type { SlackFile } from "../types.js";
 
 /**
  * Detects if buffer content looks like HTML (login page / error page).
@@ -64,7 +63,9 @@ export async function resolveSlackMedia(params: {
   const files = params.files ?? [];
   for (const file of files) {
     const url = file.url_private_download ?? file.url_private;
-    if (!url) continue;
+    if (!url) {
+      continue;
+    }
     try {
       // Note: We ignore init options because fetchWithSlackAuth handles
       // redirect behavior specially. fetchRemoteMedia only passes the URL.
@@ -78,7 +79,9 @@ export async function resolveSlackMedia(params: {
         fetchImpl,
         filePathHint: file.name,
       });
-      if (fetched.buffer.byteLength > params.maxBytes) continue;
+      if (fetched.buffer.byteLength > params.maxBytes) {
+        continue;
+      }
 
       // Guard: reject if we received HTML instead of expected media.
       // This happens when Slack auth fails and returns a login page.
@@ -129,7 +132,9 @@ export async function resolveSlackThreadStarter(params: {
 }): Promise<SlackThreadStarter | null> {
   const cacheKey = `${params.channelId}:${params.threadTs}`;
   const cached = THREAD_STARTER_CACHE.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    return cached;
+  }
   try {
     const response = (await params.client.conversations.replies({
       channel: params.channelId,
@@ -139,7 +144,9 @@ export async function resolveSlackThreadStarter(params: {
     })) as { messages?: Array<{ text?: string; user?: string; ts?: string; files?: SlackFile[] }> };
     const message = response?.messages?.[0];
     const text = (message?.text ?? "").trim();
-    if (!message || !text) return null;
+    if (!message || !text) {
+      return null;
+    }
     const starter: SlackThreadStarter = {
       text,
       userId: message.user,
