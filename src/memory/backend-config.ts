@@ -230,7 +230,7 @@ function resolveDefaultCollections(
 }
 
 function resolveMode(mode?: string) {
-  if (["query", "vsearch", "search"].includes(mode)) {
+  if (mode && ["query", "vsearch", "search"].includes(mode)) {
     return mode;
   }
   return DEFAULT_QMD_MODE;

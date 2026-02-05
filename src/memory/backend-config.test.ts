@@ -82,6 +82,20 @@ describe("resolveMemoryBackendConfig", () => {
     expect(resolved.qmd?.mode).toBe("query");
   });
 
+  it("parses very invalid qmd mode", () => {
+    const cfg = {
+      agents: { defaults: { workspace: "/tmp/memory-test" } },
+      memory: {
+        backend: "qmd",
+        qmd: {
+          mode: undefined,
+        },
+      },
+    } as OpenClawConfig;
+    const resolved = resolveMemoryBackendConfig({ cfg, agentId: "main" });
+    expect(resolved.qmd?.mode).toBe("query");
+  });
+
   it("resolves custom paths relative to workspace", () => {
     const cfg = {
       agents: {
