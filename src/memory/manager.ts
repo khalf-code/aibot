@@ -303,7 +303,7 @@ export class MemoryIndexManager implements MemorySearchManager {
       topScore: finalResults[0]?.score,
       bottomScore: finalResults.at(-1)?.score,
       paths: finalResults.map((r) => r.path),
-      filteredByMinScore:
+      skippedDueToMinScore:
         (hybrid.enabled ? vectorResults.length + keywordResults.length : vectorResults.length) -
         finalResults.length,
     });

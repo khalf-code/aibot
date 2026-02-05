@@ -678,6 +678,13 @@ export const OpenClawSchema = z
       })
       .strict()
       .optional(),
+    debugging: z
+      .object({
+        channels: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+        features: z.array(z.string()).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((cfg, ctx) => {

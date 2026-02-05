@@ -71,12 +71,14 @@ const GROUP_LABELS: Record<string, string> = {
   discovery: "Discovery",
   presence: "Presence",
   voicewake: "Voice Wake",
+  debugging: "Debugging",
 };
 
 const GROUP_ORDER: Record<string, number> = {
   wizard: 20,
   update: 25,
   diagnostics: 27,
+  debugging: 28,
   gateway: 30,
   nodeHost: 35,
   agents: 40,
@@ -418,6 +420,8 @@ const FIELD_LABELS: Record<string, string> = {
   "plugins.installs.*.installPath": "Plugin Install Path",
   "plugins.installs.*.version": "Plugin Install Version",
   "plugins.installs.*.installedAt": "Plugin Install Time",
+  "debugging.channels": "Debug Channels",
+  "debugging.features": "Debug Features",
 };
 
 const FIELD_HELP: Record<string, string> = {
@@ -806,6 +810,9 @@ const FIELD_HELP: Record<string, string> = {
     "Optional PluralKit token for resolving private systems or members.",
   "channels.slack.dm.policy":
     'Direct message access control ("pairing" recommended). "open" requires channels.slack.dm.allowFrom=["*"].',
+  "debugging.channels":
+    "Channels enabled for debugging (presence of key = enabled; value = channel-specific properties, e.g. slack: { sendTracing: true }).",
+  "debugging.features": "Arbitrary feature flag strings for short-term debugging and testing.",
 };
 
 const FIELD_PLACEHOLDERS: Record<string, string> = {
