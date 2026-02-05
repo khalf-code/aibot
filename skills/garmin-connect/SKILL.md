@@ -7,8 +7,8 @@ metadata:
     "openclaw":
       {
         "emoji": "⌚",
-        "requires": { "bins": ["python3"], "env": [] },
-      },
+        "requires": { "bins": ["python3"], "env": [] }
+      }
   }
 ---
 
@@ -136,8 +136,7 @@ All commands support JSON output for programmatic use:
 Credentials are fetched in this order:
 1. **Saved tokens** in `~/.garminconnect/` (valid ~1 year)
 2. **Bitwarden CLI** - searches for "garmin" entry (must be unlocked)
-3. **Environment variables** - `GARMIN_EMAIL` and `GARMIN_PASSWORD`
-4. **Interactive prompt** (last resort)
+3. **Interactive prompt** (last resort)
 
 ### Using Bitwarden
 
