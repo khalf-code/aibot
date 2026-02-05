@@ -17,14 +17,23 @@ const mockHitl = vi.hoisted(() => ({
     addHitlAllowlistEntry: vi.fn(),
   },
   manager: {
-    create: vi.fn((params: any) => ({
-      id: "a1",
-      kind: params.kind,
-      createdAtMs: Date.now(),
-      expiresAtMs: Date.now() + params.timeoutMs,
-      defaultDecision: params.defaultDecision,
-      summary: params.summary,
-    })),
+    create: vi.fn((params: unknown) => {
+      type HitlCreateParams = {
+        kind: "outbound" | "plugin-http";
+        timeoutMs: number;
+        defaultDecision: "allow-once" | "allow-always" | "deny";
+        summary: Record<string, unknown>;
+      };
+      const p = params as HitlCreateParams;
+      return {
+        id: "a1",
+        kind: p.kind,
+        createdAtMs: Date.now(),
+        expiresAtMs: Date.now() + p.timeoutMs,
+        defaultDecision: p.defaultDecision,
+        summary: p.summary,
+      };
+    }),
     waitForDecision: vi.fn(async () => "allow-once"),
     attachHitlRequestId: vi.fn(() => true),
   },
