@@ -688,9 +688,10 @@ export async function monitorMattermostProvider(opts: MonitorMattermostOpts = {}
     const to = kind === "dm" ? `user:${senderId}` : `channel:${channelId}`;
     const mediaPayload = buildMattermostMediaPayload(mediaList);
 
-    let markDispatchIdle: (() => void) | undefined;
+    // Narrow try/catch to context finalization to avoid hiding real bugs in dispatch/delivery
+    let ctxPayload: ReturnType<typeof core.channel.reply.finalizeInboundContext>;
     try {
-      const ctxPayload = core.channel.reply.finalizeInboundContext({
+      ctxPayload = core.channel.reply.finalizeInboundContext({
         Body: combinedBody,
         RawBody: bodyText,
         CommandBody: bodyText,
@@ -727,60 +728,75 @@ export async function monitorMattermostProvider(opts: MonitorMattermostOpts = {}
         OriginatingTo: to,
         ...mediaPayload,
       });
-
-      if (kind === "dm") {
-        const sessionCfg = cfg.session;
-        const storePath = core.channel.session.resolveStorePath(sessionCfg?.store, {
-          agentId: route.agentId,
-        });
-        await core.channel.session.updateLastRoute({
-          storePath,
-          sessionKey: route.mainSessionKey,
-          deliveryContext: {
-            channel: "mattermost",
-            to,
-            accountId: route.accountId,
-          },
-        });
-      }
-
-      const previewLine = bodyText.slice(0, 200).replace(/\n/g, "\\n");
-      logVerboseMessage(
-        `mattermost inbound: from=${ctxPayload.From} len=${bodyText.length} preview="${previewLine}"`,
+    } catch (err) {
+      runtime.error?.(
+        `mattermost malformed message (channel: ${channelId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       );
-
-      const textLimit = core.channel.text.resolveTextChunkLimit(
-        cfg,
-        "mattermost",
-        account.accountId,
-        {
-          fallbackLimit: account.textChunkLimit ?? 4000,
-        },
+      logger.debug?.(
+        `mattermost error details: ${err instanceof Error && err.stack ? err.stack : String(err)}`,
       );
-      const tableMode = core.channel.text.resolveMarkdownTableMode({
-        cfg,
-        channel: "mattermost",
-        accountId: account.accountId,
-      });
+      // Skip malformed message gracefully to keep monitor running
+      return;
+    }
 
-      const { onModelSelected, ...prefixOptions } = createReplyPrefixOptions({
-        cfg,
+    if (kind === "dm") {
+      const sessionCfg = cfg.session;
+      const storePath = core.channel.session.resolveStorePath(sessionCfg?.store, {
         agentId: route.agentId,
-        channel: "mattermost",
-        accountId: account.accountId,
       });
-
-      const typingCallbacks = createTypingCallbacks({
-        start: () => sendTypingIndicator(channelId, threadRootId),
-        onStartError: (err) => {
-          logTypingFailure({
-            log: (message) => logger.debug?.(message),
-            channel: "mattermost",
-            target: channelId,
-            error: err,
-          });
+      await core.channel.session.updateLastRoute({
+        storePath,
+        sessionKey: route.mainSessionKey,
+        deliveryContext: {
+          channel: "mattermost",
+          to,
+          accountId: route.accountId,
         },
       });
+    }
+
+    const previewLine = bodyText.slice(0, 200).replace(/\n/g, "\\n");
+    logVerboseMessage(
+      `mattermost inbound: from=${ctxPayload.From} len=${bodyText.length} preview="${previewLine}"`,
+    );
+
+    const textLimit = core.channel.text.resolveTextChunkLimit(
+      cfg,
+      "mattermost",
+      account.accountId,
+      {
+        fallbackLimit: account.textChunkLimit ?? 4000,
+      },
+    );
+    const tableMode = core.channel.text.resolveMarkdownTableMode({
+      cfg,
+      channel: "mattermost",
+      accountId: account.accountId,
+    });
+
+    const { onModelSelected, ...prefixOptions } = createReplyPrefixOptions({
+      cfg,
+      agentId: route.agentId,
+      channel: "mattermost",
+      accountId: account.accountId,
+    });
+
+    const typingCallbacks = createTypingCallbacks({
+      start: () => sendTypingIndicator(channelId, threadRootId),
+      onStartError: (err) => {
+        logTypingFailure({
+          log: (message) => logger.debug?.(message),
+          channel: "mattermost",
+          target: channelId,
+          error: err,
+        });
+      },
+    });
+
+    let markDispatchIdle: (() => void) | undefined;
+    try {
       const {
         dispatcher,
         replyOptions,
@@ -826,6 +842,7 @@ export async function monitorMattermostProvider(opts: MonitorMattermostOpts = {}
         },
         onReplyStart: typingCallbacks.onReplyStart,
       });
+      markDispatchIdle = markIdle;
 
       await core.channel.reply.dispatchReplyFromConfig({
         ctx: ctxPayload,
@@ -838,7 +855,7 @@ export async function monitorMattermostProvider(opts: MonitorMattermostOpts = {}
           onModelSelected,
         },
       });
-      markDispatchIdle = markIdle;
+
       if (historyKey) {
         clearHistoryEntriesIfEnabled({
           historyMap: channelHistories,
@@ -846,17 +863,6 @@ export async function monitorMattermostProvider(opts: MonitorMattermostOpts = {}
           limit: historyLimit,
         });
       }
-    } catch (err) {
-      runtime.error?.(
-        `mattermost message processing failed (channel: ${channelId}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-      logger.debug?.(
-        `mattermost error details: ${err instanceof Error && err.stack ? err.stack : String(err)}`,
-      );
-      // Skip malformed message gracefully to keep monitor running
-      return;
     } finally {
       // Always mark dispatcher idle to prevent stuck typing indicators
       markDispatchIdle?.();
