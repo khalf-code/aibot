@@ -289,6 +289,11 @@ const FIELD_LABELS: Record<string, string> = {
   "agents.defaults.humanDelay.mode": "Human Delay Mode",
   "agents.defaults.humanDelay.minMs": "Human Delay Min (ms)",
   "agents.defaults.humanDelay.maxMs": "Human Delay Max (ms)",
+  "agents.defaults.replySynthesis": "Reply Synthesis",
+  "agents.defaults.replySynthesis.enabled": "Reply Synthesis Enabled",
+  "agents.defaults.replySynthesis.allowRemoteBrain": "Reply Synthesis Allow Remote Brain",
+  "agents.defaults.replySynthesis.includeMediaUrls": "Reply Synthesis Include Media URLs",
+  "agents.defaults.replySynthesis.includeErrors": "Reply Synthesis Include Errors",
   "agents.defaults.cliBackends": "CLI Backends",
   "commands.native": "Native Commands",
   "commands.nativeSkills": "Native Skill Commands",
@@ -640,6 +645,16 @@ const FIELD_HELP: Record<string, string> = {
   "agents.defaults.humanDelay.mode": 'Delay style for block replies ("off", "natural", "custom").',
   "agents.defaults.humanDelay.minMs": "Minimum delay in ms for custom humanDelay (default: 800).",
   "agents.defaults.humanDelay.maxMs": "Maximum delay in ms for custom humanDelay (default: 2500).",
+  "agents.defaults.replySynthesis":
+    "Controls muscle-to-brain synthesis of fallback output (default: disabled).",
+  "agents.defaults.replySynthesis.enabled":
+    "Enable muscle-to-brain synthesis of fallback output (default: false).",
+  "agents.defaults.replySynthesis.allowRemoteBrain":
+    "Allow synthesis even when the brain provider is remote (default: false).",
+  "agents.defaults.replySynthesis.includeMediaUrls":
+    "Include media URLs in the synthesis prompt (default: false).",
+  "agents.defaults.replySynthesis.includeErrors":
+    "Include error payload text/flags in the synthesis prompt (default: false).",
   "commands.native":
     "Register native commands with channels that support it (Discord/Slack/Telegram).",
   "commands.nativeSkills":

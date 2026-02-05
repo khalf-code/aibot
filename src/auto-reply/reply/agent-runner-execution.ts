@@ -35,6 +35,11 @@ import { stripHeartbeatToken } from "../heartbeat.js";
 import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../tokens.js";
 import { buildThreadingToolContext, resolveEnforceFinalTag } from "./agent-runner-utils.js";
 import { createBlockReplyPayloadKey, type BlockReplyPipeline } from "./block-reply-pipeline.js";
+import {
+  buildMuscleSynthesisPrompt,
+  canSynthesizeWithBrain,
+  resolveMuscleSynthesisPolicy,
+} from "./muscle-synthesis.js";
 import { parseReplyDirectives } from "./reply-directives.js";
 import { applyReplyTagsToPayload, isRenderablePayload } from "./reply-payloads.js";
 
@@ -83,35 +88,13 @@ export async function runAgentTurnWithFallback(params: {
   const configuredBrainModel = params.followupRun.run.model;
   const isConfiguredBrainModel = (provider: string, model: string): boolean =>
     provider === configuredBrainProvider && model === configuredBrainModel;
-
-  const buildMuscleSynthesisPrompt = (payloads: ReplyPayload[]): string => {
-    const serializedPayloads = payloads
-      .map((payload, idx) => {
-        const cleanText = payload.text?.trim();
-        const media = payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []);
-        const lines: string[] = [`${idx + 1}.`];
-        if (cleanText) {
-          lines.push(`text: ${cleanText}`);
-        }
-        if (media.length > 0) {
-          lines.push(`media: ${media.join(", ")}`);
-        }
-        if (payload.isError) {
-          lines.push("isError: true");
-        }
-        return lines.join("\n");
-      })
-      .filter((entry) => entry.length > 0)
-      .join("\n\n");
-
-    return [
-      "Synthesize a final user-visible assistant reply from executor output.",
-      "Treat the executor output as internal tool payloads; do not expose internal framing.",
-      "If output indicates failure, provide a concise user-facing failure summary.",
-      "\nExecutor payloads:\n",
-      serializedPayloads || "(no payloads)",
-    ].join("\n");
-  };
+  const synthesisPolicy = resolveMuscleSynthesisPolicy(params.followupRun.run.config);
+  const canUseBrainSynthesis = canSynthesizeWithBrain({
+    cfg: params.followupRun.run.config,
+    brainProvider: configuredBrainProvider,
+    policy: synthesisPolicy,
+    isCliBrain: isCliProvider(configuredBrainProvider, params.followupRun.run.config),
+  });
 
   let didLogHeartbeatStrip = false;
   let autoCompactionCompleted = false;
@@ -188,6 +171,7 @@ export async function runAgentTurnWithFallback(params: {
         ),
         run: (provider, model) => {
           const isBrainRun = isConfiguredBrainModel(provider, model);
+          const allowUserOutput = isBrainRun || !canUseBrainSynthesis;
           // Notify that model selection is complete (including after fallback).
           // This allows responsePrefix template interpolation with the actual model.
           params.opts?.onModelSelected?.({
@@ -232,7 +216,7 @@ export async function runAgentTurnWithFallback(params: {
                 // emit one with the final text so server-chat can populate its buffer
                 // and send the response to TUI/WebSocket clients.
                 const cliText = result.payloads?.[0]?.text?.trim();
-                if (cliText && isBrainRun) {
+                if (cliText && allowUserOutput) {
                   emitAgentEvent({
                     runId,
                     stream: "assistant",
@@ -345,7 +329,7 @@ export async function runAgentTurnWithFallback(params: {
             blockReplyBreak: params.resolvedBlockStreamingBreak,
             blockReplyChunking: params.blockReplyChunking,
             onPartialReply: allowPartialStream
-              ? isBrainRun
+              ? allowUserOutput
                 ? async (payload) => {
                     const textForTyping = await handlePartialForTyping(payload);
                     if (!params.opts?.onPartialReply || textForTyping === undefined) {
@@ -358,13 +342,13 @@ export async function runAgentTurnWithFallback(params: {
                   }
                 : undefined
               : undefined,
-            onAssistantMessageStart: isBrainRun
+            onAssistantMessageStart: allowUserOutput
               ? async () => {
                   await params.typingSignals.signalMessageStart();
                 }
               : undefined,
             onReasoningStream:
-              isBrainRun &&
+              allowUserOutput &&
               (params.typingSignals.shouldStartOnReasoning || params.opts?.onReasoningStream)
                 ? async (payload) => {
                     await params.typingSignals.signalReasoningDelta();
@@ -377,7 +361,7 @@ export async function runAgentTurnWithFallback(params: {
             onAgentEvent: async (evt) => {
               // Trigger typing when tools start executing.
               // Must await to ensure typing indicator starts before tool summaries are emitted.
-              if (isBrainRun && evt.stream === "tool") {
+              if (allowUserOutput && evt.stream === "tool") {
                 const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
                 if (phase === "start" || phase === "update") {
                   await params.typingSignals.signalToolStart();
@@ -395,7 +379,7 @@ export async function runAgentTurnWithFallback(params: {
             // Always pass onBlockReply so flushBlockReplyBuffer works before tool execution,
             // even when regular block streaming is disabled. The handler sends directly
             // via opts.onBlockReply when the pipeline isn't available.
-            onBlockReply: isBrainRun && params.opts?.onBlockReply
+            onBlockReply: allowUserOutput && params.opts?.onBlockReply
               ? async (payload) => {
                   const { text, skip } = normalizeStreamingText(payload);
                   const hasPayloadMedia = (payload.mediaUrls?.length ?? 0) > 0;
@@ -472,9 +456,9 @@ export async function runAgentTurnWithFallback(params: {
                     await blockReplyPipeline.flush({ force: true });
                   }
                 : undefined,
-            shouldEmitToolResult: isBrainRun ? params.shouldEmitToolResult : () => false,
-            shouldEmitToolOutput: isBrainRun ? params.shouldEmitToolOutput : () => false,
-            onToolResult: isBrainRun && onToolResult
+            shouldEmitToolResult: allowUserOutput ? params.shouldEmitToolResult : () => false,
+            shouldEmitToolOutput: allowUserOutput ? params.shouldEmitToolOutput : () => false,
+            onToolResult: allowUserOutput && onToolResult
               ? (payload) => {
                   // `subscribeEmbeddedPiSession` may invoke tool callbacks without awaiting them.
                   // If a tool callback starts typing after the run finalized, we can end up with
@@ -506,7 +490,7 @@ export async function runAgentTurnWithFallback(params: {
       fallbackProvider = fallbackResult.provider;
       fallbackModel = fallbackResult.model;
 
-      if (!isConfiguredBrainModel(fallbackProvider, fallbackModel)) {
+      if (canUseBrainSynthesis && !isConfiguredBrainModel(fallbackProvider, fallbackModel)) {
         params.opts?.onModelSelected?.({
           provider: configuredBrainProvider,
           model: configuredBrainModel,
@@ -537,7 +521,7 @@ export async function runAgentTurnWithFallback(params: {
           agentDir: params.followupRun.run.agentDir,
           config: params.followupRun.run.config,
           skillsSnapshot: params.followupRun.run.skillsSnapshot,
-          prompt: buildMuscleSynthesisPrompt(runResult.payloads ?? []),
+          prompt: buildMuscleSynthesisPrompt(runResult.payloads ?? [], synthesisPolicy),
           extraSystemPrompt: params.followupRun.run.extraSystemPrompt,
           ownerNumbers: params.followupRun.run.ownerNumbers,
           enforceFinalTag: resolveEnforceFinalTag(params.followupRun.run, configuredBrainProvider),

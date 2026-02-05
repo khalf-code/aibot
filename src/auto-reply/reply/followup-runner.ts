@@ -16,6 +16,11 @@ import { defaultRuntime } from "../../runtime.js";
 import { stripHeartbeatToken } from "../heartbeat.js";
 import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../tokens.js";
 import {
+  buildMuscleSynthesisPrompt,
+  canSynthesizeWithBrain,
+  resolveMuscleSynthesisPolicy,
+} from "./muscle-synthesis.js";
+import {
   applyReplyThreading,
   filterMessagingToolDuplicates,
   shouldSuppressMessagingToolReplies,
@@ -117,32 +122,12 @@ export function createFollowupRunner(params: {
       const configuredBrainModel = queued.run.model;
       const isConfiguredBrainModel = (provider: string, model: string): boolean =>
         provider === configuredBrainProvider && model === configuredBrainModel;
-      const buildMuscleSynthesisPrompt = (payloads: ReplyPayload[]): string => {
-        const serializedPayloads = payloads
-          .map((payload, idx) => {
-            const lines: string[] = [`${idx + 1}.`];
-            const text = payload.text?.trim();
-            if (text) {
-              lines.push(`text: ${text}`);
-            }
-            const media = payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []);
-            if (media.length > 0) {
-              lines.push(`media: ${media.join(", ")}`);
-            }
-            if (payload.isError) {
-              lines.push("isError: true");
-            }
-            return lines.join("\n");
-          })
-          .join("\n\n");
-
-        return [
-          "Synthesize a final user-visible assistant reply from executor output.",
-          "Treat the executor output as internal tool payloads; do not expose internal framing.",
-          "\nExecutor payloads:\n",
-          serializedPayloads || "(no payloads)",
-        ].join("\n");
-      };
+      const synthesisPolicy = resolveMuscleSynthesisPolicy(queued.run.config);
+      const canUseBrainSynthesis = canSynthesizeWithBrain({
+        cfg: queued.run.config,
+        brainProvider: configuredBrainProvider,
+        policy: synthesisPolicy,
+      });
 
       const runId = crypto.randomUUID();
       if (queued.run.sessionKey) {
@@ -167,6 +152,7 @@ export function createFollowupRunner(params: {
           ),
           run: (provider, model) => {
             const isBrainRun = isConfiguredBrainModel(provider, model);
+            const allowUserOutput = isBrainRun || !canUseBrainSynthesis;
             const authProfileId =
               provider === queued.run.provider ? queued.run.authProfileId : undefined;
             return runEmbeddedPiAgent({
@@ -203,8 +189,8 @@ export function createFollowupRunner(params: {
               timeoutMs: queued.run.timeoutMs,
               runId,
               blockReplyBreak: queued.run.blockReplyBreak,
-              shouldEmitToolResult: isBrainRun ? undefined : () => false,
-              shouldEmitToolOutput: isBrainRun ? undefined : () => false,
+              shouldEmitToolResult: allowUserOutput ? undefined : () => false,
+              shouldEmitToolOutput: allowUserOutput ? undefined : () => false,
               onAgentEvent: (evt) => {
                 if (evt.stream !== "compaction") {
                   return;
@@ -221,7 +207,7 @@ export function createFollowupRunner(params: {
         runResult = fallbackResult.result;
         fallbackProvider = fallbackResult.provider;
         fallbackModel = fallbackResult.model;
-        if (!isConfiguredBrainModel(fallbackProvider, fallbackModel)) {
+        if (canUseBrainSynthesis && !isConfiguredBrainModel(fallbackProvider, fallbackModel)) {
           runResult = await runEmbeddedPiAgent({
             sessionId: queued.run.sessionId,
             sessionKey: queued.run.sessionKey,
@@ -240,7 +226,7 @@ export function createFollowupRunner(params: {
             workspaceDir: queued.run.workspaceDir,
             config: queued.run.config,
             skillsSnapshot: queued.run.skillsSnapshot,
-            prompt: buildMuscleSynthesisPrompt(runResult.payloads ?? []),
+            prompt: buildMuscleSynthesisPrompt(runResult.payloads ?? [], synthesisPolicy),
             extraSystemPrompt: queued.run.extraSystemPrompt,
             ownerNumbers: queued.run.ownerNumbers,
             enforceFinalTag: queued.run.enforceFinalTag,

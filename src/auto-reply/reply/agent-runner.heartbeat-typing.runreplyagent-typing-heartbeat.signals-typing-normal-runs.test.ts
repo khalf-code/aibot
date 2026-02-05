@@ -53,6 +53,7 @@ function createMinimalRun(params?: {
   storePath?: string;
   typingMode?: TypingMode;
   blockStreamingEnabled?: boolean;
+  config?: FollowupRun["run"]["config"];
 }) {
   const typing = createMockTypingController();
   const opts = params?.opts;
@@ -72,7 +73,7 @@ function createMinimalRun(params?: {
       messageProvider: "whatsapp",
       sessionFile: "/tmp/session.jsonl",
       workspaceDir: "/tmp",
-      config: {},
+      config: params?.config ?? {},
       skillsSnapshot: {},
       provider: "anthropic",
       model: "claude",
@@ -140,6 +141,16 @@ describe("runReplyAgent typing (heartbeat)", () => {
 
     const { run, typing } = createMinimalRun({
       opts: { isHeartbeat: false, onPartialReply },
+      config: {
+        agents: {
+          defaults: {
+            replySynthesis: {
+              enabled: true,
+              allowRemoteBrain: true,
+            },
+          },
+        },
+      },
     });
     const reply = await run();
 

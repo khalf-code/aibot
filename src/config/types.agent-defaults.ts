@@ -155,6 +155,17 @@ export type AgentDefaultsConfig = {
   blockStreamingCoalesce?: BlockStreamingCoalesceConfig;
   /** Human-like delay between block replies. */
   humanDelay?: HumanDelayConfig;
+  /** Muscle -> brain synthesis of fallback output. */
+  replySynthesis?: {
+    /** Enable muscle -> brain synthesis (default: false). */
+    enabled?: boolean;
+    /** Allow synthesis when the brain provider is remote (default: false). */
+    allowRemoteBrain?: boolean;
+    /** Include media URLs in synthesis prompt (default: false). */
+    includeMediaUrls?: boolean;
+    /** Include error payload text/flags in synthesis prompt (default: false). */
+    includeErrors?: boolean;
+  };
   timeoutSeconds?: number;
   /** Max inbound media size in MB for agent-visible attachments (text note or future image attach). */
   mediaMaxMb?: number;

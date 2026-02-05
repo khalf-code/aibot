@@ -122,6 +122,15 @@ export const AgentDefaultsSchema = z
     blockStreamingChunk: BlockStreamingChunkSchema.optional(),
     blockStreamingCoalesce: BlockStreamingCoalesceSchema.optional(),
     humanDelay: HumanDelaySchema.optional(),
+    replySynthesis: z
+      .object({
+        enabled: z.boolean().optional(),
+        allowRemoteBrain: z.boolean().optional(),
+        includeMediaUrls: z.boolean().optional(),
+        includeErrors: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     timeoutSeconds: z.number().int().positive().optional(),
     mediaMaxMb: z.number().positive().optional(),
     typingIntervalSeconds: z.number().int().positive().optional(),
