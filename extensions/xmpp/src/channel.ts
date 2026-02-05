@@ -74,6 +74,38 @@ function isConfigured(account: ResolvedXmppAccount): boolean {
   return account.configured;
 }
 
+/**
+ * Check if a JID matches an allowlist pattern.
+ * Supports:
+ * - "*" for wildcard (matches all)
+ * - "*@domain" for domain wildcard (matches any user at domain)
+ * - "user@domain" for exact JID match
+ */
+export function jidMatchesPattern(jid: string, pattern: string): boolean {
+  const normalizedJid = jid.toLowerCase();
+  const normalizedPattern = pattern.toLowerCase();
+
+  // Full wildcard
+  if (normalizedPattern === "*") {
+    return true;
+  }
+
+  // Exact match
+  if (normalizedJid === normalizedPattern) {
+    return true;
+  }
+
+  // Domain wildcard: *@example.com
+  if (normalizedPattern.startsWith("*@")) {
+    const domain = normalizedPattern.slice(2);
+    if (domain && normalizedJid.endsWith(`@${domain}`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 async function startAccount(ctx: {
   account: ResolvedXmppAccount;
   accountId?: string;
@@ -264,11 +296,7 @@ async function handleInboundMessage(
       const roomUsers = roomConfig.users ?? [];
       if (roomUsers.length > 0) {
         const isUserAllowed = roomUsers.some((entry) => {
-          const pattern = String(entry).toLowerCase();
-          if (pattern === "*") {
-            return true;
-          }
-          return senderJid.toLowerCase() === pattern || senderJid.toLowerCase().includes(pattern);
+          return jidMatchesPattern(senderJid, String(entry));
         });
 
         if (!isUserAllowed) {
@@ -283,11 +311,7 @@ async function handleInboundMessage(
       const groupAllowFrom = xmppCfg?.groupAllowFrom ?? [];
       if (groupAllowFrom.length > 0 && roomUsers.length === 0) {
         const isSenderAllowed = groupAllowFrom.some((entry) => {
-          const pattern = String(entry).toLowerCase();
-          if (pattern === "*") {
-            return true;
-          }
-          return senderJid.toLowerCase() === pattern || senderJid.toLowerCase().includes(pattern);
+          return jidMatchesPattern(senderJid, String(entry));
         });
 
         if (!isSenderAllowed) {
@@ -308,18 +332,13 @@ async function handleInboundMessage(
     if (dmPolicy !== "open") {
       const allowFrom = xmppCfg?.allowFrom ?? [];
       const isAllowed = allowFrom.some((entry) => {
-        const pattern = String(entry).toLowerCase();
-        if (pattern === "*") {
-          return true;
-        }
-        return senderJid.toLowerCase() === pattern || senderJid.toLowerCase().includes(pattern);
+        return jidMatchesPattern(senderJid, String(entry));
       });
 
       // Check pairing store
       const storeAllowFrom = await core.channel.pairing.readAllowFromStore("xmpp").catch(() => []);
       const isInStore = storeAllowFrom.some((entry) => {
-        const pattern = String(entry).toLowerCase();
-        return senderJid.toLowerCase() === pattern || senderJid.toLowerCase().includes(pattern);
+        return jidMatchesPattern(senderJid, String(entry));
       });
 
       if (!isAllowed && !isInStore) {

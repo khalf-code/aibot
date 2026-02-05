@@ -1,5 +1,6 @@
 import { xml } from "@xmpp/client";
 import { describe, it, expect, beforeEach } from "vitest";
+import { jidMatchesPattern } from "./channel.js";
 import { XmppClient } from "./client.js";
 
 // Helper type to access private methods for testing
@@ -256,6 +257,43 @@ describe("XmppClient - Message Parsing", () => {
 
       expect(message.thread).toBe("thread-123");
       expect(message.parentThread).toBe("thread-parent");
+    });
+  });
+
+  describe("jidMatchesPattern", () => {
+    it("should match wildcard pattern", () => {
+      expect(jidMatchesPattern("alice@example.com", "*")).toBe(true);
+      expect(jidMatchesPattern("bob@other.com", "*")).toBe(true);
+    });
+
+    it("should match exact JID", () => {
+      expect(jidMatchesPattern("alice@example.com", "alice@example.com")).toBe(true);
+      expect(jidMatchesPattern("Alice@Example.COM", "alice@example.com")).toBe(true);
+    });
+
+    it("should not match different JIDs", () => {
+      expect(jidMatchesPattern("alice@example.com", "bob@example.com")).toBe(false);
+      expect(jidMatchesPattern("alice@example.com", "alice@other.com")).toBe(false);
+    });
+
+    it("should match domain wildcard", () => {
+      expect(jidMatchesPattern("alice@example.com", "*@example.com")).toBe(true);
+      expect(jidMatchesPattern("bob@example.com", "*@example.com")).toBe(true);
+      expect(jidMatchesPattern("Alice@Example.COM", "*@example.com")).toBe(true);
+    });
+
+    it("should not match different domains", () => {
+      expect(jidMatchesPattern("alice@other.com", "*@example.com")).toBe(false);
+      expect(jidMatchesPattern("bob@subdomain.example.com", "*@example.com")).toBe(false);
+    });
+
+    it("should not use substring matching (security)", () => {
+      // "alice" should NOT match "malice@example.com"
+      expect(jidMatchesPattern("malice@example.com", "alice")).toBe(false);
+      // "example.com" should NOT match "notexample.com"
+      expect(jidMatchesPattern("user@notexample.com", "example.com")).toBe(false);
+      // "example.com" should NOT match "example.com.evil.net"
+      expect(jidMatchesPattern("user@example.com.evil.net", "*@example.com")).toBe(false);
     });
   });
 });
