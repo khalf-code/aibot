@@ -1,4 +1,5 @@
 import { html, nothing } from "lit";
+import type { AgentResourceEntry, AgentResourcesResult } from "../controllers/agent-resources.ts";
 import type {
   AgentFileEntry,
   AgentsFilesListResult,
@@ -60,6 +61,8 @@ export type AgentsProps = {
   agentSkillsReport: SkillStatusReport | null;
   agentSkillsError: string | null;
   agentSkillsAgentId: string | null;
+  agentResourcesData: AgentResourcesResult | null;
+  agentResourcesLoading: boolean;
   skillsFilter: string;
   onRefresh: () => void;
   onSelectAgent: (agentId: string) => void;
@@ -207,6 +210,36 @@ type ConfigSnapshot = {
     deny?: string[];
   };
 };
+
+function formatResourceTokenCount(n: number): string {
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(1)}M`;
+  }
+  if (n >= 1_000) {
+    return `${(n / 1_000).toFixed(1)}k`;
+  }
+  return String(n);
+}
+
+function formatResourceCost(n: number): string {
+  if (n === 0) {
+    return "$0.00";
+  }
+  if (n < 0.01) {
+    return `$${n.toFixed(4)}`;
+  }
+  return `$${n.toFixed(2)}`;
+}
+
+function formatResourceBytes(bytes: number): string {
+  if (bytes >= 1_048_576) {
+    return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(0)} KB`;
+  }
+  return `${bytes} B`;
+}
 
 function normalizeAgentLabel(agent: { id: string; name?: string; identity?: { name?: string } }) {
   return agent.name?.trim() || agent.identity?.name?.trim() || agent.id;
@@ -572,6 +605,7 @@ export function renderAgents(props: AgentsProps) {
               : agents.map((agent) => {
                   const badge = agentBadgeText(agent.id, defaultId);
                   const emoji = resolveAgentEmoji(agent, props.agentIdentityById[agent.id] ?? null);
+                  const res = props.agentResourcesData?.agents?.find((a) => a.agentId === agent.id);
                   return html`
                     <button
                       type="button"
@@ -584,8 +618,20 @@ export function renderAgents(props: AgentsProps) {
                       <div class="agent-info">
                         <div class="agent-title">${normalizeAgentLabel(agent)}</div>
                         <div class="agent-sub mono">${agent.id}</div>
+                        ${
+                          res
+                            ? html`<div class="agent-sub muted" style="font-size: 10px; margin-top: 2px;">${res.sessions.total} sessions · ${formatResourceTokenCount(res.tokens.total)} tokens</div>`
+                            : nothing
+                        }
                       </div>
-                      ${badge ? html`<span class="agent-pill">${badge}</span>` : nothing}
+                      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                        ${badge ? html`<span class="agent-pill">${badge}</span>` : nothing}
+                        ${
+                          res
+                            ? html`<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${res.heartbeat.enabled ? "var(--ok)" : "var(--muted)"};" title="${res.heartbeat.enabled ? "Heartbeat enabled" : "Heartbeat disabled"}"></span>`
+                            : nothing
+                        }
+                      </div>
                     </button>
                   `;
                 })
@@ -621,6 +667,11 @@ export function renderAgents(props: AgentsProps) {
                       configLoading: props.configLoading,
                       configSaving: props.configSaving,
                       configDirty: props.configDirty,
+                      resources:
+                        props.agentResourcesData?.agents?.find(
+                          (a) => a.agentId === selectedAgent.id,
+                        ) ?? null,
+                      resourcesLoading: props.agentResourcesLoading,
                       onConfigReload: props.onConfigReload,
                       onConfigSave: props.onConfigSave,
                       onModelChange: props.onModelChange,
@@ -789,6 +840,8 @@ function renderAgentOverview(params: {
   configLoading: boolean;
   configSaving: boolean;
   configDirty: boolean;
+  resources: AgentResourceEntry | null;
+  resourcesLoading: boolean;
   onConfigReload: () => void;
   onConfigSave: () => void;
   onModelChange: (agentId: string, modelId: string | null) => void;
@@ -804,6 +857,8 @@ function renderAgentOverview(params: {
     configLoading,
     configSaving,
     configDirty,
+    resources,
+    resourcesLoading,
     onConfigReload,
     onConfigSave,
     onModelChange,
@@ -874,6 +929,63 @@ function renderAgentOverview(params: {
           <div>${skillFilter ? `${skillCount} selected` : "all skills"}</div>
         </div>
       </div>
+
+      ${
+        resources
+          ? html`
+          <div class="grid" style="margin-top: 18px; grid-template-columns: repeat(5, minmax(0, 1fr));">
+            <div class="card stat-card">
+              <div class="stat-label">Sessions</div>
+              <div class="stat-value">${resources.sessions.total}</div>
+              <div class="muted">${resources.sessions.active} active (1h)</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">Tokens In</div>
+              <div class="stat-value">${formatResourceTokenCount(resources.tokens.input)}</div>
+              <div class="muted">cumulative</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">Tokens Out</div>
+              <div class="stat-value">${formatResourceTokenCount(resources.tokens.output)}</div>
+              <div class="muted">cumulative</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">Est. Cost (7d)</div>
+              <div class="stat-value">${formatResourceCost(resources.cost.total)}</div>
+              <div class="muted">last ${resources.cost.days} days</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">Heartbeat</div>
+              <div class="stat-value" style="color: ${resources.heartbeat.enabled ? "var(--ok)" : "var(--muted)"};">
+                ${resources.heartbeat.enabled ? "Enabled" : "Disabled"}
+              </div>
+              <div class="muted">${resources.heartbeat.enabled && resources.heartbeat.everyMs ? `every ${resources.heartbeat.every}` : "-"}</div>
+            </div>
+          </div>
+          <div class="grid" style="margin-top: 8px; grid-template-columns: repeat(3, minmax(0, 1fr));">
+            <div class="card stat-card">
+              <div class="stat-label">Total Tokens</div>
+              <div class="stat-value">${formatResourceTokenCount(resources.tokens.total)}</div>
+              <div class="muted">in + out</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">Workspace Files</div>
+              <div class="stat-value">${resources.workspace.files}</div>
+              <div class="muted">${formatResourceBytes(resources.workspace.totalBytes)}</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">Default Agent</div>
+              <div class="stat-value ${resources.isDefault ? "ok" : ""}">${resources.isDefault ? "Yes" : "No"}</div>
+              <div class="muted">${agent.id}</div>
+            </div>
+          </div>
+        `
+          : resourcesLoading
+            ? html`
+                <div class="muted" style="margin-top: 16px; font-size: 12px">Loading resource data…</div>
+              `
+            : nothing
+      }
 
       <div class="agent-model-select" style="margin-top: 20px;">
         <div class="label">Model Selection</div>

@@ -223,6 +223,12 @@ export class OpenClawApp extends LitElement {
   @state() agentSkillsReport: SkillStatusReport | null = null;
   @state() agentSkillsAgentId: string | null = null;
 
+  @state() agentResourcesLoading = false;
+  @state() agentResourcesError: string | null = null;
+  @state() agentResourcesData:
+    | import("./controllers/agent-resources.ts").AgentResourcesResult
+    | null = null;
+
   @state() sessionsLoading = false;
   @state() sessionsResult: SessionsListResult | null = null;
   @state() sessionsError: string | null = null;

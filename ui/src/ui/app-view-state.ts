@@ -1,4 +1,5 @@
 import type { EventLogEntry } from "./app-events.ts";
+import type { AgentResourcesResult } from "./controllers/agent-resources.ts";
 import type { AuthProviderEntry } from "./controllers/auth.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
@@ -128,6 +129,9 @@ export type AppViewState = {
   agentSkillsError: string | null;
   agentSkillsReport: SkillStatusReport | null;
   agentSkillsAgentId: string | null;
+  agentResourcesLoading: boolean;
+  agentResourcesError: string | null;
+  agentResourcesData: AgentResourcesResult | null;
   sessionsLoading: boolean;
   sessionsResult: SessionsListResult | null;
   sessionsError: string | null;

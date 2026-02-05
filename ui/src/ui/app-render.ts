@@ -6,6 +6,7 @@ import { renderChatControls, renderTab, renderThemeToggle } from "./app-render.h
 import { OpenClawApp } from "./app.ts";
 import { loadAgentFileContent, loadAgentFiles, saveAgentFile } from "./controllers/agent-files.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
+import { loadAgentResources } from "./controllers/agent-resources.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import { loadAgents } from "./controllers/agents.ts";
 import {
@@ -432,8 +433,11 @@ export function renderApp(state: AppViewState) {
                 },
                 onToggleModel: (key) => {
                   const next = new Set(state.providersModelAllowlist);
-                  if (next.has(key)) next.delete(key);
-                  else next.add(key);
+                  if (next.has(key)) {
+                    next.delete(key);
+                  } else {
+                    next.add(key);
+                  }
                   state.providersModelAllowlist = next;
                   state.providersModelsDirty = true;
                 },
@@ -516,6 +520,8 @@ export function renderApp(state: AppViewState) {
                 agentSkillsReport: state.agentSkillsReport,
                 agentSkillsError: state.agentSkillsError,
                 agentSkillsAgentId: state.agentSkillsAgentId,
+                agentResourcesData: state.agentResourcesData,
+                agentResourcesLoading: state.agentResourcesLoading,
                 skillsFilter: state.skillsFilter,
                 onRefresh: async () => {
                   await loadAgents(state);
@@ -523,6 +529,7 @@ export function renderApp(state: AppViewState) {
                   if (agentIds.length > 0) {
                     void loadAgentIdentities(state, agentIds);
                   }
+                  void loadAgentResources(state);
                 },
                 onSelectAgent: (agentId) => {
                   if (state.agentsSelectedId === agentId) {
