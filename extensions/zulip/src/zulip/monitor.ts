@@ -6,6 +6,7 @@ import { getZulipRuntime } from "../runtime.js";
 import { resolveZulipAccount, type ResolvedZulipAccount } from "./accounts.js";
 import { zulipRequest } from "./client.js";
 import { normalizeStreamName, normalizeTopic } from "./normalize.js";
+import { buildZulipQueuePlan, buildZulipRegisterNarrow } from "./queue-plan.js";
 import { addZulipReaction, removeZulipReaction } from "./reactions.js";
 import { sendZulipStreamMessage } from "./send.js";
 
@@ -81,6 +82,15 @@ function sleep(ms: number, abortSignal?: AbortSignal): Promise<void> {
   });
 }
 
+function extractZulipHttpStatus(err: unknown): number | null {
+  const match = /Zulip API error \((\d{3})\):/.exec(String(err));
+  if (!match) {
+    return null;
+  }
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function buildAuth(account: ResolvedZulipAccount): ZulipAuth {
   if (!account.baseUrl || !account.email || !account.apiKey) {
     throw new Error("Missing zulip baseUrl/email/apiKey");
@@ -113,12 +123,11 @@ async function fetchZulipMe(auth: ZulipAuth, abortSignal?: AbortSignal): Promise
 
 async function registerQueue(params: {
   auth: ZulipAuth;
-  streams: string[];
+  stream: string;
   abortSignal?: AbortSignal;
 }): Promise<{ queueId: string; lastEventId: number }> {
   const core = getZulipRuntime();
-  const useNarrow = params.streams.length === 1;
-  const narrow = useNarrow ? JSON.stringify([["channel", params.streams[0]]]) : undefined;
+  const narrow = buildZulipRegisterNarrow(params.stream);
   const res = await zulipRequest<ZulipRegisterResponse>({
     auth: params.auth,
     method: "POST",
@@ -126,7 +135,7 @@ async function registerQueue(params: {
     form: {
       event_types: JSON.stringify(["message"]),
       apply_markdown: "false",
-      ...(narrow ? { narrow } : {}),
+      narrow,
     },
     abortSignal: params.abortSignal,
   });
@@ -135,7 +144,7 @@ async function registerQueue(params: {
   }
   core.logging
     .getChildLogger({ channel: "zulip" })
-    .info(`[zulip] registered queue ${res.queue_id} (narrow=${useNarrow ? "channel" : "none"})`);
+    .info(`[zulip] registered queue ${res.queue_id} (narrow=channel:${params.stream})`);
   return { queueId: res.queue_id, lastEventId: res.last_event_id };
 }
 
@@ -286,202 +295,222 @@ export async function monitorZulipProvider(
     const botUserId = me.user_id;
     logger.info(`[zulip:${account.accountId}] bot user_id=${botUserId}`);
 
-    let queueId = "";
-    let lastEventId = -1;
-    let retry = 0;
+    const handleMessage = async (msg: ZulipEventMessage) => {
+      if (typeof msg.id !== "number") {
+        return;
+      }
+      const ignore = shouldIgnoreMessage({ message: msg, botUserId, streams: account.streams });
+      if (ignore.ignore) {
+        return;
+      }
 
-    while (!stopped && !abortSignal.aborted) {
-      try {
-        if (!queueId) {
-          const reg = await registerQueue({ auth, streams: account.streams, abortSignal });
-          queueId = reg.queueId;
-          lastEventId = reg.lastEventId;
-        }
+      const stream = normalizeStreamName(msg.display_recipient);
+      const topic = normalizeTopic(msg.subject) || account.defaultTopic;
+      const content = msg.content ?? "";
+      if (!stream || !content.trim()) {
+        return;
+      }
 
-        const events = await pollEvents({ auth, queueId, lastEventId, abortSignal });
-        if (events.result !== "success") {
-          throw new Error(events.msg || "Zulip events poll failed");
-        }
+      core.channel.activity.record({
+        channel: "zulip",
+        accountId: account.accountId,
+        direction: "inbound",
+        at: Date.now(),
+      });
+      opts.statusSink?.({ lastInboundAt: Date.now() });
 
-        const list = events.events ?? [];
-        if (typeof events.last_event_id === "number") {
-          lastEventId = events.last_event_id;
-        }
+      const prefix = account.reactions;
+      if (prefix.enabled) {
+        await bestEffortReaction({
+          auth,
+          messageId: msg.id,
+          op: "add",
+          emojiName: prefix.onStart,
+          log: (m) => logger.debug(m),
+          abortSignal,
+        });
+      }
 
-        for (const evt of list) {
-          const msg = evt.message;
-          if (!msg || typeof msg.id !== "number") {
-            continue;
-          }
-          const ignore = shouldIgnoreMessage({ message: msg, botUserId, streams: account.streams });
-          if (ignore.ignore) {
-            continue;
-          }
+      const route = core.channel.routing.resolveAgentRoute({
+        cfg,
+        channel: "zulip",
+        accountId: account.accountId,
+        peer: { kind: "channel", id: stream },
+      });
+      const baseSessionKey = route.sessionKey;
+      const sessionKey = `${baseSessionKey}:topic:${buildTopicKey(topic)}`;
 
-          const stream = normalizeStreamName(msg.display_recipient);
-          const topic = normalizeTopic(msg.subject) || account.defaultTopic;
-          const content = msg.content ?? "";
-          if (!stream || !content.trim()) {
-            continue;
-          }
+      const to = `stream:${stream}#${topic}`;
+      const from = `zulip:stream:${stream}`;
+      const senderName =
+        msg.sender_full_name?.trim() || msg.sender_email?.trim() || String(msg.sender_id);
 
-          core.channel.activity.record({
-            channel: "zulip",
-            accountId: account.accountId,
-            direction: "inbound",
-            at: Date.now(),
-          });
-          opts.statusSink?.({ lastInboundAt: Date.now() });
+      const body = core.channel.reply.formatInboundEnvelope({
+        channel: "Zulip",
+        from: `${stream} (${topic || account.defaultTopic})`,
+        timestamp: typeof msg.timestamp === "number" ? msg.timestamp * 1000 : undefined,
+        body: `${content}\n[zulip message id: ${msg.id} stream: ${stream} topic: ${topic}]`,
+        chatType: "channel",
+        sender: { name: senderName, id: String(msg.sender_id) },
+      });
 
-          const prefix = account.reactions;
-          if (prefix.enabled) {
-            await bestEffortReaction({
+      const ctxPayload = core.channel.reply.finalizeInboundContext({
+        Body: body,
+        RawBody: content,
+        CommandBody: content,
+        From: from,
+        To: to,
+        SessionKey: sessionKey,
+        AccountId: route.accountId,
+        ChatType: "channel",
+        ThreadLabel: topic,
+        MessageThreadId: topic,
+        ConversationLabel: `${stream}#${topic}`,
+        GroupSubject: stream,
+        GroupChannel: `#${stream}`,
+        Provider: "zulip" as const,
+        Surface: "zulip" as const,
+        SenderName: senderName,
+        SenderId: String(msg.sender_id),
+        MessageSid: String(msg.id),
+        OriginatingChannel: "zulip" as const,
+        OriginatingTo: to,
+        Timestamp: typeof msg.timestamp === "number" ? msg.timestamp * 1000 : undefined,
+        CommandAuthorized: true,
+      });
+
+      const { onModelSelected, ...prefixOptions } = createReplyPrefixOptions({
+        cfg,
+        agentId: route.agentId,
+        channel: "zulip",
+        accountId: account.accountId,
+      });
+
+      const { dispatcher, replyOptions, markDispatchIdle } =
+        core.channel.reply.createReplyDispatcherWithTyping({
+          ...prefixOptions,
+          humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, route.agentId),
+          deliver: async (payload: ReplyPayload) => {
+            await deliverReply({
+              account,
               auth,
-              messageId: msg.id,
-              op: "add",
-              emojiName: prefix.onStart,
-              log: (m) => logger.debug(m),
+              stream,
+              topic,
+              payload,
               abortSignal,
             });
-          }
-
-          const route = core.channel.routing.resolveAgentRoute({
-            cfg,
-            channel: "zulip",
-            accountId: account.accountId,
-            peer: { kind: "channel", id: stream },
-          });
-          const baseSessionKey = route.sessionKey;
-          const sessionKey = `${baseSessionKey}:topic:${buildTopicKey(topic)}`;
-
-          const to = `stream:${stream}#${topic}`;
-          const from = `zulip:stream:${stream}`;
-          const senderName =
-            msg.sender_full_name?.trim() || msg.sender_email?.trim() || String(msg.sender_id);
-
-          const body = core.channel.reply.formatInboundEnvelope({
-            channel: "Zulip",
-            from: `${stream} (${topic || account.defaultTopic})`,
-            timestamp: typeof msg.timestamp === "number" ? msg.timestamp * 1000 : undefined,
-            body: `${content}\n[zulip message id: ${msg.id} stream: ${stream} topic: ${topic}]`,
-            chatType: "channel",
-            sender: { name: senderName, id: String(msg.sender_id) },
-          });
-
-          const ctxPayload = core.channel.reply.finalizeInboundContext({
-            Body: body,
-            RawBody: content,
-            CommandBody: content,
-            From: from,
-            To: to,
-            SessionKey: sessionKey,
-            AccountId: route.accountId,
-            ChatType: "channel",
-            ThreadLabel: topic,
-            MessageThreadId: topic,
-            ConversationLabel: `${stream}#${topic}`,
-            GroupSubject: stream,
-            GroupChannel: `#${stream}`,
-            Provider: "zulip" as const,
-            Surface: "zulip" as const,
-            SenderName: senderName,
-            SenderId: String(msg.sender_id),
-            MessageSid: String(msg.id),
-            OriginatingChannel: "zulip" as const,
-            OriginatingTo: to,
-            Timestamp: typeof msg.timestamp === "number" ? msg.timestamp * 1000 : undefined,
-            CommandAuthorized: true,
-          });
-
-          const { onModelSelected, ...prefixOptions } = createReplyPrefixOptions({
-            cfg,
-            agentId: route.agentId,
-            channel: "zulip",
-            accountId: account.accountId,
-          });
-
-          const { dispatcher, replyOptions, markDispatchIdle } =
-            core.channel.reply.createReplyDispatcherWithTyping({
-              ...prefixOptions,
-              humanDelay: core.channel.reply.resolveHumanDelayConfig(cfg, route.agentId),
-              deliver: async (payload: ReplyPayload) => {
-                await deliverReply({
-                  account,
-                  auth,
-                  stream,
-                  topic,
-                  payload,
-                  abortSignal,
-                });
-                opts.statusSink?.({ lastOutboundAt: Date.now() });
-                core.channel.activity.record({
-                  channel: "zulip",
-                  accountId: account.accountId,
-                  direction: "outbound",
-                  at: Date.now(),
-                });
-              },
-              onError: (err) => {
-                runtime.error?.(`zulip reply failed: ${String(err)}`);
-              },
+            opts.statusSink?.({ lastOutboundAt: Date.now() });
+            core.channel.activity.record({
+              channel: "zulip",
+              accountId: account.accountId,
+              direction: "outbound",
+              at: Date.now(),
             });
+          },
+          onError: (err) => {
+            runtime.error?.(`zulip reply failed: ${String(err)}`);
+          },
+        });
 
-          let ok = false;
-          try {
-            await core.channel.reply.dispatchReplyFromConfig({
-              ctx: ctxPayload,
-              cfg,
-              dispatcher,
-              replyOptions: {
-                ...replyOptions,
-                disableBlockStreaming: true,
-                onModelSelected,
-              },
-            });
-            ok = true;
-          } catch (err) {
-            ok = false;
-            opts.statusSink?.({ lastError: err instanceof Error ? err.message : String(err) });
-            throw err;
-          } finally {
-            markDispatchIdle();
-            if (account.reactions.enabled) {
-              await bestEffortReaction({
-                auth,
-                messageId: msg.id,
-                op: "remove",
-                emojiName: account.reactions.onStart,
-                log: (m) => logger.debug(m),
-                abortSignal,
-              });
-              const finalEmoji = ok ? account.reactions.onSuccess : account.reactions.onFailure;
-              await bestEffortReaction({
-                auth,
-                messageId: msg.id,
-                op: "add",
-                emojiName: finalEmoji,
-                log: (m) => logger.debug(m),
-                abortSignal,
-              });
-            }
-          }
-        }
-
-        retry = 0;
+      let ok = false;
+      try {
+        await core.channel.reply.dispatchReplyFromConfig({
+          ctx: ctxPayload,
+          cfg,
+          dispatcher,
+          replyOptions: {
+            ...replyOptions,
+            disableBlockStreaming: true,
+            onModelSelected,
+          },
+        });
+        ok = true;
       } catch (err) {
-        if (stopped || abortSignal.aborted) {
-          break;
+        ok = false;
+        opts.statusSink?.({ lastError: err instanceof Error ? err.message : String(err) });
+        runtime.error?.(`zulip dispatch failed: ${String(err)}`);
+      } finally {
+        markDispatchIdle();
+        if (account.reactions.enabled) {
+          await bestEffortReaction({
+            auth,
+            messageId: msg.id,
+            op: "remove",
+            emojiName: account.reactions.onStart,
+            log: (m) => logger.debug(m),
+            abortSignal,
+          });
+          const finalEmoji = ok ? account.reactions.onSuccess : account.reactions.onFailure;
+          await bestEffortReaction({
+            auth,
+            messageId: msg.id,
+            op: "add",
+            emojiName: finalEmoji,
+            log: (m) => logger.debug(m),
+            abortSignal,
+          });
         }
-        queueId = "";
-        lastEventId = -1;
-        retry += 1;
-        const backoffMs = Math.min(30_000, 500 * 2 ** Math.min(6, retry));
-        logger.warn(
-          `[zulip:${account.accountId}] monitor error: ${String(err)} (retry in ${backoffMs}ms)`,
-        );
-        await sleep(backoffMs, abortSignal).catch(() => undefined);
       }
+    };
+
+    const pollStreamQueue = async (stream: string) => {
+      let queueId = "";
+      let lastEventId = -1;
+      let retry = 0;
+
+      while (!stopped && !abortSignal.aborted) {
+        try {
+          if (!queueId) {
+            const reg = await registerQueue({ auth, stream, abortSignal });
+            queueId = reg.queueId;
+            lastEventId = reg.lastEventId;
+          }
+
+          const events = await pollEvents({ auth, queueId, lastEventId, abortSignal });
+          if (events.result !== "success") {
+            throw new Error(events.msg || "Zulip events poll failed");
+          }
+
+          const list = events.events ?? [];
+          if (typeof events.last_event_id === "number") {
+            lastEventId = events.last_event_id;
+          }
+
+          for (const evt of list) {
+            const msg = evt.message;
+            if (!msg) {
+              continue;
+            }
+            await handleMessage(msg);
+          }
+
+          retry = 0;
+        } catch (err) {
+          if (stopped || abortSignal.aborted) {
+            break;
+          }
+          const status = extractZulipHttpStatus(err);
+          if (status !== 429) {
+            queueId = "";
+            lastEventId = -1;
+          }
+          retry += 1;
+          const backoffMs = Math.min(30_000, 500 * 2 ** Math.min(6, retry));
+          logger.warn(
+            `[zulip:${account.accountId}] monitor error (stream=${stream}): ${String(err)} (retry in ${backoffMs}ms)`,
+          );
+          await sleep(backoffMs, abortSignal).catch(() => undefined);
+        }
+      }
+    };
+
+    const plan = buildZulipQueuePlan(account.streams);
+    if (plan.length === 0) {
+      throw new Error(
+        `Zulip streams allowlist missing for account "${account.accountId}" (set channels.zulip.streams)`,
+      );
     }
+    await Promise.all(plan.map((entry) => pollStreamQueue(entry.stream)));
   };
 
   void run()
