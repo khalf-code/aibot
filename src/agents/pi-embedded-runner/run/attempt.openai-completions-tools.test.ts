@@ -1,14 +1,11 @@
+import type { Api, Model } from "@mariozechner/pi-ai";
+import { createAgentSession } from "@mariozechner/pi-coding-agent";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-
-import type { Api, Model } from "@mariozechner/pi-ai";
-import { createAgentSession } from "@mariozechner/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
-
-import { discoverAuthStorage, discoverModels } from "../../pi-model-discovery.js";
-
 import type { OpenClawConfig } from "../../../config/config.js";
+import { discoverAuthStorage, discoverModels } from "../../pi-model-discovery.js";
 import { runEmbeddedAttempt } from "./attempt.js";
 
 vi.mock("@mariozechner/pi-coding-agent", async () => {
