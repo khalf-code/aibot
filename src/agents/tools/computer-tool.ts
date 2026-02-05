@@ -1060,42 +1060,57 @@ function Resolve-Key([string]$keyToken) {
 }
 
 switch ('${action}') {
+function Smooth-MoveTo([int]$x2, [int]$y2, [int]$steps, [int]$stepDelay) {
+  if ($steps -lt 1) { $steps = 1 }
+  if ($steps -gt 200) { $steps = 200 }
+  if ($stepDelay -lt 0) { $stepDelay = 0 }
+  if ($stepDelay -gt 200) { $stepDelay = 200 }
+
+  $pt = New-Object InputApi+POINT
+  [void][InputApi]::GetCursorPos([ref]$pt)
+  $x1 = [int]$pt.X
+  $y1 = [int]$pt.Y
+
+  if ($steps -eq 1) {
+    [MouseInput]::MoveTo($x2, $y2)
+    return
+  }
+
+  $dx = ($x2 - $x1) / [double]$steps
+  $dy = ($y2 - $y1) / [double]$steps
+  for ($i = 1; $i -le $steps; $i++) {
+    $nx = [int][Math]::Round($x1 + ($dx * $i))
+    $ny = [int][Math]::Round($y1 + ($dy * $i))
+    [MouseInput]::MoveTo($nx, $ny)
+    if ($stepDelay -gt 0) { Start-Sleep -Milliseconds $stepDelay }
+  }
+}
+
+switch ('${action}') {
   'move' {
     $x2 = [int]$args.x
     $y2 = [int]$args.y
 
     $steps = 15
     if ($args.PSObject.Properties.Name -contains 'steps') { $steps = [int]$args.steps }
-    if ($steps -lt 1) { $steps = 1 }
-    if ($steps -gt 200) { $steps = 200 }
 
     $stepDelay = 5
     if ($args.PSObject.Properties.Name -contains 'stepDelayMs') { $stepDelay = [int]$args.stepDelayMs }
-    if ($stepDelay -lt 0) { $stepDelay = 0 }
-    if ($stepDelay -gt 200) { $stepDelay = 200 }
 
-    $pt = New-Object InputApi+POINT
-    [void][InputApi]::GetCursorPos([ref]$pt)
-
-    if ($steps -eq 1) {
-      [MouseInput]::MoveTo($x2, $y2)
-    } else {
-      $x1 = [int]$pt.X
-      $y1 = [int]$pt.Y
-      $dx = ($x2 - $x1) / [double]$steps
-      $dy = ($y2 - $y1) / [double]$steps
-      for ($i = 1; $i -le $steps; $i++) {
-        $nx = [int][Math]::Round($x1 + ($dx * $i))
-        $ny = [int][Math]::Round($y1 + ($dy * $i))
-        [MouseInput]::MoveTo($nx, $ny)
-        if ($stepDelay -gt 0) { Start-Sleep -Milliseconds $stepDelay }
-      }
-    }
-
+    Smooth-MoveTo $x2 $y2 $steps $stepDelay
     Sleep-IfNeeded
   }
   'click' {
-    [MouseInput]::MoveTo([int]$args.x, [int]$args.y)
+    $x = [int]$args.x
+    $y = [int]$args.y
+
+    $steps = 8
+    if ($args.PSObject.Properties.Name -contains 'steps') { $steps = [int]$args.steps }
+
+    $stepDelay = 5
+    if ($args.PSObject.Properties.Name -contains 'stepDelayMs') { $stepDelay = [int]$args.stepDelayMs }
+
+    Smooth-MoveTo $x $y $steps $stepDelay
 
     $button = 'left'
     if ($args.PSObject.Properties.Name -contains 'button') { $button = [string]$args.button }
@@ -1411,13 +1426,15 @@ export function createComputerTool(options?: {
         const buttonRaw = readStringParam(params, "button", { required: false });
         const button = buttonRaw === "right" || buttonRaw === "middle" ? buttonRaw : "left";
         const clicks = readPositiveInt(params, "clicks", 1);
-        await runInputAction({ action: "click", args: { x, y, button, clicks, delayMs } });
+        const steps = readPositiveInt(params, "steps", 8);
+        const stepDelayMs = readPositiveInt(params, "stepDelayMs", 5);
+        await runInputAction({ action: "click", args: { x, y, button, clicks, steps, stepDelayMs, delayMs } });
         if (agentDir) {
           await recordTeachStep({
             agentDir,
             sessionKey,
             action: "click",
-            stepParams: { x, y, button, clicks, delayMs },
+            stepParams: { x, y, button, clicks, steps, stepDelayMs, delayMs },
           });
         }
         return jsonResult({ ok: true });
