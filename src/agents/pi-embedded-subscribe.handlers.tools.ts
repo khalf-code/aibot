@@ -18,7 +18,8 @@ const LOOP_DETECTION_HISTORY_SIZE = 10;
 const LOOP_DETECTION_FAILURE_THRESHOLD = 2;
 const LOOP_DETECTION_TIME_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
-function hashToolArgs(args: unknown): string {
+/* eslint-disable no-bitwise */
+function hashToolArgs(args: any): string {
   const str = args ? JSON.stringify(args) : "null";
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -26,6 +27,7 @@ function hashToolArgs(args: unknown): string {
   }
   return (hash >>> 0).toString(16);
 }
+/* eslint-enable no-bitwise */
 
 function checkForLoop(
   ctx: EmbeddedPiSubscribeContext,
