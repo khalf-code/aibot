@@ -256,7 +256,9 @@ export async function ensureLoaded(state: CronServiceState, opts?: { forceReload
   state.storeFileMtimeMs = fileMtimeMs;
 
   // Recompute next runs after loading to ensure accuracy
-  recomputeNextRuns(state);
+  if (!opts?.forceReload) {
+    recomputeNextRuns(state);
+  }
 
   if (mutated) {
     await persist(state);
