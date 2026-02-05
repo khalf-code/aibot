@@ -4,6 +4,7 @@ import { AgentsSchema, AudioSchema, BindingsSchema, BroadcastSchema } from "./zo
 import { ApprovalsSchema } from "./zod-schema.approvals.js";
 import { HexColorSchema, ModelsConfigSchema } from "./zod-schema.core.js";
 import { HookMappingSchema, HooksGmailSchema, InternalHooksSchema } from "./zod-schema.hooks.js";
+import { MCPSchema } from "./zod-schema.mcp.js";
 import { ChannelsSchema } from "./zod-schema.providers.js";
 import {
   CommandsSchema,
@@ -279,6 +280,7 @@ export const OpenClawSchema = z
       })
       .strict()
       .optional(),
+    mcp: MCPSchema,
     messages: MessagesSchema,
     commands: CommandsSchema,
     approvals: ApprovalsSchema,
