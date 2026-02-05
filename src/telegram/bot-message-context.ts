@@ -309,10 +309,13 @@ export const buildTelegramMessageContext = async ({
       senderId,
       senderUsername,
     });
-    // For groups: only enforce sender allowlist if the group itself is NOT in the allowlist
-    // If the group is allowlisted, accept messages from any group member
-    const isGroupInAllowlist = effectiveGroupAllow.hasWildcard ||
-      (effectiveGroupAllow.hasEntries && String(chatId) && effectiveGroupAllow.entries.includes(String(chatId)));
+    // For groups: only enforce sender allowlist if the group itself is NOT in the
+    // allowlist. If the group is allowlisted, accept messages from any group member
+    const isGroupInAllowlist =
+      effectiveGroupAllow.hasWildcard ||
+      (effectiveGroupAllow.hasEntries &&
+        String(chatId) &&
+        effectiveGroupAllow.entries.includes(String(chatId)));
 
     if (!allowed && !isGroupInAllowlist) {
       logVerbose(
