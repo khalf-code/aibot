@@ -122,6 +122,7 @@ export async function handleCampfireWebhookRequest(
   const url = new URL(req.url ?? "/", "http://localhost");
   const path = normalizeWebhookPath(url.pathname);
   const targets = webhookTargets.get(path);
+
   if (!targets || targets.length === 0) {
     return false;
   }
@@ -171,15 +172,20 @@ export async function handleCampfireWebhookRequest(
   }
 
   selected.statusSink?.({ lastInboundAt: Date.now() });
+
+  // Fire-and-forget: process message asynchronously AFTER sending response
+  // CRITICAL: Campfire has a 7-second webhook timeout, so we must respond immediately
   processCampfireEvent(payload as CampfireWebhookPayload, selected).catch((err) => {
     selected?.runtime.error?.(
       `[${selected.account.accountId}] Campfire webhook failed: ${String(err)}`,
     );
   });
 
-  // Campfire expects empty 200 response (text response would be sent as a message)
+  // Return immediate acknowledgment - Campfire posts text/plain responses as messages
+  // This gives users instant feedback while AI processing happens asynchronously
   res.statusCode = 200;
-  res.end();
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.end("Got it, working on a response...");
   return true;
 }
 
@@ -255,6 +261,8 @@ async function processCampfireEvent(payload: CampfireWebhookPayload, target: Web
 
   const roomId = room.id;
   const roomName = room.name;
+  // Campfire's webhook payload includes the full reply path with bot key
+  // e.g., "/rooms/{room_id}/{bot_key}/messages" from room_bot_messages_path helper
   const roomPath = room.path;
   const senderId = user.id;
   const senderName = user.name;
