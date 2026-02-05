@@ -3,6 +3,20 @@ import type { CronJob, CronRunLogEntry, CronStatus } from "../types.ts";
 import type { CronFormState } from "../ui-types.ts";
 import { toNumber } from "../format.ts";
 
+export type CronFilterState = {
+  enabled: "all" | "enabled" | "disabled";
+  scheduleKind: "all" | "at" | "every" | "cron";
+  lastStatus: "all" | "ok" | "error" | "skipped";
+  searchText: string;
+};
+
+export const DEFAULT_CRON_FILTER: CronFilterState = {
+  enabled: "all",
+  scheduleKind: "all",
+  lastStatus: "all",
+  searchText: "",
+};
+
 export type CronState = {
   client: GatewayBrowserClient | null;
   connected: boolean;
@@ -14,6 +28,7 @@ export type CronState = {
   cronRunsJobId: string | null;
   cronRuns: CronRunLogEntry[];
   cronBusy: boolean;
+  cronFilter: CronFilterState;
 };
 
 export async function loadCronStatus(state: CronState) {
@@ -215,4 +230,54 @@ export async function loadCronRuns(state: CronState, jobId: string) {
   } catch (err) {
     state.cronError = String(err);
   }
+}
+
+export function setCronFilter(state: CronState, patch: Partial<CronFilterState>) {
+  state.cronFilter = { ...state.cronFilter, ...patch };
+}
+
+export function getFilteredCronJobs(state: CronState): CronJob[] {
+  const { enabled, scheduleKind, lastStatus, searchText } = state.cronFilter;
+  const searchLower = searchText.toLowerCase().trim();
+
+  return state.cronJobs.filter((job) => {
+    // Filter by enabled/disabled
+    if (enabled !== "all") {
+      if (enabled === "enabled" && !job.enabled) {
+        return false;
+      }
+      if (enabled === "disabled" && job.enabled) {
+        return false;
+      }
+    }
+
+    // Filter by schedule kind
+    if (scheduleKind !== "all") {
+      if (job.schedule.kind !== scheduleKind) {
+        return false;
+      }
+    }
+
+    // Filter by last status
+    if (lastStatus !== "all") {
+      if (job.state?.lastStatus !== lastStatus) {
+        return false;
+      }
+    }
+
+    // Filter by search text (name or jobId)
+    if (searchLower) {
+      const matchesName = job.name.toLowerCase().includes(searchLower);
+      const matchesId = job.id.toLowerCase().includes(searchLower);
+      if (!matchesName && !matchesId) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+export function resetCronFilter(state: CronState) {
+  state.cronFilter = { ...DEFAULT_CRON_FILTER };
 }

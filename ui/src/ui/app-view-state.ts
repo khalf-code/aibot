@@ -1,4 +1,5 @@
 import type { EventLogEntry } from "./app-events.ts";
+import type { CronFilterState } from "./controllers/cron.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
@@ -139,6 +140,7 @@ export type AppViewState = {
   cronRunsJobId: string | null;
   cronRuns: CronRunLogEntry[];
   cronBusy: boolean;
+  cronFilter: CronFilterState;
   skillsLoading: boolean;
   skillsReport: SkillStatusReport | null;
   skillsError: string | null;
@@ -202,6 +204,8 @@ export type AppViewState = {
   handleCronAdd: () => Promise<void>;
   handleCronRunsLoad: (jobId: string) => Promise<void>;
   handleCronFormUpdate: (path: string, value: unknown) => void;
+  handleCronFilterChange: (patch: Partial<CronFilterState>) => void;
+  handleCronFilterReset: () => void;
   handleSessionsLoad: () => Promise<void>;
   handleSessionsPatch: (key: string, patch: unknown) => Promise<void>;
   handleLoadNodes: () => Promise<void>;

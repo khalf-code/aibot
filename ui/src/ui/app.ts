@@ -2,6 +2,7 @@ import { LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import type { EventLogEntry } from "./app-events.ts";
 import type { AppViewState } from "./app-view-state.ts";
+import type { CronFilterState } from "./controllers/cron.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
@@ -77,6 +78,7 @@ import {
 } from "./app-tool-stream.ts";
 import { resolveInjectedAssistantIdentity } from "./assistant-identity.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
+import { DEFAULT_CRON_FILTER } from "./controllers/cron.ts";
 import { loadSettings, type UiSettings } from "./storage.ts";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types.ts";
 
@@ -99,6 +101,36 @@ function resolveOnboardingMode(): boolean {
   }
   const normalized = raw.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function resolveInitialCronFilter(): Partial<CronFilterState> {
+  if (!window.location.search) {
+    return {};
+  }
+  const params = new URLSearchParams(window.location.search);
+  const filter: Partial<CronFilterState> = {};
+
+  const enabled = params.get("cronEnabled");
+  if (enabled === "enabled" || enabled === "disabled") {
+    filter.enabled = enabled;
+  }
+
+  const scheduleKind = params.get("cronScheduleKind");
+  if (scheduleKind === "at" || scheduleKind === "every" || scheduleKind === "cron") {
+    filter.scheduleKind = scheduleKind;
+  }
+
+  const lastStatus = params.get("cronLastStatus");
+  if (lastStatus === "ok" || lastStatus === "error" || lastStatus === "skipped") {
+    filter.lastStatus = lastStatus;
+  }
+
+  const searchText = params.get("cronSearch");
+  if (searchText) {
+    filter.searchText = searchText;
+  }
+
+  return filter;
 }
 
 @customElement("openclaw-app")
@@ -234,6 +266,7 @@ export class OpenClawApp extends LitElement {
   @state() cronRunsJobId: string | null = null;
   @state() cronRuns: CronRunLogEntry[] = [];
   @state() cronBusy = false;
+  @state() cronFilter: CronFilterState = { ...DEFAULT_CRON_FILTER, ...resolveInitialCronFilter() };
 
   @state() skillsLoading = false;
   @state() skillsReport: SkillStatusReport | null = null;
@@ -507,6 +540,64 @@ export class OpenClawApp extends LitElement {
     const newRatio = Math.max(0.4, Math.min(0.7, ratio));
     this.splitRatio = newRatio;
     this.applySettings({ ...this.settings, splitRatio: newRatio });
+  }
+
+  handleCronFilterChange(patch: Partial<CronFilterState>) {
+    this.cronFilter = { ...this.cronFilter, ...patch };
+    // Update URL params
+    const params = new URLSearchParams(window.location.search);
+
+    // Handle enabled filter
+    if (patch.enabled !== undefined) {
+      if (patch.enabled === "all") {
+        params.delete("cronEnabled");
+      } else {
+        params.set("cronEnabled", patch.enabled);
+      }
+    }
+
+    // Handle scheduleKind filter
+    if (patch.scheduleKind !== undefined) {
+      if (patch.scheduleKind === "all") {
+        params.delete("cronScheduleKind");
+      } else {
+        params.set("cronScheduleKind", patch.scheduleKind);
+      }
+    }
+
+    // Handle lastStatus filter
+    if (patch.lastStatus !== undefined) {
+      if (patch.lastStatus === "all") {
+        params.delete("cronLastStatus");
+      } else {
+        params.set("cronLastStatus", patch.lastStatus);
+      }
+    }
+
+    // Handle searchText filter
+    if (patch.searchText !== undefined) {
+      if (!patch.searchText.trim()) {
+        params.delete("cronSearch");
+      } else {
+        params.set("cronSearch", patch.searchText);
+      }
+    }
+
+    // Update URL
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", newUrl);
+  }
+
+  handleCronFilterReset() {
+    this.cronFilter = { ...DEFAULT_CRON_FILTER };
+    // Clear URL params
+    const params = new URLSearchParams(window.location.search);
+    params.delete("cronEnabled");
+    params.delete("cronScheduleKind");
+    params.delete("cronLastStatus");
+    params.delete("cronSearch");
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", newUrl);
   }
 
   render() {

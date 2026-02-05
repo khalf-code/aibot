@@ -25,6 +25,9 @@ import {
   runCronJob,
   removeCronJob,
   addCronJob,
+  getFilteredCronJobs,
+  setCronFilter,
+  resetCronFilter,
 } from "./controllers/cron.ts";
 import { loadDebug, callDebugMethod } from "./controllers/debug.ts";
 import {
@@ -334,7 +337,7 @@ export function renderApp(state: AppViewState) {
             ? renderCron({
                 loading: state.cronLoading,
                 status: state.cronStatus,
-                jobs: state.cronJobs,
+                jobs: getFilteredCronJobs(state),
                 error: state.cronError,
                 busy: state.cronBusy,
                 form: state.cronForm,
@@ -345,6 +348,7 @@ export function renderApp(state: AppViewState) {
                 channelMeta: state.channelsSnapshot?.channelMeta ?? [],
                 runsJobId: state.cronRunsJobId,
                 runs: state.cronRuns,
+                filter: state.cronFilter,
                 onFormChange: (patch) => (state.cronForm = { ...state.cronForm, ...patch }),
                 onRefresh: () => state.loadCron(),
                 onAdd: () => addCronJob(state),
@@ -352,6 +356,8 @@ export function renderApp(state: AppViewState) {
                 onRun: (job) => runCronJob(state, job),
                 onRemove: (job) => removeCronJob(state, job),
                 onLoadRuns: (jobId) => loadCronRuns(state, jobId),
+                onFilterChange: (patch) => setCronFilter(state, patch),
+                onFilterReset: () => resetCronFilter(state),
               })
             : nothing
         }

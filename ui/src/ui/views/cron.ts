@@ -1,4 +1,5 @@
 import { html, nothing } from "lit";
+import type { CronFilterState } from "../controllers/cron.ts";
 import type { ChannelUiMetaEntry, CronJob, CronRunLogEntry, CronStatus } from "../types.ts";
 import type { CronFormState } from "../ui-types.ts";
 import { formatMs } from "../format.ts";
@@ -21,6 +22,7 @@ export type CronProps = {
   channelMeta?: ChannelUiMetaEntry[];
   runsJobId: string | null;
   runs: CronRunLogEntry[];
+  filter: CronFilterState;
   onFormChange: (patch: Partial<CronFormState>) => void;
   onRefresh: () => void;
   onAdd: () => void;
@@ -28,6 +30,8 @@ export type CronProps = {
   onRun: (job: CronJob) => void;
   onRemove: (job: CronJob) => void;
   onLoadRuns: (jobId: string) => void;
+  onFilterChange: (patch: Partial<CronFilterState>) => void;
+  onFilterReset: () => void;
 };
 
 function buildChannelOptions(props: CronProps): string[] {
@@ -55,6 +59,87 @@ function resolveChannelLabel(props: CronProps, channel: string): string {
     return meta.label;
   }
   return props.channelLabels?.[channel] ?? channel;
+}
+
+function renderFilterBar(props: CronProps) {
+  const hasActiveFilters =
+    props.filter.enabled !== "all" ||
+    props.filter.scheduleKind !== "all" ||
+    props.filter.lastStatus !== "all" ||
+    props.filter.searchText.trim() !== "";
+
+  return html`
+    <div class="filter-bar" style="margin-top: 12px; padding: 12px; background: var(--bg-subtle); border-radius: 8px;">
+      <div class="form-grid">
+        <label class="field">
+          <span>Search</span>
+          <input
+            type="text"
+            .value=${props.filter.searchText}
+            placeholder="Name or Job ID..."
+            @input=${(e: Event) =>
+              props.onFilterChange({ searchText: (e.target as HTMLInputElement).value })}
+          />
+        </label>
+        <label class="field">
+          <span>Status</span>
+          <select
+            .value=${props.filter.enabled}
+            @change=${(e: Event) =>
+              props.onFilterChange({
+                enabled: (e.target as HTMLSelectElement).value as CronFilterState["enabled"],
+              })}
+          >
+            <option value="all">All</option>
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Schedule</span>
+          <select
+            .value=${props.filter.scheduleKind}
+            @change=${(e: Event) =>
+              props.onFilterChange({
+                scheduleKind: (e.target as HTMLSelectElement)
+                  .value as CronFilterState["scheduleKind"],
+              })}
+          >
+            <option value="all">All</option>
+            <option value="at">At</option>
+            <option value="every">Every</option>
+            <option value="cron">Cron</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Last run</span>
+          <select
+            .value=${props.filter.lastStatus}
+            @change=${(e: Event) =>
+              props.onFilterChange({
+                lastStatus: (e.target as HTMLSelectElement).value as CronFilterState["lastStatus"],
+              })}
+          >
+            <option value="all">All</option>
+            <option value="ok">OK</option>
+            <option value="error">Error</option>
+            <option value="skipped">Skipped</option>
+          </select>
+        </label>
+        <label class="field" style="display: flex; align-items: flex-end;">
+          <span style="visibility: hidden;">Reset</span>
+          <button
+            class="btn"
+            ?disabled=${!hasActiveFilters}
+            @click=${props.onFilterReset}
+            style="width: 100%;"
+          >
+            Reset
+          </button>
+        </label>
+      </div>
+    </div>
+  `;
 }
 
 export function renderCron(props: CronProps) {
@@ -274,6 +359,7 @@ export function renderCron(props: CronProps) {
     <section class="card" style="margin-top: 18px;">
       <div class="card-title">Jobs</div>
       <div class="card-sub">All scheduled jobs stored in the gateway.</div>
+      ${renderFilterBar(props)}
       ${
         props.jobs.length === 0
           ? html`
