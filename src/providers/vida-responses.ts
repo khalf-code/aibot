@@ -1,10 +1,12 @@
+import type { AssistantMessageEventStream } from "@mariozechner/pi-ai";
 import {
-  AssistantMessageEventStream,
+  createAssistantMessageEventStream,
   getEnvApiKey,
   registerApiProvider,
   supportsXhigh,
 } from "@mariozechner/pi-ai";
-import OpenAI from "openai";
+import { createRequire } from "node:module";
+import path from "node:path";
 import {
   convertResponsesMessages,
   convertResponsesTools,
@@ -38,7 +40,7 @@ export const streamVidaResponses = (
   context: any,
   options?: any,
 ): AssistantMessageEventStream => {
-  const stream = new AssistantMessageEventStream();
+  const stream = createAssistantMessageEventStream();
   (async () => {
     const output: any = {
       role: "assistant",
@@ -59,7 +61,7 @@ export const streamVidaResponses = (
     };
     try {
       const apiKey = options?.apiKey || getEnvApiKey(model.provider) || "";
-      const client = createClient(model, context, apiKey, options?.headers);
+      const client = await createClient(model, context, apiKey, options?.headers);
       const params = buildParams(model, context, options);
       options?.onPayload?.(params);
       const openaiStream = await client.responses.create(
@@ -109,12 +111,12 @@ export const streamSimpleVidaResponses = (
   });
 };
 
-function createClient(
+async function createClient(
   model: any,
   context: any,
   apiKey: string,
   optionsHeaders?: Record<string, string>,
-): OpenAI {
+): Promise<any> {
   if (!apiKey) {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error(
@@ -146,12 +148,26 @@ function createClient(
   if (optionsHeaders) {
     Object.assign(headers, optionsHeaders);
   }
+  const OpenAI = await loadOpenAIClient();
   return new OpenAI({
     apiKey,
     baseURL: model.baseUrl,
     dangerouslyAllowBrowser: true,
     defaultHeaders: headers,
   });
+}
+
+async function loadOpenAIClient(): Promise<any> {
+  const require = createRequire(import.meta.url);
+  let resolved: string;
+  try {
+    resolved = require.resolve("openai");
+  } catch {
+    const piAiRoot = path.dirname(require.resolve("@mariozechner/pi-ai/package.json"));
+    resolved = require.resolve("openai", { paths: [piAiRoot] });
+  }
+  const mod = await import(resolved);
+  return mod.default ?? mod;
 }
 
 function buildParams(model: any, context: any, options?: any): any {
