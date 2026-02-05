@@ -14,6 +14,7 @@ import {
 import { resolveToolProfilePolicy } from "../agents/tool-policy.js";
 import { resolveBrowserConfig } from "../browser/config.js";
 import { formatCliCommand } from "../cli/command-format.js";
+import { MANIFEST_KEY } from "../compat/legacy-names.js";
 import { resolveNativeSkillsEnabled } from "../config/commands.js";
 import { createConfigIO } from "../config/config.js";
 import { INCLUDE_KEY, MAX_INCLUDE_DEPTH } from "../config/includes.js";
@@ -1064,6 +1065,39 @@ export async function readConfigSnapshotForAudit(params: {
   }).readConfigFileSnapshot();
 }
 
+function isPathInside(basePath: string, candidatePath: string): boolean {
+  const base = path.resolve(basePath);
+  const candidate = path.resolve(candidatePath);
+  const rel = path.relative(base, candidate);
+  return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+}
+
+function extensionUsesSkippedScannerPath(entry: string): boolean {
+  const segments = entry.split(/[\\/]+/).filter(Boolean);
+  return segments.some(
+    (segment) =>
+      segment === "node_modules" ||
+      (segment.startsWith(".") && segment !== "." && segment !== ".."),
+  );
+}
+
+async function readPluginManifestExtensions(pluginPath: string): Promise<string[]> {
+  const manifestPath = path.join(pluginPath, "package.json");
+  const raw = await fs.readFile(manifestPath, "utf-8").catch(() => "");
+  if (!raw.trim()) {
+    return [];
+  }
+
+  const parsed = JSON.parse(raw) as Partial<
+    Record<typeof MANIFEST_KEY, { extensions?: unknown }>
+  > | null;
+  const extensions = parsed?.[MANIFEST_KEY]?.extensions;
+  if (!Array.isArray(extensions)) {
+    return [];
+  }
+  return extensions.map((entry) => (typeof entry === "string" ? entry.trim() : "")).filter(Boolean);
+}
+
 export async function collectSkillCodeSafetyFindings(params: {
   stateDir: string;
 }): Promise<SecurityAuditFinding[]> {
@@ -1079,7 +1113,55 @@ export async function collectSkillCodeSafetyFindings(params: {
 
   for (const pluginName of pluginDirs) {
     const pluginPath = path.join(extensionsDir, pluginName);
-    const summary = await scanDirectoryWithSummary(pluginPath);
+    const extensionEntries = await readPluginManifestExtensions(pluginPath).catch(() => []);
+    const forcedScanEntries: string[] = [];
+    const escapedEntries: string[] = [];
+
+    for (const entry of extensionEntries) {
+      const resolvedEntry = path.resolve(pluginPath, entry);
+      if (!isPathInside(pluginPath, resolvedEntry)) {
+        escapedEntries.push(entry);
+        continue;
+      }
+      if (extensionUsesSkippedScannerPath(entry)) {
+        findings.push({
+          checkId: "plugins.code_safety.entry_path",
+          severity: "warn",
+          title: `Plugin "${pluginName}" entry path is hidden or node_modules`,
+          detail: `Extension entry "${entry}" points to a hidden or node_modules path. Deep code scan will cover this entry explicitly, but review this path choice carefully.`,
+          remediation: "Prefer extension entrypoints under normal source paths like dist/ or src/.",
+        });
+      }
+      forcedScanEntries.push(resolvedEntry);
+    }
+
+    if (escapedEntries.length > 0) {
+      findings.push({
+        checkId: "plugins.code_safety.entry_escape",
+        severity: "critical",
+        title: `Plugin "${pluginName}" has extension entry path traversal`,
+        detail: `Found extension entries that escape the plugin directory:\n${escapedEntries.map((entry) => `  - ${entry}`).join("\n")}`,
+        remediation:
+          "Update the plugin manifest so all openclaw.extensions entries stay inside the plugin directory.",
+      });
+    }
+
+    const summary = await scanDirectoryWithSummary(pluginPath, {
+      includeFiles: forcedScanEntries,
+    }).catch((err) => {
+      findings.push({
+        checkId: "plugins.code_safety.scan_failed",
+        severity: "warn",
+        title: `Plugin "${pluginName}" code scan failed`,
+        detail: `Static code scan could not complete: ${String(err)}`,
+        remediation:
+          "Check file permissions and plugin layout, then rerun `openclaw security audit --deep`.",
+      });
+      return null;
+    });
+    if (!summary) {
+      continue;
+    }
 
     if (summary.critical > 0) {
       const criticalFindings = summary.findings.filter((f) => f.severity === "critical");
