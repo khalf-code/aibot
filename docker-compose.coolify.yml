@@ -49,9 +49,41 @@ services:
                 }
               }
             }
+          },
+          "mcp": {
+            "enabled": true,
+            "credentials": {
+              "mongoUrl": "${MONGODB_URL}",
+              "database": "openclaw_mcp",
+              "collection": "tenant_credentials"
+            },
+            "servers": {
+              "bigquery": {
+                "url": "${BIGQUERY_MCP_URL}"
+              },
+              "qdrant": {
+                "url": "${QDRANT_MCP_URL}"
+              },
+              "hubspot": {
+                "clientId": "${HUBSPOT_CLIENT_ID}",
+                "clientSecret": "${HUBSPOT_CLIENT_SECRET}"
+              }
+            },
+            "isolationLevel": "organization",
+            "intelligentDiscovery": {
+              "enabled": true,
+              "maxTools": 10
+            },
+            "toolTimeoutMs": 60000
           }
         }
         EOF
+        # Substitute environment variables in the config
+        sed -i "s|\${MONGODB_URL}|${MONGODB_URL}|g" /home/node/.openclaw/openclaw.json
+        sed -i "s|\${BIGQUERY_MCP_URL}|${BIGQUERY_MCP_URL}|g" /home/node/.openclaw/openclaw.json
+        sed -i "s|\${QDRANT_MCP_URL}|${QDRANT_MCP_URL}|g" /home/node/.openclaw/openclaw.json
+        sed -i "s|\${HUBSPOT_CLIENT_ID}|${HUBSPOT_CLIENT_ID}|g" /home/node/.openclaw/openclaw.json
+        sed -i "s|\${HUBSPOT_CLIENT_SECRET}|${HUBSPOT_CLIENT_SECRET}|g" /home/node/.openclaw/openclaw.json
         exec node dist/index.js gateway --allow-unconfigured --bind lan
     environment:
       - NODE_ENV=production
