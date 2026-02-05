@@ -126,7 +126,11 @@ export function toToolDefinitions(tools: AnyAgentTool[]): ToolDefinition[] {
 // These tools are intercepted to return a "pending" result instead of executing
 export function toClientToolDefinitions(
   tools: ClientToolDefinition[],
-  onClientToolCall?: (toolName: string, params: Record<string, unknown>) => void,
+  onClientToolCall?: (
+    toolName: string,
+    params: Record<string, unknown>,
+    toolCallId: string,
+  ) => void,
   hookContext?: { agentId?: string; sessionKey?: string },
 ): ToolDefinition[] {
   return tools.map((tool) => {
@@ -169,7 +173,7 @@ export function toClientToolDefinitions(
         const paramsRecord = isPlainObject(adjustedParams) ? adjustedParams : {};
         // Notify handler that a client tool was called
         if (onClientToolCall) {
-          onClientToolCall(func.name, paramsRecord);
+          onClientToolCall(func.name, paramsRecord, hookToolCallId);
         }
         // Return a pending result - the client will execute this tool
         const result = jsonResult({

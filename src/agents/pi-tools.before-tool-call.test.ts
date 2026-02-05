@@ -145,9 +145,13 @@ describe("before_tool_call hook integration for client tools", () => {
 
     await tool.execute("client-call-1", { value: "ok" }, undefined, undefined, undefined);
 
-    expect(onClientToolCall).toHaveBeenCalledWith("client_tool", {
-      value: "ok",
-      extra: true,
-    });
+    expect(onClientToolCall).toHaveBeenCalledWith(
+      "client_tool",
+      {
+        value: "ok",
+        extra: true,
+      },
+      "client-call-1",
+    );
   });
 });

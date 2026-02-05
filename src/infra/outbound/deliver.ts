@@ -399,6 +399,7 @@ export async function deliverOutboundPayloads(params: {
       mediaUrls: payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []),
       channelData: payload.channelData,
     };
+    let attemptedSendContent = payloadSummary.text;
     try {
       throwIfAborted(abortSignal);
       const hookResult = await runMessageSendingHook(payloadSummary.text);
@@ -428,6 +429,7 @@ export async function deliverOutboundPayloads(params: {
       for (const url of payloadSummary.mediaUrls) {
         throwIfAborted(abortSignal);
         const caption = first ? payloadSummary.text : "";
+        attemptedSendContent = caption;
         first = false;
         if (isSignalChannel) {
           results.push(await sendSignalMedia(caption, url));
@@ -439,7 +441,7 @@ export async function deliverOutboundPayloads(params: {
       }
     } catch (err) {
       await runMessageSentHook(
-        payloadSummary.text,
+        attemptedSendContent,
         false,
         err instanceof Error ? err.message : String(err),
       );
