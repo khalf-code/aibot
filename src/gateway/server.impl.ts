@@ -405,9 +405,9 @@ export async function startGatewayServer(
       }
 
       const runtime = channelRuntimeEnvs[channelId];
-      if (runtime && (runtime as any).channel && (runtime as any).channel.spixi) {
+      if (runtime && (runtime as unknown).channel && (runtime as unknown).channel.spixi) {
         // Fallback for runtime attached capabilities
-        await (runtime as any).channel.spixi.sendMessage(to, text);
+        await (runtime as unknown).channel.spixi.sendMessage(to, text);
       } else {
         log.warn(`[${channelId}:${accountId}] No outbound.sendText capability found`);
       }

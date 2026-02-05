@@ -25,15 +25,15 @@ export const getSpixiRuntime = () => {
   if (!runtime) {
     // Fallback if runtime not yet set (e.g. tests or early init)
     // Create a dummy runtime and attach spixi methods
-    runtime = {} as any;
+    runtime = {} as unknown;
   }
 
   // Ensure channel.spixi exists on the runtime
   if (!runtime.channel) {
-    (runtime as any).channel = {};
+    (runtime as unknown).channel = {};
   }
 
-  if (!(runtime.channel as any).spixi) {
+  if (!(runtime.channel as unknown).spixi) {
     const spixiMethods = {
       sendMessage: async (to: string, text: string, opts?: { baseUrl?: string }) => {
         const baseUrl = opts?.baseUrl || defaultBaseUrl;
@@ -104,7 +104,7 @@ export const getSpixiRuntime = () => {
       }
     };
 
-    (runtime.channel as any).spixi = spixiMethods;
+    (runtime.channel as unknown).spixi = spixiMethods;
   }
 
   return runtime;

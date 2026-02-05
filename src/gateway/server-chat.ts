@@ -459,7 +459,7 @@ function appendTranscriptMessage(params: {
   storePath: string | undefined;
   sessionFile?: string;
 }): { ok: boolean; message?: Record<string, unknown>; error?: string } {
-  if (!params.storePath) return { ok: false, error: "store path missing" };
+  if (!params.storePath) {return { ok: false, error: "store path missing" };}
 
   const transcriptPath = params.sessionFile
     ? params.sessionFile
@@ -467,7 +467,7 @@ function appendTranscriptMessage(params: {
 
   if (!fs.existsSync(transcriptPath)) {
     const ensured = ensureTranscriptFile({ transcriptPath, sessionId: params.sessionId });
-    if (!ensured.ok) return { ok: false, error: ensured.error };
+    if (!ensured.ok) {return { ok: false, error: ensured.error }};
   }
 
   const now = Date.now();
@@ -568,7 +568,7 @@ export function createChannelMessageHandler(deps: {
           entry.lastChannel = channelId;
           entry.lastTo = msg.from;
           // Only force allow if config option is set
-          if (forceAllow && (!entry.sendPolicy || (entry.sendPolicy as any) === "auto")) {
+          if (forceAllow && (!entry.sendPolicy || (entry.sendPolicy as unknown) === "auto")) {
             entry.sendPolicy = "allow";
           }
         }
@@ -630,9 +630,9 @@ export function createChannelMessageHandler(deps: {
         deps.log.warn(`[${channelId}] dispatch failed: ${formatForLog(err)}`);
       },
       deliver: async (payload, info) => {
-        if (info.kind !== "final") return;
+        if (info.kind !== "final") { return; }
         const text = payload.text?.trim() ?? "";
-        if (text) finalReplyParts.push(text);
+        if (text) { finalReplyParts.push(text); }
       },
     });
 

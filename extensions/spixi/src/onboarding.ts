@@ -26,7 +26,7 @@ const dmPolicy: ChannelOnboardingDmPolicy = {
     channel,
     policyKey: "channels.spixi.dmPolicy",
     allowFromKey: "channels.spixi.allowFrom",
-    getCurrent: (cfg) => (cfg.channels?.spixi as any)?.dmPolicy ?? "pairing",
+    getCurrent: (cfg) => (cfg.channels?.spixi as unknown)?.dmPolicy ?? "pairing",
     setPolicy: (cfg, policy) => setSpixiDmPolicy(cfg, policy),
 };
 
@@ -75,7 +75,7 @@ export const spixiOnboardingAdapter: ChannelOnboardingAdapter = {
             await prompter.text({
                 message: "MQTT broker hostname",
                 placeholder: "127.0.0.1",
-                initialValue: (cfg.channels?.spixi as any)?.mqttHost ?? "127.0.0.1",
+                initialValue: (cfg.channels?.spixi as unknown)?.mqttHost ?? "127.0.0.1",
             })
         ).trim();
 
@@ -83,7 +83,7 @@ export const spixiOnboardingAdapter: ChannelOnboardingAdapter = {
             await prompter.text({
                 message: "MQTT broker port",
                 placeholder: "1883",
-                initialValue: String((cfg.channels?.spixi as any)?.mqttPort ?? 1883),
+                initialValue: String((cfg.channels?.spixi as unknown)?.mqttPort ?? 1883),
                 validate: (value) => {
                     const num = Number(value);
                     if (!Number.isFinite(num) || num <= 0 || num > 65535) {
@@ -99,7 +99,7 @@ export const spixiOnboardingAdapter: ChannelOnboardingAdapter = {
             await prompter.text({
                 message: "QuIXI API URL",
                 placeholder: "http://localhost:8001",
-                initialValue: (cfg.channels?.spixi as any)?.quixiApiUrl ?? "http://localhost:8001",
+                initialValue: (cfg.channels?.spixi as unknown)?.quixiApiUrl ?? "http://localhost:8001",
             })
         ).trim();
 
@@ -107,7 +107,7 @@ export const spixiOnboardingAdapter: ChannelOnboardingAdapter = {
             await prompter.text({
                 message: "Your Ixian wallet address (to filter self-messages)",
                 placeholder: "Leave blank to skip",
-                initialValue: (cfg.channels?.spixi as any)?.myWalletAddress ?? "",
+                initialValue: (cfg.channels?.spixi as unknown)?.myWalletAddress ?? "",
             })
         ).trim();
 
