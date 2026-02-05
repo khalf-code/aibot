@@ -19,6 +19,13 @@ let setupResult: {
   accountId?: string;
 } | null = null;
 
+// Cached setup response (so repeated calls don't destroy the running agent)
+let cachedSetupResponse: {
+  inviteUrl: string;
+  conversationId: string;
+  qrDataUrl: string;
+} | null = null;
+
 async function cleanupSetupAgent() {
   if (setupCleanupTimer) {
     clearTimeout(setupCleanupTimer);
@@ -32,6 +39,7 @@ async function cleanupSetupAgent() {
     }
     setupAgent = null;
   }
+  cachedSetupResponse = null;
 }
 
 // --- Core handlers shared by WebSocket gateway methods and HTTP routes ---
@@ -40,9 +48,18 @@ async function handleSetup(params: {
   accountId?: string;
   env?: "production" | "dev";
   name?: string;
+  force?: boolean;
 }) {
+  // If a setup agent is already running and we have a cached response, return it
+  // (prevents repeated calls from destroying the listening agent)
+  if (!params.force && setupAgent?.isRunning() && cachedSetupResponse) {
+    console.log("[convos-setup] Returning cached setup (agent already running)");
+    return cachedSetupResponse;
+  }
+
   await cleanupSetupAgent();
   setupJoinState = { joined: false, joinerInboxId: null };
+  cachedSetupResponse = null;
 
   const result = await setupConvosWithInvite({
     accountId: params.accountId,
@@ -80,11 +97,13 @@ async function handleSetup(params: {
 
   const qrBase64 = await renderQrPngBase64(result.inviteUrl);
 
-  return {
+  cachedSetupResponse = {
     inviteUrl: result.inviteUrl,
     conversationId: result.conversationId,
     qrDataUrl: `data:image/png;base64,${qrBase64}`,
   };
+
+  return cachedSetupResponse;
 }
 
 function handleStatus() {
@@ -166,6 +185,7 @@ const plugin = {
           accountId: typeof p.accountId === "string" ? p.accountId : undefined,
           env: typeof p.env === "string" ? (p.env as "production" | "dev") : undefined,
           name: typeof p.name === "string" ? p.name : undefined,
+          force: p.force === true,
         });
         respond(true, result, undefined);
       } catch (err) {
@@ -198,12 +218,17 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/setup",
       handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
         try {
           const body = await readJsonBody(req);
           const result = await handleSetup({
             accountId: typeof body.accountId === "string" ? body.accountId : undefined,
             env: typeof body.env === "string" ? (body.env as "production" | "dev") : undefined,
             name: typeof body.name === "string" ? body.name : undefined,
+            force: body.force === true,
           });
           jsonResponse(res, 200, result);
         } catch (err) {
@@ -215,14 +240,22 @@ const plugin = {
 
     api.registerHttpRoute({
       path: "/convos/setup/status",
-      handler: async (_req, res) => {
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
         jsonResponse(res, 200, handleStatus());
       },
     });
 
     api.registerHttpRoute({
       path: "/convos/setup/complete",
-      handler: async (_req, res) => {
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
         try {
           const result = await handleComplete();
           jsonResponse(res, 200, result);
