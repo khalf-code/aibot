@@ -34,17 +34,28 @@ const formatLine = (label: string, value: string) => {
  * Safely writes to stdout, preventing EPIPE errors when the consumer has disconnected.
  * During rapid restarts (e.g., SIGUSR1 config reloads), the stdout pipe may be closed
  * before the write completes, causing uncaught exceptions.
+ *
+ * Handles both synchronous throws and asynchronous error events from stream.write().
  */
 function safeWriteToStdout(stream: NodeJS.WritableStream, data: string): void {
-  if (!stream.writable) {
+  // Check if stream is writable and not already closed/destroyed
+  if (!stream.writable || stream.destroyed) {
     return;
   }
+
   try {
-    stream.write(data);
+    // Use callback form to catch async errors
+    stream.write(data, (err) => {
+      // Silently ignore write errors - the consumer is gone but the operation
+      // (restart/stop/install) has already succeeded. Logging would require
+      // another write, creating recursion risk.
+      if (err) {
+        // EPIPE, ECONNRESET, etc. - ignore
+      }
+    });
   } catch {
-    // Silently ignore EPIPE and other write errors - the consumer is gone but the
-    // operation (restart/stop/install) has already succeeded. Logging would require
-    // another write, creating recursion risk.
+    // Catch synchronous errors (e.g., if write() throws immediately)
+    // Silently ignore - same reasoning as above
   }
 }
 
