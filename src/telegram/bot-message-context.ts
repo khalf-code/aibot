@@ -309,23 +309,9 @@ export const buildTelegramMessageContext = async ({
       senderId,
       senderUsername,
     });
-    // For groups with explicit allowlist override: distinguish between
-    // group allowlist (which groups are enabled) vs sender allowlist (who can send)
-    // If the group chat ID itself is in the allowlist, accept any member message.
-    // Otherwise, enforce sender allowlist (original behavior).
-    const isGroupChatIdInAllowlist =
-      effectiveGroupAllow.hasWildcard ||
-      (effectiveGroupAllow.hasEntries &&
-        String(chatId) &&
-        effectiveGroupAllow.entries.includes(String(chatId)));
-
-    // Only reject if:
-    // 1. Sender is NOT allowed, AND
-    // 2. Group chat ID is NOT in the allowlist
-    // This fixes issue #4559: groups listed in allowFrom now work as intended
-    if (!allowed && !isGroupChatIdInAllowlist) {
+    if (!allowed) {
       logVerbose(
-        `Blocked telegram group sender ${senderId || "unknown"} (group allowFrom override, group not in allowlist)`,
+        `Blocked telegram group sender ${senderId || "unknown"} (group allowFrom override)`,
       );
       return null;
     }
