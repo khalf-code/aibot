@@ -135,7 +135,7 @@ describe("resolveModel", () => {
     expect(result.model?.id).toBe("missing-model");
   });
 
-  it("builds an openai-codex fallback for forward-compatible gpt-5 model ids", () => {
+  it("builds an openai-codex fallback for gpt-5.3-codex", () => {
     const templateModel = {
       id: "gpt-5.2-codex",
       name: "GPT-5.2 Codex",
@@ -172,7 +172,7 @@ describe("resolveModel", () => {
     });
   });
 
-  it("keeps unknown-model errors for non-forward-compatible openai-codex ids", () => {
+  it("keeps unknown-model errors for non-gpt-5 openai-codex ids", () => {
     const result = resolveModel("openai-codex", "gpt-4.1-mini", "/tmp/agent");
     expect(result.model).toBeUndefined();
     expect(result.error).toBe("Unknown model: openai-codex/gpt-4.1-mini");

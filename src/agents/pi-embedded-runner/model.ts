@@ -19,26 +19,21 @@ type InlineProviderConfig = {
   models?: ModelDefinitionConfig[];
 };
 
-const OPENAI_CODEX_FORWARD_COMPAT_MODEL_ID = /^gpt-5(?:\.\d+)?(?:-codex(?:-(?:mini|max))?)?$/i;
+const OPENAI_CODEX_GPT_53_MODEL_ID = "gpt-5.3-codex";
 
-const OPENAI_CODEX_TEMPLATE_MODEL_IDS = [
-  "gpt-5.2-codex",
-  "gpt-5.2",
-  "gpt-5.1-codex-max",
-  "gpt-5.1",
-] as const;
+const OPENAI_CODEX_TEMPLATE_MODEL_IDS = ["gpt-5.2-codex"] as const;
 
-function resolveOpenAICodexForwardCompatModel(
+function resolveOpenAICodexGpt53FallbackModel(
   provider: string,
   modelId: string,
   modelRegistry: ModelRegistry,
 ): Model<Api> | undefined {
   const normalizedProvider = normalizeProviderId(provider);
   const trimmedModelId = modelId.trim();
-  if (
-    normalizedProvider !== "openai-codex" ||
-    !OPENAI_CODEX_FORWARD_COMPAT_MODEL_ID.test(trimmedModelId)
-  ) {
+  if (normalizedProvider !== "openai-codex") {
+    return undefined;
+  }
+  if (trimmedModelId.toLowerCase() !== OPENAI_CODEX_GPT_53_MODEL_ID) {
     return undefined;
   }
 
@@ -150,7 +145,7 @@ export function resolveModel(
       } as Model<Api>);
       return { model: fallbackModel, authStorage, modelRegistry };
     }
-    const codexForwardCompat = resolveOpenAICodexForwardCompatModel(
+    const codexForwardCompat = resolveOpenAICodexGpt53FallbackModel(
       provider,
       modelId,
       modelRegistry,
