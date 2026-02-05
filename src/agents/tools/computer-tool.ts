@@ -563,20 +563,27 @@ public static class Dpi {
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
-public static class Mouse {
-  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
-  [DllImport("user32.dll")] public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
-}
-'@
 
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public static class Keyboard {
+public static class InputApi {
+  public const int INPUT_MOUSE = 0;
   public const int INPUT_KEYBOARD = 1;
+
   public const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
   public const uint KEYEVENTF_KEYUP = 0x0002;
   public const uint KEYEVENTF_UNICODE = 0x0004;
+
+  public const uint MOUSEEVENTF_MOVE = 0x0001;
+  public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+  public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+  public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+  public const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+  public const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+  public const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
+  public const uint MOUSEEVENTF_WHEEL = 0x0800;
+  public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+
+  public const int SM_CXSCREEN = 0;
+  public const int SM_CYSCREEN = 1;
 
   [StructLayout(LayoutKind.Sequential)]
   public struct INPUT {
@@ -587,7 +594,20 @@ public static class Keyboard {
   [StructLayout(LayoutKind.Explicit)]
   public struct InputUnion {
     [FieldOffset(0)]
+    public MOUSEINPUT mi;
+
+    [FieldOffset(0)]
     public KEYBDINPUT ki;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct MOUSEINPUT {
+    public int dx;
+    public int dy;
+    public uint mouseData;
+    public uint dwFlags;
+    public uint time;
+    public IntPtr dwExtraInfo;
   }
 
   [StructLayout(LayoutKind.Sequential)]
@@ -602,7 +622,10 @@ public static class Keyboard {
   [DllImport("user32.dll", SetLastError = true)]
   public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
-  private static INPUT MakeKey(ushort vk, ushort scan, uint flags) {
+  [DllImport("user32.dll")]
+  public static extern int GetSystemMetrics(int nIndex);
+
+  public static INPUT MakeKey(ushort vk, ushort scan, uint flags) {
     var input = new INPUT();
     input.type = INPUT_KEYBOARD;
     input.U = new InputUnion();
@@ -615,16 +638,55 @@ public static class Keyboard {
     return input;
   }
 
-  public static void KeyDown(ushort vk, bool extended) {
-    uint flags = extended ? KEYEVENTF_EXTENDEDKEY : 0;
-    INPUT[] inputs = new INPUT[] { MakeKey(vk, 0, flags) };
+  public static INPUT MakeMouse(int dx, int dy, uint mouseData, uint flags) {
+    var input = new INPUT();
+    input.type = INPUT_MOUSE;
+    input.U = new InputUnion();
+    input.U.mi = new MOUSEINPUT();
+    input.U.mi.dx = dx;
+    input.U.mi.dy = dy;
+    input.U.mi.mouseData = mouseData;
+    input.U.mi.dwFlags = flags;
+    input.U.mi.time = 0;
+    input.U.mi.dwExtraInfo = IntPtr.Zero;
+    return input;
+  }
+
+  public static void Send(INPUT[] inputs) {
     SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
   }
 
+  public static int Clamp(int value, int min, int max) {
+    if (value < min) {
+      return min;
+    }
+    if (value > max) {
+      return max;
+    }
+    return value;
+  }
+
+  public static int ToAbsoluteCoord(int px, int span) {
+    if (span <= 1) {
+      return 0;
+    }
+    double scaled = (double)px * 65535.0 / (double)(span - 1);
+    int rounded = (int)Math.Round(scaled);
+    return Clamp(rounded, 0, 65535);
+  }
+}
+
+public static class Keyboard {
+  public static void KeyDown(ushort vk, bool extended) {
+    uint flags = extended ? InputApi.KEYEVENTF_EXTENDEDKEY : 0;
+    InputApi.INPUT[] inputs = new InputApi.INPUT[] { InputApi.MakeKey(vk, 0, flags) };
+    InputApi.Send(inputs);
+  }
+
   public static void KeyUp(ushort vk, bool extended) {
-    uint flags = KEYEVENTF_KEYUP | (extended ? KEYEVENTF_EXTENDEDKEY : 0);
-    INPUT[] inputs = new INPUT[] { MakeKey(vk, 0, flags) };
-    SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+    uint flags = InputApi.KEYEVENTF_KEYUP | (extended ? InputApi.KEYEVENTF_EXTENDEDKEY : 0);
+    InputApi.INPUT[] inputs = new InputApi.INPUT[] { InputApi.MakeKey(vk, 0, flags) };
+    InputApi.Send(inputs);
   }
 
   public static void KeyPress(ushort vk, bool extended) {
@@ -637,10 +699,10 @@ public static class Keyboard {
       return;
     }
     foreach (var ch in text) {
-      INPUT down = MakeKey(0, (ushort)ch, KEYEVENTF_UNICODE);
-      INPUT up = MakeKey(0, (ushort)ch, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP);
-      INPUT[] inputs = new INPUT[] { down, up };
-      SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+      InputApi.INPUT down = InputApi.MakeKey(0, (ushort)ch, InputApi.KEYEVENTF_UNICODE);
+      InputApi.INPUT up = InputApi.MakeKey(0, (ushort)ch, InputApi.KEYEVENTF_UNICODE | InputApi.KEYEVENTF_KEYUP);
+      InputApi.INPUT[] inputs = new InputApi.INPUT[] { down, up };
+      InputApi.Send(inputs);
     }
   }
 
@@ -664,6 +726,64 @@ public static class Keyboard {
     if (ctrl) {
       KeyUp(0x11, false);
     }
+  }
+}
+
+public static class MouseInput {
+  public static void MoveTo(int x, int y) {
+    int width = InputApi.GetSystemMetrics(InputApi.SM_CXSCREEN);
+    int height = InputApi.GetSystemMetrics(InputApi.SM_CYSCREEN);
+    int absX = InputApi.ToAbsoluteCoord(x, width);
+    int absY = InputApi.ToAbsoluteCoord(y, height);
+    InputApi.INPUT move = InputApi.MakeMouse(absX, absY, 0, InputApi.MOUSEEVENTF_MOVE | InputApi.MOUSEEVENTF_ABSOLUTE);
+    InputApi.Send(new InputApi.INPUT[] { move });
+  }
+
+  static uint ResolveDownFlag(string button) {
+    string b = (button ?? "left").ToLowerInvariant();
+    if (b == "right") {
+      return InputApi.MOUSEEVENTF_RIGHTDOWN;
+    }
+    if (b == "middle") {
+      return InputApi.MOUSEEVENTF_MIDDLEDOWN;
+    }
+    return InputApi.MOUSEEVENTF_LEFTDOWN;
+  }
+
+  static uint ResolveUpFlag(string button) {
+    string b = (button ?? "left").ToLowerInvariant();
+    if (b == "right") {
+      return InputApi.MOUSEEVENTF_RIGHTUP;
+    }
+    if (b == "middle") {
+      return InputApi.MOUSEEVENTF_MIDDLEUP;
+    }
+    return InputApi.MOUSEEVENTF_LEFTUP;
+  }
+
+  public static void ButtonDown(string button) {
+    uint down = ResolveDownFlag(button);
+    InputApi.Send(new InputApi.INPUT[] { InputApi.MakeMouse(0, 0, 0, down) });
+  }
+
+  public static void ButtonUp(string button) {
+    uint up = ResolveUpFlag(button);
+    InputApi.Send(new InputApi.INPUT[] { InputApi.MakeMouse(0, 0, 0, up) });
+  }
+
+  public static void Click(string button, int clicks) {
+    int count = clicks < 1 ? 1 : clicks;
+    uint down = ResolveDownFlag(button);
+    uint up = ResolveUpFlag(button);
+    for (int i = 0; i < count; i++) {
+      InputApi.Send(new InputApi.INPUT[] { InputApi.MakeMouse(0, 0, 0, down), InputApi.MakeMouse(0, 0, 0, up) });
+      System.Threading.Thread.Sleep(60);
+    }
+  }
+
+  public static void Wheel(int delta) {
+    uint data = unchecked((uint)delta);
+    InputApi.Send(new InputApi.INPUT[] { InputApi.MakeMouse(0, 0, data, InputApi.MOUSEEVENTF_WHEEL) });
   }
 }
 '@
@@ -735,11 +855,11 @@ function Resolve-Key([string]$keyToken) {
 
 switch ('${action}') {
   'move' {
-    [void][Mouse]::SetCursorPos([int]$args.x, [int]$args.y)
+    [MouseInput]::MoveTo([int]$args.x, [int]$args.y)
     Sleep-IfNeeded
   }
   'click' {
-    [void][Mouse]::SetCursorPos([int]$args.x, [int]$args.y)
+    [MouseInput]::MoveTo([int]$args.x, [int]$args.y)
 
     $button = 'left'
     if ($args.PSObject.Properties.Name -contains 'button') { $button = [string]$args.button }
@@ -747,33 +867,24 @@ switch ('${action}') {
     if ($args.PSObject.Properties.Name -contains 'clicks') { $clicks = [int]$args.clicks }
     if ($clicks -lt 1) { $clicks = 1 }
 
-    $down = 0x0002
-    $up = 0x0004
-    if ($button -eq 'right') { $down = 0x0008; $up = 0x0010 }
-    if ($button -eq 'middle') { $down = 0x0020; $up = 0x0040 }
-
-    1..$clicks | ForEach-Object {
-      [Mouse]::mouse_event($down, 0, 0, 0, 0)
-      [Mouse]::mouse_event($up, 0, 0, 0, 0)
-      Start-Sleep -Milliseconds 60
-    }
+    [MouseInput]::Click($button, $clicks)
     Sleep-IfNeeded
   }
   'scroll' {
     if ($args.PSObject.Properties.Name -contains 'x' -and $args.PSObject.Properties.Name -contains 'y') {
-      [void][Mouse]::SetCursorPos([int]$args.x, [int]$args.y)
+      [MouseInput]::MoveTo([int]$args.x, [int]$args.y)
     }
     $delta = [int]$args.deltaY
-    [Mouse]::mouse_event(0x0800, 0, 0, $delta, 0)
+    [MouseInput]::Wheel($delta)
     Sleep-IfNeeded
   }
   'drag' {
-    [void][Mouse]::SetCursorPos([int]$args.x, [int]$args.y)
-    [Mouse]::mouse_event(0x0002, 0, 0, 0, 0)
+    [MouseInput]::MoveTo([int]$args.x, [int]$args.y)
+    [MouseInput]::ButtonDown('left')
     Start-Sleep -Milliseconds 50
-    [void][Mouse]::SetCursorPos([int]$args.x2, [int]$args.y2)
+    [MouseInput]::MoveTo([int]$args.x2, [int]$args.y2)
     Start-Sleep -Milliseconds 50
-    [Mouse]::mouse_event(0x0004, 0, 0, 0, 0)
+    [MouseInput]::ButtonUp('left')
     Sleep-IfNeeded
   }
   'type' {
