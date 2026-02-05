@@ -434,6 +434,12 @@ export class DefaultTurnExecutor implements TurnExecutor {
           execOverrides: hints?.execOverrides as RunEmbeddedPiAgentParams["execOverrides"],
           bashElevated: hints?.bashElevated as RunEmbeddedPiAgentParams["bashElevated"],
           toolResultFormat: hints?.toolResultFormat as RunEmbeddedPiAgentParams["toolResultFormat"],
+          // Cron/followup-specific params
+          lane: hints?.lane,
+          requireExplicitMessageTarget: hints?.requireExplicitMessageTarget,
+          disableMessageTool: hints?.disableMessageTool,
+          disableTools: hints?.disableTools,
+          agentAccountId: hints?.agentAccountId ?? request.messageContext?.accountId,
           // Threading context
           currentChannelId: hints?.currentChannelId,
           currentThreadTs: hints?.currentThreadTs,

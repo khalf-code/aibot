@@ -273,6 +273,16 @@ export interface ExecutionRequest {
     currentThreadTs?: string;
     /** Reply-to mode for Slack auto-threading. */
     replyToMode?: "off" | "first" | "all";
+    /** Execution lane label (e.g. "cron"). */
+    lane?: string;
+    /** Require explicit message target for messaging tool. */
+    requireExplicitMessageTarget?: boolean;
+    /** Disable messaging tool entirely. */
+    disableMessageTool?: boolean;
+    /** Disable all tools (planner mode). */
+    disableTools?: boolean;
+    /** Agent account ID for multi-account channels. */
+    agentAccountId?: string;
   };
 }
 

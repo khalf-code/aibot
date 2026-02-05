@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { TypingMode } from "../../config/types.js";
+import type { ExecutionRequest, ExecutionResult } from "../../execution/types.js";
 import type { OriginatingChannelType } from "../templating.js";
 import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import type { FollowupRun } from "./queue.js";
@@ -14,6 +15,8 @@ import {
 import { runWithModelFallback } from "../../agents/model-fallback.js";
 import { runEmbeddedPiAgent } from "../../agents/pi-embedded.js";
 import { resolveAgentIdFromSessionKey, type SessionEntry } from "../../config/sessions.js";
+import { useNewExecutionLayer } from "../../execution/feature-flag.js";
+import { createDefaultExecutionKernel } from "../../execution/kernel.js";
 import { logVerbose } from "../../globals.js";
 import { registerAgentRunContext } from "../../infra/agent-events.js";
 import { defaultRuntime } from "../../runtime.js";
@@ -145,24 +148,83 @@ export function createFollowupRunner(params: {
           autoCompactionCompleted = true;
         }
       };
-      try {
-        const fallbackResult = await runWithModelFallback({
-          cfg: queued.run.config,
-          provider: queued.run.provider,
-          model: queued.run.model,
-          agentDir: queued.run.agentDir,
-          fallbacksOverride: resolveAgentModelFallbacksOverride(queued.run.config, agentId),
-          runtimeKind,
-          run: async (provider, model) => {
-            // If using Claude Code SDK runtime, create and use SDK runtime
-            if (runtimeKind === "claude") {
-              const claudeSdkSessionId = sessionEntry?.claudeSdkSessionId?.trim() || undefined;
-              const sdkRuntime = await createSdkMainAgentRuntime({
-                config: queued.run.config,
+
+      // Feature flag: use ExecutionKernel when enabled for followup entry point.
+      // Falls back to old path for Claude SDK sessions (kernel doesn't have adapter yet).
+      const useKernel =
+        useNewExecutionLayer(queued.run.config, "followup") && runtimeKind !== "claude";
+
+      if (useKernel) {
+        try {
+          const kernelResult = await runFollowupWithKernel({
+            queued,
+            runId,
+            agentId,
+            runtimeKind,
+            onCompactionEvent,
+          });
+          runResult = kernelResult.runResult;
+          fallbackProvider = kernelResult.fallbackProvider;
+          fallbackModel = kernelResult.fallbackModel;
+          autoCompactionCompleted = kernelResult.autoCompactionCompleted;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          defaultRuntime.error?.(`Followup agent failed before reply: ${message}`);
+          return;
+        }
+      } else {
+        // --- Legacy execution path ---
+        try {
+          const fallbackResult = await runWithModelFallback({
+            cfg: queued.run.config,
+            provider: queued.run.provider,
+            model: queued.run.model,
+            agentDir: queued.run.agentDir,
+            fallbacksOverride: resolveAgentModelFallbacksOverride(queued.run.config, agentId),
+            runtimeKind,
+            run: async (provider, model) => {
+              if (runtimeKind === "claude") {
+                const claudeSdkSessionId = sessionEntry?.claudeSdkSessionId?.trim() || undefined;
+                const sdkRuntime = await createSdkMainAgentRuntime({
+                  config: queued.run.config,
+                  sessionKey: queued.run.sessionKey,
+                  sessionFile: queued.run.sessionFile,
+                  workspaceDir: queued.run.workspaceDir,
+                  agentDir: queued.run.agentDir,
+                  messageProvider: queued.run.messageProvider,
+                  agentAccountId: queued.run.agentAccountId,
+                  messageTo: queued.originatingTo,
+                  messageThreadId: queued.originatingThreadId,
+                  groupId: queued.run.groupId,
+                  groupChannel: queued.run.groupChannel,
+                  groupSpace: queued.run.groupSpace,
+                  senderId: queued.run.senderId,
+                  senderName: queued.run.senderName,
+                  senderUsername: queued.run.senderUsername,
+                  senderE164: queued.run.senderE164,
+                  claudeSessionId: claudeSdkSessionId,
+                });
+                return sdkRuntime.run({
+                  sessionId: queued.run.sessionId,
+                  sessionKey: queued.run.sessionKey,
+                  sessionFile: queued.run.sessionFile,
+                  workspaceDir: queued.run.workspaceDir,
+                  agentDir: queued.run.agentDir,
+                  config: queued.run.config,
+                  prompt: queued.prompt,
+                  extraSystemPrompt: queued.run.extraSystemPrompt,
+                  ownerNumbers: queued.run.ownerNumbers,
+                  timeoutMs: queued.run.timeoutMs,
+                  runId,
+                  onAgentEvent: onCompactionEvent,
+                });
+              }
+
+              const authProfileId =
+                provider === queued.run.provider ? queued.run.authProfileId : undefined;
+              return runEmbeddedPiAgent({
+                sessionId: queued.run.sessionId,
                 sessionKey: queued.run.sessionKey,
-                sessionFile: queued.run.sessionFile,
-                workspaceDir: queued.run.workspaceDir,
-                agentDir: queued.run.agentDir,
                 messageProvider: queued.run.messageProvider,
                 agentAccountId: queued.run.agentAccountId,
                 messageTo: queued.originatingTo,
@@ -174,72 +236,38 @@ export function createFollowupRunner(params: {
                 senderName: queued.run.senderName,
                 senderUsername: queued.run.senderUsername,
                 senderE164: queued.run.senderE164,
-                claudeSessionId: claudeSdkSessionId,
-              });
-              return sdkRuntime.run({
-                sessionId: queued.run.sessionId,
-                sessionKey: queued.run.sessionKey,
                 sessionFile: queued.run.sessionFile,
                 workspaceDir: queued.run.workspaceDir,
-                agentDir: queued.run.agentDir,
                 config: queued.run.config,
+                skillsSnapshot: queued.run.skillsSnapshot,
                 prompt: queued.prompt,
                 extraSystemPrompt: queued.run.extraSystemPrompt,
                 ownerNumbers: queued.run.ownerNumbers,
+                enforceFinalTag: queued.run.enforceFinalTag,
+                provider,
+                model,
+                authProfileId,
+                authProfileIdSource: authProfileId ? queued.run.authProfileIdSource : undefined,
+                thinkLevel: queued.run.thinkLevel,
+                verboseLevel: queued.run.verboseLevel,
+                reasoningLevel: queued.run.reasoningLevel,
+                execOverrides: queued.run.execOverrides,
+                bashElevated: queued.run.bashElevated,
                 timeoutMs: queued.run.timeoutMs,
                 runId,
+                blockReplyBreak: queued.run.blockReplyBreak,
                 onAgentEvent: onCompactionEvent,
               });
-            }
-
-            // Otherwise, use Pi agent runtime (existing code path)
-            const authProfileId =
-              provider === queued.run.provider ? queued.run.authProfileId : undefined;
-            return runEmbeddedPiAgent({
-              sessionId: queued.run.sessionId,
-              sessionKey: queued.run.sessionKey,
-              messageProvider: queued.run.messageProvider,
-              agentAccountId: queued.run.agentAccountId,
-              messageTo: queued.originatingTo,
-              messageThreadId: queued.originatingThreadId,
-              groupId: queued.run.groupId,
-              groupChannel: queued.run.groupChannel,
-              groupSpace: queued.run.groupSpace,
-              senderId: queued.run.senderId,
-              senderName: queued.run.senderName,
-              senderUsername: queued.run.senderUsername,
-              senderE164: queued.run.senderE164,
-              sessionFile: queued.run.sessionFile,
-              workspaceDir: queued.run.workspaceDir,
-              config: queued.run.config,
-              skillsSnapshot: queued.run.skillsSnapshot,
-              prompt: queued.prompt,
-              extraSystemPrompt: queued.run.extraSystemPrompt,
-              ownerNumbers: queued.run.ownerNumbers,
-              enforceFinalTag: queued.run.enforceFinalTag,
-              provider,
-              model,
-              authProfileId,
-              authProfileIdSource: authProfileId ? queued.run.authProfileIdSource : undefined,
-              thinkLevel: queued.run.thinkLevel,
-              verboseLevel: queued.run.verboseLevel,
-              reasoningLevel: queued.run.reasoningLevel,
-              execOverrides: queued.run.execOverrides,
-              bashElevated: queued.run.bashElevated,
-              timeoutMs: queued.run.timeoutMs,
-              runId,
-              blockReplyBreak: queued.run.blockReplyBreak,
-              onAgentEvent: onCompactionEvent,
-            });
-          },
-        });
-        runResult = fallbackResult.result;
-        fallbackProvider = fallbackResult.provider;
-        fallbackModel = fallbackResult.model;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        defaultRuntime.error?.(`Followup agent failed before reply: ${message}`);
-        return;
+            },
+          });
+          runResult = fallbackResult.result;
+          fallbackProvider = fallbackResult.provider;
+          fallbackModel = fallbackResult.model;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          defaultRuntime.error?.(`Followup agent failed before reply: ${message}`);
+          return;
+        }
       }
 
       if (storePath && sessionKey) {
@@ -329,5 +357,168 @@ export function createFollowupRunner(params: {
     } finally {
       typing.markRunComplete();
     }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Kernel-based execution path (Phase 8.1)
+// ---------------------------------------------------------------------------
+
+type FollowupKernelResult = {
+  runResult: Awaited<ReturnType<typeof runEmbeddedPiAgent>>;
+  fallbackProvider: string;
+  fallbackModel: string;
+  autoCompactionCompleted: boolean;
+};
+
+/**
+ * Execute a followup turn via the ExecutionKernel.
+ *
+ * Wraps kernel.execute() inside runWithModelFallback. The kernel handles
+ * runtime selection, execution, and state persistence. Post-processing
+ * (payload routing, session usage, compaction) stays in the caller.
+ */
+async function runFollowupWithKernel(params: {
+  queued: FollowupRun;
+  runId: string;
+  agentId: string | undefined;
+  runtimeKind: string;
+  onCompactionEvent: (evt: { stream: string; data: Record<string, unknown> }) => void;
+}): Promise<FollowupKernelResult> {
+  const { queued, runId, agentId, onCompactionEvent } = params;
+  let autoCompactionCompleted = false;
+
+  const kernel = createDefaultExecutionKernel();
+
+  const fallbackResult = await runWithModelFallback({
+    cfg: queued.run.config,
+    provider: queued.run.provider,
+    model: queued.run.model,
+    agentDir: queued.run.agentDir,
+    fallbacksOverride: agentId
+      ? resolveAgentModelFallbacksOverride(queued.run.config, agentId)
+      : undefined,
+    runtimeKind: params.runtimeKind as "pi" | "claude" | undefined,
+    run: async (provider, model) => {
+      const authProfileId = provider === queued.run.provider ? queued.run.authProfileId : undefined;
+
+      const request: ExecutionRequest = {
+        agentId: agentId ?? "main",
+        sessionId: queued.run.sessionId,
+        sessionKey: queued.run.sessionKey,
+        runId,
+        workspaceDir: queued.run.workspaceDir,
+        agentDir: queued.run.agentDir,
+        config: queued.run.config,
+        prompt: queued.prompt,
+        extraSystemPrompt: queued.run.extraSystemPrompt,
+        timeoutMs: queued.run.timeoutMs,
+        sessionFile: queued.run.sessionFile,
+        providerOverride: provider,
+        modelOverride: model,
+        blockReplyBreak: queued.run.blockReplyBreak,
+        messageContext: {
+          provider: queued.run.messageProvider,
+          senderId: queued.run.senderId,
+          senderName: queued.run.senderName,
+          senderUsername: queued.run.senderUsername,
+          senderE164: queued.run.senderE164,
+          groupId: queued.run.groupId,
+          groupChannel: queued.run.groupChannel,
+          groupSpace: queued.run.groupSpace,
+          threadId: queued.originatingThreadId,
+          accountId: queued.run.agentAccountId,
+        },
+        runtimeHints: {
+          thinkLevel: queued.run.thinkLevel,
+          verboseLevel: queued.run.verboseLevel,
+          reasoningLevel: queued.run.reasoningLevel,
+          authProfileId,
+          authProfileIdSource: authProfileId ? queued.run.authProfileIdSource : undefined,
+          enforceFinalTag: queued.run.enforceFinalTag,
+          ownerNumbers: queued.run.ownerNumbers,
+          skillsSnapshot: queued.run.skillsSnapshot,
+          execOverrides: queued.run.execOverrides,
+          bashElevated: queued.run.bashElevated,
+          agentAccountId: queued.run.agentAccountId,
+          messageTo: queued.originatingTo,
+          messageProvider: queued.run.messageProvider,
+        },
+        onAgentEvent: (evt) => {
+          onCompactionEvent(evt);
+          // Track auto-compaction in the kernel path too
+          if (
+            evt.stream === "compaction" &&
+            typeof evt.data.phase === "string" &&
+            evt.data.phase === "end" &&
+            !evt.data.willRetry
+          ) {
+            autoCompactionCompleted = true;
+          }
+        },
+      };
+
+      const result = await kernel.execute(request);
+      return mapFollowupExecutionResultToLegacy(result);
+    },
+  });
+
+  return {
+    runResult: fallbackResult.result,
+    fallbackProvider: fallbackResult.provider,
+    fallbackModel: fallbackResult.model,
+    autoCompactionCompleted,
+  };
+}
+
+/**
+ * Map ExecutionResult to the legacy EmbeddedPiRunResult format used by followup post-processing.
+ */
+function mapFollowupExecutionResultToLegacy(
+  result: ExecutionResult,
+): Awaited<ReturnType<typeof runEmbeddedPiAgent>> {
+  return {
+    payloads: result.payloads.map((p) => ({
+      text: p.text,
+      mediaUrl: p.mediaUrl,
+      mediaUrls: p.mediaUrls,
+      replyToId: p.replyToId,
+      isError: p.isError,
+    })),
+    meta: {
+      durationMs: result.usage.durationMs,
+      aborted: result.aborted,
+      agentMeta: {
+        sessionId: "",
+        provider: result.runtime.provider ?? "",
+        model: result.runtime.model ?? "",
+        claudeSessionId: result.claudeSdkSessionId,
+        usage: {
+          input: result.usage.inputTokens,
+          output: result.usage.outputTokens,
+          cacheRead: result.usage.cacheReadTokens,
+          cacheWrite: result.usage.cacheWriteTokens,
+          total: result.usage.inputTokens + result.usage.outputTokens,
+        },
+      },
+      systemPromptReport: result.systemPromptReport as Awaited<
+        ReturnType<typeof runEmbeddedPiAgent>
+      >["meta"]["systemPromptReport"],
+      error: result.embeddedError
+        ? {
+            kind: result.embeddedError.kind as
+              | "context_overflow"
+              | "compaction_failure"
+              | "role_ordering"
+              | "image_size",
+            message: result.embeddedError.message,
+          }
+        : undefined,
+    },
+    didSendViaMessagingTool: result.didSendViaMessagingTool,
+    messagingToolSentTexts: result.messagingToolSentTexts,
+    messagingToolSentTargets: result.messagingToolSentTargets as Awaited<
+      ReturnType<typeof runEmbeddedPiAgent>
+    >["messagingToolSentTargets"],
   };
 }
