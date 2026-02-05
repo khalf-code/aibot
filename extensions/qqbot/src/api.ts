@@ -81,6 +81,7 @@ async function doFetchToken(appId: string, clientSecret: string): Promise<string
     console.error(`[qqbot-api] <<< Network error:`, err);
     throw new Error(
       `Network error getting access_token: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
     );
   }
 
@@ -104,6 +105,7 @@ async function doFetchToken(appId: string, clientSecret: string): Promise<string
     console.error(`[qqbot-api] <<< Parse error:`, err);
     throw new Error(
       `Failed to parse access_token response: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
     );
   }
 
@@ -213,7 +215,10 @@ export async function apiRequest<T = unknown>(
     res = await fetch(url, options);
   } catch (err) {
     console.error(`[qqbot-api] <<< Network error:`, err);
-    throw new Error(`Network error [${path}]: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(
+      `Network error [${path}]: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
   }
 
   // 打印响应头
@@ -234,6 +239,7 @@ export async function apiRequest<T = unknown>(
     console.error(`[qqbot-api] <<< Parse error:`, err);
     throw new Error(
       `Failed to parse response [${path}]: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
     );
   }
 
@@ -730,10 +736,12 @@ export function startBackgroundTokenRefresh(
           await sleep(minRefreshIntervalMs, signal);
         }
       } catch (err) {
-        if (signal.aborted) break;
+        if (signal.aborted) {
+          break;
+        }
 
         // 刷新失败，等待后重试
-        log?.error?.(`[qqbot-api] Background token refresh failed: ${err}`);
+        log?.error?.(`[qqbot-api] Background token refresh failed: ${String(err)}`);
         await sleep(retryDelayMs, signal);
       }
     }

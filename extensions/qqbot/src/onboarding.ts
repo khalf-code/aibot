@@ -63,7 +63,7 @@ function resolveDefaultQQBotAccountId(cfg: OpenClawConfig): string {
  * QQBot Onboarding Adapter
  */
 export const qqbotOnboardingAdapter: ChannelOnboardingAdapter = {
-  channel: "qqbot" as any,
+  channel: "qqbot" as ChannelOnboardingAdapter["channel"],
 
   getStatus: async (ctx: ChannelOnboardingStatusContext): Promise<ChannelOnboardingStatus> => {
     const cfg = ctx.cfg as OpenClawConfig;
@@ -73,7 +73,7 @@ export const qqbotOnboardingAdapter: ChannelOnboardingAdapter = {
     });
 
     return {
-      channel: "qqbot" as any,
+      channel: "qqbot" as ChannelOnboardingStatus["channel"],
       configured,
       statusLines: [`QQ Bot: ${configured ? "已配置" : "需要 AppID 和 ClientSecret"}`],
       selectionHint: configured ? "已配置" : "支持 QQ 群聊和私聊（流式消息）",
@@ -150,7 +150,7 @@ export const qqbotOnboardingAdapter: ChannelOnboardingAdapter = {
           channels: {
             ...next.channels,
             qqbot: {
-              ...((next.channels?.qqbot as Record<string, unknown>) || {}),
+              ...(next.channels?.qqbot as Record<string, unknown>),
               enabled: true,
             },
           },
@@ -223,7 +223,7 @@ export const qqbotOnboardingAdapter: ChannelOnboardingAdapter = {
           channels: {
             ...next.channels,
             qqbot: {
-              ...((next.channels?.qqbot as Record<string, unknown>) || {}),
+              ...(next.channels?.qqbot as Record<string, unknown>),
               enabled: true,
               appId,
               clientSecret,
@@ -236,12 +236,12 @@ export const qqbotOnboardingAdapter: ChannelOnboardingAdapter = {
           channels: {
             ...next.channels,
             qqbot: {
-              ...((next.channels?.qqbot as Record<string, unknown>) || {}),
+              ...(next.channels?.qqbot as Record<string, unknown>),
               enabled: true,
               accounts: {
-                ...((next.channels?.qqbot as QQBotChannelConfig)?.accounts || {}),
+                ...(next.channels?.qqbot as QQBotChannelConfig)?.accounts,
                 [accountId]: {
-                  ...((next.channels?.qqbot as QQBotChannelConfig)?.accounts?.[accountId] || {}),
+                  ...(next.channels?.qqbot as QQBotChannelConfig)?.accounts?.[accountId],
                   enabled: true,
                   appId,
                   clientSecret,
@@ -253,7 +253,7 @@ export const qqbotOnboardingAdapter: ChannelOnboardingAdapter = {
       }
     }
 
-    return { success: true, cfg: next as any, accountId };
+    return { success: true, cfg: next as ChannelOnboardingResult["cfg"], accountId };
   },
 
   disable: (cfg: unknown) => {
@@ -262,8 +262,8 @@ export const qqbotOnboardingAdapter: ChannelOnboardingAdapter = {
       ...config,
       channels: {
         ...config.channels,
-        qqbot: { ...((config.channels?.qqbot as Record<string, unknown>) || {}), enabled: false },
+        qqbot: { ...(config.channels?.qqbot as Record<string, unknown>), enabled: false },
       },
-    } as any;
+    } as ReturnType<NonNullable<ChannelOnboardingAdapter["disable"]>>;
   },
 };

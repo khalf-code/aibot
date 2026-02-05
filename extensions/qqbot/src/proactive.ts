@@ -60,7 +60,6 @@ import {
   getAccessToken,
   sendProactiveC2CMessage,
   sendProactiveGroupMessage,
-  sendChannelMessage,
   sendC2CImageMessage,
   sendGroupImageMessage,
 } from "./api.js";

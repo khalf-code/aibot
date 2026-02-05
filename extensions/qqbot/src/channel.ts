@@ -23,7 +23,9 @@ import { getQQBotRuntime } from "./runtime.js";
  * 用于预先分块长文本
  */
 function chunkText(text: string, limit: number): string[] {
-  if (text.length <= limit) return [text];
+  if (text.length <= limit) {
+    return [text];
+  }
 
   const chunks: string[] = [];
   let remaining = text;
@@ -92,10 +94,13 @@ export const qqbotPlugin: ChannelPlugin<ResolvedQQBotAccount> = {
           normalized.startsWith("c2c:") ||
           normalized.startsWith("group:") ||
           normalized.startsWith("channel:")
-        )
+        ) {
           return true;
+        }
         // 支持纯 openid（32位十六进制）
-        if (/^[A-F0-9]{32}$/i.test(normalized)) return true;
+        if (/^[A-F0-9]{32}$/i.test(normalized)) {
+          return true;
+        }
         return false;
       },
       hint: "c2c:<openid> or group:<groupOpenid>",
@@ -167,19 +172,6 @@ export const qqbotPlugin: ChannelPlugin<ResolvedQQBotAccount> = {
         name: input.name,
         imageServerBaseUrl: input.imageServerBaseUrl,
       });
-    },
-  },
-  // 新增：消息目标解析
-  messaging: {
-    normalizeTarget: (target) => {
-      // 支持格式: qqbot:openid, qqbot:group:xxx, openid, group:xxx
-      const normalized = target.replace(/^qqbot:/i, "");
-      return { ok: true, to: normalized };
-    },
-    targetResolver: {
-      looksLikeId: (id) =>
-        /^[A-F0-9]{32}$/i.test(id) || id.startsWith("group:") || id.startsWith("channel:"),
-      hint: "<openid> or group:<groupOpenid>",
     },
   },
   outbound: {

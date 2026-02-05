@@ -22,7 +22,9 @@ export const DEFAULT_IMAGE_SIZE: ImageSize = { width: 512, height: 512 };
  */
 function parsePngSize(buffer: Buffer): ImageSize | null {
   // PNG 签名: 89 50 4E 47 0D 0A 1A 0A
-  if (buffer.length < 24) return null;
+  if (buffer.length < 24) {
+    return null;
+  }
   if (buffer[0] !== 0x89 || buffer[1] !== 0x50 || buffer[2] !== 0x4e || buffer[3] !== 0x47) {
     return null;
   }
@@ -38,7 +40,9 @@ function parsePngSize(buffer: Buffer): ImageSize | null {
  */
 function parseJpegSize(buffer: Buffer): ImageSize | null {
   // JPEG 签名: FF D8 FF
-  if (buffer.length < 4) return null;
+  if (buffer.length < 4) {
+    return null;
+  }
   if (buffer[0] !== 0xff || buffer[1] !== 0xd8) {
     return null;
   }
@@ -78,7 +82,9 @@ function parseJpegSize(buffer: Buffer): ImageSize | null {
  * GIF 文件头: GIF87a 或 GIF89a (6字节) + 宽度(2) + 高度(2)
  */
 function parseGifSize(buffer: Buffer): ImageSize | null {
-  if (buffer.length < 10) return null;
+  if (buffer.length < 10) {
+    return null;
+  }
   const signature = buffer.toString("ascii", 0, 6);
   if (signature !== "GIF87a" && signature !== "GIF89a") {
     return null;
@@ -93,7 +99,9 @@ function parseGifSize(buffer: Buffer): ImageSize | null {
  * WebP 文件头: RIFF(4) + 文件大小(4) + WEBP(4) + VP8/VP8L/VP8X(4) + ...
  */
 function parseWebpSize(buffer: Buffer): ImageSize | null {
-  if (buffer.length < 30) return null;
+  if (buffer.length < 30) {
+    return null;
+  }
 
   // 检查 RIFF 和 WEBP 签名
   const riff = buffer.toString("ascii", 0, 4);
@@ -188,7 +196,7 @@ export async function getImageSizeFromUrl(
 
     return size;
   } catch (err) {
-    console.log(`[image-size] Error fetching ${url.slice(0, 60)}...: ${err}`);
+    console.log(`[image-size] Error fetching ${url.slice(0, 60)}...: ${String(err)}`);
     return null;
   }
 }
@@ -214,7 +222,7 @@ export function getImageSizeFromDataUrl(dataUrl: string): ImageSize | null {
 
     return size;
   } catch (err) {
-    console.log(`[image-size] Error parsing Base64: ${err}`);
+    console.log(`[image-size] Error parsing Base64: ${String(err)}`);
     return null;
   }
 }

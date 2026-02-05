@@ -30,19 +30,13 @@ import {
 } from "./image-server.js";
 import { recordKnownUser, flushKnownUsers } from "./known-users.js";
 import { getQQBotRuntime } from "./runtime.js";
-import { loadSession, saveSession, clearSession, type SessionState } from "./session-store.js";
-import {
-  getImageSize,
-  formatQQBotMarkdownImage,
-  hasQQBotImageSize,
-  DEFAULT_IMAGE_SIZE,
-} from "./utils/image-size.js";
+import { loadSession, saveSession, clearSession } from "./session-store.js";
+import { getImageSize, formatQQBotMarkdownImage, hasQQBotImageSize } from "./utils/image-size.js";
 import {
   parseQQBotPayload,
   encodePayloadForCron,
   isCronReminderPayload,
   isMediaPayload,
-  type CronReminderPayload,
   type MediaPayload,
 } from "./utils/payload.js";
 
@@ -110,11 +104,11 @@ interface MessageReplyRecord {
 const messageReplyTracker = new Map<string, MessageReplyRecord>();
 
 /**
- * 检查是否可以回复该消息（限流检查）
+ * 检查是否可以回复该消息（限流检查）- 备用功能
  * @param messageId 消息ID
  * @returns { allowed: boolean, remaining: number } allowed=是否允许回复，remaining=剩余次数
  */
-function checkMessageReplyLimit(messageId: string): { allowed: boolean; remaining: number } {
+function _checkMessageReplyLimit(messageId: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const record = messageReplyTracker.get(messageId);
 
@@ -143,10 +137,10 @@ function checkMessageReplyLimit(messageId: string): { allowed: boolean; remainin
 }
 
 /**
- * 记录一次消息回复
+ * 记录一次消息回复 - 备用功能
  * @param messageId 消息ID
  */
-function recordMessageReply(messageId: string): void {
+function _recordMessageReply(messageId: string): void {
   const now = Date.now();
   const record = messageReplyTracker.get(messageId);
 
@@ -162,6 +156,9 @@ function recordMessageReply(messageId: string): void {
   }
 }
 
+// 导出备用功能（供将来使用）
+export { _checkMessageReplyLimit, _recordMessageReply };
+
 // ============ 内部标记过滤 ============
 
 /**
@@ -169,7 +166,9 @@ function recordMessageReply(messageId: string): void {
  * 这些标记可能被 AI 错误地学习并输出，需要在发送前移除
  */
 function filterInternalMarkers(text: string): string {
-  if (!text) return text;
+  if (!text) {
+    return text;
+  }
 
   // 过滤 [[xxx: yyy]] 格式的内部标记
   // 例如: [[reply_to: ROBOT1.0_kbc...]]
@@ -301,7 +300,7 @@ export async function startGateway(ctx: GatewayContext): Promise<void> {
   // ============ 消息队列（异步处理，防止阻塞心跳） ============
   const messageQueue: QueuedMessage[] = [];
   let messageProcessorRunning = false;
-  let messagesProcessed = 0; // 统计已处理消息数
+  let _messagesProcessed = 0; // 统计已处理消息数（用于调试）
 
   /**
    * 将消息加入队列（非阻塞）
@@ -329,7 +328,9 @@ export async function startGateway(ctx: GatewayContext): Promise<void> {
    * 启动消息处理循环（独立于 WS 消息循环）
    */
   const startMessageProcessor = (handleMessageFn: (msg: QueuedMessage) => Promise<void>): void => {
-    if (messageProcessorRunning) return;
+    if (messageProcessorRunning) {
+      return;
+    }
     messageProcessorRunning = true;
 
     const processLoop = async () => {
@@ -343,7 +344,7 @@ export async function startGateway(ctx: GatewayContext): Promise<void> {
         const msg = messageQueue.shift()!;
         try {
           await handleMessageFn(msg);
-          messagesProcessed++;
+          _messagesProcessed++;
         } catch (err) {
           // 捕获处理异常，防止影响队列循环
           log?.error(`[qqbot:${account.accountId}] Message processor error: ${err}`);
@@ -751,8 +752,8 @@ openclaw cron add \\
           });
 
           // ============ 消息发送目标 ============
-          // 确定发送目标
-          const targetTo =
+          // 确定发送目标（用于调试日志）
+          const _targetTo =
             event.type === "c2c"
               ? event.senderId
               : event.type === "group"
@@ -1189,12 +1190,11 @@ openclaw cron add \\
                         return;
                       } else {
                         // 未知的载荷类型
+                        const unknownType = (parsedPayload as { type?: unknown }).type;
                         log?.error(
-                          `[qqbot:${account.accountId}] Unknown payload type: ${(parsedPayload as any).type}`,
+                          `[qqbot:${account.accountId}] Unknown payload type: ${String(unknownType)}`,
                         );
-                        await sendErrorMessage(
-                          `[QQBot] 不支持的载荷类型: ${(parsedPayload as any).type}`,
-                        );
+                        await sendErrorMessage(`[QQBot] 不支持的载荷类型: ${String(unknownType)}`);
                         return;
                       }
                     }
@@ -1210,7 +1210,9 @@ openclaw cron add \\
                    * ⚠️ 本地文件路径必须使用 QQBOT_PAYLOAD JSON 格式发送
                    */
                   const collectImageUrl = (url: string | undefined | null): boolean => {
-                    if (!url) return false;
+                    if (!url) {
+                      return false;
+                    }
 
                     const isHttpUrl = url.startsWith("http://") || url.startsWith("https://");
                     const isDataUrl = url.startsWith("data:image/");
@@ -1281,7 +1283,7 @@ openclaw cron add \\
 
                   // 提取裸 URL 图片（公网 URL）
                   const bareUrlRegex =
-                    /(?<![(\["'])(https?:\/\/[^\s)"'<>]+\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s"'<>]*)?)/gi;
+                    /(?<![(["'])(https?:\/\/[^\s)"'<>]+\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s"'<>]*)?)/gi;
                   const bareUrlMatches = [...replyText.matchAll(bareUrlRegex)];
                   for (const match of bareUrlMatches) {
                     const url = match[1];
@@ -1586,7 +1588,7 @@ openclaw cron add \\
           // 等待分发完成或超时
           try {
             await Promise.race([dispatchPromise, timeoutPromise]);
-          } catch (err) {
+          } catch {
             if (timeoutId) {
               clearTimeout(timeoutId);
             }
@@ -1684,7 +1686,9 @@ openclaw cron add \\
 
               // 启动心跳
               const interval = (d as { heartbeat_interval: number }).heartbeat_interval;
-              if (heartbeatInterval) clearInterval(heartbeatInterval);
+              if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+              }
               heartbeatInterval = setInterval(() => {
                 if (ws.readyState === WebSocket.OPEN) {
                   ws.send(JSON.stringify({ op: 1, d: lastSeq }));
@@ -1926,7 +1930,7 @@ openclaw cron add \\
     } catch (err) {
       isConnecting = false; // 释放锁
       const errMsg = String(err);
-      log?.error(`[qqbot:${account.accountId}] Connection failed: ${err}`);
+      log?.error(`[qqbot:${account.accountId}] Connection failed: ${errMsg}`);
 
       // 如果是频率限制错误，等待更长时间
       if (errMsg.includes("Too many requests") || errMsg.includes("100001")) {

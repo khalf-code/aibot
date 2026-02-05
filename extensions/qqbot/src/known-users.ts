@@ -73,7 +73,7 @@ function loadUsersFromFile(): Map<string, KnownUser> {
       console.log(`[known-users] Loaded ${usersCache.size} users from file`);
     }
   } catch (err) {
-    console.error(`[known-users] Failed to load users: ${err}`);
+    console.error(`[known-users] Failed to load users: ${String(err)}`);
     usersCache = new Map();
   }
 
@@ -84,7 +84,9 @@ function loadUsersFromFile(): Map<string, KnownUser> {
  * 保存用户数据到文件（节流版本）
  */
 function saveUsersToFile(): void {
-  if (!isDirty) return;
+  if (!isDirty) {
+    return;
+  }
 
   if (saveTimer) {
     return; // 已有定时器在等待
@@ -100,7 +102,9 @@ function saveUsersToFile(): void {
  * 实际执行保存
  */
 function doSaveUsersToFile(): void {
-  if (!usersCache || !isDirty) return;
+  if (!usersCache || !isDirty) {
+    return;
+  }
 
   try {
     ensureDir();
@@ -109,7 +113,7 @@ function doSaveUsersToFile(): void {
     isDirty = false;
     console.log(`[known-users] Saved ${users.length} users to file`);
   } catch (err) {
-    console.error(`[known-users] Failed to save users: ${err}`);
+    console.error(`[known-users] Failed to save users: ${String(err)}`);
   }
 }
 
