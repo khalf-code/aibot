@@ -37,7 +37,25 @@ export async function onTimer(state: CronServiceState) {
   state.running = true;
   try {
     await locked(state, async () => {
+      // Snapshot nextRunAtMs before reload to preserve due times.
+      // This prevents every-type jobs from being perpetually deferred when
+      // recomputeNextRuns() advances nextRunAtMs past now due to timer firing late.
+      const dueSnapshot = state.store?.jobs
+        .filter((j) => j.enabled && typeof j.state.nextRunAtMs === "number")
+        .map((j) => ({ id: j.id, dueAt: j.state.nextRunAtMs as number })) ?? [];
+
       await ensureLoaded(state, { forceReload: true });
+
+      // Restore pre-reload nextRunAtMs for jobs that were due.
+      // This ensures they execute at their originally scheduled time.
+      const now = state.deps.nowMs();
+      for (const snap of dueSnapshot) {
+        const job = state.store?.jobs.find((j) => j.id === snap.id);
+        if (job && snap.dueAt <= now) {
+          job.state.nextRunAtMs = snap.dueAt;
+        }
+      }
+
       await runDueJobs(state);
       await persist(state);
       armTimer(state);
@@ -142,7 +160,7 @@ export async function executeJob(
         const waitStartedAt = state.deps.nowMs();
 
         let heartbeatResult: HeartbeatRunResult;
-        for (;;) {
+        for (; ;) {
           heartbeatResult = await state.deps.runHeartbeatOnce({ reason });
           if (
             heartbeatResult.status !== "skipped" ||
