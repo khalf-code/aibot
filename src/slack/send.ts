@@ -241,7 +241,6 @@ export async function sendMessageSlack(
         threadTs: opts.threadTs ?? undefined,
         chunkLen: chunk.length,
         reasoningLike: isReasoningLikeText(chunk),
-        preview: textPreview(chunk),
       });
       const response = await client.chat.postMessage({
         channel: channelId,
@@ -277,7 +276,6 @@ export async function sendMessageSlack(
         threadTs: opts.threadTs ?? undefined,
         chunkLen: chunk.length,
         reasoningLike: isReasoningLikeText(chunk),
-        preview: chunk ? textPreview(chunk) : undefined,
       });
       const response = await client.chat.postMessage({
         channel: channelId,
