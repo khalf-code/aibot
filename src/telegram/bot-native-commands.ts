@@ -96,6 +96,9 @@ export type RegisterTelegramHandlerParams = {
     },
   ) => Promise<void>;
   logger: ReturnType<typeof getChildLogger>;
+  execApprovalHandler?: {
+    resolveApproval: (approvalId: string, decision: string) => Promise<boolean>;
+  };
 };
 
 type RegisterTelegramNativeCommandsParams = {

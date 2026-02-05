@@ -33,6 +33,17 @@ export type TelegramCapabilitiesConfig =
       inlineButtons?: TelegramInlineButtonsScope;
     };
 
+export type TelegramExecApprovalConfig = {
+  /** Enable exec approval forwarding to Telegram DMs. Default: false. */
+  enabled?: boolean;
+  /** Telegram user IDs (chat IDs) to receive approval prompts. Required if enabled. */
+  approvers?: Array<string | number>;
+  /** Only forward approvals for these agent IDs. Omit = all agents. */
+  agentFilter?: string[];
+  /** Only forward approvals matching these session key patterns (substring or regex). */
+  sessionFilter?: string[];
+};
+
 /** Custom command definition for Telegram bot menu. */
 export type TelegramCustomCommand = {
   /** Command name (without leading /). */
@@ -138,6 +149,8 @@ export type TelegramAccountConfig = {
    * Use `"auto"` to derive `[{identity.name}]` from the routed agent.
    */
   responsePrefix?: string;
+  /** Exec approval forwarding configuration. */
+  execApprovals?: TelegramExecApprovalConfig;
 };
 
 export type TelegramTopicConfig = {

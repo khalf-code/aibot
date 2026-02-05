@@ -26,6 +26,7 @@ import { RegisterTelegramHandlerParams } from "./bot-native-commands.js";
 import { MEDIA_GROUP_TIMEOUT_MS, type MediaGroupEntry } from "./bot-updates.js";
 import { resolveMedia } from "./bot/delivery.js";
 import { buildTelegramGroupPeerId, resolveTelegramForumThreadId } from "./bot/helpers.js";
+import { parseExecApprovalCallbackData } from "./exec-approvals.js";
 import { migrateTelegramGroupConfig } from "./group-migration.js";
 import { resolveTelegramInlineButtonsScope } from "./inline-buttons.js";
 import {
@@ -52,6 +53,7 @@ export const registerTelegramHandlers = ({
   shouldSkipUpdate,
   processMessage,
   logger,
+  execApprovalHandler,
 }: RegisterTelegramHandlerParams) => {
   const TELEGRAM_TEXT_FRAGMENT_START_THRESHOLD_CHARS = 4000;
   const TELEGRAM_TEXT_FRAGMENT_MAX_GAP_MS = 1500;
@@ -421,6 +423,47 @@ export const registerTelegramHandlers = ({
             return;
           }
         }
+      }
+
+      // Handle exec approval button clicks
+      const execApprovalData = parseExecApprovalCallbackData(data);
+      if (execApprovalData && execApprovalHandler) {
+        const { approvalId, action } = execApprovalData;
+        const decisionLabel =
+          action === "allow-once"
+            ? "Allowed (once)"
+            : action === "allow-always"
+              ? "Allowed (always)"
+              : "Denied";
+
+        try {
+          // Update message immediately to show decision is being processed
+          await bot.api.editMessageText(
+            chatId,
+            callbackMessage.message_id,
+            `⏳ Submitting decision: **${decisionLabel}**...`,
+            { parse_mode: "Markdown" },
+          );
+        } catch (editErr) {
+          // Ignore errors - message may have expired
+        }
+
+        // Send resolution to gateway
+        const ok = await execApprovalHandler.resolveApproval(approvalId, action);
+
+        if (!ok) {
+          // Failed to submit - send error message
+          try {
+            await bot.api.sendMessage(
+              chatId,
+              `❌ Failed to submit approval decision. The request may have expired or already been resolved.`,
+            );
+          } catch {
+            // Ignore errors
+          }
+        }
+        // On success, the handleApprovalResolved event will update the message with the final result
+        return;
       }
 
       const paginationMatch = data.match(/^commands_page_(\d+|noop)(?::(.+))?$/);

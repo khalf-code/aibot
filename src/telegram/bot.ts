@@ -43,6 +43,7 @@ import {
   resolveTelegramForumThreadId,
   resolveTelegramStreamMode,
 } from "./bot/helpers.js";
+import { TelegramExecApprovalHandler } from "./exec-approvals.js";
 import { resolveTelegramFetch } from "./fetch.js";
 import { wasSentByBot } from "./sent-message-cache.js";
 
@@ -467,6 +468,22 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     }
   });
 
+  // Initialize exec approval handler if configured
+  let execApprovalHandler: TelegramExecApprovalHandler | undefined;
+  if (telegramCfg.execApprovals?.enabled) {
+    execApprovalHandler = new TelegramExecApprovalHandler({
+      api: bot.api,
+      accountId: account.accountId,
+      config: telegramCfg.execApprovals,
+      gatewayUrl: cfg.gateway?.url,
+      cfg,
+      runtime,
+    });
+    void execApprovalHandler.start().catch((err) => {
+      runtime.error?.(danger(`telegram exec approvals: start failed: ${String(err)}`));
+    });
+  }
+
   registerTelegramHandlers({
     cfg,
     accountId: account.accountId,
@@ -481,6 +498,7 @@ export function createTelegramBot(opts: TelegramBotOptions) {
     shouldSkipUpdate,
     processMessage,
     logger,
+    execApprovalHandler,
   });
 
   return bot;
