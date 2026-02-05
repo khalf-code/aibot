@@ -422,6 +422,34 @@
   border-color: rgba(16, 24, 40, 0.15);
 }
 
+/* =============================================
+   AGENT STATUS INDICATOR
+   ============================================= */
+
+.chat-agent-status {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+  animation: slide-down 0.4s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Agent status positioned in chat header area */
+.chat-agent-status agent-status {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Responsive adjustments */
 @media (max-width: 640px) {
   .chat-session {
     min-width: 140px;
@@ -438,5 +466,9 @@
 
   .chat-controls__session {
     min-width: 120px;
+  }
+
+  .chat-agent-status agent-status {
+    max-width: 100%;
   }
 }

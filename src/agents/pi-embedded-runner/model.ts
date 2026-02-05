@@ -5,6 +5,7 @@ import { resolveOpenClawAgentDir } from "../agent-paths.js";
 import { DEFAULT_CONTEXT_TOKENS } from "../defaults.js";
 import { normalizeModelCompat } from "../model-compat.js";
 import { normalizeProviderId } from "../model-selection.js";
+import { OLLAMA_BASE_URL } from "../models-config.providers.js";
 import {
   discoverAuthStorage,
   discoverModels,
@@ -70,13 +71,47 @@ export function resolveModel(
   const authStorage = discoverAuthStorage(resolvedAgentDir);
   const modelRegistry = discoverModels(authStorage, resolvedAgentDir);
   const model = modelRegistry.find(provider, modelId) as Model<Api> | null;
+
+  // Check if there's an inline config that might have different API settings
+  const providers = cfg?.models?.providers ?? {};
+  const inlineModels = buildInlineProviderModels(providers);
+  const normalizedProvider = normalizeProviderId(provider);
+  const inlineMatch = inlineModels.find(
+    (entry) => normalizeProviderId(entry.provider) === normalizedProvider && entry.id === modelId,
+  );
+
+  // Get the provider-level API setting from config (applies to all models from this provider)
+  const providerCfg = providers[provider];
+  const providerApi = providerCfg?.api;
+
+  // Priority 1: If model found in registry and provider has API override in config, use it
+  if (model && providerApi && providerApi !== model.api) {
+    console.error(`[DEBUG resolveModel] Provider API override: ${model.api} -> ${providerApi}`);
+    const mergedModel = normalizeModelCompat({
+      ...model,
+      api: providerApi,
+    } as Model<Api>);
+    return {
+      model: mergedModel,
+      authStorage,
+      modelRegistry,
+    };
+  }
+
+  // Priority 2: If model found in registry and specific model has different API in config, use it
+  if (model && inlineMatch && inlineMatch.api && inlineMatch.api !== model.api) {
+    const mergedModel = normalizeModelCompat({
+      ...model,
+      api: inlineMatch.api,
+    } as Model<Api>);
+    return {
+      model: mergedModel,
+      authStorage,
+      modelRegistry,
+    };
+  }
+
   if (!model) {
-    const providers = cfg?.models?.providers ?? {};
-    const inlineModels = buildInlineProviderModels(providers);
-    const normalizedProvider = normalizeProviderId(provider);
-    const inlineMatch = inlineModels.find(
-      (entry) => normalizeProviderId(entry.provider) === normalizedProvider && entry.id === modelId,
-    );
     if (inlineMatch) {
       const normalized = normalizeModelCompat(inlineMatch as Model<Api>);
       return {
@@ -86,13 +121,14 @@ export function resolveModel(
       };
     }
     const providerCfg = providers[provider];
-    if (providerCfg || modelId.startsWith("mock-")) {
+    const isOllama = normalizeProviderId(provider) === "ollama";
+    if (providerCfg || modelId.startsWith("mock-") || isOllama) {
       const fallbackModel: Model<Api> = normalizeModelCompat({
         id: modelId,
         name: modelId,
-        api: providerCfg?.api ?? "openai-responses",
+        api: providerCfg?.api ?? "openai-completions",
         provider,
-        baseUrl: providerCfg?.baseUrl,
+        baseUrl: providerCfg?.baseUrl ?? (isOllama ? OLLAMA_BASE_URL : undefined),
         reasoning: false,
         input: ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

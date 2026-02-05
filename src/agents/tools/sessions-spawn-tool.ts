@@ -202,8 +202,11 @@ export function createSessionsSpawnTool(opts?: {
         } catch (err) {
           const messageText =
             err instanceof Error ? err.message : typeof err === "string" ? err : "error";
-          const recoverable =
-            messageText.includes("invalid model") || messageText.includes("model not allowed");
+          // Only "invalid model" is recoverable (malformed model ref).
+          // "model not allowed" should fail the spawn because the user explicitly
+          // requested a model that is not in the allowlist - continuing with a
+          // different model would be unexpected and confusing.
+          const recoverable = messageText.includes("invalid model");
           if (!recoverable) {
             return jsonResult({
               status: "error",

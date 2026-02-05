@@ -2,6 +2,7 @@ import type { EventLogEntry } from "./app-events.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
+import type { ModelsState } from "./controllers/models.ts";
 import type { SkillMessage } from "./controllers/skills.ts";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
 import type { Tab } from "./navigation.ts";
@@ -146,6 +147,30 @@ export type AppViewState = {
   skillEdits: Record<string, string>;
   skillMessages: Record<string, SkillMessage>;
   skillsBusyKey: string | null;
+
+  // Models state (from ModelsState, mapped to app.ts property names)
+  modelsLoading: ModelsState["modelsLoading"];
+  modelsProviders: ModelsState["providers"];
+  modelsOllamaAvailable: ModelsState["ollamaAvailable"];
+  modelsOllamaModels: ModelsState["ollamaModels"];
+  modelsDefaultModel: ModelsState["defaultModel"];
+  modelsHeartbeatModel: ModelsState["heartbeatModel"];
+  modelsAllowedModels: ModelsState["allowedModels"];
+  modelsAllowAny: ModelsState["allowAnyModels"];
+  modelsError: ModelsState["modelsError"];
+  modelsTestRunning: ModelsState["testRunning"];
+  modelsProviderTestRunning: ModelsState["providerTestRunning"];
+  modelsOllamaPullRunning: ModelsState["ollamaPullRunning"];
+  modelsAllowedModelsLoading: ModelsState["allowedModelsLoading"];
+  modelsAllowedModelsActionRunning: ModelsState["allowedModelsActionRunning"];
+  modelsTestResults: ModelsState["testResults"];
+  modelsProviderTestResults: ModelsState["providerTestResults"];
+  modelsActiveTab: ModelsState["activeTab"];
+  modelsShowAddProvider: ModelsState["showAddProvider"];
+  modelsNewProviderForm: ModelsState["newProviderForm"];
+  modelsLiveModels: Map<string, import("./types.models.ts").LiveModelEntry[]>;
+  modelsLiveModelsLoading: string | null;
+
   debugLoading: boolean;
   debugStatus: StatusSummary | null;
   debugHealth: HealthSnapshot | null;

@@ -141,10 +141,15 @@ export async function compactEmbeddedPiSessionDirect(
     });
 
     if (!apiKeyInfo.apiKey) {
-      if (apiKeyInfo.mode !== "aws-sdk") {
+      if (apiKeyInfo.mode !== "aws-sdk" && apiKeyInfo.mode !== "none") {
         throw new Error(
           `No API key resolved for provider "${model.provider}" (auth mode: ${apiKeyInfo.mode}).`,
         );
+      }
+      // For local providers like Ollama that don't require auth, set a dummy key
+      // to satisfy the pi-coding-agent library's auth requirements
+      if (apiKeyInfo.mode === "none") {
+        authStorage.setRuntimeApiKey(model.provider, "dummy-local-provider-key");
       }
     } else if (model.provider === "github-copilot") {
       const { resolveCopilotApiToken } = await import("../../providers/github-copilot-token.js");

@@ -7,7 +7,7 @@ export const TAB_GROUPS = [
     tabs: ["overview", "channels", "instances", "sessions", "cron"],
   },
   { label: "Agent", tabs: ["agents", "skills", "nodes"] },
-  { label: "Settings", tabs: ["config", "debug", "logs"] },
+  { label: "Settings", tabs: ["config", "models", "debug", "logs"] },
 ] as const;
 
 export type Tab =
@@ -21,6 +21,7 @@ export type Tab =
   | "nodes"
   | "chat"
   | "config"
+  | "models"
   | "debug"
   | "logs";
 
@@ -35,6 +36,7 @@ const TAB_PATHS: Record<Tab, string> = {
   nodes: "/nodes",
   chat: "/chat",
   config: "/config",
+  models: "/models",
   debug: "/debug",
   logs: "/logs",
 };
@@ -142,6 +144,8 @@ export function iconForTab(tab: Tab): IconName {
       return "monitor";
     case "config":
       return "settings";
+    case "models":
+      return "cpu";
     case "debug":
       return "bug";
     case "logs":
@@ -173,6 +177,8 @@ export function titleForTab(tab: Tab) {
       return "Chat";
     case "config":
       return "Config";
+    case "models":
+      return "Models";
     case "debug":
       return "Debug";
     case "logs":
@@ -204,6 +210,8 @@ export function subtitleForTab(tab: Tab) {
       return "Direct gateway chat session for quick interventions.";
     case "config":
       return "Edit ~/.openclaw/openclaw.json safely.";
+    case "models":
+      return "Manage AI providers, local models, and model routing.";
     case "debug":
       return "Gateway snapshots, events, and manual RPC calls.";
     case "logs":

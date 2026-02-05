@@ -77,6 +77,21 @@ import {
 } from "./app-tool-stream.ts";
 import { resolveInjectedAssistantIdentity } from "./assistant-identity.ts";
 import { loadAssistantIdentity as loadAssistantIdentityInternal } from "./controllers/assistant-identity.ts";
+import {
+  loadModelsStatus,
+  testModel,
+  testProvider,
+  discoverOllamaModels,
+  pullOllamaModel,
+  setDefaultModel,
+  setHeartbeatModel,
+  addProvider,
+  removeProvider,
+  fetchLiveModels,
+  addAllowedModel,
+  removeAllowedModel,
+  setAllowAllModels,
+} from "./controllers/models.ts";
 import { loadSettings, type UiSettings } from "./storage.ts";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types.ts";
 
@@ -242,6 +257,52 @@ export class OpenClawApp extends LitElement {
   @state() skillEdits: Record<string, string> = {};
   @state() skillsBusyKey: string | null = null;
   @state() skillMessages: Record<string, SkillMessage> = {};
+
+  // Models state
+  @state() modelsLoading = false;
+  @state() modelsProviders: import("./types.models.ts").ModelProviderUiEntry[] = [];
+  @state() modelsOllamaAvailable = false;
+  @state() modelsOllamaModels: import("./types.models.ts").OllamaModelUiEntry[] = [];
+  @state() modelsDefaultModel = "";
+  @state() modelsHeartbeatModel = "";
+  @state() modelsAllowedModels: import("./types.models.ts").AllowedModelEntry[] = [];
+  @state() modelsAllowAny = true;
+  @state() modelsError: string | null = null;
+  @state() modelsTestRunning: string | null = null;
+  @state() modelsProviderTestRunning: string | null = null;
+  @state() modelsOllamaPullRunning: string | null = null;
+  @state() modelsAllowedModelsLoading = false;
+  @state() modelsAllowedModelsActionRunning: string | null = null;
+  @state() modelsTestResults = new Map<string, import("./types.models.ts").ModelTestResult>();
+  @state() modelsProviderTestResults = new Map<
+    string,
+    import("./types.models.ts").ProviderTestResult
+  >();
+  @state() modelsActiveTab: "providers" | "local" | "recommended" | "heartbeat" | "allowed" =
+    "providers";
+  @state() modelsShowAddProvider = false;
+  @state() modelsNewProviderForm = {
+    id: "",
+    name: "",
+    baseUrl: "",
+    apiKey: "",
+    authType: "api-key" as "api-key" | "oauth",
+    api: undefined as string | undefined,
+    models: undefined as
+      | Array<{
+          id: string;
+          name: string;
+          contextWindow?: number;
+          maxTokens?: number;
+          inputTypes?: Array<"text" | "image" | "audio" | "video">;
+          reasoning?: boolean;
+          costPer1MInput?: number;
+          costPer1MOutput?: number;
+        }>
+      | undefined,
+  };
+  @state() modelsLiveModels = new Map<string, import("./types.models.ts").LiveModelEntry[]>();
+  @state() modelsLiveModelsLoading: string | null = null;
 
   @state() debugLoading = false;
   @state() debugStatus: StatusSummary | null = null;
@@ -507,6 +568,112 @@ export class OpenClawApp extends LitElement {
     const newRatio = Math.max(0.4, Math.min(0.7, ratio));
     this.splitRatio = newRatio;
     this.applySettings({ ...this.settings, splitRatio: newRatio });
+  }
+
+  // Models handlers
+  async loadModels() {
+    await loadModelsStatus(this);
+  }
+
+  async handleTestModel(modelId: string, providerId: string) {
+    await testModel(this, modelId, providerId);
+  }
+
+  async handleTestProvider(providerId: string) {
+    await testProvider(this, providerId);
+  }
+
+  async handleDiscoverOllama() {
+    await discoverOllamaModels(this);
+  }
+
+  async handlePullOllamaModel(modelName: string) {
+    await pullOllamaModel(this, modelName);
+  }
+
+  async handleSetDefaultModel(modelRef: string) {
+    await setDefaultModel(this, modelRef);
+  }
+
+  async handleSetHeartbeatModel(modelRef: string) {
+    await setHeartbeatModel(this, modelRef);
+  }
+
+  async handleFetchLiveModels(providerId: string) {
+    await fetchLiveModels(this, providerId);
+  }
+
+  async handleAddProvider(
+    models?: {
+      id: string;
+      name: string;
+      contextWindow?: number;
+      maxTokens?: number;
+      inputTypes?: Array<"text" | "image" | "audio" | "video">;
+      reasoning?: boolean;
+      costPer1MInput?: number;
+      costPer1MOutput?: number;
+    }[],
+  ) {
+    await addProvider(this, models);
+  }
+
+  async handleRemoveProvider(providerId: string) {
+    await removeProvider(this, providerId);
+  }
+
+  async handleAddAllowedModel(modelKey: string, alias?: string) {
+    await addAllowedModel(this, modelKey, alias);
+  }
+
+  async handleRemoveAllowedModel(modelKey: string) {
+    await removeAllowedModel(this, modelKey);
+  }
+
+  async handleSetAllowAllModels(allowAll: boolean) {
+    await setAllowAllModels(this, allowAll);
+  }
+
+  handleModelsTabChange(tab: "providers" | "local" | "recommended" | "heartbeat" | "allowed") {
+    this.modelsActiveTab = tab;
+  }
+
+  handleToggleAddProvider() {
+    this.modelsShowAddProvider = !this.modelsShowAddProvider;
+  }
+
+  handleProviderFormChange(field: string, value: string) {
+    this.modelsNewProviderForm = {
+      ...this.modelsNewProviderForm,
+      [field]: value,
+    };
+  }
+
+  handleProviderPresetSelect(preset: {
+    id: string;
+    name: string;
+    baseUrl: string;
+    docsUrl: string;
+    api: string;
+    models: Array<{
+      id: string;
+      name: string;
+      contextWindow?: number;
+      maxTokens?: number;
+      inputTypes?: Array<"text" | "image" | "audio" | "video">;
+      reasoning?: boolean;
+      costPer1MInput?: number;
+      costPer1MOutput?: number;
+    }>;
+  }) {
+    this.modelsNewProviderForm = {
+      ...this.modelsNewProviderForm,
+      id: preset.id,
+      name: preset.name,
+      baseUrl: preset.baseUrl,
+      api: preset.api,
+      models: preset.models,
+    };
   }
 
   render() {

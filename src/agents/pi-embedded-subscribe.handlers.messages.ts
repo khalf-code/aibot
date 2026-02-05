@@ -56,7 +56,6 @@ export function handleMessageUpdate(
   if (msg?.role !== "assistant") {
     return;
   }
-
   const assistantEvent = evt.assistantMessageEvent;
   const assistantRecord =
     assistantEvent && typeof assistantEvent === "object"
@@ -195,9 +194,30 @@ export function handleMessageEnd(
   if (msg?.role !== "assistant") {
     return;
   }
-
   const assistantMessage = msg;
   promoteThinkingTagsToBlocks(assistantMessage);
+
+  // Check for API errors (rate limit, quota exceeded, etc.) and emit them to the UI
+  const stopReason = (assistantMessage as unknown as Record<string, unknown>).stopReason;
+  const errorMessage = (assistantMessage as unknown as Record<string, unknown>).errorMessage;
+  if (stopReason === "error" && errorMessage && typeof errorMessage === "string") {
+    emitAgentEvent({
+      runId: ctx.params.runId,
+      stream: "error",
+      data: {
+        message: errorMessage,
+        type: "api_error",
+      },
+    });
+    void ctx.params.onAgentEvent?.({
+      stream: "error",
+      data: { message: errorMessage, type: "api_error" },
+    });
+    // Also emit as a block reply so the user sees the error in chat
+    void ctx.params.onBlockReply?.({
+      text: `⚠️ **Error**: ${errorMessage}`,
+    });
+  }
 
   const rawText = extractAssistantText(assistantMessage);
   appendRawStream({

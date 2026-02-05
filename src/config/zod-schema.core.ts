@@ -28,7 +28,11 @@ export const ModelDefinitionSchema = z
     name: z.string().min(1),
     api: ModelApiSchema.optional(),
     reasoning: z.boolean().optional(),
-    input: z.array(z.union([z.literal("text"), z.literal("image")])).optional(),
+    input: z
+      .array(
+        z.union([z.literal("text"), z.literal("image"), z.literal("audio"), z.literal("video")]),
+      )
+      .optional(),
     cost: z
       .object({
         input: z.number().optional(),
@@ -41,7 +45,7 @@ export const ModelDefinitionSchema = z
     contextWindow: z.number().positive().optional(),
     maxTokens: z.number().positive().optional(),
     headers: z.record(z.string(), z.string()).optional(),
-    compat: ModelCompatSchema,
+    compat: ModelCompatSchema.optional(),
   })
   .strict();
 
@@ -55,7 +59,7 @@ export const ModelProviderSchema = z
     api: ModelApiSchema.optional(),
     headers: z.record(z.string(), z.string()).optional(),
     authHeader: z.boolean().optional(),
-    models: z.array(ModelDefinitionSchema),
+    models: z.array(ModelDefinitionSchema).optional().default([]),
   })
   .strict();
 

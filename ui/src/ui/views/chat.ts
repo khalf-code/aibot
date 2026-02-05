@@ -1,6 +1,7 @@
 import { html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
+import type { AgentStatusType } from "../components/agent-status.ts";
 import type { SessionsListResult } from "../types.ts";
 import type { ChatItem, MessageGroup } from "../types/chat-types.ts";
 import type { ChatAttachment, ChatQueueItem } from "../ui-types.ts";
@@ -11,8 +12,9 @@ import {
 } from "../chat/grouped-render.ts";
 import { normalizeMessage, normalizeRoleForGrouping } from "../chat/message-normalizer.ts";
 import { icons } from "../icons.ts";
-import { renderMarkdownSidebar } from "./markdown-sidebar.ts";
 import "../components/resizable-divider.ts";
+import "../components/agent-status.ts";
+import { renderMarkdownSidebar } from "./markdown-sidebar.ts";
 
 export type CompactionIndicatorStatus = {
   active: boolean;
@@ -68,6 +70,11 @@ export type ChatProps = {
   onCloseSidebar?: () => void;
   onSplitRatioChange?: (ratio: number) => void;
   onChatScroll?: (event: Event) => void;
+  // Agent status
+  agentStatus?: AgentStatusType;
+  tokensUsed?: number;
+  maxTokens?: number;
+  currentModel?: string;
 };
 
 const COMPACTION_TOAST_DURATION_MS = 5000;
@@ -185,6 +192,13 @@ function renderAttachmentPreview(props: ChatProps) {
   `;
 }
 
+function resolveAgentStatus(props: ChatProps): AgentStatusType {
+  if (props.stream !== null) return "streaming";
+  if (props.sending) return "working";
+  if (props.canAbort) return "thinking";
+  return "idle";
+}
+
 export function renderChat(props: ChatProps) {
   const canCompose = props.connected;
   const isBusy = props.sending || props.stream !== null;
@@ -196,6 +210,12 @@ export function renderChat(props: ChatProps) {
     name: props.assistantName,
     avatar: props.assistantAvatar ?? props.assistantAvatarUrl ?? null,
   };
+
+  // Resolve agent status for the indicator
+  const agentStatus = props.agentStatus ?? resolveAgentStatus(props);
+  const tokensUsed = props.tokensUsed ?? activeSession?.totalTokens ?? 0;
+  const maxTokens = props.maxTokens ?? activeSession?.contextTokens ?? 0;
+  const currentModel = props.currentModel ?? activeSession?.model ?? "";
 
   const hasAttachments = (props.attachments?.length ?? 0) > 0;
   const composePlaceholder = props.connected
@@ -259,6 +279,18 @@ export function renderChat(props: ChatProps) {
       ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
 
       ${renderCompactionIndicator(props.compactionStatus)}
+
+      <!-- Agent Status Indicator -->
+      <div class="chat-agent-status">
+        <agent-status
+          .status=${agentStatus}
+          .tokens=${tokensUsed}
+          .maxTokens=${maxTokens}
+          .model=${currentModel}
+          .connected=${props.connected}
+          .assistantName=${props.assistantName}
+        ></agent-status>
+      </div>
 
       ${
         props.focusMode

@@ -126,7 +126,7 @@ export type ResolvedProviderAuth = {
   apiKey?: string;
   profileId?: string;
   source: string;
-  mode: "api-key" | "oauth" | "token" | "aws-sdk";
+  mode: "api-key" | "oauth" | "token" | "aws-sdk" | "none";
 };
 
 export async function resolveApiKeyForProvider(params: {
@@ -216,6 +216,11 @@ export async function resolveApiKeyForProvider(params: {
         'No API key found for provider "openai". You are authenticated with OpenAI Codex OAuth. Use openai-codex/gpt-5.2 (ChatGPT OAuth) or set OPENAI_API_KEY for openai/gpt-5.2.',
       );
     }
+  }
+
+  // Ollama is a local provider that doesn't require authentication
+  if (normalized === "ollama") {
+    return { mode: "none", source: "local-provider" };
   }
 
   const authStorePath = resolveAuthStorePathForDisplay(params.agentDir);

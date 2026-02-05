@@ -64,6 +64,7 @@ import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
 import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
+import { renderModels } from "./views/models.ts";
 import { renderNodes } from "./views/nodes.ts";
 import { renderOverview } from "./views/overview.ts";
 import { renderSessions } from "./views/sessions.ts";
@@ -989,6 +990,10 @@ export function renderApp(state: AppViewState) {
                   (state as unknown as OpenClawApp).handleSplitRatioChange(ratio),
                 assistantName: state.assistantName,
                 assistantAvatar: state.assistantAvatar,
+                // Agent status - computed from session data
+                tokensUsed: undefined,
+                maxTokens: undefined,
+                currentModel: undefined,
               })
             : nothing
         }
@@ -1032,6 +1037,65 @@ export function renderApp(state: AppViewState) {
                 onSave: () => saveConfig(state as unknown as OpenClawApp),
                 onApply: () => applyConfig(state as unknown as OpenClawApp),
                 onUpdate: () => runUpdate(state as unknown as OpenClawApp),
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "models"
+            ? renderModels({
+                loading: state.modelsLoading,
+                providers: state.modelsProviders,
+                ollamaAvailable: state.modelsOllamaAvailable,
+                ollamaModels: state.modelsOllamaModels,
+                defaultModel: state.modelsDefaultModel,
+                heartbeatModel: state.modelsHeartbeatModel,
+                allowedModels: state.modelsAllowedModels,
+                allowAnyModels: state.modelsAllowAny,
+                allowedModelsLoading: state.modelsAllowedModelsLoading,
+                allowedModelsActionRunning: state.modelsAllowedModelsActionRunning,
+                error: state.modelsError,
+                testRunning: state.modelsTestRunning,
+                providerTestRunning: state.modelsProviderTestRunning,
+                ollamaPullRunning: state.modelsOllamaPullRunning,
+                testResults: state.modelsTestResults,
+                providerTestResults: state.modelsProviderTestResults,
+                activeTab: state.modelsActiveTab,
+                showAddProvider: state.modelsShowAddProvider,
+                newProviderForm: state.modelsNewProviderForm,
+                liveModels: state.modelsLiveModels,
+                liveModelsLoading: state.modelsLiveModelsLoading,
+                onRefresh: () => (state as unknown as OpenClawApp).loadModels(),
+                onTabChange: (tab) => ((state as unknown as OpenClawApp).modelsActiveTab = tab),
+                onTestModel: (modelId, providerId) =>
+                  (state as unknown as OpenClawApp).handleTestModel(modelId, providerId),
+                onTestProvider: (providerId) =>
+                  (state as unknown as OpenClawApp).handleTestProvider(providerId),
+                onDiscoverOllama: () => (state as unknown as OpenClawApp).handleDiscoverOllama(),
+                onPullOllamaModel: (modelName) =>
+                  (state as unknown as OpenClawApp).handlePullOllamaModel(modelName),
+                onSetDefaultModel: (modelRef) =>
+                  (state as unknown as OpenClawApp).handleSetDefaultModel(modelRef),
+                onSetHeartbeatModel: (modelRef) =>
+                  (state as unknown as OpenClawApp).handleSetHeartbeatModel(modelRef),
+                onFetchLiveModels: (providerId) =>
+                  (state as unknown as OpenClawApp).handleFetchLiveModels(providerId),
+                onToggleAddProvider: () =>
+                  (state as unknown as OpenClawApp).handleToggleAddProvider(),
+                onAddProvider: (models) =>
+                  (state as unknown as OpenClawApp).handleAddProvider(models),
+                onRemoveProvider: (providerId) =>
+                  (state as unknown as OpenClawApp).handleRemoveProvider(providerId),
+                onProviderFormChange: (field, value) =>
+                  (state as unknown as OpenClawApp).handleProviderFormChange(field, value),
+                onProviderPresetSelect: (preset) =>
+                  (state as unknown as OpenClawApp).handleProviderPresetSelect(preset),
+                onAddAllowedModel: (modelKey, alias) =>
+                  (state as unknown as OpenClawApp).handleAddAllowedModel(modelKey, alias),
+                onRemoveAllowedModel: (modelKey) =>
+                  (state as unknown as OpenClawApp).handleRemoveAllowedModel(modelKey),
+                onSetAllowAllModels: (allowAll) =>
+                  (state as unknown as OpenClawApp).handleSetAllowAllModels(allowAll),
               })
             : nothing
         }
