@@ -3,6 +3,9 @@ import {
   deleteAccountFromConfigSection,
   setAccountEnabledInConfigSection,
   type ChannelPlugin,
+  type OpenClawConfig,
+  type PluginRuntime,
+  type ReplyPayload,
 } from "openclaw/plugin-sdk";
 import {
   listConvosAccountIds,
@@ -15,6 +18,11 @@ import { ConvosSDKClient, type InboundMessage } from "./sdk-client.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
 import { convosOutbound, setClientForAccount } from "./outbound.js";
 import { getConvosRuntime } from "./runtime.js";
+
+type RuntimeLogger = {
+  info: (msg: string) => void;
+  error: (msg: string) => void;
+};
 
 const meta = {
   id: "convos",
@@ -260,7 +268,10 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         env: account.env,
         debug: account.debug,
         onMessage: (msg: InboundMessage) => {
-          handleInboundMessage(account, msg, runtime, log);
+          // Handle async message processing with error logging
+          handleInboundMessage(account, msg, runtime, log).catch((err) => {
+            log?.error(`[${account.accountId}] Message handling failed: ${String(err)}`);
+          });
         },
         onInvite: async (inviteCtx) => {
           // Auto-accept invites for now
@@ -295,13 +306,13 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 };
 
 /**
- * Handle inbound messages from SDK
+ * Handle inbound messages from SDK - dispatches to the reply pipeline
  */
-function handleInboundMessage(
+async function handleInboundMessage(
   account: ResolvedConvosAccount,
   msg: InboundMessage,
-  runtime: ReturnType<typeof getConvosRuntime>,
-  log?: { info: (msg: string) => void; error: (msg: string) => void },
+  runtime: PluginRuntime,
+  log?: RuntimeLogger,
 ) {
   if (account.debug) {
     log?.info(
@@ -309,46 +320,146 @@ function handleInboundMessage(
     );
   }
 
-  if (!runtime) {
-    log?.error(`[${account.accountId}] No runtime available for message handling`);
-    return;
-  }
+  const cfg = runtime.config.loadConfig() as OpenClawConfig;
+  const rawBody = msg.content;
 
-  // Dispatch to reply pipeline
-  runtime.channel.reply.dispatchReplyFromConfig({
+  // Resolve agent route to get session key for conversation tracking
+  const route = runtime.channel.routing.resolveAgentRoute({
+    cfg,
     channel: "convos",
     accountId: account.accountId,
-    message: {
-      id: msg.messageId,
-      text: msg.content,
-      timestamp: msg.timestamp,
-      isFromOwner: msg.conversationId === account.ownerConversationId,
-    },
-    sender: {
-      id: msg.senderId,
-      name: msg.senderName,
-    },
-    target: {
+    peer: {
       kind: "group",
-      groupId: msg.conversationId,
+      id: msg.conversationId,
     },
-    replyFn: async (reply) => {
-      const client = clients.get(account.accountId);
-      if (!client) {
-        throw new Error("Convos client not available");
-      }
-      await client.sendMessage(msg.conversationId, reply);
+  });
+
+  // Get store path for session recording
+  const storePath = runtime.channel.session.resolveStorePath(cfg.session?.store, {
+    agentId: route.agentId,
+  });
+
+  // Get previous timestamp for envelope formatting
+  const previousTimestamp = runtime.channel.session.readSessionUpdatedAt({
+    storePath,
+    sessionKey: route.sessionKey,
+  });
+
+  // Format the agent envelope (adds channel/timestamp context)
+  const envelopeOptions = runtime.channel.reply.resolveEnvelopeFormatOptions(cfg);
+  const body = runtime.channel.reply.formatAgentEnvelope({
+    channel: "Convos",
+    from: msg.senderName || msg.senderId.slice(0, 12),
+    timestamp: msg.timestamp.getTime(),
+    previousTimestamp,
+    envelope: envelopeOptions,
+    body: rawBody,
+  });
+
+  // Build the finalized inbound context with all required fields
+  const ctxPayload = runtime.channel.reply.finalizeInboundContext({
+    Body: body,
+    RawBody: rawBody,
+    CommandBody: rawBody,
+    From: `convos:${msg.senderId}`,
+    To: `convos:${msg.conversationId}`,
+    SessionKey: route.sessionKey,
+    AccountId: route.accountId,
+    ChatType: "group",
+    ConversationLabel: msg.conversationId.slice(0, 12),
+    SenderName: msg.senderName || undefined,
+    SenderId: msg.senderId,
+    Provider: "convos",
+    Surface: "convos",
+    MessageSid: msg.messageId,
+    OriginatingChannel: "convos",
+    OriginatingTo: `convos:${msg.conversationId}`,
+  });
+
+  // Record the inbound session for conversation history
+  await runtime.channel.session.recordInboundSession({
+    storePath,
+    sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+    ctx: ctxPayload,
+    onRecordError: (err) => {
+      log?.error(`[${account.accountId}] Failed updating session meta: ${String(err)}`);
+    },
+  });
+
+  // Resolve markdown table mode for reply formatting
+  const tableMode = runtime.channel.text.resolveMarkdownTableMode({
+    cfg,
+    channel: "convos",
+    accountId: account.accountId,
+  });
+
+  // Dispatch to the reply pipeline with buffered block dispatcher
+  await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+    ctx: ctxPayload,
+    cfg,
+    dispatcherOptions: {
+      deliver: async (payload: ReplyPayload) => {
+        await deliverConvosReply({
+          payload,
+          conversationId: msg.conversationId,
+          accountId: account.accountId,
+          runtime,
+          log,
+          tableMode,
+        });
+      },
+      onError: (err, info) => {
+        log?.error(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
+      },
     },
   });
 }
 
 /**
+ * Deliver a reply to a Convos conversation
+ */
+async function deliverConvosReply(params: {
+  payload: ReplyPayload;
+  conversationId: string;
+  accountId: string;
+  runtime: PluginRuntime;
+  log?: RuntimeLogger;
+  tableMode?: "off" | "plain" | "markdown" | "bullets" | "code";
+}): Promise<void> {
+  const { payload, conversationId, accountId, runtime, log, tableMode = "code" } = params;
+
+  const client = clients.get(accountId);
+  if (!client) {
+    throw new Error("Convos client not available");
+  }
+
+  // Convert markdown tables if needed
+  const text = runtime.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
+
+  if (text) {
+    // Chunk the text if needed (Convos/XMTP has message size limits)
+    const chunkLimit = runtime.channel.text.resolveTextChunkLimit({
+      cfg: runtime.config.loadConfig() as OpenClawConfig,
+      channel: "convos",
+      accountId,
+    });
+    const chunks = runtime.channel.text.chunkText(text, chunkLimit);
+
+    for (const chunk of chunks) {
+      try {
+        await client.sendMessage(conversationId, chunk);
+      } catch (err) {
+        log?.error(`[${accountId}] Failed to send message: ${String(err)}`);
+        throw err;
+      }
+    }
+  }
+}
+
+/**
  * Stop SDK client for an account
  */
-async function stopClient(
-  accountId: string,
-  log?: { info: (msg: string) => void; error: (msg: string) => void },
-) {
+async function stopClient(accountId: string, log?: RuntimeLogger) {
   const client = clients.get(accountId);
   if (client) {
     try {
