@@ -3,12 +3,23 @@ import {
   resolveGatewayLaunchAgentLabel,
   resolveGatewaySystemdServiceName,
 } from "../daemon/constants.js";
+import {
+  DisruptiveOperationLockedError,
+  guardDisruptiveOperation,
+} from "./disruptive-operation-lock.js";
 
 export type RestartAttempt = {
   ok: boolean;
   method: "launchctl" | "systemd" | "supervisor";
   detail?: string;
   tried?: string[];
+};
+
+export type RestartGuardOptions = {
+  force?: boolean;
+  forceReason?: string;
+  operation?: string;
+  env?: NodeJS.ProcessEnv;
 };
 
 const SPAWN_TIMEOUT_MS = 2000;
@@ -87,9 +98,40 @@ function normalizeSystemdUnit(raw?: string, profile?: string): string {
   return unit.endsWith(".service") ? unit : `${unit}.service`;
 }
 
-export function triggerMoltbotRestart(): RestartAttempt {
+export async function triggerMoltbotRestart(opts?: {
+  guard?: RestartGuardOptions | null;
+}): Promise<RestartAttempt> {
   if (process.env.VITEST || process.env.NODE_ENV === "test") {
     return { ok: true, method: "supervisor", detail: "test mode" };
+  }
+  if (opts?.guard !== null) {
+    const guard = opts?.guard ?? {};
+    const blockedMethod =
+      process.platform === "darwin"
+        ? "launchctl"
+        : process.platform === "linux"
+          ? "systemd"
+          : "supervisor";
+    try {
+      await guardDisruptiveOperation({
+        operation: guard.operation ?? "gateway.restart",
+        env: guard.env ?? process.env,
+        force: guard.force,
+        forceReason: guard.forceReason,
+      });
+    } catch (err) {
+      if (err instanceof DisruptiveOperationLockedError) {
+        return { ok: false, method: blockedMethod, detail: err.message };
+      }
+      if (err instanceof Error && err.message.includes("forceReason required")) {
+        return {
+          ok: false,
+          method: blockedMethod,
+          detail: "forceReason required when force=true",
+        };
+      }
+      return { ok: false, method: blockedMethod, detail: String(err) };
+    }
   }
   const tried: string[] = [];
   if (process.platform !== "darwin") {

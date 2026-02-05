@@ -1,4 +1,5 @@
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
+import { abortEmbeddedPiRun } from "../agents/pi-embedded.js";
 import { initSubagentRegistry } from "../agents/subagent-registry.js";
 import { registerSkillsChangeListener } from "../agents/skills/refresh.js";
 import type { CanvasHostServer } from "../canvas-host/server.js";
@@ -21,6 +22,11 @@ import { onHeartbeatEvent } from "../infra/heartbeat-events.js";
 import { startHeartbeatRunner } from "../infra/heartbeat-runner.js";
 import { getMachineDisplayName } from "../infra/machine-name.js";
 import { ensureMoltbotCliOnPath } from "../infra/path-env.js";
+import {
+  DisruptiveOperationLockedError,
+  guardDisruptiveOperation,
+  startDisruptiveOperationRunLeaseTracking,
+} from "../infra/disruptive-operation-lock.js";
 import {
   primeRemoteSkillsCache,
   refreshRemoteBinsForConnectedNodes,
@@ -64,6 +70,7 @@ import { resolveGatewayRuntimeConfig } from "./server-runtime-config.js";
 import { createGatewayRuntimeState } from "./server-runtime-state.js";
 import { hasConnectedMobileNode } from "./server-mobile-nodes.js";
 import { resolveSessionKeyForRun } from "./server-session-key.js";
+import { loadSessionEntry } from "./session-utils.js";
 import { startGatewaySidecars } from "./server-startup.js";
 import { logGatewayStartup } from "./server-startup-log.js";
 import { startGatewayTailscaleExposure } from "./server-tailscale.js";
@@ -88,6 +95,8 @@ const logHooks = log.child("hooks");
 const logPlugins = log.child("plugins");
 const logWsControl = log.child("ws");
 const canvasRuntime = runtimeForLogger(logCanvas);
+const STUCK_ABORT_COOLDOWN_MS = 5 * 60_000;
+const stuckAbortTracker = new Map<string, number>();
 
 export type GatewayServer = {
   close: (opts?: { reason?: string; restartExpectedMs?: number | null }) => Promise<void>;
@@ -213,6 +222,28 @@ export async function startGatewayServer(
   const diagnosticsEnabled = isDiagnosticsEnabled(cfgAtStart);
   if (diagnosticsEnabled) {
     startDiagnosticHeartbeat();
+    onDiagnosticEvent((evt) => {
+      if (evt.type !== "session.stuck") return;
+      if (evt.state !== "processing") return;
+      const key = evt.sessionKey ?? evt.sessionId ?? "unknown";
+      const now = Date.now();
+      const lastAbortAt = stuckAbortTracker.get(key);
+      if (lastAbortAt && now - lastAbortAt < STUCK_ABORT_COOLDOWN_MS) return;
+      stuckAbortTracker.set(key, now);
+      const sessionId =
+        evt.sessionId ??
+        (evt.sessionKey ? loadSessionEntry(evt.sessionKey).entry?.sessionId : undefined);
+      if (!sessionId) {
+        log.warn(`stuck session abort skipped: missing sessionId for ${key}`);
+        return;
+      }
+      const aborted = abortEmbeddedPiRun(sessionId);
+      if (aborted) {
+        log.warn(`stuck session auto-abort: ${key} sessionId=${sessionId}`);
+      } else {
+        log.warn(`stuck session auto-abort failed: ${key} sessionId=${sessionId}`);
+      }
+    });
   }
 
   // --- Status notification listener ---
@@ -270,7 +301,21 @@ export async function startGatewayServer(
         );
         // Auto-recover: send SIGUSR1 to self after a brief delay
         setTimeout(() => {
-          process.kill(process.pid, "SIGUSR1");
+          void (async () => {
+            try {
+              await guardDisruptiveOperation({
+                operation: "gateway.restart",
+                env: process.env,
+              });
+              process.kill(process.pid, "SIGUSR1");
+            } catch (err) {
+              if (err instanceof DisruptiveOperationLockedError) {
+                logReload.warn(`gateway restart blocked: ${err.message}`);
+              } else {
+                logReload.warn(`gateway restart guard failed: ${String(err)}`);
+              }
+            }
+          })();
         }, 5000);
       }
     });
@@ -278,6 +323,7 @@ export async function startGatewayServer(
     log.info("gateway: status webhook notifications enabled");
   }
   setGatewaySigusr1RestartPolicy({ allowExternal: cfgAtStart.commands?.restart === true });
+  startDisruptiveOperationRunLeaseTracking({ log: log.child("restart-guard") });
   initSubagentRegistry();
   const defaultAgentId = resolveDefaultAgentId(cfgAtStart);
   const defaultWorkspaceDir = resolveAgentWorkspaceDir(cfgAtStart, defaultAgentId);

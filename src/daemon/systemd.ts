@@ -4,6 +4,10 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { colorize, isRich, theme } from "../terminal/theme.js";
 import {
+  DisruptiveOperationLockedError,
+  guardDisruptiveOperation,
+} from "../infra/disruptive-operation-lock.js";
+import {
   formatGatewayServiceDescription,
   LEGACY_GATEWAY_SYSTEMD_SERVICE_NAMES,
   resolveGatewaySystemdServiceName,
@@ -277,10 +281,28 @@ export async function stopSystemdService({
 export async function restartSystemdService({
   stdout,
   env,
+  guard,
 }: {
   stdout: NodeJS.WritableStream;
   env?: Record<string, string | undefined>;
+  guard?: { force?: boolean; forceReason?: string; operation?: string };
 }): Promise<void> {
+  try {
+    await guardDisruptiveOperation({
+      operation: guard?.operation ?? "gateway.restart",
+      env: env ?? process.env,
+      force: guard?.force,
+      forceReason: guard?.forceReason,
+    });
+  } catch (err) {
+    if (err instanceof DisruptiveOperationLockedError) {
+      throw new Error(err.message);
+    }
+    if (err instanceof Error && err.message.includes("forceReason required")) {
+      throw new Error("forceReason required when force=true");
+    }
+    throw err;
+  }
   await assertSystemdAvailable();
   const serviceName = resolveSystemdServiceName(env ?? {});
   const unitName = `${serviceName}.service`;

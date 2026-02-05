@@ -170,6 +170,8 @@ export function registerGatewayCli(program: Command) {
     .command("restart")
     .description("Restart the Gateway service (launchd/systemd/schtasks)")
     .option("--json", "Output JSON", false)
+    .option("--force", "Force restart even with active sessions", false)
+    .option("--force-reason <reason>", "Required reason when using --force")
     .action(async (opts) => {
       await runDaemonRestart(opts);
     });

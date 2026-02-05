@@ -245,6 +245,10 @@ export async function runDaemonRestart(opts: DaemonLifecycleOptions = {}): Promi
     else defaultRuntime.error(message);
     defaultRuntime.exit(1);
   };
+  if (opts.force && !opts.forceReason?.trim()) {
+    fail("forceReason required when force=true");
+    return false;
+  }
 
   const service = resolveGatewayService();
   let loaded = false;
@@ -278,7 +282,13 @@ export async function runDaemonRestart(opts: DaemonLifecycleOptions = {}): Promi
     return false;
   }
   try {
-    await service.restart({ env: process.env, stdout });
+    await service.restart({
+      env: process.env,
+      stdout,
+      guard: opts.force
+        ? { force: true, forceReason: opts.forceReason?.trim(), operation: "gateway.restart" }
+        : undefined,
+    });
     let restarted = true;
     try {
       restarted = await service.isLoaded({ env: process.env });

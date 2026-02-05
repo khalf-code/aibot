@@ -5,6 +5,10 @@ import { promisify } from "node:util";
 
 import { colorize, isRich, theme } from "../terminal/theme.js";
 import {
+  DisruptiveOperationLockedError,
+  guardDisruptiveOperation,
+} from "../infra/disruptive-operation-lock.js";
+import {
   formatGatewayServiceDescription,
   GATEWAY_LAUNCH_AGENT_LABEL,
   LEGACY_GATEWAY_LAUNCH_AGENT_LABELS,
@@ -435,10 +439,28 @@ export async function installLaunchAgent({
 export async function restartLaunchAgent({
   stdout,
   env,
+  guard,
 }: {
   stdout: NodeJS.WritableStream;
   env?: Record<string, string | undefined>;
+  guard?: { force?: boolean; forceReason?: string; operation?: string };
 }): Promise<void> {
+  try {
+    await guardDisruptiveOperation({
+      operation: guard?.operation ?? "gateway.restart",
+      env: env ?? process.env,
+      force: guard?.force,
+      forceReason: guard?.forceReason,
+    });
+  } catch (err) {
+    if (err instanceof DisruptiveOperationLockedError) {
+      throw new Error(err.message);
+    }
+    if (err instanceof Error && err.message.includes("forceReason required")) {
+      throw new Error("forceReason required when force=true");
+    }
+    throw err;
+  }
   const domain = resolveGuiDomain();
   const label = resolveLaunchAgentLabel({ env });
   const res = await execLaunchctl(["kickstart", "-k", `${domain}/${label}`]);

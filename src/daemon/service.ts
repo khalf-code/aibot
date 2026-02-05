@@ -36,6 +36,12 @@ export type GatewayServiceInstallArgs = {
   description?: string;
 };
 
+export type GatewayServiceRestartGuard = {
+  force?: boolean;
+  forceReason?: string;
+  operation?: string;
+};
+
 export type GatewayService = {
   label: string;
   loadedText: string;
@@ -52,6 +58,7 @@ export type GatewayService = {
   restart: (args: {
     env?: Record<string, string | undefined>;
     stdout: NodeJS.WritableStream;
+    guard?: GatewayServiceRestartGuard;
   }) => Promise<void>;
   isLoaded: (args: { env?: Record<string, string | undefined> }) => Promise<boolean>;
   readCommand: (env: Record<string, string | undefined>) => Promise<{
@@ -85,6 +92,7 @@ export function resolveGatewayService(): GatewayService {
         await restartLaunchAgent({
           stdout: args.stdout,
           env: args.env,
+          guard: args.guard,
         });
       },
       isLoaded: async (args) => isLaunchAgentLoaded(args),
@@ -114,6 +122,7 @@ export function resolveGatewayService(): GatewayService {
         await restartSystemdService({
           stdout: args.stdout,
           env: args.env,
+          guard: args.guard,
         });
       },
       isLoaded: async (args) => isSystemdServiceEnabled(args),
@@ -143,6 +152,7 @@ export function resolveGatewayService(): GatewayService {
         await restartScheduledTask({
           stdout: args.stdout,
           env: args.env,
+          guard: args.guard,
         });
       },
       isLoaded: async (args) => isScheduledTaskInstalled(args),
