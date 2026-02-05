@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSandboxPath, assertSandboxPath } from "./sandbox-paths.js";
-import path from "node:path";
+import { resolveSandboxPath } from "./sandbox-paths.js";
 
 describe("resolveSandboxPath", () => {
   const root = "/workspace";

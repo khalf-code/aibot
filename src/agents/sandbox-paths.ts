@@ -3,6 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// Use POSIX paths for sandbox path resolution since sandboxes are always Linux containers
+const posix = path.posix;
+
 const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_URL_RE = /^data:/i;
@@ -24,10 +27,10 @@ function expandPath(filePath: string): string {
 
 function resolveToCwd(filePath: string, cwd: string): string {
   const expanded = expandPath(filePath);
-  if (path.isAbsolute(expanded)) {
+  if (posix.isAbsolute(expanded)) {
     return expanded;
   }
-  return path.resolve(cwd, expanded);
+  return posix.resolve(cwd, expanded);
 }
 
 export function resolveSandboxPath(params: {
@@ -41,25 +44,25 @@ export function resolveSandboxPath(params: {
   base: string;
 } {
   const resolved = resolveToCwd(params.filePath, params.cwd);
-  const rootResolved = path.resolve(params.root);
-  const relative = path.relative(rootResolved, resolved);
+  const rootResolved = posix.resolve(params.root);
+  const relative = posix.relative(rootResolved, resolved);
 
   // Check if path is within the main root
   if (!relative || relative === "") {
     return { resolved, relative: "", base: rootResolved };
   }
-  if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
+  if (!relative.startsWith("..") && !posix.isAbsolute(relative)) {
     return { resolved, relative, base: rootResolved };
   }
 
   // Path escapes main root - check allowedPaths
   if (params.allowedPaths?.length) {
     for (const allowedPath of params.allowedPaths) {
-      const allowedResolved = path.resolve(allowedPath);
-      const relativeToAllowed = path.relative(allowedResolved, resolved);
+      const allowedResolved = posix.resolve(allowedPath);
+      const relativeToAllowed = posix.relative(allowedResolved, resolved);
       if (
         relativeToAllowed === "" ||
-        (!relativeToAllowed.startsWith("..") && !path.isAbsolute(relativeToAllowed))
+        (!relativeToAllowed.startsWith("..") && !posix.isAbsolute(relativeToAllowed))
       ) {
         return { resolved, relative: relativeToAllowed, base: allowedResolved };
       }
@@ -118,9 +121,11 @@ async function assertNoSymlink(relative: string, root: string) {
   if (!relative) {
     return;
   }
-  const parts = relative.split(path.sep).filter(Boolean);
+  // relative is a POSIX path from the sandbox, split by forward slash
+  const parts = relative.split(posix.sep).filter(Boolean);
   let current = root;
   for (const part of parts) {
+    // Use native path.join for host filesystem access
     current = path.join(current, part);
     try {
       const stat = await fs.lstat(current);
