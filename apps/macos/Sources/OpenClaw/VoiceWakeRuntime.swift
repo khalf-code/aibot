@@ -48,6 +48,9 @@ actor VoiceWakeRuntime {
     private var isStarting: Bool = false
     private var triggerOnlyTask: Task<Void, Never>?
 
+    // Rolling audio buffer for Whisper handoff
+    private let rollingBuffer = RollingAudioBuffer(maxDuration: 10.0, sampleRate: 16000)
+
     // Tunables
     // Silence threshold once we've captured user speech (post-trigger).
     private let silenceWindow: TimeInterval = 2.0
@@ -85,11 +88,6 @@ actor VoiceWakeRuntime {
         let backend: AppState.VoiceWakeBackend
         let whisperModel: WhisperTranscriber.Model
     }
-
-    // Whisper handoff state
-    private var whisperTempFile: URL?
-    private var whisperRecordingProcess: Process?
-    private var whisperStartTime: Date?
 
     private struct RecognitionUpdate {
         let transcript: String?
@@ -186,6 +184,12 @@ actor VoiceWakeRuntime {
             input.removeTap(onBus: 0)
             input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self, weak request] buffer, _ in
                 request?.append(buffer)
+                // Feed rolling buffer for Whisper handoff (extract samples for thread safety)
+                if let samples = extractMonoSamples(from: buffer) {
+                    Task.detached { [weak self, samples] in
+                        await self?.rollingBuffer.appendSamples(samples)
+                    }
+                }
                 guard let rms = Self.rmsLevel(buffer: buffer) else { return }
                 Task.detached { [weak self] in
                     await self?.noteAudioLevel(rms: rms)
@@ -250,12 +254,8 @@ actor VoiceWakeRuntime {
         self.preDetectTask = nil
         self.triggerOnlyTask?.cancel()
         self.triggerOnlyTask = nil
-        // Clean up Whisper recording if active
-        if let process = self.whisperRecordingProcess, process.isRunning {
-            process.terminate()
-        }
-        self.whisperRecordingProcess = nil
-        self.cleanupWhisperTempFile()
+        // Reset rolling buffer
+        Task { await self.rollingBuffer.reset() }
         self.haltRecognitionPipeline()
         self.recognizer = nil
         self.currentConfig = nil
@@ -570,9 +570,10 @@ actor VoiceWakeRuntime {
             await MainActor.run { VoiceWakeChimePlayer.play(config.triggerChime, reason: "voicewake.trigger") }
         }
 
-        // Start Whisper recording if Whisper backend is selected
+        // Trigger rolling buffer if Whisper backend is selected
         if config.backend == .whisper {
-            await self.startWhisperRecording()
+            await self.rollingBuffer.trigger()
+            self.logger.info("voicewake whisper rolling buffer triggered")
         }
 
         let snapshot = self.committedTranscript + self.volatileTranscript
@@ -632,9 +633,9 @@ actor VoiceWakeRuntime {
         // Get transcript - either from Whisper or Apple Speech
         var finalTranscript = self.capturedTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // If Whisper recording is active, transcribe with Whisper instead
-        if self.whisperRecordingProcess != nil || self.whisperTempFile != nil {
-            finalTranscript = await self.endWhisperRecordingAndTranscribe(model: config.whisperModel)
+        // If Whisper backend is selected and rolling buffer was triggered, transcribe with Whisper
+        if config.backend == .whisper, await self.rollingBuffer.triggered {
+            finalTranscript = await self.transcribeRollingBuffer(model: config.whisperModel)
         }
 
         DiagnosticsFileLog.shared.log(category: "voicewake.runtime", event: "finalizeCapture", fields: [
@@ -683,58 +684,16 @@ actor VoiceWakeRuntime {
         self.scheduleRestartRecognizer()
     }
 
-    // MARK: - Whisper Recording
+    // MARK: - Whisper Rolling Buffer Transcription
 
-    private func startWhisperRecording() async {
-        // Create temp file for recording
-        let tempFile = FileManager.default.temporaryDirectory
-            .appendingPathComponent("voicewake-\(UUID().uuidString).wav")
-        self.whisperTempFile = tempFile
-        self.whisperStartTime = Date()
+    private func transcribeRollingBuffer(model: WhisperTranscriber.Model) async -> String {
+        let duration = await self.rollingBuffer.duration
+        self.logger.info("voicewake whisper buffer duration=\(String(format: "%.2f", duration), privacy: .public)s")
 
-        // Start recording using sox/rec (records until terminated)
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/rec")
-        process.arguments = [
-            "-q", // quiet
-            "-r", "16000", // 16kHz (whisper expects this)
-            "-c", "1", // mono
-            "-b", "16", // 16-bit
-            tempFile.path,
-        ]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-
-        self.whisperRecordingProcess = process
-
-        do {
-            try process.run()
-            self.logger.info("voicewake whisper recording started: \(tempFile.path, privacy: .public)")
-        } catch {
-            self.whisperTempFile = nil
-            self.whisperRecordingProcess = nil
-            self.logger.error("voicewake whisper recording failed to start: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    private func endWhisperRecordingAndTranscribe(model: WhisperTranscriber.Model) async -> String {
-        // Terminate the recording process
-        if let process = self.whisperRecordingProcess, process.isRunning {
-            process.terminate()
-            process.waitUntilExit()
-        }
-        self.whisperRecordingProcess = nil
-
-        guard let tempFile = self.whisperTempFile else {
-            self.logger.warning("voicewake whisper no temp file")
-            return ""
-        }
-
-        // Check recording duration - if too short, skip transcription
-        let duration = Date().timeIntervalSince(self.whisperStartTime ?? Date())
+        // Check if we have enough audio
         if duration < 0.5 {
-            self.logger.info("voicewake whisper recording too short (\(duration, privacy: .public)s), skipping")
-            self.cleanupWhisperTempFile()
+            self.logger.info("voicewake whisper buffer too short, skipping")
+            await self.rollingBuffer.reset()
             return ""
         }
 
@@ -748,27 +707,33 @@ actor VoiceWakeRuntime {
             }
         }
 
-        self.logger.info("voicewake whisper transcribing with model=\(model.rawValue, privacy: .public)")
-
         do {
+            // Export buffer to temp file
+            let tempFile = try await self.rollingBuffer.exportToTempFile()
+            
+            self.logger.info("voicewake whisper transcribing with model=\(model.rawValue, privacy: .public)")
+
             let transcript = try await WhisperTranscriber.shared.transcribe(
                 audioURL: tempFile,
                 model: model)
-            self.cleanupWhisperTempFile()
+
+            // Cleanup
+            try? FileManager.default.removeItem(at: tempFile)
+            await self.rollingBuffer.reset()
+
             self.logger.info("voicewake whisper transcription complete len=\(transcript.count, privacy: .public)")
-            return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Strip the wake phrase from the transcript since Whisper captured everything
+            let triggers = self.currentConfig?.triggers ?? []
+            let stripped = WakeWordGate.stripWake(text: transcript, triggers: triggers)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            return stripped
         } catch {
             self.logger.error("voicewake whisper transcription failed: \(error.localizedDescription, privacy: .public)")
-            self.cleanupWhisperTempFile()
+            await self.rollingBuffer.reset()
             return ""
         }
-    }
-
-    private func cleanupWhisperTempFile() {
-        guard let tempFile = self.whisperTempFile else { return }
-        self.whisperTempFile = nil
-        self.whisperStartTime = nil
-        try? FileManager.default.removeItem(at: tempFile)
     }
 
     // MARK: - Audio level handling
