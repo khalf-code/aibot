@@ -18,7 +18,7 @@
   border: none !important;
   box-shadow: none !important;
   /* Force GPU layer for smoother rendering in Gecko browsers */
-  will-change: contents;
+  will-change: transform;
 }
 
 /* Chat header - fixed at top, transparent */
