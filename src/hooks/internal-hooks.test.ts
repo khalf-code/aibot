@@ -137,7 +137,7 @@ describe("hooks", () => {
       // Strip ANSI color codes
       // eslint-disable-next-line no-control-regex
       const stripped = firstCall[0].replace(/\u001b\[\d+m/g, "");
-      expect(stripped).toBe("[hooks/internal] Hook error [command:new]: Handler failed");
+      expect(stripped).toBe("[hooks/internal] Hook error [command:new]: Handler failed\n");
 
       consoleError.mockRestore();
     });
