@@ -87,6 +87,17 @@ function ReviewList({
 }
 
 function ReviewDetail({ review }: { review: ReviewQueueItem }) {
+  const handleResolve = (decision: 'approved' | 'rejected') => {
+    import('../lib/gateway').then(({ gateway }) => {
+      gateway.callMethod('dashboard.review.resolve', {
+        reviewId: review.id,
+        decision,
+      }).catch((err: unknown) => {
+        console.error('[Review] resolve failed:', err);
+      });
+    });
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
@@ -95,10 +106,10 @@ function ReviewDetail({ review }: { review: ReviewQueueItem }) {
         </div>
         {review.status === 'pending' && (
           <div className="flex gap-2">
-            <Button variant="destructive" size="sm">
+            <Button variant="destructive" size="sm" onClick={() => handleResolve('rejected')}>
               Reject
             </Button>
-            <Button size="sm">Approve</Button>
+            <Button size="sm" onClick={() => handleResolve('approved')}>Approve</Button>
           </div>
         )}
       </div>

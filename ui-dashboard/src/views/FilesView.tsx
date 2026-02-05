@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Tree } from 'react-arborist';
 import Editor from '@monaco-editor/react';
 import { ResizableLayout } from '../components/layout';
 import { ContextPanel, ContextSection, ContextRow } from '../components/layout';
 import { cn } from '@/lib/utils';
+import { gateway } from '../lib/gateway';
 import type { NodeRendererProps } from 'react-arborist';
 
-// --- Mock data ---
+// --- Types ---
 
 interface FileTreeNode {
   id: string;
@@ -14,178 +15,7 @@ interface FileTreeNode {
   children: FileTreeNode[] | null;
 }
 
-const mockFileTree: FileTreeNode[] = [
-  {
-    id: '1', name: 'src', children: [
-      { id: '2', name: 'App.tsx', children: null },
-      { id: '3', name: 'main.tsx', children: null },
-      { id: '4', name: 'components', children: [
-        { id: '5', name: 'Header.tsx', children: null },
-        { id: '6', name: 'Sidebar.tsx', children: null },
-      ]},
-      { id: '7', name: 'stores', children: [
-        { id: '8', name: 'dashboardStore.ts', children: null },
-      ]},
-    ]
-  },
-  { id: '9', name: 'package.json', children: null },
-  { id: '10', name: 'tsconfig.json', children: null },
-];
-
-const mockFileContents: Record<string, string> = {
-  '2': `import { useState } from 'react';
-import { Header, Sidebar, ResizableLayout } from './components/layout';
-import { ChatView, BoardView, FilesView } from './views';
-import './App.css';
-
-function App() {
-  const [view, setView] = useState<string>('chat');
-
-  return (
-    <div className="app">
-      <Header />
-      <main className="app-main">
-        {view === 'chat' && <ChatView />}
-        {view === 'board' && <BoardView />}
-        {view === 'files' && <FilesView />}
-      </main>
-    </div>
-  );
-}
-
-export default App;
-`,
-  '3': `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
-`,
-  '9': `{
-  "name": "openclaw-dashboard",
-  "private": true,
-  "version": "0.0.1",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
-  }
-}
-`,
-  '10': `{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "jsx": "react-jsx",
-    "strict": true
-  },
-  "include": ["src"]
-}
-`,
-  '5': `interface HeaderProps {
-  title?: string;
-}
-
-export function Header({ title = 'OpenClaw' }: HeaderProps) {
-  return (
-    <header className="header">
-      <h1>{title}</h1>
-    </header>
-  );
-}
-`,
-  '6': `interface SidebarProps {
-  items: string[];
-  selected?: string;
-  onSelect: (item: string) => void;
-}
-
-export function Sidebar({ items, selected, onSelect }: SidebarProps) {
-  return (
-    <nav className="sidebar">
-      {items.map((item) => (
-        <button
-          key={item}
-          className={item === selected ? 'active' : ''}
-          onClick={() => onSelect(item)}
-        >
-          {item}
-        </button>
-      ))}
-    </nav>
-  );
-}
-`,
-  '8': `import { create } from 'zustand';
-
-interface DashboardState {
-  tracks: Track[];
-  workers: Worker[];
-  selectedTrackId: string | null;
-  selectTrack: (id: string) => void;
-}
-
-export const useDashboardStore = create<DashboardState>((set) => ({
-  tracks: [],
-  workers: [],
-  selectedTrackId: null,
-  selectTrack: (id) => set({ selectedTrackId: id }),
-}));
-`,
-};
-
 // --- Helpers ---
-
-/** Map file extensions to Monaco language identifiers */
-function detectLanguage(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'tsx': return 'typescript';
-    case 'ts': return 'typescript';
-    case 'jsx': return 'javascript';
-    case 'js': return 'javascript';
-    case 'json': return 'json';
-    case 'css': return 'css';
-    case 'html': return 'html';
-    case 'md': return 'markdown';
-    case 'yaml':
-    case 'yml': return 'yaml';
-    case 'sh': return 'shell';
-    case 'py': return 'python';
-    case 'rs': return 'rust';
-    case 'go': return 'go';
-    default: return 'plaintext';
-  }
-}
-
-/** Build the full path from root to a given node id */
-function getFilePath(id: string, tree: FileTreeNode[]): string {
-  const parts: string[] = [];
-  function walk(nodes: FileTreeNode[], path: string[]): boolean {
-    for (const node of nodes) {
-      if (node.id === id) {
-        parts.push(...path, node.name);
-        return true;
-      }
-      if (node.children && walk(node.children, [...path, node.name])) {
-        return true;
-      }
-    }
-    return false;
-  }
-  walk(tree, []);
-  return parts.join('/');
-}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -219,20 +49,54 @@ function FileNode({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) 
 // --- Main view ---
 
 export function FilesView() {
+  const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [selectedContent, setSelectedContent] = useState<string | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [selectedFileSize, setSelectedFileSize] = useState<number>(0);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('plaintext');
+  const [loading, setLoading] = useState(false);
 
-  const selectedFileName = selectedFileId
-    ? getNodeName(selectedFileId, mockFileTree)
-    : null;
-  const selectedContent = selectedFileId ? (mockFileContents[selectedFileId] ?? null) : null;
-  const selectedPath = selectedFileId ? getFilePath(selectedFileId, mockFileTree) : null;
-  const isFolder = selectedFileId ? isNodeFolder(selectedFileId, mockFileTree) : false;
+  // Load file tree on mount
+  useEffect(() => {
+    gateway.callMethod('dashboard.files.tree', {}).then(
+      (data) => {
+        const result = data as { tree: FileTreeNode[] };
+        setFileTree(result.tree ?? []);
+      },
+      (err) => {
+        console.warn('[Files] Failed to load tree:', err);
+      },
+    );
+  }, []);
 
   const handleActivate = useCallback((node: { id: string; isLeaf: boolean }) => {
-    if (node.isLeaf) {
-      setSelectedFileId(node.id);
-    }
+    if (!node.isLeaf) return;
+    setSelectedFileId(node.id);
+    setLoading(true);
+
+    gateway.callMethod('dashboard.files.read', { path: node.id }).then(
+      (data) => {
+        const result = data as { content: string; name: string; size: number; language: string };
+        setSelectedContent(result.content);
+        setSelectedFileName(result.name);
+        setSelectedFileSize(result.size);
+        setSelectedLanguage(result.language);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('[Files] Failed to read file:', err);
+        setSelectedContent(null);
+        setSelectedFileName(null);
+        setLoading(false);
+      },
+    );
   }, []);
+
+  const isFolder = selectedFileId
+    ? fileTree.some((n) => findNode(n, selectedFileId)?.children != null)
+    : false;
+  const selectedPath = selectedFileId;
 
   return (
     <ResizableLayout
@@ -246,20 +110,26 @@ export function FilesView() {
             </span>
           </div>
           <div className="flex-1 overflow-auto py-1">
-            <Tree<FileTreeNode>
-              data={mockFileTree}
-              openByDefault
-              width="100%"
-              height={600}
-              indent={16}
-              rowHeight={28}
-              disableDrag
-              disableDrop
-              disableEdit
-              onActivate={handleActivate}
-            >
-              {FileNode}
-            </Tree>
+            {fileTree.length > 0 ? (
+              <Tree<FileTreeNode>
+                data={fileTree}
+                openByDefault={false}
+                width="100%"
+                height={600}
+                indent={16}
+                rowHeight={28}
+                disableDrag
+                disableDrop
+                disableEdit
+                onActivate={handleActivate}
+              >
+                {FileNode}
+              </Tree>
+            ) : (
+              <div className="p-4 text-center text-[13px] text-[var(--color-text-muted)]">
+                Loading file tree...
+              </div>
+            )}
           </div>
         </div>
       }
@@ -278,10 +148,14 @@ export function FilesView() {
           </div>
           {/* Editor area */}
           <div className="flex-1 min-h-0">
-            {selectedContent != null ? (
+            {loading ? (
+              <div className="flex items-center justify-center h-full text-[var(--color-text-muted)]">
+                <div className="text-sm">Loading...</div>
+              </div>
+            ) : selectedContent != null ? (
               <Editor
                 height="100%"
-                language={detectLanguage(selectedFileName ?? '')}
+                language={selectedLanguage}
                 value={selectedContent}
                 theme="vs-dark"
                 options={{
@@ -310,24 +184,12 @@ export function FilesView() {
               <ContextSection title="File Info">
                 <ContextRow label="Name" value={selectedFileName} />
                 <ContextRow label="Path" value={selectedPath ?? ''} />
-                <ContextRow label="Language" value={detectLanguage(selectedFileName)} />
-                <ContextRow
-                  label="Size"
-                  value={formatBytes(
-                    new TextEncoder().encode(selectedContent ?? '').byteLength
-                  )}
-                />
+                <ContextRow label="Language" value={selectedLanguage} />
+                <ContextRow label="Size" value={formatBytes(selectedFileSize)} />
                 <ContextRow
                   label="Lines"
                   value={(selectedContent ?? '').split('\n').length}
                 />
-              </ContextSection>
-              <ContextSection title="Git Status">
-                <ContextRow label="Status" value={
-                  <span className="text-[var(--color-success)] text-xs font-medium">Modified</span>
-                } />
-                <ContextRow label="Last commit" value="3h ago" />
-                <ContextRow label="Author" value="developer" />
               </ContextSection>
             </>
           ) : (
@@ -341,26 +203,15 @@ export function FilesView() {
   );
 }
 
-// --- Tree traversal helpers ---
+// --- Tree traversal helper ---
 
-function getNodeName(id: string, tree: FileTreeNode[]): string | null {
-  for (const node of tree) {
-    if (node.id === id) return node.name;
-    if (node.children) {
-      const found = getNodeName(id, node.children);
+function findNode(node: FileTreeNode, id: string): FileTreeNode | null {
+  if (node.id === id) return node;
+  if (node.children) {
+    for (const child of node.children) {
+      const found = findNode(child, id);
       if (found) return found;
     }
   }
   return null;
-}
-
-function isNodeFolder(id: string, tree: FileTreeNode[]): boolean {
-  for (const node of tree) {
-    if (node.id === id) return node.children != null;
-    if (node.children) {
-      const found = isNodeFolder(id, node.children);
-      if (found) return true;
-    }
-  }
-  return false;
 }

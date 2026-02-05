@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { initializeMockData } from './mockData';
 import type {
   DashboardState,
   Track,
@@ -61,25 +60,24 @@ interface DashboardActions {
   setSidebarCollapsed: (collapsed: boolean) => void;
   setContextPanelOpen: (open: boolean) => void;
 
-  // Gateway Events
+  // Gateway
   handleGatewayEvent: (event: GatewayEvent) => void;
+  applySnapshot: (data: Record<string, unknown>) => void;
 }
-
-const mockData = initializeMockData();
 
 const initialState: Omit<DashboardState, keyof DashboardActions> = {
   connected: false,
   connecting: false,
   error: null,
 
-  tracks: mockData.tracks,
-  tasks: mockData.tasks,
-  workers: mockData.workers,
-  messages: mockData.messages,
-  reviews: mockData.reviews,
+  tracks: [],
+  tasks: [],
+  workers: [],
+  messages: [],
+  reviews: [],
   worktrees: [],
 
-  selectedTrackId: mockData.selectedTrackId,
+  selectedTrackId: null,
   selectedTaskId: null,
   selectedReviewId: null,
 
@@ -103,17 +101,17 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         set(
           (state) => ({ tracks: [...state.tracks, track] }),
           false,
-          'addTrack'
+          'addTrack',
         ),
       updateTrack: (id, updates) =>
         set(
           (state) => ({
             tracks: state.tracks.map((t) =>
-              t.id === id ? { ...t, ...updates } : t
+              t.id === id ? { ...t, ...updates } : t,
             ),
           }),
           false,
-          'updateTrack'
+          'updateTrack',
         ),
       removeTrack: (id) =>
         set(
@@ -123,7 +121,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
               state.selectedTrackId === id ? null : state.selectedTrackId,
           }),
           false,
-          'removeTrack'
+          'removeTrack',
         ),
       selectTrack: (id) => set({ selectedTrackId: id }, false, 'selectTrack'),
 
@@ -133,17 +131,17 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         set(
           (state) => ({ tasks: [...state.tasks, task] }),
           false,
-          'addTask'
+          'addTask',
         ),
       updateTask: (id, updates) =>
         set(
           (state) => ({
             tasks: state.tasks.map((t) =>
-              t.id === id ? { ...t, ...updates } : t
+              t.id === id ? { ...t, ...updates } : t,
             ),
           }),
           false,
-          'updateTask'
+          'updateTask',
         ),
       removeTask: (id) =>
         set(
@@ -153,7 +151,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
               state.selectedTaskId === id ? null : state.selectedTaskId,
           }),
           false,
-          'removeTask'
+          'removeTask',
         ),
       selectTask: (id) => set({ selectedTaskId: id }, false, 'selectTask'),
 
@@ -163,11 +161,11 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         set(
           (state) => ({
             workers: state.workers.map((w) =>
-              w.id === id ? { ...w, ...updates } : w
+              w.id === id ? { ...w, ...updates } : w,
             ),
           }),
           false,
-          'updateWorker'
+          'updateWorker',
         ),
 
       // Messages
@@ -176,7 +174,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         set(
           (state) => ({ messages: [...state.messages, message] }),
           false,
-          'addMessage'
+          'addMessage',
         ),
 
       // Reviews
@@ -185,17 +183,17 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         set(
           (state) => ({ reviews: [...state.reviews, review] }),
           false,
-          'addReview'
+          'addReview',
         ),
       updateReview: (id, updates) =>
         set(
           (state) => ({
             reviews: state.reviews.map((r) =>
-              r.id === id ? { ...r, ...updates } : r
+              r.id === id ? { ...r, ...updates } : r,
             ),
           }),
           false,
-          'updateReview'
+          'updateReview',
         ),
       selectReview: (id) => set({ selectedReviewId: id }, false, 'selectReview'),
 
@@ -205,7 +203,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         set(
           (state) => ({ worktrees: [...state.worktrees, worktree] }),
           false,
-          'addWorktree'
+          'addWorktree',
         ),
       removeWorktree: (id) =>
         set(
@@ -213,7 +211,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
             worktrees: state.worktrees.filter((w) => w.id !== id),
           }),
           false,
-          'removeWorktree'
+          'removeWorktree',
         ),
 
       // UI State
@@ -221,18 +219,30 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         set(
           (state) => ({ sidebarCollapsed: !state.sidebarCollapsed }),
           false,
-          'toggleSidebar'
+          'toggleSidebar',
         ),
       toggleContextPanel: () =>
         set(
           (state) => ({ contextPanelOpen: !state.contextPanelOpen }),
           false,
-          'toggleContextPanel'
+          'toggleContextPanel',
         ),
       setSidebarCollapsed: (collapsed) =>
         set({ sidebarCollapsed: collapsed }, false, 'setSidebarCollapsed'),
       setContextPanelOpen: (open) =>
         set({ contextPanelOpen: open }, false, 'setContextPanelOpen'),
+
+      // Apply server snapshot
+      applySnapshot: (data) => {
+        const updates: Partial<DashboardState> = {};
+        if (Array.isArray(data.tracks)) updates.tracks = data.tracks as Track[];
+        if (Array.isArray(data.tasks)) updates.tasks = data.tasks as TaskDefinition[];
+        if (Array.isArray(data.workers)) updates.workers = data.workers as Worker[];
+        if (Array.isArray(data.messages)) updates.messages = data.messages as Message[];
+        if (Array.isArray(data.reviews)) updates.reviews = data.reviews as ReviewQueueItem[];
+        if (Array.isArray(data.worktrees)) updates.worktrees = data.worktrees as WorktreeInfo[];
+        set(updates, false, 'applySnapshot');
+      },
 
       // Gateway Events Handler
       handleGatewayEvent: (event) => {
@@ -299,13 +309,56 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
             break;
           }
 
+          // Dashboard-specific events from gateway
+          case 'dashboard.message': {
+            const message = payload as Message;
+            get().addMessage(message);
+            break;
+          }
+
+          case 'dashboard.task.updated': {
+            const { taskId, updates } = payload as { taskId: string; updates: Partial<TaskDefinition> };
+            get().updateTask(taskId, updates);
+            break;
+          }
+
+          case 'dashboard.review.resolved': {
+            const { reviewId, decision, comment } = payload as {
+              reviewId: string;
+              decision: 'approved' | 'rejected';
+              comment?: string;
+            };
+            const updates: Partial<ReviewQueueItem> = {
+              status: decision,
+              reviewedAt: Date.now(),
+            };
+            get().updateReview(reviewId, updates);
+            if (comment) {
+              const review = get().reviews.find((r) => r.id === reviewId);
+              if (review) {
+                get().updateReview(reviewId, {
+                  comments: [
+                    ...review.comments,
+                    {
+                      id: `comment-${Date.now()}`,
+                      author: 'operator',
+                      content: comment,
+                      createdAt: Date.now(),
+                    },
+                  ],
+                });
+              }
+            }
+            break;
+          }
+
           default:
             break;
         }
       },
     }),
-    { name: 'OpenClaw Dashboard' }
-  )
+    { name: 'OpenClaw Dashboard' },
+  ),
 );
 
 // Selectors

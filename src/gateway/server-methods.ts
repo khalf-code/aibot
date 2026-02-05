@@ -25,6 +25,8 @@ import { usageHandlers } from "./server-methods/usage.js";
 import { voicewakeHandlers } from "./server-methods/voicewake.js";
 import { webHandlers } from "./server-methods/web.js";
 import { wizardHandlers } from "./server-methods/wizard.js";
+import { dashboardHandlers } from "./server-methods/dashboard.js";
+import { dashboardPtyHandlers } from "./server-methods/dashboard-pty.js";
 
 const ADMIN_SCOPE = "operator.admin";
 const READ_SCOPE = "operator.read";
@@ -72,6 +74,14 @@ const READ_METHODS = new Set([
   "node.list",
   "node.describe",
   "chat.history",
+  "dashboard.snapshot",
+  "dashboard.files.tree",
+  "dashboard.files.read",
+  "dashboard.git.status",
+  "dashboard.git.diff",
+  "dashboard.git.branches",
+  "dashboard.git.worktrees",
+  "dashboard.settings.get",
 ]);
 const WRITE_METHODS = new Set([
   "send",
@@ -88,6 +98,14 @@ const WRITE_METHODS = new Set([
   "chat.send",
   "chat.abort",
   "browser.request",
+  "dashboard.message.send",
+  "dashboard.task.update",
+  "dashboard.review.resolve",
+  "dashboard.settings.set",
+  "dashboard.pty.spawn",
+  "dashboard.pty.write",
+  "dashboard.pty.resize",
+  "dashboard.pty.destroy",
 ]);
 
 function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["client"]) {
@@ -185,6 +203,8 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
   ...agentHandlers,
   ...agentsHandlers,
   ...browserHandlers,
+  ...dashboardHandlers,
+  ...dashboardPtyHandlers,
 };
 
 export async function handleGatewayRequest(

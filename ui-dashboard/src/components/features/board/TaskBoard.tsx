@@ -240,6 +240,16 @@ export function TaskBoard() {
 
     // Update the task status in the store
     updateTask(taskId, { status: newStatus });
+
+    // Sync to backend
+    import('../../../lib/gateway').then(({ gateway }) => {
+      gateway.callMethod('dashboard.task.update', {
+        taskId,
+        updates: { status: newStatus },
+      }).catch((err: unknown) => {
+        console.error('[TaskBoard] update failed:', err);
+      });
+    });
   };
 
   const handleDragCancel = () => {

@@ -85,6 +85,24 @@ const BASE_METHODS = [
   "chat.history",
   "chat.abort",
   "chat.send",
+  // Dashboard methods
+  "dashboard.snapshot",
+  "dashboard.message.send",
+  "dashboard.task.update",
+  "dashboard.review.resolve",
+  "dashboard.files.tree",
+  "dashboard.files.read",
+  "dashboard.git.status",
+  "dashboard.git.diff",
+  "dashboard.git.branches",
+  "dashboard.git.worktrees",
+  "dashboard.settings.get",
+  "dashboard.settings.set",
+  // Dashboard PTY methods
+  "dashboard.pty.spawn",
+  "dashboard.pty.write",
+  "dashboard.pty.resize",
+  "dashboard.pty.destroy",
 ];
 
 export function listGatewayMethods(): string[] {
@@ -111,4 +129,10 @@ export const GATEWAY_EVENTS = [
   "voicewake.changed",
   "exec.approval.requested",
   "exec.approval.resolved",
+  // Dashboard events
+  "dashboard.message",
+  "dashboard.task.updated",
+  "dashboard.review.resolved",
+  "dashboard.pty.data",
+  "dashboard.pty.exit",
 ];

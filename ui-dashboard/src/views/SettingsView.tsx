@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ResizableLayout } from '../components/layout';
 import {
   Button,
@@ -11,6 +11,7 @@ import {
   SelectItem,
 } from '../components/ui';
 import { cn } from '@/lib/utils';
+import { gateway } from '../lib/gateway';
 
 const navItems = [
   { id: 'preferences', label: 'Preferences' },
@@ -24,11 +25,63 @@ const navItems = [
   { id: 'plugins', label: 'Plugins' },
 ];
 
+interface DashboardSettings {
+  autoSave: boolean;
+  confirmCommands: boolean;
+  defaultModel: string;
+  maxWorkers: number;
+}
+
+const defaultSettings: DashboardSettings = {
+  autoSave: true,
+  confirmCommands: true,
+  defaultModel: 'claude-3-opus',
+  maxWorkers: 4,
+};
+
 export function SettingsView() {
   const [activeSection, setActiveSection] = useState('preferences');
   const [autoSave, setAutoSave] = useState(true);
   const [confirmCommands, setConfirmCommands] = useState(true);
   const [defaultModel, setDefaultModel] = useState('claude-3-opus');
+  const [maxWorkers, setMaxWorkers] = useState(4);
+  const [saving, setSaving] = useState(false);
+
+  // Load settings on mount
+  useEffect(() => {
+    gateway.callMethod('dashboard.settings.get', {}).then(
+      (data) => {
+        const s = data as DashboardSettings;
+        if (s.autoSave != null) setAutoSave(s.autoSave);
+        if (s.confirmCommands != null) setConfirmCommands(s.confirmCommands);
+        if (s.defaultModel) setDefaultModel(s.defaultModel);
+        if (s.maxWorkers != null) setMaxWorkers(s.maxWorkers);
+      },
+      (err) => {
+        console.warn('[Settings] Failed to load:', err);
+      },
+    );
+  }, []);
+
+  const handleSave = () => {
+    setSaving(true);
+    gateway.callMethod('dashboard.settings.set', {
+      settings: { autoSave, confirmCommands, defaultModel, maxWorkers },
+    }).then(
+      () => setSaving(false),
+      (err) => {
+        console.error('[Settings] Save failed:', err);
+        setSaving(false);
+      },
+    );
+  };
+
+  const handleReset = () => {
+    setAutoSave(defaultSettings.autoSave);
+    setConfirmCommands(defaultSettings.confirmCommands);
+    setDefaultModel(defaultSettings.defaultModel);
+    setMaxWorkers(defaultSettings.maxWorkers);
+  };
 
   return (
     <ResizableLayout
@@ -122,15 +175,18 @@ export function SettingsView() {
               </div>
               <Input
                 type="number"
-                defaultValue={4}
+                value={maxWorkers}
+                onChange={(e) => setMaxWorkers(Number(e.target.value) || 1)}
                 className="w-20 text-center"
               />
             </div>
           </div>
 
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary">Reset to defaults</Button>
-            <Button>Save changes</Button>
+            <Button variant="secondary" onClick={handleReset}>Reset to defaults</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save changes'}
+            </Button>
           </div>
         </div>
       }
