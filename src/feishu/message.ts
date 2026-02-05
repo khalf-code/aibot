@@ -268,7 +268,7 @@ export async function processFeishuMessage(
     return;
   }
 
-  const senderName = sender?.sender_id?.user_id || "unknown";
+  const senderName = sender?.sender_id?.user_id || sender?.sender_id?.open_id || "unknown";
 
   // Streaming mode support
   const streamingEnabled = (feishuCfg.streaming ?? true) && Boolean(options.credentials);
@@ -300,6 +300,7 @@ export async function processFeishuMessage(
     MediaType: media?.contentType,
     MediaUrl: media?.path,
     WasMentioned: isGroup ? wasMentioned : undefined,
+    ForceIncludeSenderMeta: true,
   };
 
   await dispatchReplyWithBufferedBlockDispatcher({
