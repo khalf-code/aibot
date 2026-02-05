@@ -12,6 +12,7 @@ type XmppClientPrivate = {
   extractMessageReactions: (stanza: unknown) => { id: string; reactions: string[] } | undefined;
   extractThreadInfo: (stanza: unknown) => { thread?: string; parentThread?: string };
   buildXmppMessage: (...args: unknown[]) => unknown;
+  validateUploadUrl: (url: string) => void;
 };
 
 describe("XmppClient - Message Parsing", () => {
@@ -294,6 +295,119 @@ describe("XmppClient - Message Parsing", () => {
       expect(jidMatchesPattern("user@notexample.com", "example.com")).toBe(false);
       // "example.com" should NOT match "example.com.evil.net"
       expect(jidMatchesPattern("user@example.com.evil.net", "*@example.com")).toBe(false);
+    });
+  });
+
+  describe("validateUploadUrl (SSRF protection)", () => {
+    it("should allow valid HTTPS URLs", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      // Access private method for testing
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("https://upload.example.com/file.jpg")).not.toThrow();
+      expect(() => validate("https://cdn.example.com/uploads/test.png")).not.toThrow();
+    });
+
+    it("should allow valid HTTP URLs", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("http://upload.example.com/file.jpg")).not.toThrow();
+    });
+
+    it("should block localhost URLs (SSRF)", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("http://localhost:6379/")).toThrow(/Private\/internal URL not allowed/);
+      expect(() => validate("http://127.0.0.1/admin")).toThrow(/Private\/internal URL not allowed/);
+      expect(() => validate("http://[::1]/api")).toThrow(/Private\/internal URL not allowed/);
+    });
+
+    it("should block private IPv4 ranges (SSRF)", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("http://10.0.0.1/secret")).toThrow(/Private IPv4 address not allowed/);
+      expect(() => validate("http://192.168.1.1/admin")).toThrow(
+        /Private IPv4 address not allowed/,
+      );
+      expect(() => validate("http://172.16.0.1/internal")).toThrow(
+        /Private IPv4 address not allowed/,
+      );
+      expect(() => validate("http://172.31.255.255/data")).toThrow(
+        /Private IPv4 address not allowed/,
+      );
+    });
+
+    it("should block AWS metadata endpoint (SSRF)", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("http://169.254.169.254/latest/meta-data/")).toThrow(
+        /Private\/link-local address not allowed/,
+      );
+    });
+
+    it("should block private IPv6 ranges (SSRF)", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("http://[fc00::1]/private")).toThrow(
+        /Private\/link-local address not allowed/,
+      );
+      expect(() => validate("http://[fe80::1]/link-local")).toThrow(
+        /Private\/link-local address not allowed/,
+      );
+    });
+
+    it("should block invalid protocols (SSRF)", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("file:///etc/passwd")).toThrow(/Invalid protocol/);
+      expect(() => validate("ftp://example.com/file")).toThrow(/Invalid protocol/);
+      expect(() => validate("gopher://example.com")).toThrow(/Invalid protocol/);
+    });
+
+    it("should reject malformed URLs", () => {
+      const client = new XmppClient({
+        jid: "test@example.com",
+        password: "password",
+        server: "example.com",
+      });
+      const validate = (client as unknown as XmppClientPrivate).validateUploadUrl.bind(client);
+
+      expect(() => validate("not-a-url")).toThrow(/Invalid URL format/);
+      expect(() => validate("javascript:alert(1)")).toThrow();
     });
   });
 });

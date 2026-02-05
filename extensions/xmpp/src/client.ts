@@ -564,6 +564,63 @@ export class XmppClient {
   }
 
   /**
+   * Validate upload URL to prevent SSRF attacks
+   */
+  private validateUploadUrl(url: string): void {
+    try {
+      const parsed = new URL(url);
+
+      // Only allow HTTPS and HTTP protocols
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error(`Invalid protocol: ${parsed.protocol}`);
+      }
+
+      // Block private/internal IP ranges to prevent SSRF
+      const hostname = parsed.hostname.toLowerCase();
+
+      // Localhost checks (IPv4 and IPv6)
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        throw new Error(`Private/internal URL not allowed: ${hostname}`);
+      }
+
+      // IPv6 localhost (URL parser returns with brackets)
+      if (hostname === "[::1]" || hostname === "[0:0:0:0:0:0:0:1]") {
+        throw new Error(`Private/internal URL not allowed: ${hostname}`);
+      }
+
+      // Private IPv4 ranges
+      if (
+        hostname.startsWith("10.") || // 10.0.0.0/8
+        hostname.startsWith("192.168.") || // 192.168.0.0/16
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname) // 172.16.0.0/12
+      ) {
+        throw new Error(`Private IPv4 address not allowed: ${hostname}`);
+      }
+
+      // Link-local and special-use addresses (IPv4)
+      if (hostname.startsWith("169.254.")) {
+        // 169.254.0.0/16 (AWS metadata, link-local)
+        throw new Error(`Private/link-local address not allowed: ${hostname}`);
+      }
+
+      // IPv6 private/link-local ranges (URL parser returns with brackets)
+      if (
+        hostname.startsWith("[fc00:") || // IPv6 unique local (private)
+        hostname.startsWith("[fd00:") || // IPv6 unique local (private)
+        hostname.startsWith("[fe80:") || // IPv6 link-local
+        hostname.startsWith("[ff0") // IPv6 multicast
+      ) {
+        throw new Error(`Private/link-local address not allowed: ${hostname}`);
+      }
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new Error(`Invalid URL format: ${url}`, { cause: error });
+      }
+      throw error;
+    }
+  }
+
+  /**
    * XEP-0363: Request an HTTP upload slot
    */
   async requestUploadSlot(request: HttpUploadSlotRequest): Promise<HttpUploadSlot> {
@@ -609,6 +666,9 @@ export class XmppClient {
       }
       const putUrl = putElement.attrs.url;
 
+      // Validate PUT URL to prevent SSRF
+      this.validateUploadUrl(putUrl);
+
       // Extract PUT headers (optional)
       const headers: Record<string, string> = {};
       const headerElements = putElement.getChildren("header");
@@ -626,6 +686,9 @@ export class XmppClient {
         throw new Error("Invalid upload slot response: missing GET URL");
       }
       const getUrl = getElement.attrs.url;
+
+      // Validate GET URL to prevent SSRF
+      this.validateUploadUrl(getUrl);
 
       return {
         putUrl,
