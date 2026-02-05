@@ -58,6 +58,17 @@ const MOONSHOT_DEFAULT_COST = {
   cacheWrite: 0,
 };
 
+// Amazon Nova 1P API (direct API, not Bedrock)
+const AMAZON_NOVA_BASE_URL = "https://api.nova.amazon.com/v1";
+export const AMAZON_NOVA_DEFAULT_MODEL_ID = "nova-2-lite-v1";
+const AMAZON_NOVA_DEFAULT_COST = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+};
+const AMAZON_NOVA_HEADERS = { "Accept-Encoding": "identity" } as const;
+
 const QWEN_PORTAL_BASE_URL = "https://portal.qwen.ai/v1";
 const QWEN_PORTAL_OAUTH_PLACEHOLDER = "qwen-oauth";
 const QWEN_PORTAL_DEFAULT_CONTEXT_WINDOW = 128000;
@@ -327,6 +338,44 @@ function buildMoonshotProvider(): ProviderConfig {
   };
 }
 
+export function buildAmazonNovaProvider(): ProviderConfig {
+  return {
+    baseUrl: AMAZON_NOVA_BASE_URL,
+    api: "openai-completions",
+    headers: AMAZON_NOVA_HEADERS,
+    models: [
+      {
+        id: "nova-2-lite-v1",
+        name: "Amazon Nova 2 Lite",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: AMAZON_NOVA_DEFAULT_COST,
+        contextWindow: 1000000,
+        maxTokens: 65535,
+        compat: {
+          supportsReasoningEffort: true,
+          supportsDeveloperRole: false,
+          maxTokensField: "max_tokens",
+        },
+      },
+      {
+        id: "nova-2-pro-v1",
+        name: "Amazon Nova 2 Pro",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: AMAZON_NOVA_DEFAULT_COST,
+        contextWindow: 1000000,
+        maxTokens: 65535,
+        compat: {
+          supportsReasoningEffort: true,
+          supportsDeveloperRole: false,
+          maxTokensField: "max_tokens",
+        },
+      },
+    ],
+  };
+}
+
 function buildQwenPortalProvider(): ProviderConfig {
   return {
     baseUrl: QWEN_PORTAL_BASE_URL,
@@ -428,6 +477,16 @@ export async function resolveImplicitProviders(params: {
     providers.moonshot = { ...buildMoonshotProvider(), apiKey: moonshotKey };
   }
 
+  const amazonNovaKey =
+    resolveEnvApiKeyVarName("amazon-nova") ??
+    resolveApiKeyFromProfiles({ provider: "amazon-nova", store: authStore });
+  if (amazonNovaKey) {
+    providers["amazon-nova"] = {
+      ...buildAmazonNovaProvider(),
+      apiKey: amazonNovaKey,
+    };
+  }
+
   const syntheticKey =
     resolveEnvApiKeyVarName("synthetic") ??
     resolveApiKeyFromProfiles({ provider: "synthetic", store: authStore });
@@ -501,7 +560,9 @@ export async function resolveImplicitCopilotProvider(params: {
   env?: NodeJS.ProcessEnv;
 }): Promise<ProviderConfig | null> {
   const env = params.env ?? process.env;
-  const authStore = ensureAuthProfileStore(params.agentDir, { allowKeychainPrompt: false });
+  const authStore = ensureAuthProfileStore(params.agentDir, {
+    allowKeychainPrompt: false,
+  });
   const hasProfile = listProfilesForProvider(authStore, "github-copilot").length > 0;
   const envToken = env.COPILOT_GITHUB_TOKEN ?? env.GH_TOKEN ?? env.GITHUB_TOKEN;
   const githubToken = (envToken ?? "").trim();
@@ -572,7 +633,10 @@ export async function resolveImplicitBedrockProvider(params: {
   }
 
   const region = discoveryConfig?.region ?? env.AWS_REGION ?? env.AWS_DEFAULT_REGION ?? "us-east-1";
-  const models = await discoverBedrockModels({ region, config: discoveryConfig });
+  const models = await discoverBedrockModels({
+    region,
+    config: discoveryConfig,
+  });
   if (models.length === 0) {
     return null;
   }

@@ -4,6 +4,8 @@ export {
 } from "../agents/synthetic-models.js";
 export { VENICE_DEFAULT_MODEL_ID, VENICE_DEFAULT_MODEL_REF } from "../agents/venice-models.js";
 export {
+  applyAmazonNovaConfig,
+  applyAmazonNovaProviderConfig,
   applyAuthProfileConfig,
   applyCloudflareAiGatewayConfig,
   applyCloudflareAiGatewayProviderConfig,
@@ -44,6 +46,8 @@ export {
   setAnthropicApiKey,
   setCloudflareAiGatewayConfig,
   setGeminiApiKey,
+  setAmazonNovaApiKey,
+  AMAZON_NOVA_DEFAULT_MODEL_REF,
   setKimiCodingApiKey,
   setMinimaxApiKey,
   setMoonshotApiKey,

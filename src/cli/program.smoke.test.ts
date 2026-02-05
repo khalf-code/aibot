@@ -188,6 +188,12 @@ describe("cli program (smoke)", () => {
         key: "sk-zai-test",
         field: "zaiApiKey",
       },
+      {
+        authChoice: "amazon-nova-api-key",
+        flag: "--nova-api-key",
+        key: "sk-nova-test",
+        field: "novaApiKey",
+      },
     ] as const;
 
     for (const entry of cases) {

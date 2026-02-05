@@ -12,6 +12,9 @@ import {
   GOOGLE_GEMINI_DEFAULT_MODEL,
 } from "./google-gemini-model-default.js";
 import {
+  AMAZON_NOVA_DEFAULT_MODEL_REF,
+  applyAmazonNovaConfig,
+  applyAmazonNovaProviderConfig,
   applyAuthProfileConfig,
   applyCloudflareAiGatewayConfig,
   applyCloudflareAiGatewayProviderConfig,
@@ -47,6 +50,7 @@ import {
   setKimiCodingApiKey,
   setMoonshotApiKey,
   setOpencodeZenApiKey,
+  setAmazonNovaApiKey,
   setOpenrouterApiKey,
   setSyntheticApiKey,
   setVeniceApiKey,
@@ -104,6 +108,8 @@ export async function applyAuthChoiceApiProviders(
       authChoice = "venice-api-key";
     } else if (params.opts.tokenProvider === "opencode") {
       authChoice = "opencode-zen";
+    } else if (params.opts.tokenProvider === "amazon-nova") {
+      authChoice = "amazon-nova-api-key";
     }
   }
 
@@ -788,6 +794,58 @@ export async function applyAuthChoiceApiProviders(
         applyDefaultConfig: applyOpencodeZenConfig,
         applyProviderConfig: applyOpencodeZenProviderConfig,
         noteDefault: OPENCODE_ZEN_DEFAULT_MODEL,
+        noteAgentModel,
+        prompter: params.prompter,
+      });
+      nextConfig = applied.config;
+      agentModelOverride = applied.agentModelOverride ?? agentModelOverride;
+    }
+    return { config: nextConfig, agentModelOverride };
+  }
+
+  if (authChoice === "amazon-nova-api-key") {
+    let hasCredential = false;
+
+    if (!hasCredential && params.opts?.token && params.opts?.tokenProvider === "amazon-nova") {
+      await setAmazonNovaApiKey(normalizeApiKeyInput(params.opts.token), params.agentDir);
+      hasCredential = true;
+    }
+
+    if (!hasCredential) {
+      await params.prompter.note(["Get your API key at nova.amazon.com"].join("\n"), "Amazon Nova");
+    }
+
+    const envKey = resolveEnvApiKey("amazon-nova");
+    if (envKey) {
+      const useExisting = await params.prompter.confirm({
+        message: `Use existing NOVA_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+        initialValue: true,
+      });
+      if (useExisting) {
+        await setAmazonNovaApiKey(envKey.apiKey, params.agentDir);
+        hasCredential = true;
+      }
+    }
+    if (!hasCredential) {
+      const key = await params.prompter.text({
+        message: "Enter Amazon Nova API key",
+        validate: validateApiKeyInput,
+      });
+      await setAmazonNovaApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "amazon-nova:default",
+      provider: "amazon-nova",
+      mode: "api_key",
+    });
+    {
+      const applied = await applyDefaultModelChoice({
+        config: nextConfig,
+        setDefaultModel: params.setDefaultModel,
+        defaultModel: AMAZON_NOVA_DEFAULT_MODEL_REF,
+        applyDefaultConfig: applyAmazonNovaConfig,
+        applyProviderConfig: applyAmazonNovaProviderConfig,
+        noteDefault: AMAZON_NOVA_DEFAULT_MODEL_REF,
         noteAgentModel,
         prompter: params.prompter,
       });
