@@ -122,7 +122,14 @@ export async function ensureOpenClawModelsJson(
         string,
         NonNullable<ModelsConfig["providers"]>[string]
       >;
-      mergedProviders = { ...existingProviders, ...providers };
+      // Use mergeProviders to properly merge models at the provider level.
+      // This ensures that models from existing providers are preserved when
+      // the new provider config doesn't include them (e.g., when auth profiles
+      // are temporarily inaccessible).
+      mergedProviders = mergeProviders({
+        implicit: existingProviders,
+        explicit: providers,
+      });
     }
   }
 
