@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AnyAgentTool } from "./tools/common.js";
+import { createInternalHookEvent, triggerInternalHook } from "../hooks/internal-hooks.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import { normalizeToolName } from "./tool-policy.js";
@@ -31,6 +32,17 @@ export async function runBeforeToolCallHook(args: {
 
 	const toolName = normalizeToolName(args.toolName || "tool");
 	const params = args.params;
+	const hookSessionKey = args.ctx?.sessionKey ?? `tool:${toolName}`;
+	try {
+		const hookEvent = createInternalHookEvent("agent", "tool:start", hookSessionKey, {
+			toolName,
+			toolCallId: args.toolCallId ?? args.ctx?.toolCallId,
+			params: isPlainObject(params) ? params : undefined,
+		});
+		await triggerInternalHook(hookEvent);
+	} catch (err) {
+		log.warn(`agent:tool:start hook failed: tool=${toolName} error=${String(err)}`);
+	}
 	try {
 		const normalizedParams = isPlainObject(params) ? params : {};
 		const hookResult = await hookRunner.runBeforeToolCall(
@@ -101,6 +113,20 @@ export async function runAfterToolCallHook(args: {
 	} catch (err) {
 		const toolCallId = args.toolCallId ? ` toolCallId=${args.toolCallId}` : "";
 		log.warn(`after_tool_call hook failed: tool=${toolName}${toolCallId} error=${String(err)}`);
+	}
+	const hookSessionKey = args.ctx?.sessionKey ?? `tool:${toolName}`;
+	try {
+		const hookEvent = createInternalHookEvent("agent", "tool:end", hookSessionKey, {
+			toolName,
+			toolCallId: args.toolCallId ?? args.ctx?.toolCallId,
+			params,
+			result: args.result,
+			error: args.error,
+			durationMs: args.durationMs,
+		});
+		await triggerInternalHook(hookEvent);
+	} catch (err) {
+		log.warn(`agent:tool:end hook failed: tool=${toolName} error=${String(err)}`);
 	}
 }
 
