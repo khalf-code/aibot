@@ -1,4 +1,5 @@
 import type { AnyAgentTool } from "./tools/common.js";
+import { runPreToolUseHooks } from "../hooks/claude-style/hooks/pre-tool-use.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import { normalizeToolName } from "./tool-policy.js";
@@ -22,13 +23,52 @@ export async function runBeforeToolCallHook(args: {
   toolCallId?: string;
   ctx?: HookContext;
 }): Promise<HookOutcome> {
-  const hookRunner = getGlobalHookRunner();
-  if (!hookRunner?.hasHooks("before_tool_call")) {
-    return { blocked: false, params: args.params };
+  // Raw tool name for Claude hooks (e.g., "Bash", "Write")
+  const rawToolName = args.toolName || "tool";
+  // Normalized tool name for plugin hooks (e.g., "exec", "write")
+  const toolName = normalizeToolName(rawToolName);
+  let params = args.params;
+
+  // Claude-style hooks run first (user-level policy)
+  // Use raw tool name to match Claude Code hook conventions (Bash, Write, etc.)
+  try {
+    const claudeResult = await runPreToolUseHooks({
+      session_id: args.ctx?.sessionKey,
+      tool_name: rawToolName,
+      tool_input: isPlainObject(params) ? params : {},
+      cwd: process.cwd(),
+    });
+    if (claudeResult.decision === "deny") {
+      return { blocked: true, reason: claudeResult.reason || "Tool call blocked by Claude hook" };
+    }
+    if (claudeResult.decision === "ask") {
+      // "ask" not yet supported - log and continue (treat as allow)
+      log.debug(
+        `Claude PreToolUse hook returned "ask" for tool=${rawToolName} - not yet supported`,
+      );
+    }
+    // Apply param modifications from Claude hooks
+    if (claudeResult.updatedInput) {
+      if (isPlainObject(params)) {
+        params = { ...params, ...claudeResult.updatedInput };
+      } else {
+        params = claudeResult.updatedInput;
+      }
+    }
+  } catch (err) {
+    const toolCallId = args.toolCallId ? ` toolCallId=${args.toolCallId}` : "";
+    log.warn(
+      `Claude PreToolUse hook failed: tool=${rawToolName}${toolCallId} error=${String(err)}`,
+    );
+    // Continue on error (don't block the tool)
   }
 
-  const toolName = normalizeToolName(args.toolName || "tool");
-  const params = args.params;
+  // Plugin hooks run after Claude hooks
+  const hookRunner = getGlobalHookRunner();
+  if (!hookRunner?.hasHooks("before_tool_call")) {
+    return { blocked: false, params };
+  }
+
   try {
     const normalizedParams = isPlainObject(params) ? params : {};
     const hookResult = await hookRunner.runBeforeToolCall(
