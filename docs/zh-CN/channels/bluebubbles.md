@@ -268,4 +268,4 @@ OpenClaw 可能会显示*短*消息 ID（例如 `1`、`2`）以节省 token。
 - OpenClaw 会根据 BlueBubbles 服务器的 macOS 版本自动隐藏已知不可用的操作。如果在 macOS 26（Tahoe）上编辑仍然显示，请使用 `channels.bluebubbles.actions.edit=false` 手动禁用。
 - 查看状态/健康信息：`openclaw status --all` 或 `openclaw status --deep`。
 
-有关通用渠道工作流参考，请参阅[渠道](/channels)和[插件](/plugins)指南。
+有关通用渠道工作流参考，请参阅[渠道](/channels)和[插件](/plugin)指南。
