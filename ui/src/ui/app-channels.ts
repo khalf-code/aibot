@@ -28,7 +28,7 @@ export async function handleWhatsAppLogout(host: OpenClawApp) {
 
 export async function handleConvosSetup(host: OpenClawApp) {
   await setupConvos(host);
-  await loadChannels(host, true);
+  await loadChannels(host, false);
 }
 
 export function handleConvosReset(host: OpenClawApp) {
@@ -42,7 +42,7 @@ export function handleConvosResetCancel(host: OpenClawApp) {
 export async function handleConvosResetConfirm(host: OpenClawApp, deleteDb: boolean) {
   host.convosResetPending = false;
   await resetConvos(host, deleteDb);
-  await loadChannels(host, true);
+  await loadChannels(host, false);
 }
 
 export async function handleChannelConfigSave(host: OpenClawApp) {

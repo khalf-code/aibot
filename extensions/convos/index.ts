@@ -6,7 +6,7 @@ import { emptyPluginConfigSchema, renderQrPngBase64 } from "openclaw/plugin-sdk"
 import type { ConvosSDKClient } from "./src/sdk-client.js";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
 import { convosPlugin } from "./src/channel.js";
-import { getConvosRuntime, setConvosRuntime } from "./src/runtime.js";
+import { getConvosRuntime, setConvosRuntime, setConvosSetupActive } from "./src/runtime.js";
 import { resolveConvosDbPath } from "./src/sdk-client.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
@@ -44,6 +44,7 @@ async function cleanupSetupAgent() {
     setupAgent = null;
   }
   cachedSetupResponse = null;
+  setConvosSetupActive(false);
 }
 
 // --- Core handlers shared by WebSocket gateway methods and HTTP routes ---
@@ -126,6 +127,7 @@ async function handleSetup(params: {
 
   if (result.client) {
     setupAgent = result.client;
+    setConvosSetupActive(true);
     console.log("[convos-setup] Agent kept running to accept join requests");
     setupCleanupTimer = setTimeout(
       async () => {

@@ -14,16 +14,12 @@ import {
   type CoreConfig,
   type ResolvedConvosAccount,
 } from "./accounts.js";
-import { ConvosSDKClient, resolveConvosDbPath, type InboundMessage } from "./sdk-client.js";
+import { convosMessageActions } from "./actions.js";
 import { convosChannelConfigSchema } from "./config-schema.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
-import { convosMessageActions } from "./actions.js";
-import {
-  convosOutbound,
-  getClientForAccount,
-  setClientForAccount,
-} from "./outbound.js";
-import { getConvosRuntime } from "./runtime.js";
+import { convosOutbound, getClientForAccount, setClientForAccount } from "./outbound.js";
+import { getConvosRuntime, isConvosSetupActive } from "./runtime.js";
+import { ConvosSDKClient, resolveConvosDbPath, type InboundMessage } from "./sdk-client.js";
 
 type RuntimeLogger = {
   info: (msg: string) => void;
@@ -145,7 +141,11 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
           return false;
         }
         // Convos conversation IDs are hex strings (32 chars) or UUIDs (36 chars with dashes)
-        return /^[0-9a-f]{32}$/i.test(trimmed) || /^[0-9a-f-]{36}$/i.test(trimmed) || trimmed.includes("/");
+        return (
+          /^[0-9a-f]{32}$/i.test(trimmed) ||
+          /^[0-9a-f-]{36}$/i.test(trimmed) ||
+          trimmed.includes("/")
+        );
       },
       hint: "<conversationId>",
     },
@@ -210,6 +210,12 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       lastProbeAt: snapshot.lastProbeAt ?? null,
     }),
     probeAccount: async ({ account, timeoutMs }) => {
+      // Skip probes while a setup/reset session is active — the old identity
+      // is being replaced and probing it burns XMTP installation slots.
+      if (isConvosSetupActive()) {
+        return { ok: true };
+      }
+
       // For SDK-based client, we verify by checking if we can create a client
       // If privateKey is set, the account is considered healthy
       if (!account.privateKey) {
@@ -285,7 +291,9 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         accountId: account.accountId,
         privateKey: account.privateKey,
       });
-      log?.info(`[${account.accountId}] XMTP stateDir: ${stateDir}, cwd: ${process.cwd()}, dbPath: ${dbPath}`);
+      log?.info(
+        `[${account.accountId}] XMTP stateDir: ${stateDir}, cwd: ${process.cwd()}, dbPath: ${dbPath}`,
+      );
 
       // Create SDK client with message handling
       const client = await ConvosSDKClient.create({
