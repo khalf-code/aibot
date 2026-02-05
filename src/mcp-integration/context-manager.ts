@@ -5,9 +5,9 @@
  * security isolation between organizations, workspaces, and teams.
  */
 
-import type { TenantContext } from './types.js';
-import type { SessionEntry } from '../config/sessions/types.js';
-import { readSessionEntry, updateSessionEntry } from '../config/sessions/store.js';
+import type { SessionEntry } from "../config/sessions/types.js";
+import type { TenantContext } from "./types.js";
+import { readSessionEntry, updateSessionEntry } from "../config/sessions/store.js";
 
 export class MCPContextManager {
   /**
@@ -21,7 +21,7 @@ export class MCPContextManager {
    */
   async extractFromSession(sessionKey?: string): Promise<TenantContext> {
     if (!sessionKey) {
-      throw new Error('Session key required for multi-tenant MCP access');
+      throw new Error("Session key required for multi-tenant MCP access");
     }
 
     // Load session from store
@@ -35,7 +35,7 @@ export class MCPContextManager {
     if (!context) {
       throw new Error(
         `Multi-tenant context not configured for session: ${sessionKey}. ` +
-        `Please set organizationId and workspaceId in session metadata.`
+          `Please set organizationId and workspaceId in session metadata.`,
       );
     }
 
@@ -78,7 +78,7 @@ export class MCPContextManager {
    */
   async storeInSession(sessionKey: string, context: TenantContext): Promise<void> {
     if (!this.validateTenantContext(context)) {
-      throw new Error('Invalid tenant context');
+      throw new Error("Invalid tenant context");
     }
 
     await updateSessionEntry(sessionKey, {
@@ -96,8 +96,8 @@ export class MCPContextManager {
    * injection attempts or invalid characters.
    */
   validateTenantContext(context: TenantContext): boolean {
-    // Check for required fields
-    if (!context.organizationId || !context.workspaceId || !context.userId) {
+    // Check for required fields (userId is optional)
+    if (!context.organizationId || !context.workspaceId) {
       return false;
     }
 
@@ -112,7 +112,7 @@ export class MCPContextManager {
       return false;
     }
 
-    if (!validPattern.test(context.userId)) {
+    if (context.userId && !validPattern.test(context.userId)) {
       return false;
     }
 
@@ -160,7 +160,7 @@ export class MCPContextManager {
     };
 
     if (!this.validateTenantContext(context)) {
-      throw new Error('Invalid tenant context data');
+      throw new Error("Invalid tenant context data");
     }
 
     return context;
