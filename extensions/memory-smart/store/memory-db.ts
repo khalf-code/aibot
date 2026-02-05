@@ -227,6 +227,13 @@ export class MemoryDB {
   async update(id: string, fields: Partial<Pick<MemoryEntry, "text" | "importance" | "category" | "entities" | "accessCount" | "vector">>): Promise<void> {
     await this.ensureInitialized();
 
+    // Validate UUID format to prevent injection
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new Error(`Invalid memory ID format: ${id}`);
+    }
+
     // Fetch existing
     const all = await this.table!.query().limit(1000).toArray();
     const existing = all.find((r) => r.id === id);
