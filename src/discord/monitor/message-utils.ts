@@ -1,6 +1,7 @@
 import type { ChannelType, Client, Message } from "@buape/carbon";
 import type { APIAttachment } from "discord-api-types/v10";
 import { logVerbose } from "../../globals.js";
+import { logInfo } from "../../logger.js";
 import { fetchRemoteMedia } from "../../media/fetch.js";
 import { saveMediaBuffer } from "../../media/store.js";
 
@@ -8,6 +9,7 @@ export type DiscordMediaInfo = {
   path: string;
   contentType?: string;
   placeholder: string;
+  isVoiceMessage?: boolean;
 };
 
 export type DiscordChannelInfo = {
@@ -104,6 +106,10 @@ export async function resolveMediaList(
   }
   const out: DiscordMediaInfo[] = [];
   for (const attachment of attachments) {
+    const isVoice = isDiscordVoiceAttachment(attachment);
+    if (isVoice) {
+      logInfo(`discord: detected voice message attachment ${attachment.id}`);
+    }
     try {
       const fetched = await fetchRemoteMedia({
         url: attachment.url,
@@ -115,10 +121,14 @@ export async function resolveMediaList(
         "inbound",
         maxBytes,
       );
+      if (isVoice) {
+        logInfo(`discord: downloaded voice message to ${saved.path}`);
+      }
       out.push({
         path: saved.path,
         contentType: saved.contentType,
         placeholder: inferPlaceholder(attachment),
+        isVoiceMessage: isVoice,
       });
     } catch (err) {
       const id = attachment.id ?? attachment.url;
@@ -137,9 +147,16 @@ function inferPlaceholder(attachment: APIAttachment): string {
     return "<media:video>";
   }
   if (mime.startsWith("audio/")) {
+    if (isDiscordVoiceAttachment(attachment)) {
+      return "<media:voice>";
+    }
     return "<media:audio>";
   }
   return "<media:document>";
+}
+
+export function isDiscordVoiceAttachment(attachment: APIAttachment): boolean {
+  return attachment.duration_secs !== undefined || attachment.waveform !== undefined;
 }
 
 function isImageAttachment(attachment: APIAttachment): boolean {
@@ -154,15 +171,38 @@ function isImageAttachment(attachment: APIAttachment): boolean {
   return /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/.test(name);
 }
 
+function isAudioAttachment(attachment: APIAttachment): boolean {
+  const mime = attachment.content_type ?? "";
+  if (!mime.startsWith("audio/")) {
+    return false;
+  }
+  return !isDiscordVoiceAttachment(attachment);
+}
+
 function buildDiscordAttachmentPlaceholder(attachments?: APIAttachment[]): string {
   if (!attachments || attachments.length === 0) {
     return "";
   }
   const count = attachments.length;
   const allImages = attachments.every(isImageAttachment);
-  const label = allImages ? "image" : "file";
+  const allVoice = attachments.every(isDiscordVoiceAttachment);
+  const allAudio = attachments.every(isAudioAttachment);
+  let tag: string;
+  let label: string;
+  if (allImages) {
+    tag = "<media:image>";
+    label = "image";
+  } else if (allVoice) {
+    tag = "<media:voice>";
+    label = "voice";
+  } else if (allAudio) {
+    tag = "<media:audio>";
+    label = "audio";
+  } else {
+    tag = "<media:document>";
+    label = "file";
+  }
   const suffix = count === 1 ? label : `${label}s`;
-  const tag = allImages ? "<media:image>" : "<media:document>";
   return `${tag} (${count} ${suffix})`;
 }
 

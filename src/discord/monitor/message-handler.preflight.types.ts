@@ -47,6 +47,7 @@ export type DiscordMessagePreflightContext = {
   commandAuthorized: boolean;
   baseText: string;
   messageText: string;
+  hasVoiceMessage: boolean;
   wasMentioned: boolean;
 
   route: ReturnType<typeof resolveAgentRoute>;

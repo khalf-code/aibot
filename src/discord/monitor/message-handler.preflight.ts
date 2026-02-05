@@ -46,7 +46,11 @@ import {
   resolveDiscordSystemLocation,
   resolveTimestampMs,
 } from "./format.js";
-import { resolveDiscordChannelInfo, resolveDiscordMessageText } from "./message-utils.js";
+import {
+  resolveDiscordChannelInfo,
+  resolveDiscordMessageText,
+  isDiscordVoiceAttachment,
+} from "./message-utils.js";
 import { resolveDiscordSenderIdentity, resolveDiscordWebhookId } from "./sender-identity.js";
 import { resolveDiscordSystemEvent } from "./system-events.js";
 import { resolveDiscordThreadChannel, resolveDiscordThreadParentInfo } from "./threading.js";
@@ -187,6 +191,7 @@ export async function preflightDiscordMessage(
   const messageText = resolveDiscordMessageText(message, {
     includeForwarded: true,
   });
+  const hasVoiceMessage = (message.attachments ?? []).some(isDiscordVoiceAttachment);
   recordChannelActivity({
     channel: "discord",
     accountId: params.accountId,
@@ -547,6 +552,7 @@ export async function preflightDiscordMessage(
     commandAuthorized,
     baseText,
     messageText,
+    hasVoiceMessage,
     wasMentioned,
     route,
     guildInfo,
