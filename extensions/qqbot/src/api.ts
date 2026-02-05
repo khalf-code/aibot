@@ -408,7 +408,7 @@ export async function sendProactiveC2CMessage(
 ): Promise<{ id: string; timestamp: number }> {
   const body = buildProactiveMessageBody(content);
   console.log(
-    `[qqbot-api] sendProactiveC2CMessage: openid=${openid}, msg_type=${body.msg_type}, content_len=${content.length}`,
+    `[qqbot-api] sendProactiveC2CMessage: openid=${openid}, msg_type=${String(body.msg_type)}, content_len=${content.length}`,
   );
   return apiRequest(accessToken, "POST", `/v2/users/${openid}/messages`, body);
 }
@@ -427,7 +427,7 @@ export async function sendProactiveGroupMessage(
 ): Promise<{ id: string; timestamp: string }> {
   const body = buildProactiveMessageBody(content);
   console.log(
-    `[qqbot-api] sendProactiveGroupMessage: group=${groupOpenid}, msg_type=${body.msg_type}, content_len=${content.length}`,
+    `[qqbot-api] sendProactiveGroupMessage: group=${groupOpenid}, msg_type=${String(body.msg_type)}, content_len=${content.length}`,
   );
   return apiRequest(accessToken, "POST", `/v2/groups/${groupOpenid}/messages`, body);
 }

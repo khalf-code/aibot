@@ -19,6 +19,7 @@
  *   npx ts-node scripts/send-proactive.ts --broadcast --text "系统公告" --type c2c --limit 10
  */
 
+import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ResolvedQQBotAccount } from "../src/types.js";
@@ -212,7 +213,7 @@ QQBot 主动消息 CLI 工具
     } catch {}
 
     console.log(`\n开始广播消息...\n`);
-    const result = await broadcastMessage(args.text as string, cfg as any, {
+    const result = await broadcastMessage(args.text as string, cfg as OpenClawConfig, {
       type,
       accountId,
       limit,

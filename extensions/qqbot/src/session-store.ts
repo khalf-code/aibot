@@ -102,7 +102,7 @@ export function loadSession(accountId: string): SessionState | null {
     );
     return state;
   } catch (err) {
-    console.error(`[session-store] Failed to load session for ${accountId}: ${err}`);
+    console.error(`[session-store] Failed to load session for ${accountId}: ${String(err)}`);
     return null;
   }
 }
@@ -181,7 +181,7 @@ function doSaveSession(state: SessionState): void {
       `[session-store] Saved session for ${state.accountId}: sessionId=${state.sessionId}, lastSeq=${state.lastSeq}`,
     );
   } catch (err) {
-    console.error(`[session-store] Failed to save session for ${state.accountId}: ${err}`);
+    console.error(`[session-store] Failed to save session for ${state.accountId}: ${String(err)}`);
   }
 }
 
@@ -207,7 +207,7 @@ export function clearSession(accountId: string): void {
       console.log(`[session-store] Cleared session for ${accountId}`);
     }
   } catch (err) {
-    console.error(`[session-store] Failed to clear session for ${accountId}: ${err}`);
+    console.error(`[session-store] Failed to clear session for ${accountId}: ${String(err)}`);
   }
 }
 

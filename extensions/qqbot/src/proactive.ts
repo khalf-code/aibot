@@ -124,7 +124,7 @@ function loadKnownUsers(): Map<string, KnownUser> {
       cacheLastModified = fs.statSync(KNOWN_USERS_FILE).mtimeMs;
     }
   } catch (err) {
-    console.error(`[qqbot:proactive] Failed to load known users: ${err}`);
+    console.error(`[qqbot:proactive] Failed to load known users: ${String(err)}`);
   }
 
   knownUsersCache = users;
@@ -142,7 +142,7 @@ function saveKnownUsers(users: Map<string, KnownUser>): void {
     cacheLastModified = Date.now();
     knownUsersCache = users;
   } catch (err) {
-    console.error(`[qqbot:proactive] Failed to save known users: ${err}`);
+    console.error(`[qqbot:proactive] Failed to save known users: ${String(err)}`);
   }
 }
 
@@ -327,7 +327,7 @@ export async function sendProactive(
         }
         console.log(`[qqbot:proactive] Sent image to ${type}:${to}`);
       } catch (err) {
-        console.error(`[qqbot:proactive] Failed to send image: ${err}`);
+        console.error(`[qqbot:proactive] Failed to send image: ${String(err)}`);
         // 图片发送失败不影响文本发送
       }
     }
@@ -348,7 +348,7 @@ export async function sendProactive(
     } else {
       return {
         success: false,
-        error: `Unknown message type: ${type}`,
+        error: `Unknown message type: ${String(type)}`,
       };
     }
 

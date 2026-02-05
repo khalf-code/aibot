@@ -37,7 +37,6 @@ import {
   encodePayloadForCron,
   isCronReminderPayload,
   isMediaPayload,
-  type MediaPayload,
 } from "./utils/payload.js";
 
 // QQ Bot intents - 按权限级别分组
@@ -234,7 +233,7 @@ async function ensureImageServer(
     );
     return config.baseUrl!;
   } catch (err) {
-    log?.error(`[qqbot] Failed to start image server: ${err}`);
+    log?.error(`[qqbot] Failed to start image server: ${String(err)}`);
     return null;
   }
 }
@@ -347,7 +346,7 @@ export async function startGateway(ctx: GatewayContext): Promise<void> {
           _messagesProcessed++;
         } catch (err) {
           // 捕获处理异常，防止影响队列循环
-          log?.error(`[qqbot:${account.accountId}] Message processor error: ${err}`);
+          log?.error(`[qqbot:${account.accountId}] Message processor error: ${String(err)}`);
         }
       }
       messageProcessorRunning = false;
@@ -416,7 +415,7 @@ export async function startGateway(ctx: GatewayContext): Promise<void> {
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       if (!isAborted) {
-        connect();
+        void connect();
       }
     }, delay);
   };
@@ -479,7 +478,7 @@ export async function startGateway(ctx: GatewayContext): Promise<void> {
           await sendC2CInputNotify(accessToken, event.senderId, event.messageId, 60);
           log?.info(`[qqbot:${account.accountId}] Sent input notify to ${event.senderId}`);
         } catch (err) {
-          log?.error(`[qqbot:${account.accountId}] sendC2CInputNotify error: ${err}`);
+          log?.error(`[qqbot:${account.accountId}] sendC2CInputNotify error: ${String(err)}`);
         }
 
         const isGroup = event.type === "guild" || event.type === "group";
@@ -728,7 +727,9 @@ openclaw cron add \\
               }
             });
           } catch (sendErr) {
-            log?.error(`[qqbot:${account.accountId}] Failed to send error message: ${sendErr}`);
+            log?.error(
+              `[qqbot:${account.accountId}] Failed to send error message: ${String(sendErr)}`,
+            );
           }
         };
 
@@ -875,7 +876,9 @@ openclaw cron add \\
                             `[qqbot:${account.accountId}] Sent text: ${item.content.slice(0, 50)}...`,
                           );
                         } catch (err) {
-                          log?.error(`[qqbot:${account.accountId}] Failed to send text: ${err}`);
+                          log?.error(
+                            `[qqbot:${account.accountId}] Failed to send text: ${String(err)}`,
+                          );
                         }
                       } else if (item.type === "image") {
                         // 发送图片
@@ -967,7 +970,7 @@ openclaw cron add \\
                           );
                         } catch (err) {
                           log?.error(
-                            `[qqbot:${account.accountId}] Failed to send image from <qqimg>: ${err}`,
+                            `[qqbot:${account.accountId}] Failed to send image from <qqimg>: ${String(err)}`,
                           );
                           await sendErrorMessage(
                             `图片发送失败，图片似乎不存在哦，图片路径：${imagePath}`,
@@ -1045,7 +1048,7 @@ openclaw cron add \\
                           );
                         } catch (err) {
                           log?.error(
-                            `[qqbot:${account.accountId}] Failed to send cron confirmation: ${err}`,
+                            `[qqbot:${account.accountId}] Failed to send cron confirmation: ${String(err)}`,
                           );
                         }
 
@@ -1095,9 +1098,11 @@ openclaw cron add \\
                               );
                             } catch (readErr) {
                               log?.error(
-                                `[qqbot:${account.accountId}] Failed to read local image: ${readErr}`,
+                                `[qqbot:${account.accountId}] Failed to read local image: ${String(readErr)}`,
                               );
-                              await sendErrorMessage(`[QQBot] 读取图片文件失败: ${readErr}`);
+                              await sendErrorMessage(
+                                `[QQBot] 读取图片文件失败: ${String(readErr)}`,
+                              );
                               return;
                             }
                           }
@@ -1159,8 +1164,10 @@ openclaw cron add \\
                               });
                             }
                           } catch (err) {
-                            log?.error(`[qqbot:${account.accountId}] Failed to send image: ${err}`);
-                            await sendErrorMessage(`[QQBot] 发送图片失败: ${err}`);
+                            log?.error(
+                              `[qqbot:${account.accountId}] Failed to send image: ${String(err)}`,
+                            );
+                            await sendErrorMessage(`[QQBot] 发送图片失败: ${String(err)}`);
                           }
                         } else if (parsedPayload.mediaType === "audio") {
                           // 音频发送暂不支持
@@ -1173,12 +1180,13 @@ openclaw cron add \\
                           log?.info(`[qqbot:${account.accountId}] Video sending not supported`);
                           await sendErrorMessage(`[QQBot] 视频发送功能暂不支持`);
                         } else {
+                          const unknownMediaType = String(
+                            (parsedPayload as { mediaType: unknown }).mediaType,
+                          );
                           log?.error(
-                            `[qqbot:${account.accountId}] Unknown media type: ${(parsedPayload as MediaPayload).mediaType}`,
+                            `[qqbot:${account.accountId}] Unknown media type: ${unknownMediaType}`,
                           );
-                          await sendErrorMessage(
-                            `[QQBot] 不支持的媒体类型: ${(parsedPayload as MediaPayload).mediaType}`,
-                          );
+                          await sendErrorMessage(`[QQBot] 不支持的媒体类型: ${unknownMediaType}`);
                         }
 
                         // 记录活动并返回
@@ -1364,7 +1372,7 @@ openclaw cron add \\
                           );
                         } catch (imgErr) {
                           log?.error(
-                            `[qqbot:${account.accountId}] Failed to send Base64 image via Rich Media API: ${imgErr}`,
+                            `[qqbot:${account.accountId}] Failed to send Base64 image via Rich Media API: ${String(imgErr)}`,
                           );
                         }
                       }
@@ -1390,7 +1398,7 @@ openclaw cron add \\
                           );
                         } catch (err) {
                           log?.info(
-                            `[qqbot:${account.accountId}] Failed to get image size, using default: ${err}`,
+                            `[qqbot:${account.accountId}] Failed to get image size, using default: ${String(err)}`,
                           );
                           const mdImage = formatQQBotMarkdownImage(url, null);
                           imagesToAppend.push(mdImage);
@@ -1417,7 +1425,7 @@ openclaw cron add \\
                           );
                         } catch (err) {
                           log?.info(
-                            `[qqbot:${account.accountId}] Failed to get image size for existing md, using default: ${err}`,
+                            `[qqbot:${account.accountId}] Failed to get image size for existing md, using default: ${String(err)}`,
                           );
                           const newMdImage = formatQQBotMarkdownImage(imgUrl, null);
                           textWithoutImages = textWithoutImages.replace(fullMatch, newMdImage);
@@ -1472,7 +1480,7 @@ openclaw cron add \\
                         );
                       } catch (err) {
                         log?.error(
-                          `[qqbot:${account.accountId}] Failed to send markdown message: ${err}`,
+                          `[qqbot:${account.accountId}] Failed to send markdown message: ${String(err)}`,
                         );
                       }
                     }
@@ -1520,7 +1528,7 @@ openclaw cron add \\
                           );
                         } catch (imgErr) {
                           log?.error(
-                            `[qqbot:${account.accountId}] Failed to send image: ${imgErr}`,
+                            `[qqbot:${account.accountId}] Failed to send image: ${String(imgErr)}`,
                           );
                         }
                       }
@@ -1554,7 +1562,7 @@ openclaw cron add \\
                         log?.info(`[qqbot:${account.accountId}] Sent text reply (${event.type})`);
                       }
                     } catch (err) {
-                      log?.error(`[qqbot:${account.accountId}] Send failed: ${err}`);
+                      log?.error(`[qqbot:${account.accountId}] Send failed: ${String(err)}`);
                     }
                   }
 
@@ -1565,7 +1573,7 @@ openclaw cron add \\
                   });
                 },
                 onError: async (err: unknown) => {
-                  log?.error(`[qqbot:${account.accountId}] Dispatch error: ${err}`);
+                  log?.error(`[qqbot:${account.accountId}] Dispatch error: ${String(err)}`);
                   hasResponse = true;
                   if (timeoutId) {
                     clearTimeout(timeoutId);
@@ -1602,7 +1610,7 @@ openclaw cron add \\
             }
           }
         } catch (err) {
-          log?.error(`[qqbot:${account.accountId}] Message processing failed: ${err}`);
+          log?.error(`[qqbot:${account.accountId}] Message processing failed: ${String(err)}`);
           await sendErrorMessage(`[ClawdBot] 处理失败: ${String(err).slice(0, 500)}`);
         }
       };
@@ -1624,9 +1632,9 @@ openclaw cron add \\
         });
       });
 
-      ws.on("message", async (data) => {
+      ws.on("message", async (data: Buffer) => {
         try {
-          const rawData = data.toString();
+          const rawData = data.toString("utf-8");
           const payload = JSON.parse(rawData) as WSPayload;
           const { op, d, s, t } = payload;
 
@@ -1854,7 +1862,7 @@ openclaw cron add \\
               break;
           }
         } catch (err) {
-          log?.error(`[qqbot:${account.accountId}] Message parse error: ${err}`);
+          log?.error(`[qqbot:${account.accountId}] Message parse error: ${String(err)}`);
         }
       });
 

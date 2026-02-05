@@ -510,7 +510,7 @@ export async function sendMedia(ctx: MediaOutboundContext): Promise<OutboundResu
         }
       } catch (textErr) {
         // 文本发送失败不影响整体结果，图片已发送成功
-        console.error(`[qqbot] Failed to send text after image: ${textErr}`);
+        console.error(`[qqbot] Failed to send text after image: ${String(textErr)}`);
       }
     }
 
