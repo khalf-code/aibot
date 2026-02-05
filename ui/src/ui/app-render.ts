@@ -788,20 +788,22 @@ export function renderApp(state: AppViewState) {
                   );
                 },
                 onModelChange: (agentId, modelId) => {
-                  if (!configValue) {
+                  const configState = state as unknown as ConfigState;
+                  // Helper to get fresh config reference
+                  const getConfig = () =>
+                    configState.configForm as { agents?: { list?: unknown[] } } | null;
+                  const getList = () => getConfig()?.agents?.list;
+
+                  // Ensure agents.list exists
+                  if (!Array.isArray(getList())) {
+                    updateConfigFormValue(configState, ["agents", "list"], []);
+                  }
+                  const list = getList();
+                  if (!Array.isArray(list)) {
                     return;
                   }
-                  const cfg = configValue as { agents?: { list?: unknown[] } };
-                  let list = cfg.agents?.list;
-                  // Create agents.list if it doesn't exist
-                  if (!Array.isArray(list)) {
-                    updateConfigFormValue(state as unknown as ConfigState, ["agents", "list"], []);
-                    list = (state.configForm as { agents?: { list?: unknown[] } } | null)?.agents
-                      ?.list;
-                    if (!Array.isArray(list)) {
-                      return;
-                    }
-                  }
+
+                  // Find or create agent entry
                   let index = list.findIndex(
                     (entry) =>
                       entry &&
@@ -809,22 +811,22 @@ export function renderApp(state: AppViewState) {
                       "id" in entry &&
                       (entry as { id?: string }).id === agentId,
                   );
-                  // Create agent entry if it doesn't exist
                   if (index < 0) {
-                    const newEntry = { id: agentId };
-                    updateConfigFormValue(
-                      state as unknown as ConfigState,
-                      ["agents", "list", list.length],
-                      newEntry,
-                    );
+                    updateConfigFormValue(configState, ["agents", "list", list.length], {
+                      id: agentId,
+                    });
                     index = list.length;
                   }
+
                   const basePath = ["agents", "list", index, "model"];
                   if (!modelId) {
-                    removeConfigFormValue(state as unknown as ConfigState, basePath);
+                    removeConfigFormValue(configState, basePath);
                     return;
                   }
-                  const entry = list[index] as { model?: unknown } | undefined;
+
+                  // Preserve existing fallbacks if any
+                  const freshList = getList();
+                  const entry = freshList?.[index] as { model?: unknown } | undefined;
                   const existing = entry?.model;
                   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
                     const fallbacks = (existing as { fallbacks?: unknown }).fallbacks;
@@ -832,26 +834,28 @@ export function renderApp(state: AppViewState) {
                       primary: modelId,
                       ...(Array.isArray(fallbacks) ? { fallbacks } : {}),
                     };
-                    updateConfigFormValue(state as unknown as ConfigState, basePath, next);
+                    updateConfigFormValue(configState, basePath, next);
                   } else {
-                    updateConfigFormValue(state as unknown as ConfigState, basePath, modelId);
+                    updateConfigFormValue(configState, basePath, modelId);
                   }
                 },
                 onModelFallbacksChange: (agentId, fallbacks) => {
-                  if (!configValue) {
+                  const configState = state as unknown as ConfigState;
+                  // Helper to get fresh config reference
+                  const getConfig = () =>
+                    configState.configForm as { agents?: { list?: unknown[] } } | null;
+                  const getList = () => getConfig()?.agents?.list;
+
+                  // Ensure agents.list exists
+                  if (!Array.isArray(getList())) {
+                    updateConfigFormValue(configState, ["agents", "list"], []);
+                  }
+                  const list = getList();
+                  if (!Array.isArray(list)) {
                     return;
                   }
-                  const cfg = configValue as { agents?: { list?: unknown[] } };
-                  let list = cfg.agents?.list;
-                  // Create agents.list if it doesn't exist
-                  if (!Array.isArray(list)) {
-                    updateConfigFormValue(state as unknown as ConfigState, ["agents", "list"], []);
-                    list = (state.configForm as { agents?: { list?: unknown[] } } | null)?.agents
-                      ?.list;
-                    if (!Array.isArray(list)) {
-                      return;
-                    }
-                  }
+
+                  // Find or create agent entry
                   let index = list.findIndex(
                     (entry) =>
                       entry &&
@@ -859,20 +863,21 @@ export function renderApp(state: AppViewState) {
                       "id" in entry &&
                       (entry as { id?: string }).id === agentId,
                   );
-                  // Create agent entry if it doesn't exist
                   if (index < 0) {
-                    const newEntry = { id: agentId };
-                    updateConfigFormValue(
-                      state as unknown as ConfigState,
-                      ["agents", "list", list.length],
-                      newEntry,
-                    );
+                    updateConfigFormValue(configState, ["agents", "list", list.length], {
+                      id: agentId,
+                    });
                     index = list.length;
                   }
+
                   const basePath = ["agents", "list", index, "model"];
-                  const entry = list[index] as { model?: unknown } | undefined;
-                  const normalized = fallbacks.map((name) => name.trim()).filter(Boolean);
+                  const normalized = fallbacks.filter(Boolean);
+
+                  // Get fresh entry after potential creation
+                  const freshList = getList();
+                  const entry = freshList?.[index] as { model?: unknown } | undefined;
                   const existing = entry?.model;
+
                   const resolvePrimary = () => {
                     if (typeof existing === "string") {
                       return existing.trim() || null;
@@ -887,18 +892,19 @@ export function renderApp(state: AppViewState) {
                     return null;
                   };
                   const primary = resolvePrimary();
+
                   if (normalized.length === 0) {
                     if (primary) {
-                      updateConfigFormValue(state as unknown as ConfigState, basePath, primary);
+                      updateConfigFormValue(configState, basePath, primary);
                     } else {
-                      removeConfigFormValue(state as unknown as ConfigState, basePath);
+                      removeConfigFormValue(configState, basePath);
                     }
                     return;
                   }
                   const next = primary
                     ? { primary, fallbacks: normalized }
                     : { fallbacks: normalized };
-                  updateConfigFormValue(state as unknown as ConfigState, basePath, next);
+                  updateConfigFormValue(configState, basePath, next);
                 },
               })
             : nothing

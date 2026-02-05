@@ -434,13 +434,6 @@ function resolveModelFallbacks(model?: unknown): string[] | null {
   return null;
 }
 
-function parseFallbackList(value: string): string[] {
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
 type ConfiguredModelOption = {
   value: string;
   label: string;
@@ -484,6 +477,15 @@ function buildModelOptions(configForm: Record<string, unknown> | null, current?:
     `;
   }
   return options.map((option) => html`<option value=${option.value}>${option.label}</option>`);
+}
+
+function buildFallbackOptions(
+  configForm: Record<string, unknown> | null,
+  primaryModel: string | null,
+): ConfiguredModelOption[] {
+  const options = resolveConfiguredModels(configForm);
+  // Exclude the primary model from fallback options
+  return options.filter((opt) => opt.value !== primaryModel);
 }
 
 type CompiledPattern =
@@ -880,7 +882,6 @@ function renderAgentOverview(params: {
     (defaultModel !== "-" ? normalizeModelValue(defaultModel) : null);
   const effectivePrimary = modelPrimary ?? defaultPrimary ?? null;
   const modelFallbacks = resolveModelFallbacks(config.entry?.model);
-  const fallbackText = modelFallbacks ? modelFallbacks.join(", ") : "";
   const identityName =
     agentIdentity?.name?.trim() ||
     agent.identity?.name?.trim() ||
@@ -1004,21 +1005,52 @@ function renderAgentOverview(params: {
               ${buildModelOptions(configForm, effectivePrimary ?? undefined)}
             </select>
           </label>
-          <label class="field" style="min-width: 260px; flex: 1;">
-            <span>Fallbacks (comma-separated)</span>
-            <input
-              .value=${fallbackText}
-              ?disabled=${!configForm || configLoading || configSaving}
-              placeholder="provider/model, provider/model"
-              @input=${(e: Event) =>
-                onModelFallbacksChange(
-                  agent.id,
-                  parseFallbackList((e.target as HTMLInputElement).value),
-                )}
-            />
-          </label>
         </div>
-        <div class="row" style="justify-content: flex-end; gap: 8px;">
+        <div class="field" style="margin-top: 12px;">
+          <span>Fallback models</span>
+          <div class="fallback-checkboxes" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; max-height: 200px; overflow-y: auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+            ${(() => {
+              const currentFallbacks = modelFallbacks ?? [];
+              const fallbackOptions = buildFallbackOptions(configForm, effectivePrimary);
+              const selectedSet = new Set(currentFallbacks);
+              if (fallbackOptions.length === 0) {
+                return html`
+                  <span class="muted">No other models available</span>
+                `;
+              }
+              return fallbackOptions.map(
+                (opt) => html`
+                  <label
+                    class="checkbox-label"
+                    style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--bg-secondary); border-radius: 4px; cursor: pointer; white-space: nowrap;"
+                  >
+                    <input
+                      type="checkbox"
+                      .checked=${selectedSet.has(opt.value)}
+                      ?disabled=${!configForm || configLoading || configSaving}
+                      @change=${(e: Event) => {
+                        const checked = (e.target as HTMLInputElement).checked;
+                        const newFallbacks = checked
+                          ? [...currentFallbacks, opt.value]
+                          : currentFallbacks.filter((f) => f !== opt.value);
+                        onModelFallbacksChange(agent.id, newFallbacks);
+                      }}
+                    />
+                    <span style="font-size: 12px;">${opt.label}</span>
+                  </label>
+                `,
+              );
+            })()}
+          </div>
+          ${
+            (modelFallbacks?.length ?? 0) > 0
+              ? html`<div class="muted" style="margin-top: 4px; font-size: 11px;">
+                Selected: ${modelFallbacks?.length} fallback${modelFallbacks?.length === 1 ? "" : "s"}
+              </div>`
+              : nothing
+          }
+        </div>
+        <div class="row" style="justify-content: flex-end; gap: 8px; margin-top: 12px;">
           <button
             class="btn btn--sm"
             ?disabled=${configLoading}
