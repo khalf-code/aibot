@@ -16,6 +16,9 @@ fi
 
 export OPENCLAW_STATE_DIR
 export OPENCLAW_DATA_DIR
+# Keep legacy env vars aligned for older health checks/tooling.
+export CLAWDBOT_STATE_DIR="$OPENCLAW_STATE_DIR"
+export MOLTBOT_STATE_DIR="$OPENCLAW_STATE_DIR"
 
 # Force OpenClaw to use the selected data dir as HOME
 export HOME="$OPENCLAW_DATA_DIR"
@@ -32,6 +35,8 @@ else
     OPENCLAW_CONFIG_PATH="$OPENCLAW_STATE_DIR/openclaw.json"
 fi
 export OPENCLAW_CONFIG_PATH
+echo "[entrypoint] State dir: $OPENCLAW_STATE_DIR"
+echo "[entrypoint] Config path: $OPENCLAW_CONFIG_PATH"
 
 # Use PORT env var from Railway if set, otherwise default to 8080
 : "${OPENCLAW_GATEWAY_PORT:=${PORT:-8080}}"
@@ -48,6 +53,7 @@ else
     OPENCLAW_WORKSPACE_DIR="$WORKSPACE_DIR_CANDIDATE"
 fi
 export OPENCLAW_WORKSPACE_DIR
+echo "[entrypoint] Workspace: $OPENCLAW_WORKSPACE_DIR"
 
 # Create directories
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_WORKSPACE_DIR" 2>/dev/null || true

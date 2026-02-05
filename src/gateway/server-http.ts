@@ -247,7 +247,10 @@ export function createGatewayHttpServer(opts: {
     // Health check endpoint for Railway
     if (req.url === "/health" && req.method === "GET") {
       // Check if state directory is writable (critical for Railway)
-      const stateDir = process.env.CLAWDBOT_STATE_DIR || process.env.MOLTBOT_STATE_DIR;
+      const stateDir =
+        process.env.OPENCLAW_STATE_DIR ||
+        process.env.CLAWDBOT_STATE_DIR ||
+        process.env.MOLTBOT_STATE_DIR;
       if (stateDir) {
         try {
           const testFile = `${stateDir}/.write-test-${Date.now()}`;
