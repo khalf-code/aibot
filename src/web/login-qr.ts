@@ -1,4 +1,4 @@
-import { DisconnectReason } from "@whiskeysockets/baileys";
+import { DisconnectReason } from "baileys";
 import { randomUUID } from "node:crypto";
 import { loadConfig } from "../config/config.js";
 import { danger, info, success } from "../globals.js";

@@ -1,4 +1,4 @@
-import type { AnyMessageContent } from "@whiskeysockets/baileys";
+import type { AnyMessageContent } from "baileys";
 import type { NormalizedLocation } from "../../channels/location.js";
 
 export type WebListenerCloseReason = {

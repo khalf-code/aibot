@@ -1,9 +1,5 @@
-import type { proto } from "@whiskeysockets/baileys";
-import {
-  extractMessageContent,
-  getContentType,
-  normalizeMessageContent,
-} from "@whiskeysockets/baileys";
+import type { proto } from "baileys";
+import { extractMessageContent, getContentType, normalizeMessageContent } from "baileys";
 import { formatLocationText, type NormalizedLocation } from "../../channels/location.js";
 import { logVerbose } from "../../globals.js";
 import { jidToE164 } from "../../utils.js";

@@ -1,4 +1,4 @@
-import { DisconnectReason } from "@whiskeysockets/baileys";
+import { DisconnectReason } from "baileys";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";

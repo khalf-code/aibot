@@ -45,13 +45,13 @@ bun run vitest run
 Bun may block dependency lifecycle scripts unless explicitly trusted (`bun pm untrusted` / `bun pm trust`).
 For this repo, the commonly blocked scripts are not required:
 
-- `@whiskeysockets/baileys` `preinstall`: checks Node major >= 20 (we run Node 22+).
+- `baileys` `preinstall`: checks Node major >= 20 (we run Node 22+).
 - `protobufjs` `postinstall`: emits warnings about incompatible version schemes (no build artifacts).
 
 If you hit a real runtime issue that requires these scripts, trust them explicitly:
 
 ```sh
-bun pm trust @whiskeysockets/baileys protobufjs
+bun pm trust baileys protobufjs
 ```
 
 ## Caveats
