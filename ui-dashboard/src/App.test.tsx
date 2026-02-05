@@ -1,18 +1,28 @@
-// Simple test version of App to debug
-import './styles/global.css'
+import { describe, it, expect, vi } from "vitest";
 
-function SimpleApp() {
-  return (
-    <div style={{ 
-      padding: '20px', 
-      color: 'var(--text-primary)',
-      background: 'var(--bg-primary)',
-      minHeight: '100vh'
-    }}>
-      <h1>🦞 OpenClaw Dashboard</h1>
-      <p>If you see this, the basic React setup is working!</p>
-    </div>
-  )
-}
+// Mock gateway to prevent WebSocket connections during test
+vi.mock("./lib/gateway", () => ({
+  gateway: {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    callMethod: vi.fn().mockResolvedValue({}),
+    onEvent: vi.fn(() => () => {}),
+  },
+  useGateway: () => ({
+    connected: false,
+    connecting: false,
+    error: null,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  }),
+  useSendMessage: () => vi.fn(),
+  initGateway: vi.fn(),
+}));
 
-export default SimpleApp
+describe("App", () => {
+  it("module loads without errors", async () => {
+    const module = await import("./App");
+    expect(module.default).toBeDefined();
+    expect(typeof module.default).toBe("function");
+  });
+});
