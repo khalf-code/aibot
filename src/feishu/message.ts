@@ -1,12 +1,13 @@
 import type { Client } from "@larksuiteoapi/node-sdk";
+import type { MsgContext } from "../auto-reply/templating.js";
 import type { OpenClawConfig } from "../config/config.js";
-import { resolveSessionAgentId } from "../agents/agent-scope.js";
 import { dispatchReplyWithBufferedBlockDispatcher } from "../auto-reply/reply/provider-dispatcher.js";
 import { createReplyPrefixOptions } from "../channels/reply-prefix.js";
 import { loadConfig } from "../config/config.js";
 import { logVerbose } from "../globals.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import { getChildLogger } from "../logging.js";
+import { resolveAgentRoute } from "../routing/resolve-route.js";
 import { isSenderAllowed, normalizeAllowFromWithStore, resolveSenderAllowMatch } from "./access.js";
 import {
   resolveFeishuConfig,
@@ -282,7 +283,7 @@ export async function processFeishuMessage(
   let lastPartialText = "";
 
   // Context construction
-  const ctx = {
+  const ctx: MsgContext = {
     Body: bodyText,
     RawBody: text || media?.placeholder || "",
     From: senderId,
@@ -304,10 +305,21 @@ export async function processFeishuMessage(
     WasMentioned: isGroup ? wasMentioned : undefined,
   };
 
-  const agentId = resolveSessionAgentId({ config: cfg });
+  // Build a channel-aware session key so dmScope applies to Feishu DMs.
+  const route = resolveAgentRoute({
+    cfg,
+    channel: "feishu",
+    accountId,
+    peer: isGroup ? { kind: "group", id: chatId } : { kind: "dm", id: senderId },
+  });
+  ctx.SessionKey = route.sessionKey;
+  if (route.mainSessionKey && route.mainSessionKey !== route.sessionKey) {
+    ctx.ParentSessionKey = route.mainSessionKey;
+  }
+
   const { onModelSelected, ...prefixOptions } = createReplyPrefixOptions({
     cfg,
-    agentId,
+    agentId: route.agentId,
     channel: "feishu",
     accountId,
   });
