@@ -134,6 +134,9 @@ export async function generateVoiceResponse(
   if (enableRecall) {
     // Load full session history for recall tool
     const fullHistory = await loadSessionMessages(sessionFile);
+    console.log(
+      `[voice-call] recall_conversation enabled for call ${callId} (${fullHistory.length} messages in history)`,
+    );
 
     extraTools.push({
       name: recallConversationToolDefinition.name,

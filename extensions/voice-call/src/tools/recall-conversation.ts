@@ -5,6 +5,10 @@
  * The agent can search earlier parts of the call that were dropped from context.
  */
 
+function logRecall(message: string): void {
+  console.log(`[voice-call:recall] ${message}`);
+}
+
 export type AgentMessage = {
   role: "user" | "assistant" | "system";
   content: string | unknown;
@@ -109,17 +113,23 @@ export const recallConversationToolDefinition = {
  * and handles type validation internally.
  */
 export function createRecallConversationExecutor(context: RecallToolContext) {
+  logRecall(`executor created with ${context.fullHistory.length} messages in history`);
+
   return async (params: unknown): Promise<string> => {
     // Validate and extract params
     const p = params as RecallConversationParams;
     const query = typeof p?.query === "string" ? p.query : "";
     const limit = typeof p?.limit === "number" ? p.limit : 5;
 
+    logRecall(`searching for: "${query}" (limit=${limit})`);
+
     if (!query) {
+      logRecall("no query provided");
       return "No query provided. Please specify what to search for.";
     }
 
     const matches = searchConversationHistory(context.fullHistory, query, limit);
+    logRecall(`found ${matches.length} matches for query "${query}"`);
     return formatMatchesForContext(matches);
   };
 }

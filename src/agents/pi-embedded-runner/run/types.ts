@@ -10,7 +10,7 @@ import type { BlockReplyChunking, ToolResultFormat } from "../../pi-embedded-sub
 import type { AuthStorage, ModelRegistry } from "../../pi-model-discovery.js";
 import type { SkillSnapshot } from "../../skills.js";
 import type { HistoryOptions } from "../history.js";
-import type { ClientToolDefinition } from "./params.js";
+import type { ClientToolDefinition, ExtensionToolDefinition } from "./params.js";
 
 export type EmbeddedRunAttemptParams = {
   sessionId: string;
@@ -89,6 +89,8 @@ export type EmbeddedRunAttemptParams = {
   enforceFinalTag?: boolean;
   /** Voice call and other explicit history limit options. */
   historyOptions?: HistoryOptions;
+  /** Extension-provided tools (e.g., voice recall_conversation). */
+  extraTools?: ExtensionToolDefinition[];
 };
 
 export type EmbeddedRunAttemptResult = {
