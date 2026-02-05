@@ -93,12 +93,12 @@ function makeUser(text: string): AgentMessage {
 }
 
 describe("context-pruning", () => {
-  it("mode off disables pruning", () => {
+  it("mode off disables pruning", async () => {
     expect(computeEffectiveSettings({ mode: "off" })).toBeNull();
     expect(computeEffectiveSettings({})).toBeNull();
   });
 
-  it("does not touch tool results after the last N assistants", () => {
+  it("does not touch tool results after the last N assistants", async () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),
       makeAssistant("a1"),
@@ -144,7 +144,7 @@ describe("context-pruning", () => {
       model: { contextWindow: 1000 },
     } as unknown as ExtensionContext;
 
-    const next = pruneContextMessages({ messages, settings, ctx });
+    const next = await pruneContextMessages({ messages, settings, ctx });
 
     expect(toolText(findToolResult(next, "t2"))).toContain("y".repeat(20_000));
     expect(toolText(findToolResult(next, "t3"))).toContain("z".repeat(20_000));
@@ -152,7 +152,7 @@ describe("context-pruning", () => {
     expect(toolText(findToolResult(next, "t1"))).toBe("[cleared]");
   });
 
-  it("never prunes tool results before the first user message", () => {
+  it("never prunes tool results before the first user message", async () => {
     const settings = {
       ...DEFAULT_CONTEXT_PRUNING_SETTINGS,
       keepLastAssistants: 0,
@@ -179,7 +179,7 @@ describe("context-pruning", () => {
       }),
     ];
 
-    const next = pruneContextMessages({
+    const next = await pruneContextMessages({
       messages,
       settings,
       ctx: { model: { contextWindow: 1000 } } as unknown as ExtensionContext,
@@ -191,7 +191,7 @@ describe("context-pruning", () => {
     expect(toolText(findToolResult(next, "t1"))).toBe("[cleared]");
   });
 
-  it("hard-clear removes eligible tool results before cutoff", () => {
+  it("hard-clear removes eligible tool results before cutoff", async () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),
       makeAssistant("a1"),
@@ -226,7 +226,7 @@ describe("context-pruning", () => {
     const ctx = {
       model: { contextWindow: 1000 },
     } as unknown as ExtensionContext;
-    const next = pruneContextMessages({ messages, settings, ctx });
+    const next = await pruneContextMessages({ messages, settings, ctx });
 
     expect(toolText(findToolResult(next, "t1"))).toBe("[cleared]");
     expect(toolText(findToolResult(next, "t2"))).toBe("[cleared]");
@@ -234,7 +234,7 @@ describe("context-pruning", () => {
     expect(toolText(findToolResult(next, "t3"))).toContain("z".repeat(20_000));
   });
 
-  it("uses contextWindow override when ctx.model is missing", () => {
+  it("uses contextWindow override when ctx.model is missing", async () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),
       makeAssistant("a1"),
@@ -256,7 +256,7 @@ describe("context-pruning", () => {
       softTrim: { maxChars: 10, headChars: 3, tailChars: 3 },
     };
 
-    const next = pruneContextMessages({
+    const next = await pruneContextMessages({
       messages,
       settings,
       ctx: { model: undefined } as unknown as ExtensionContext,
@@ -299,7 +299,7 @@ describe("context-pruning", () => {
       | ((
           event: { messages: AgentMessage[] },
           ctx: ExtensionContext,
-        ) => { messages: AgentMessage[] } | undefined)
+        ) => Promise<{ messages: AgentMessage[] } | undefined>)
       | undefined;
 
     const api = {
@@ -317,7 +317,7 @@ describe("context-pruning", () => {
       throw new Error("missing context handler");
     }
 
-    const result = handler({ messages }, {
+    const result = await handler({ messages }, {
       model: undefined,
       sessionManager,
     } as unknown as ExtensionContext);
@@ -328,7 +328,7 @@ describe("context-pruning", () => {
     expect(toolText(findToolResult(result.messages, "t1"))).toBe("[cleared]");
   });
 
-  it("cache-ttl prunes once and resets the ttl window", () => {
+  it("cache-ttl prunes once and resets the ttl window", async () => {
     const sessionManager = {};
     const lastTouch = Date.now() - DEFAULT_CONTEXT_PRUNING_SETTINGS.ttlMs - 1000;
 
@@ -361,7 +361,7 @@ describe("context-pruning", () => {
       | ((
           event: { messages: AgentMessage[] },
           ctx: ExtensionContext,
-        ) => { messages: AgentMessage[] } | undefined)
+        ) => Promise<{ messages: AgentMessage[] } | undefined>)
       | undefined;
 
     const api = {
@@ -378,7 +378,7 @@ describe("context-pruning", () => {
       throw new Error("missing context handler");
     }
 
-    const first = handler({ messages }, {
+    const first = await handler({ messages }, {
       model: undefined,
       sessionManager,
     } as unknown as ExtensionContext);
@@ -393,14 +393,14 @@ describe("context-pruning", () => {
     }
     expect(runtime.lastCacheTouchAt).toBeGreaterThan(lastTouch);
 
-    const second = handler({ messages }, {
+    const second = await handler({ messages }, {
       model: undefined,
       sessionManager,
     } as unknown as ExtensionContext);
     expect(second).toBeUndefined();
   });
 
-  it("respects tools allow/deny (deny wins; wildcards supported)", () => {
+  it("respects tools allow/deny (deny wins; wildcards supported)", async () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),
       makeToolResult({
@@ -429,7 +429,7 @@ describe("context-pruning", () => {
     const ctx = {
       model: { contextWindow: 1000 },
     } as unknown as ExtensionContext;
-    const next = pruneContextMessages({ messages, settings, ctx });
+    const next = await pruneContextMessages({ messages, settings, ctx });
 
     // Deny wins => exec is not pruned, even though allow matches.
     expect(toolText(findToolResult(next, "t1"))).toContain("x".repeat(20_000));
@@ -437,7 +437,7 @@ describe("context-pruning", () => {
     expect(toolText(findToolResult(next, "t2"))).toContain("y".repeat(20_000));
   });
 
-  it("skips tool results that contain images (no soft trim, no hard clear)", () => {
+  it("skips tool results that contain images (no soft trim, no hard clear)", async () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),
       makeImageToolResult({
@@ -460,7 +460,7 @@ describe("context-pruning", () => {
     const ctx = {
       model: { contextWindow: 1000 },
     } as unknown as ExtensionContext;
-    const next = pruneContextMessages({ messages, settings, ctx });
+    const next = await pruneContextMessages({ messages, settings, ctx });
 
     const tool = findToolResult(next, "t1");
     if (!tool || tool.role !== "toolResult") {
@@ -470,7 +470,7 @@ describe("context-pruning", () => {
     expect(toolText(tool)).toContain("x".repeat(20_000));
   });
 
-  it("soft-trims across block boundaries", () => {
+  it("soft-trims across block boundaries", async () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),
       {
@@ -497,7 +497,7 @@ describe("context-pruning", () => {
     const ctx = {
       model: { contextWindow: 1000 },
     } as unknown as ExtensionContext;
-    const next = pruneContextMessages({ messages, settings, ctx });
+    const next = await pruneContextMessages({ messages, settings, ctx });
 
     const text = toolText(findToolResult(next, "t1"));
     expect(text).toContain("AAAAA\nB");
@@ -505,7 +505,7 @@ describe("context-pruning", () => {
     expect(text).toContain("[Tool result trimmed:");
   });
 
-  it("soft-trims oversized tool results and preserves head/tail with a note", () => {
+  it("soft-trims oversized tool results and preserves head/tail with a note", async () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),
       makeToolResult({
@@ -528,7 +528,7 @@ describe("context-pruning", () => {
     const ctx = {
       model: { contextWindow: 1000 },
     } as unknown as ExtensionContext;
-    const next = pruneContextMessages({ messages, settings, ctx });
+    const next = await pruneContextMessages({ messages, settings, ctx });
 
     const tool = findToolResult(next, "t1");
     const text = toolText(tool);
@@ -537,7 +537,7 @@ describe("context-pruning", () => {
     expect(text).toContain("[Tool result trimmed:");
   });
 
-  it("emits session:prune hook with counts + tool names", () => {
+  it("emits session:prune hook with counts + tool names", async () => {
     triggerInternalHook.mockClear();
     const messages: AgentMessage[] = [
       makeUser("u1"),
@@ -563,7 +563,7 @@ describe("context-pruning", () => {
     const ctx = {
       model: { contextWindow: 1000 },
     } as unknown as ExtensionContext;
-    const pruned = pruneContextMessages({
+    const pruned = await pruneContextMessages({
       messages,
       settings,
       ctx,
