@@ -59,7 +59,7 @@ curl https://affiliates.serendb.com/affiliates/me/stats \
 
 ## Payout Options
 
-- **SerenBucks** (default): Use for database queries, AI models, APIs
+- **SerenBucks** (default): Cash out via Stripe Credit or Bank Account Deposit
 - **USDC on Base**: Set `payout_preference: "x402_usdc"` with wallet address
 
 ## API Reference
