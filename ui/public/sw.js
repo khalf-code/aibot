@@ -1,12 +1,14 @@
 const CACHE_VERSION = "openclaw-control-v1";
+const scopeUrl = new URL(self.registration.scope);
+const toScopeUrl = (path) => new URL(path, scopeUrl).toString();
+const INDEX_URL = toScopeUrl("index.html");
 const CORE_ASSETS = [
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./favicon.svg",
-  "./favicon-32.png",
-  "./apple-touch-icon.png",
-  "./favicon.ico",
+  INDEX_URL,
+  toScopeUrl("manifest.webmanifest"),
+  toScopeUrl("favicon.svg"),
+  toScopeUrl("favicon-32.png"),
+  toScopeUrl("apple-touch-icon.png"),
+  toScopeUrl("favicon.ico"),
 ];
 
 self.addEventListener("install", (event) => {
@@ -52,7 +54,7 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         } catch {
-          const cached = await caches.match("./index.html");
+          const cached = await caches.match(INDEX_URL);
           return cached ?? Response.error();
         }
       })(),
