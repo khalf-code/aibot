@@ -309,20 +309,10 @@ export function createTelegramBot(opts: TelegramBotOptions) {
       if (entry?.groupActivation === "mention") {
         return true;
       }
-      // Fallback to configured activation
-      const activation =
-        telegramCfg.groupActivation ??
-        (cfg.channels?.telegram as { groupActivation?: string })?.groupActivation;
-      if (activation === "auto" || activation === "always") {
-        return false;
-      }
-      if (activation === "mention") {
-        return true;
-      }
-      return undefined;
     } catch (err) {
       logVerbose(`Failed to load session for activation check: ${String(err)}`);
     }
+
     // Fallback to configured activation
     const activation =
       telegramCfg.groupActivation ??
