@@ -194,10 +194,11 @@ export function initCodeBlockCopy() {
 
   document.addEventListener("click", async (e) => {
     const target = e.target as HTMLElement;
-    const button = target.closest(".code-block-copy-btn") as HTMLButtonElement | null;
-    if (!button) {
+    const closest = target.closest(".code-block-copy-btn");
+    if (!closest || !(closest instanceof HTMLButtonElement)) {
       return;
     }
+    const button = closest;
 
     const codeId = button.dataset.codeId;
     if (!codeId) {
