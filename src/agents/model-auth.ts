@@ -298,6 +298,7 @@ export function resolveEnvApiKey(provider: string): EnvApiKeyResult | null {
     openrouter: "OPENROUTER_API_KEY",
     aimlapi: "AIMLAPI_API_KEY",
     "vercel-ai-gateway": "AI_GATEWAY_API_KEY",
+    "cloudflare-ai-gateway": "CLOUDFLARE_AI_GATEWAY_API_KEY",
     moonshot: "MOONSHOT_API_KEY",
     minimax: "MINIMAX_API_KEY",
     xiaomi: "XIAOMI_API_KEY",
