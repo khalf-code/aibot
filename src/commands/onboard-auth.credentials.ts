@@ -3,6 +3,7 @@ import { resolveOpenClawAgentDir } from "../agents/agent-paths.js";
 import { upsertAuthProfile } from "../agents/auth-profiles.js";
 export { CLOUDFLARE_AI_GATEWAY_DEFAULT_MODEL_REF } from "../agents/cloudflare-ai-gateway.js";
 export { DEEPSEEK_DEFAULT_MODEL_REF } from "./onboard-auth.models.js";
+export { XAI_DEFAULT_MODEL_REF } from "./onboard-auth.models.js";
 
 const resolveAuthAgentDir = (agentDir?: string) => agentDir ?? resolveOpenClawAgentDir();
 
@@ -211,6 +212,18 @@ export async function setDeepSeekApiKey(key: string, agentDir?: string) {
     credential: {
       type: "api_key",
       provider: "deepseek",
+      key,
+    },
+    agentDir: resolveAuthAgentDir(agentDir),
+  });
+}
+
+export async function setXaiApiKey(key: string, agentDir?: string) {
+  upsertAuthProfile({
+    profileId: "xai:default",
+    credential: {
+      type: "api_key",
+      provider: "xai",
       key,
     },
     agentDir: resolveAuthAgentDir(agentDir),

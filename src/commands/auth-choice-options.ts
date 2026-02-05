@@ -23,7 +23,8 @@ export type AuthChoiceGroupId =
   | "synthetic"
   | "venice"
   | "qwen"
-  | "deepseek";
+  | "deepseek"
+  | "xai";
 
 export type AuthChoiceGroup = {
   value: AuthChoiceGroupId;
@@ -38,6 +39,12 @@ const AUTH_CHOICE_GROUP_DEFS: {
   hint?: string;
   choices: AuthChoice[];
 }[] = [
+  {
+    value: "xai",
+    label: "xAI (Grok)",
+    hint: "API key",
+    choices: ["xai-api-key"],
+  },
   {
     value: "openai",
     label: "OpenAI",
