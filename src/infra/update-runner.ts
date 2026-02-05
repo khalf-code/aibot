@@ -747,11 +747,11 @@ export async function runGatewayUpdate(opts: UpdateRunnerOptions = {}): Promise<
     steps.push(uiBuildStep);
 
     // Restore dist/control-ui/ only if it is tracked (post-615ccf6 it is not).
-    const isControlUiTracked = await runCommand(
-      ["git", "-C", gitRoot, "ls-files", "--error-unmatch", "dist/control-ui/"],
+    const controlUiTrackedFiles = await runCommand(
+      ["git", "-C", gitRoot, "ls-files", "--cached", "--", "dist/control-ui/"],
       { cwd: gitRoot, timeoutMs },
     ).catch(() => ({ code: 1, stdout: "", stderr: "" }));
-    if (isControlUiTracked.code === 0) {
+    if (controlUiTrackedFiles.stdout.trim().length > 0) {
       const restoreUiStep = await runStep(
         step(
           "restore control-ui",
