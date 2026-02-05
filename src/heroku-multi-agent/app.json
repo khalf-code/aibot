@@ -1,0 +1,73 @@
+{
+  "name": "OpenClaw Multi-Agent",
+  "description": "Multi-tenant AI agent platform powered by OpenClaw",
+  "repository": "https://github.com/openclaw/openclaw",
+  "logo": "https://openclaw.ai/logo.png",
+  "keywords": [
+    "ai",
+    "agent",
+    "telegram",
+    "claude",
+    "multi-tenant",
+    "saas"
+  ],
+  "stack": "container",
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    },
+    "ENCRYPTION_MASTER_KEY": {
+      "description": "Base64-encoded 32-byte key for credential encryption. Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+      "required": true
+    },
+    "ADMIN_API_KEY": {
+      "description": "Admin API key for customer management. Generate a strong random string.",
+      "required": true
+    },
+    "JWT_SECRET": {
+      "description": "Secret for JWT token signing (if using JWT auth)",
+      "required": false
+    },
+    "CORS_ORIGIN": {
+      "description": "Allowed CORS origin. Use * for development.",
+      "value": "*"
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level (debug, info, warn, error)",
+      "value": "info"
+    },
+    "TELEGRAM_WEBHOOK_BASE_URL": {
+      "description": "Base URL for Telegram webhooks (your Heroku app URL)",
+      "required": false
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0",
+      "as": "DATABASE"
+    },
+    {
+      "plan": "heroku-redis:mini",
+      "as": "REDIS"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "node dist/heroku-multi-agent/scripts/run-migrations.js"
+  }
+}

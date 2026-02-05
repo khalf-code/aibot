@@ -1,0 +1,2 @@
+web: node dist/heroku-multi-agent/api/server.js
+worker: node dist/heroku-multi-agent/worker/index.js

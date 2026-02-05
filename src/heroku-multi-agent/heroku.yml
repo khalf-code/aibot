@@ -1,0 +1,31 @@
+# Heroku deployment configuration for OpenClaw Multi-Agent SaaS
+# See: https://devcenter.heroku.com/articles/build-docker-images-heroku-yml
+
+setup:
+  addons:
+    - plan: heroku-postgresql:essential-0
+      as: DATABASE
+    - plan: heroku-redis:mini
+      as: REDIS
+  config:
+    NODE_ENV: production
+    LOG_LEVEL: info
+
+build:
+  docker:
+    web: Dockerfile.web
+    worker: Dockerfile.worker
+  config:
+    WORKDIR: /app
+
+run:
+  web: node dist/heroku-multi-agent/api/server.js
+  worker:
+    command:
+      - node dist/heroku-multi-agent/worker/index.js
+    quantity: 1
+
+release:
+  command:
+    - node dist/heroku-multi-agent/scripts/run-migrations.js
+  image: web
