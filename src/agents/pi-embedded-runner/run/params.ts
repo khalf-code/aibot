@@ -101,4 +101,6 @@ export type RunEmbeddedPiAgentParams = {
   streamParams?: AgentStreamParams;
   ownerNumbers?: string[];
   enforceFinalTag?: boolean;
+  /** Parent message ID for transcript tree continuity (used after gateway restart). */
+  parentId?: string;
 };
