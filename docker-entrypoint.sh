@@ -72,6 +72,11 @@ echo "[entrypoint] Workspace: $OPENCLAW_WORKSPACE_DIR"
 # Create directories
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_WORKSPACE_DIR" 2>/dev/null || true
 
+# Ensure self-resolve for plugin-sdk (symlink openclaw package into node_modules)
+if [ ! -e "/app/node_modules/openclaw" ]; then
+    ln -s .. /app/node_modules/openclaw 2>/dev/null || true
+fi
+
 # Decode persisted Google login state if provided (used by Playwright/Gmail).
 GOOGLE_STATE_PATH="$OPENCLAW_STATE_DIR/google-state.json"
 if [ -n "${GOOGLE_STATE_B64:-}" ]; then
