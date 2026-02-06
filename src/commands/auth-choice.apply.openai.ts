@@ -1,4 +1,3 @@
-import type { OAuthCredentials } from "@mariozechner/pi-ai";
 import { loginOpenAICodex } from "@mariozechner/pi-ai";
 import type { ApplyAuthChoiceParams, ApplyAuthChoiceResult } from "./auth-choice.apply.js";
 import { readCodexCliCredentials } from "../agents/cli-credentials.js";
@@ -115,41 +114,6 @@ export async function applyAuthChoiceOpenAI(
     return { config: nextConfig, agentModelOverride };
   }
 
-  const applyCodexCredentials = async (creds: OAuthCredentials) => {
-    let nextConfig = params.config;
-    let agentModelOverride: string | undefined;
-    const noteAgentModel = async (model: string) => {
-      if (!params.agentId) {
-        return;
-      }
-      await params.prompter.note(
-        `Default model set to ${model} for agent "${params.agentId}".`,
-        "Model configured",
-      );
-    };
-
-    await writeOAuthCredentials("openai-codex", creds, params.agentDir);
-    nextConfig = applyAuthProfileConfig(nextConfig, {
-      profileId: "openai-codex:default",
-      provider: "openai-codex",
-      mode: "oauth",
-    });
-    if (params.setDefaultModel) {
-      const applied = applyOpenAICodexModelDefault(nextConfig);
-      nextConfig = applied.next;
-      if (applied.changed) {
-        await params.prompter.note(
-          `Default model set to ${OPENAI_CODEX_DEFAULT_MODEL}`,
-          "Model configured",
-        );
-      }
-    } else {
-      agentModelOverride = OPENAI_CODEX_DEFAULT_MODEL;
-      await noteAgentModel(OPENAI_CODEX_DEFAULT_MODEL);
-    }
-    return { nextConfig, agentModelOverride };
-  };
-
   if (params.authChoice === "openai-device-code") {
     const hasCodex = await detectBinary("codex");
     if (!hasCodex) {
@@ -203,13 +167,54 @@ export async function applyAuthChoiceOpenAI(
       return { config: params.config };
     }
 
-    const applied = await applyCodexCredentials(creds);
-    return { config: applied.nextConfig, agentModelOverride: applied.agentModelOverride };
+    // TODO: de-duplicate this with the openai-codex OAuth flow once behavior is stable.
+    let nextConfig = params.config;
+    let agentModelOverride: string | undefined;
+    const noteAgentModel = async (model: string) => {
+      if (!params.agentId) {
+        return;
+      }
+      await params.prompter.note(
+        `Default model set to ${model} for agent "${params.agentId}".`,
+        "Model configured",
+      );
+    };
+
+    await writeOAuthCredentials("openai-codex", creds, params.agentDir);
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "openai-codex:default",
+      provider: "openai-codex",
+      mode: "oauth",
+    });
+    if (params.setDefaultModel) {
+      const applied = applyOpenAICodexModelDefault(nextConfig);
+      nextConfig = applied.next;
+      if (applied.changed) {
+        await params.prompter.note(
+          `Default model set to ${OPENAI_CODEX_DEFAULT_MODEL}`,
+          "Model configured",
+        );
+      }
+    } else {
+      agentModelOverride = OPENAI_CODEX_DEFAULT_MODEL;
+      await noteAgentModel(OPENAI_CODEX_DEFAULT_MODEL);
+    }
+
+    return { config: nextConfig, agentModelOverride };
   }
 
   if (params.authChoice === "openai-codex") {
     let nextConfig = params.config;
     let agentModelOverride: string | undefined;
+    const noteAgentModel = async (model: string) => {
+      if (!params.agentId) {
+        return;
+      }
+      await params.prompter.note(
+        `Default model set to ${model} for agent "${params.agentId}".`,
+        "Model configured",
+      );
+    };
 
     const isRemote = isRemoteEnvironment();
     await params.prompter.note(
@@ -244,9 +249,25 @@ export async function applyAuthChoiceOpenAI(
       });
       spin.stop("OpenAI OAuth complete");
       if (creds) {
-        const applied = await applyCodexCredentials(creds);
-        nextConfig = applied.nextConfig;
-        agentModelOverride = applied.agentModelOverride;
+        await writeOAuthCredentials("openai-codex", creds, params.agentDir);
+        nextConfig = applyAuthProfileConfig(nextConfig, {
+          profileId: "openai-codex:default",
+          provider: "openai-codex",
+          mode: "oauth",
+        });
+        if (params.setDefaultModel) {
+          const applied = applyOpenAICodexModelDefault(nextConfig);
+          nextConfig = applied.next;
+          if (applied.changed) {
+            await params.prompter.note(
+              `Default model set to ${OPENAI_CODEX_DEFAULT_MODEL}`,
+              "Model configured",
+            );
+          }
+        } else {
+          agentModelOverride = OPENAI_CODEX_DEFAULT_MODEL;
+          await noteAgentModel(OPENAI_CODEX_DEFAULT_MODEL);
+        }
       }
     } catch (err) {
       spin.stop("OpenAI OAuth failed");
