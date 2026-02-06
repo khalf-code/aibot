@@ -1,5 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Umzug } from "umzug";
 import type {
   WorkItem,
   WorkItemExecution,
@@ -70,7 +73,10 @@ export class SqliteWorkQueueBackend implements WorkQueueBackend {
     this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec("PRAGMA synchronous = NORMAL");
     this.db.exec("PRAGMA foreign_keys = ON");
-    this.ensureSchema();
+
+    // Run migrations
+    const umzug = this.createUmzug();
+    await umzug.up();
   }
 
   async close(): Promise<void> {
@@ -78,118 +84,36 @@ export class SqliteWorkQueueBackend implements WorkQueueBackend {
     this.db = null;
   }
 
-  private ensureSchema() {
-    if (!this.db) {
-      return;
-    }
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS workstream_notes (
-        id          TEXT PRIMARY KEY,
-        workstream  TEXT NOT NULL,
-        item_id     TEXT,
-        kind        TEXT NOT NULL DEFAULT 'context',
-        content     TEXT NOT NULL,
-        metadata_json TEXT,
-        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-        created_by_json TEXT
-      );
-      CREATE INDEX IF NOT EXISTS idx_workstream_notes_ws
-        ON workstream_notes(workstream, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_workstream_notes_item
-        ON workstream_notes(item_id);
-    `);
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS work_queues (
-        id TEXT PRIMARY KEY,
-        agent_id TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        concurrency_limit INTEGER DEFAULT 1,
-        default_priority TEXT DEFAULT 'medium',
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
+  /**
+   * Creates an Umzug instance for running schema migrations.
+   * Migrations are stored in src/work-queue/migrations/ directory.
+   */
+  private createUmzug(): Umzug<DatabaseSync> {
+    const migrationsPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "../migrations");
 
-      CREATE TABLE IF NOT EXISTS work_items (
-        id TEXT PRIMARY KEY,
-        queue_id TEXT NOT NULL REFERENCES work_queues(id),
-        title TEXT NOT NULL,
-        description TEXT,
-        payload_json TEXT,
-        status TEXT NOT NULL DEFAULT 'pending',
-        status_reason TEXT,
-        parent_item_id TEXT REFERENCES work_items(id),
-        depends_on_json TEXT,
-        blocked_by_json TEXT,
-        created_by_json TEXT,
-        assigned_to_json TEXT,
-        priority TEXT NOT NULL DEFAULT 'medium',
-        workstream TEXT,
-        tags_json TEXT,
-        result_json TEXT,
-        error_json TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now')),
-        started_at TEXT,
-        completed_at TEXT
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_work_items_queue_status
-        ON work_items(queue_id, status);
-      CREATE INDEX IF NOT EXISTS idx_work_items_priority
-        ON work_items(priority, created_at);
-      CREATE INDEX IF NOT EXISTS idx_work_items_parent
-        ON work_items(parent_item_id);
-      CREATE INDEX IF NOT EXISTS idx_work_items_workstream
-        ON work_items(workstream);
-    `);
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS work_item_executions (
-        id             TEXT PRIMARY KEY,
-        item_id        TEXT NOT NULL REFERENCES work_items(id) ON DELETE CASCADE,
-        attempt_number INTEGER NOT NULL,
-        session_key    TEXT NOT NULL,
-        outcome        TEXT NOT NULL,
-        error          TEXT,
-        started_at     TEXT NOT NULL,
-        completed_at   TEXT NOT NULL,
-        duration_ms    INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_executions_item
-        ON work_item_executions(item_id, started_at DESC);
-
-      CREATE TABLE IF NOT EXISTS work_item_transcripts (
-        id             TEXT PRIMARY KEY,
-        item_id        TEXT NOT NULL REFERENCES work_items(id) ON DELETE CASCADE,
-        execution_id   TEXT REFERENCES work_item_executions(id) ON DELETE SET NULL,
-        session_key    TEXT NOT NULL,
-        transcript_json TEXT NOT NULL,
-        created_at     TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      CREATE INDEX IF NOT EXISTS idx_transcripts_item
-        ON work_item_transcripts(item_id);
-    `);
-    this.migrateSchema();
-  }
-
-  private migrateSchema() {
-    if (!this.db) return;
-    const cols = this.db.prepare("PRAGMA table_info(work_items)").all() as Array<{ name: string }>;
-    const colNames = new Set(cols.map((c) => c.name));
-    if (!colNames.has("workstream")) {
-      this.db.exec("ALTER TABLE work_items ADD COLUMN workstream TEXT");
-    }
-    if (!colNames.has("retry_count")) {
-      this.db.exec("ALTER TABLE work_items ADD COLUMN retry_count INTEGER DEFAULT 0");
-    }
-    if (!colNames.has("max_retries")) {
-      this.db.exec("ALTER TABLE work_items ADD COLUMN max_retries INTEGER");
-    }
-    if (!colNames.has("deadline")) {
-      this.db.exec("ALTER TABLE work_items ADD COLUMN deadline TEXT");
-    }
-    if (!colNames.has("last_outcome")) {
-      this.db.exec("ALTER TABLE work_items ADD COLUMN last_outcome TEXT");
-    }
+    return new Umzug<DatabaseSync>({
+      migrations: {
+        glob: ["*.ts", { cwd: migrationsPath }],
+      },
+      context: this.requireDb(),
+      storage: {
+        async executed({ context: db }) {
+          // Create tracking table if it doesn't exist
+          db.exec(`CREATE TABLE IF NOT EXISTS umzug_migrations (name TEXT PRIMARY KEY)`);
+          const rows = db.prepare("SELECT name FROM umzug_migrations").all() as Array<{
+            name: string;
+          }>;
+          return rows.map((row) => row.name);
+        },
+        async logMigration({ name, context: db }) {
+          db.prepare("INSERT INTO umzug_migrations (name) VALUES (?)").run(name);
+        },
+        async unlogMigration({ name, context: db }) {
+          db.prepare("DELETE FROM umzug_migrations WHERE name = ?").run(name);
+        },
+      },
+      logger: console,
+    });
   }
 
   private requireDb(): DatabaseSync {
