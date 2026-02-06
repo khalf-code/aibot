@@ -2,6 +2,16 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.2.3
+
+### Changes
+
+- Agent: add hierarchical delegation system with upward requests and downward delegation.
+- Agent: add collaboration tool for multi-agent debate and consensus workflows.
+- Agent: add humanization service with memory, energy, intuition, and reputation systems.
+- UI: dynamic node sizing in hierarchy view based on agent interactions.
+- UI: delegation and request edges with distinct colors in hierarchy graph.
+
 ## 2026.2.2
 
 ### Changes
