@@ -158,6 +158,19 @@ export type VoiceCallTtsConfig = z.infer<typeof TtsConfigSchema>;
 // Webhook Server Configuration
 // -----------------------------------------------------------------------------
 
+export const WebhookSecurityConfigSchema = z
+  .object({
+    /** Host allowlist (compared against request Host / forwarded host) */
+    allowedHosts: z.array(z.string().min(1)).default([]),
+    /** Whether to trust X-Forwarded-* style headers */
+    trustForwardingHeaders: z.boolean().default(false),
+    /** Allowlist of trusted reverse proxy IPs (required when trusting forwarded headers) */
+    trustedProxyIPs: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+  .default({ allowedHosts: [], trustForwardingHeaders: false, trustedProxyIPs: [] });
+export type WebhookSecurityConfig = z.infer<typeof WebhookSecurityConfigSchema>;
+
 export const VoiceCallServeConfigSchema = z
   .object({
     /** Port to listen on */
@@ -361,6 +374,9 @@ export const VoiceCallConfigSchema = z
 
     /** Tunnel configuration (unified ngrok/tailscale) */
     tunnel: VoiceCallTunnelConfigSchema,
+
+    /** Webhook security options (forwarded headers / host allowlist) */
+    webhookSecurity: WebhookSecurityConfigSchema,
 
     /** Real-time audio streaming configuration */
     streaming: VoiceCallStreamingConfigSchema,

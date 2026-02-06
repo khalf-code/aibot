@@ -49,11 +49,17 @@ function resolveProvider(config: VoiceCallConfig, manager: CallManager): VoiceCa
 
   switch (config.provider) {
     case "telnyx":
-      return new TelnyxProvider({
-        apiKey: config.telnyx?.apiKey,
-        connectionId: config.telnyx?.connectionId,
-        publicKey: config.telnyx?.publicKey,
-      });
+      return new TelnyxProvider(
+        {
+          apiKey: config.telnyx?.apiKey,
+          connectionId: config.telnyx?.connectionId,
+          publicKey: config.telnyx?.publicKey,
+        },
+        {
+          // Keep previous behavior: when explicitly skipping verification (dev), allow unsigned.
+          allowUnsignedWebhooks: config.skipSignatureVerification,
+        },
+      );
     case "twilio":
       return new TwilioProvider(
         {
@@ -65,6 +71,7 @@ function resolveProvider(config: VoiceCallConfig, manager: CallManager): VoiceCa
           publicUrl: config.publicUrl,
           skipVerification: config.skipSignatureVerification,
           streamPath: config.streaming?.enabled ? config.streaming.streamPath : undefined,
+          webhookSecurity: config.webhookSecurity,
         },
       );
     case "plivo":
@@ -77,6 +84,7 @@ function resolveProvider(config: VoiceCallConfig, manager: CallManager): VoiceCa
           publicUrl: config.publicUrl,
           skipVerification: config.skipSignatureVerification,
           ringTimeoutSec: Math.max(1, Math.floor(config.ringTimeoutMs / 1000)),
+          webhookSecurity: config.webhookSecurity,
         },
       );
     case "mock":
