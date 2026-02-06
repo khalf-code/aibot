@@ -2,6 +2,13 @@ const KEY = "openclaw.control.settings.v1";
 
 import type { ThemeMode } from "./theme.ts";
 
+declare global {
+  interface Window {
+    __OPENCLAW_DESKTOP_DEFAULT_GATEWAY_URL__?: string;
+    __OPENCLAW_DESKTOP_DEFAULT_GATEWAY_TOKEN__?: string;
+  }
+}
+
 export type UiSettings = {
   gatewayUrl: string;
   token: string;
@@ -21,9 +28,20 @@ export function loadSettings(): UiSettings {
     return `${proto}://${location.host}`;
   })();
 
+  const desktopDefaultGatewayUrl =
+    typeof window.__OPENCLAW_DESKTOP_DEFAULT_GATEWAY_URL__ === "string" &&
+    window.__OPENCLAW_DESKTOP_DEFAULT_GATEWAY_URL__.trim()
+      ? window.__OPENCLAW_DESKTOP_DEFAULT_GATEWAY_URL__.trim()
+      : null;
+  const desktopDefaultToken =
+    typeof window.__OPENCLAW_DESKTOP_DEFAULT_GATEWAY_TOKEN__ === "string" &&
+    window.__OPENCLAW_DESKTOP_DEFAULT_GATEWAY_TOKEN__.trim()
+      ? window.__OPENCLAW_DESKTOP_DEFAULT_GATEWAY_TOKEN__.trim()
+      : null;
+
   const defaults: UiSettings = {
-    gatewayUrl: defaultUrl,
-    token: "",
+    gatewayUrl: desktopDefaultGatewayUrl ?? defaultUrl,
+    token: desktopDefaultToken ?? "",
     sessionKey: "main",
     lastActiveSessionKey: "main",
     theme: "system",
@@ -40,12 +58,19 @@ export function loadSettings(): UiSettings {
       return defaults;
     }
     const parsed = JSON.parse(raw) as Partial<UiSettings>;
+    const parsedGatewayUrl =
+      typeof parsed.gatewayUrl === "string" && parsed.gatewayUrl.trim() ? parsed.gatewayUrl.trim() : null;
+    const parsedToken = typeof parsed.token === "string" ? parsed.token : null;
+
+    // Desktop: if the user never customized the gateway URL (still pointing at the UI host),
+    // auto-point to the local gateway so first-run is "just works".
+    const shouldAutoOverrideGatewayUrl =
+      !!desktopDefaultGatewayUrl &&
+      (!parsedGatewayUrl || parsedGatewayUrl === defaultUrl);
+
     return {
-      gatewayUrl:
-        typeof parsed.gatewayUrl === "string" && parsed.gatewayUrl.trim()
-          ? parsed.gatewayUrl.trim()
-          : defaults.gatewayUrl,
-      token: typeof parsed.token === "string" ? parsed.token : defaults.token,
+      gatewayUrl: shouldAutoOverrideGatewayUrl ? desktopDefaultGatewayUrl : (parsedGatewayUrl ?? defaults.gatewayUrl),
+      token: parsedToken ?? defaults.token,
       sessionKey:
         typeof parsed.sessionKey === "string" && parsed.sessionKey.trim()
           ? parsed.sessionKey.trim()

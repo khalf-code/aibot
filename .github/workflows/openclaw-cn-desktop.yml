@@ -69,13 +69,26 @@ jobs:
           done
           exit 1
 
+      - name: Install dependencies (frozen)
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Build OpenClaw runtime (dist/*)
+        shell: bash
+        env:
+          OPENCLAW_A2UI_SKIP_MISSING: "1"
+        run: pnpm build
+
+      - name: Prepare embedded gateway runtime (pnpm deploy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf apps/desktop/runtime
+          pnpm --filter openclaw deploy apps/desktop/runtime/openclaw --prod
+
       - name: Build Control UI (dist/control-ui)
         shell: bash
         run: node scripts/ui.js build
-
-      - name: Install Desktop deps (filtered)
-        shell: bash
-        run: pnpm --filter openclaw-cn-desktop install --frozen-lockfile
 
       - name: Build Desktop
         shell: bash

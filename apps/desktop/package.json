@@ -27,6 +27,13 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "runtime/openclaw",
+        "to": "openclaw-runtime",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "directories": {

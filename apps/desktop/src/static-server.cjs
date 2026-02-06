@@ -86,6 +86,7 @@ function startStaticServer(rootDir, opts) {
   const host = (opts && opts.host) || "127.0.0.1";
   const port = (opts && opts.port) || 0;
   const indexPath = path.join(rootDir, "index.html");
+  const injectHtml = opts && typeof opts.injectHtml === "function" ? opts.injectHtml : null;
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -110,6 +111,12 @@ function startStaticServer(rootDir, opts) {
       res.statusCode = 200;
       res.setHeader("content-type", mime);
       res.setHeader("cache-control", resolved === indexPath ? "no-cache" : "public, max-age=31536000, immutable");
+      if (resolved === indexPath && injectHtml) {
+        const html = await fs.promises.readFile(indexPath, "utf8");
+        const injected = injectHtml(html) || html;
+        res.end(injected);
+        return;
+      }
       fs.createReadStream(resolved).pipe(res);
     } catch (err) {
       res.statusCode = 500;
@@ -136,4 +143,3 @@ function startStaticServer(rootDir, opts) {
 }
 
 module.exports = { startStaticServer };
-
