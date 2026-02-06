@@ -53,7 +53,6 @@ import {
 import type {
   ExecApprovalsAgent,
   ExecApprovalsDefaults,
-  ExecApprovalsFile,
 } from "@/lib/api/nodes";
 
 import {

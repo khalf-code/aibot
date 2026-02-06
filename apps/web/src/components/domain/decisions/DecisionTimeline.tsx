@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DecisionCard } from "./DecisionCard";
 import type { DecisionAuditEntry } from "./decision-types";
@@ -45,7 +46,7 @@ function groupByDate(decisions: DecisionAuditEntry[]): Map<string, DecisionAudit
   return groups;
 }
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -53,7 +54,7 @@ const containerVariants = {
   },
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 10 },
   visible: {
     opacity: 1,

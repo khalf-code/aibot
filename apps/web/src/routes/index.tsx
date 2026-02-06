@@ -66,7 +66,7 @@ function HomePage() {
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
   const powerUserMode = useUIStore((s) => s.powerUserMode);
-  const [composerValue, setComposerValue] = React.useState("");
+  const [, setComposerValue] = React.useState("");
 
   const handleQuickChatSend = (message: string, agentId: string) => {
     const sessionKey = `session-${Date.now()}`;

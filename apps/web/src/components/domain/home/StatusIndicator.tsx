@@ -20,7 +20,7 @@ interface StatusIndicatorProps {
  * and pending approvals count. Placed in the home page header strip.
  */
 export function StatusIndicator({ className }: StatusIndicatorProps) {
-  const { data: isGatewayConnected } = useGatewayConnected();
+  const { isConnected: isGatewayConnected } = useGatewayConnected();
   const { state } = useSecurity();
   const agents = useAgentStore((s) => s.agents);
 
