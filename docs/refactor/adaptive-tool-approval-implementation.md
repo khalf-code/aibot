@@ -20,13 +20,15 @@ Ship a production grade approval system that:
 
 - evaluates every tool invocation for side effect risk
 - asks for approval only when policy says it matters
+- supports multi-factor approval with configurable approvers and quorum
 - works across all channels and control surfaces
 - keeps current `exec` behavior backward compatible during migration
 
 ## Scope boundaries
 
 - In scope: runtime orchestration, gateway APIs/events, channel routing, config, audit, tests, rollout.
-- Out of scope for v1: autonomous non-human approvals as default path.
+- In scope for v1: `user_request` + `rules_based` approvers with configurable `minApprovals`.
+- Out of scope for v1: fully autonomous no-human approvals for high-risk operations by default.
 
 ## Target runtime flow
 
@@ -41,13 +43,20 @@ flowchart TD
   G --> F
   F -->|"allow"| H["Execute tool"]
   F -->|"deny"| I["Blocked tool result"]
-  F -->|"approval required"| J["Gateway tool.approval.request"]
-  J --> K["Approval manager and router"]
-  K --> L["Operator surfaces resolve decision"]
-  L --> M["tool.approval.resolve"]
-  M --> N{"approved?"}
-  N -->|"yes"| H
-  N -->|"no"| I
+  F -->|"approval required"| J["Approver registry"]
+  J --> K["RulesBasedApprover"]
+  J --> L["LLMEvaluationApprover (optional)"]
+  J --> M["UserRequestApprover"]
+  K --> N["Aggregation engine (minApprovals)"]
+  L --> N
+  M --> N
+  N -->|"quorum met"| H
+  N -->|"needs human factor"| O["Gateway tool.approval.request"]
+  O --> P["Approval manager and router"]
+  P --> Q["Operator surfaces resolve decision"]
+  Q --> R["tool.approval.resolve"]
+  R --> N
+  N -->|"rejected/timeout"| I
 ```
 
 ## Proposed module plan
@@ -59,6 +68,12 @@ flowchart TD
 - `src/approvals/tool-risk-classifier.ts`
 - `src/approvals/tool-decision-engine.ts`
 - `src/approvals/tool-approval-orchestrator.ts`
+- `src/approvals/tool-approver-interface.ts`
+- `src/approvals/tool-approver-registry.ts`
+- `src/approvals/tool-approval-aggregator.ts`
+- `src/approvals/approvers/user-request-approver.ts`
+- `src/approvals/approvers/rules-based-approver.ts`
+- `src/approvals/approvers/llm-evaluation-approver.ts`
 - `src/approvals/types.ts`
 
 ### Gateway modules
@@ -112,6 +127,28 @@ type ToolApprovalRequestPayload = {
 };
 ```
 
+### Approver and quorum contracts
+
+```ts
+type ToolApproverId = "user_request" | "rules_based" | "llm_evaluation";
+
+type ToolApproverVerdict = "approve" | "reject" | "abstain" | "error";
+
+type ToolApproverResult = {
+  approverId: ToolApproverId;
+  verdict: ToolApproverVerdict;
+  reasonCodes: string[];
+  confidence?: number;
+  decidedAtMs: number;
+};
+
+type ToolApprovalFactorPolicy = {
+  allowedApprovers?: ToolApproverId[];
+  disabledApprovers?: ToolApproverId[];
+  minApprovals?: number;
+};
+```
+
 ### Classifier IO contract
 
 Input fields:
@@ -143,6 +180,9 @@ Add to `approvals` section:
       enabled: true,
       mode: "adaptive", // off | adaptive | always
       timeoutMs: 120000,
+      allowedApprovers: ["user_request", "rules_based"],
+      disabledApprovers: [],
+      minApprovals: 1,
       classifier: {
         enabled: true,
         provider: "openai",
@@ -157,6 +197,8 @@ Add to `approvals` section:
         denyAtOrAbove: "R4",
         requireApprovalForExternalWrite: true,
         requireApprovalForMessagingSend: true,
+        requireHumanApproverAtOrAbove: "R3",
+        minApprovalsByRisk: { R3: 1, R4: 2 },
       },
       routing: {
         mode: "both", // session | targets | both
@@ -166,6 +208,13 @@ Add to `approvals` section:
   },
 }
 ```
+
+Resolution rules:
+
+- Effective approver set = `allowedApprovers - disabledApprovers`.
+- If `minApprovals` is omitted, default to `1`.
+- If effective approver set is empty, fail closed.
+- If `minApprovals > effective approver count`, fail closed unless `clampMinApprovals` policy is explicitly enabled.
 
 ### Backward compatibility behavior
 
@@ -180,6 +229,7 @@ Add to `approvals` section:
 - `tool.approval.request`
 - `tool.approval.resolve`
 - `tool.approvals.get` (optional introspection)
+- `tool.approvals.policy.get` (optional, effective approver + quorum view)
 
 ### New events
 
@@ -207,9 +257,22 @@ function decideToolInvocation(invocation, policyCtx) {
   if (decision === "allow") return runTool(invocation);
   if (decision === "deny") return blocked("denied by policy");
 
-  const req = requestApproval(invocation, assessment, policyCtx);
-  const resolved = await waitForResolution(req.id, policyCtx.timeoutMs);
-  if (!resolved.approved) return blocked("approval denied or timeout");
+  const activeApprovers = resolveApprovers(policyCtx); // allowed - disabled
+  const minApprovals = resolveMinApprovals(policyCtx, assessment.riskClass);
+  let factorResults = await runAutomaticApprovers(activeApprovers, invocation, assessment);
+
+  if (hasHardReject(factorResults)) return blocked("rejected by approver");
+  if (countApproves(factorResults) >= minApprovals) return runTool(invocation);
+
+  if (activeApprovers.includes("user_request")) {
+    const req = requestApproval(invocation, assessment, policyCtx);
+    const resolved = await waitForResolution(req.id, policyCtx.timeoutMs);
+    factorResults = factorResults.concat(toUserResult(resolved));
+  }
+
+  if (hasHardReject(factorResults) || countApproves(factorResults) < minApprovals) {
+    return blocked("approval denied or quorum not reached");
+  }
   return runTool(invocation);
 }
 ```
@@ -240,6 +303,7 @@ type ToolApprovalAdapter = {
 
 - add risk taxonomy and static rules
 - add config schema for `approvals.tools`
+- add approver contracts and factor policy config (`allowedApprovers`, `disabledApprovers`, `minApprovals`)
 - add runtime orchestrator wrapper with feature flag off by default
 
 Acceptance:
@@ -252,6 +316,7 @@ Acceptance:
 - add tool approval manager, methods, events
 - keep `exec.approval.*` aliases
 - add protocol schema and generated validators
+- add `tool.approvals.policy.get` readback endpoint for debugging effective factors
 
 Acceptance:
 
@@ -263,6 +328,7 @@ Acceptance:
 - implement `tool-approval-forwarder`
 - route to session and configured targets
 - add generic text command parser for approve/deny in channel adapters
+- implement `UserRequestApprover` over gateway request/resolve plumbing
 
 Acceptance:
 
@@ -273,6 +339,7 @@ Acceptance:
 - implement fast model classifier client
 - add timeout and fallback behavior
 - add confidence threshold logic
+- implement `LLMEvaluationApprover` as a factor (never sole approver for `R3+` by default)
 
 Acceptance:
 
@@ -284,6 +351,7 @@ Acceptance:
 - route `exec` through generic orchestrator
 - preserve `exec` specific allowlist semantics
 - deprecate direct-only `exec.approval.*` internals
+- keep `RulesBasedApprover` parity with existing allowlist and ask behavior
 
 Acceptance:
 
@@ -297,18 +365,21 @@ Acceptance:
 - static risk classification by tool type and params
 - policy engine decisions for each risk class and confidence boundary
 - classifier output validation and fallback paths
+- approver aggregation cases (`minApprovals`, disabled factors, reject precedence)
 
 ### Integration tests
 
 - tool invocation requiring approval across gateway API
 - approval timeout, deny, allow once, allow always
 - multi target routing dedup and failure isolation
+- quorum behavior with 2-8 simulated factors
 
 ### End to end tests
 
 - full flow from channel message to approved tool execution
 - mixed channel availability with fallback target routing
 - migration parity for `exec` approvals
+- factor invalidation when tool payload changes between request and resolve
 
 ### Performance tests
 
@@ -325,11 +396,15 @@ Add structured metrics and logs:
 - `tool_approval_timeout_total{tool}`
 - `tool_safety_classifier_latency_ms`
 - `tool_safety_classifier_fallback_total{reason}`
+- `tool_approval_factor_results_total{approverId,verdict}`
+- `tool_approval_quorum_unmet_total{riskClass,minApprovals}`
 
 Audit record fields:
 
 - request id, tool name, agent id, session key
 - risk class and reason codes
+- approver set (`allowed`, `disabled`, effective, `minApprovals`)
+- per-factor results and timestamps
 - resolver identity and transport
 - final execution status
 
@@ -339,6 +414,16 @@ Audit record fields:
 - redact secrets and tokens from params summary
 - deny by default for malformed high risk requests
 - enforce max payload size for classifier and channel messages
+- prevent self-approval for human-request factors when actor == requester
+- invalidate stale approvals if request hash changes
+
+## Best-practice mapping
+
+- OWASP guidance is implemented through deny-by-default and least-privilege defaults.
+- NIST separation-of-duties and change-control concepts map to multi-factor approvals and risk-based quorum.
+- Vault-style threshold controls map directly to `minApprovals`.
+- GitHub/GitLab stale-review patterns map to request-hash invalidation.
+- Access Approval and PIM patterns map to auditable approvals with distinct approver identity.
 
 ## Migration and deprecation plan
 

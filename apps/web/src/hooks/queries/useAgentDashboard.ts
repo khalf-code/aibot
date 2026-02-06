@@ -119,6 +119,7 @@ export function useAgentDashboardData() {
 
     const cronByAgent = new Map<string, CronJob[]>();
     cronJobs.forEach((job) => {
+      if (!job.agentId) return;
       const existing = cronByAgent.get(job.agentId) ?? [];
       existing.push(job);
       cronByAgent.set(job.agentId, existing);

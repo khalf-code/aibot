@@ -20,6 +20,8 @@ This proposal adds a unified approval layer for all tool calls:
 - keep hard policy checks first (deny still wins)
 - run a cheap safety evaluation pipeline for uncertain calls
 - request approval only when the policy engine says the call is materially risky
+- evaluate the request across multiple independent approvers (`UserRequestApprover`, `RulesBasedApprover`, `LLMEvaluationApprover`)
+- approve only when a configurable quorum (`minApprovals`) is reached
 - route approval requests through any connected operator surface (control UI, CLI, chat channels, plugin channels)
 
 Human approval is the first implementation target, but the design is approver agnostic so automated approvers can be added later.
@@ -41,6 +43,7 @@ The gap appears most often when:
 - Reuse existing gateway approval/event infrastructure.
 - Treat control UI and chat channels as equal approval transport adapters.
 - Keep latency low by using a fast model only for ambiguous cases.
+- Support configurable multi-factor approvals using independent approvers and quorum rules.
 
 ## Non goals
 
@@ -61,6 +64,7 @@ Existing building blocks that this architecture reuses:
 ## High level design
 
 The new flow adds a Tool Safety Evaluator and a unified Tool Approval Orchestrator in front of tool execution.
+The orchestrator calls an Approver Registry and an Aggregation Engine so one operation can require one or more approval "factors".
 
 ```mermaid
 flowchart LR
@@ -69,19 +73,28 @@ flowchart LR
   C --> D["Approval decision engine"]
   D -->|"allow"| E["Execute tool"]
   D -->|"deny"| F["Return blocked result"]
-  D -->|"approval required"| G["Approval manager"]
-  G --> H["Approval router"]
-  H --> I["Control UI adapter"]
-  H --> J["CLI adapter"]
-  H --> K["Channel adapters (Discord, Slack, Telegram, plugins)"]
-  I --> L["tool.approval.resolve"]
-  J --> L
-  K --> L
-  L --> G
-  G -->|"approved"| E
-  G -->|"denied or timeout"| F
-  E --> M["Audit and metrics"]
-  F --> M
+  D -->|"approval required"| G["Approver registry"]
+  G --> H["RulesBasedApprover"]
+  G --> I["LLMEvaluationApprover"]
+  G --> J["UserRequestApprover"]
+  H --> K["Approval aggregation engine"]
+  I --> K
+  J --> K
+  K -->|"quorum reached"| E
+  K -->|"needs human request"| L["Approval manager"]
+  K -->|"rejected or timeout"| F
+  L --> M["Approval router"]
+  M --> N["Control UI adapter"]
+  M --> O["CLI adapter"]
+  M --> P["Channel adapters (Discord, Slack, Telegram, plugins)"]
+  N --> Q["tool.approval.resolve"]
+  O --> Q
+  P --> Q
+  Q --> L
+  L -->|"approved"| E
+  L -->|"denied or timeout"| F
+  E --> R["Audit and metrics"]
+  F --> R
 ```
 
 ## Safety evaluation model
@@ -101,6 +114,33 @@ Evaluation has two stages to keep performance predictable:
 
 The policy engine, not the model, makes the final allow/deny/approval decision.
 
+## Multi-factor approver model
+
+Every approval-required operation is evaluated by an approver set and aggregated by quorum.
+
+Default policy:
+
+- `allowedApprovers = ["user_request", "rules_based"]`
+- `disabledApprovers = []`
+- `minApprovals = 1`
+
+This means either the user-request path or rules-based policy can approve by default.
+`LLMEvaluationApprover` is opt-in and can be enabled through `allowedApprovers`.
+
+Aggregator rules:
+
+- deny wins immediately if any required hard-policy factor rejects
+- disabled approvers are removed before quorum calculation
+- if `minApprovals` is greater than active approver count, fail closed (or clamp with explicit warning)
+- identical factor ids count once (no duplicate votes)
+- stale votes are invalidated when tool payload, risk class, or TTL changes
+
+Proposed approver roles:
+
+- `UserRequestApprover`: human-in-the-loop via UI/CLI/channel
+- `RulesBasedApprover`: deterministic policy checks (allowlists, sender role, command class)
+- `LLMEvaluationApprover`: fast risk evaluator factor for ambiguous cases
+
 ## Risk taxonomy
 
 | Class | Description                                    | Typical examples                                         | Default action                                 |
@@ -110,6 +150,13 @@ The policy engine, not the model, makes the final allow/deny/approval decision.
 | `R2`  | External read or low impact external actions   | web fetch/search, status probes                          | allow with optional approval on low confidence |
 | `R3`  | External mutation or irreversible side effects | `message`, `gateway` writes, `cron`, remote node actions | approval required                              |
 | `R4`  | High impact operations                         | destructive system commands, security boundary changes   | deny or break glass approval                   |
+
+Risk-to-quorum defaults:
+
+- `R0-R1`: `minApprovals = 0` after hard policy checks
+- `R2`: `minApprovals = 1` using rules or user (policy configurable)
+- `R3`: `minApprovals = 1` and must include `user_request` unless explicitly waived
+- `R4`: `minApprovals = 2` and one factor must be `user_request` (or explicit break-glass policy)
 
 ## Mid level design
 
@@ -121,6 +168,8 @@ The policy engine, not the model, makes the final allow/deny/approval decision.
 | Approval Decision Engine   | Applies org/agent/session policy to assessment and returns `allow`, `deny`, or `approval_required`  |
 | Tool Approval Orchestrator | Sits in tool invocation path, handles request lifecycle and tool continuation                       |
 | Approval Manager           | Stores pending approvals, timeout handling, idempotency, resolution state                           |
+| Approver Registry          | Loads enabled approvers from policy (`allowedApprovers`/`disabledApprovers`)                        |
+| Aggregation Engine         | Computes quorum (`minApprovals`) and consolidates factor results                                    |
 | Approval Router            | Resolves delivery targets from session channel, configured targets, and active operator connections |
 | Channel adapters           | Deliver prompts and map user actions to `tool.approval.resolve`                                     |
 | Audit pipeline             | Records request, decision, resolver identity, and execution outcome                                 |
@@ -134,8 +183,11 @@ sequenceDiagram
   participant Static as Static risk rules
   participant Classifier as Fast safety model
   participant Policy as Decision engine
+  participant Registry as Approver registry
+  participant Rules as RulesBasedApprover
+  participant LLM as LLMEvaluationApprover
   participant Gateway as Approval manager and router
-  participant Approver as Human approver
+  participant Human as UserRequestApprover
   participant Tool as Tool executor
 
   Agent->>Orchestrator: invoke(tool, params, context)
@@ -153,14 +205,29 @@ sequenceDiagram
   else deny
     Orchestrator-->>Agent: blocked
   else approval required
-    Orchestrator->>Gateway: tool.approval.request
-    Gateway->>Approver: deliver approval prompt
-    Approver->>Gateway: tool.approval.resolve
-    Gateway-->>Orchestrator: decision
-    alt approved
+    Orchestrator->>Registry: evaluate factors(request)
+    Registry->>Rules: approve/reject
+    Rules-->>Registry: factor result
+    Registry->>LLM: approve/reject/abstain
+    LLM-->>Registry: factor result
+    alt quorum reached
+      Registry-->>Orchestrator: approved
       Orchestrator->>Tool: execute
       Tool-->>Agent: result
-    else denied or timeout
+    else needs human factor
+      Registry->>Gateway: tool.approval.request
+      Gateway->>Human: deliver approval prompt
+      Human->>Gateway: tool.approval.resolve
+      Gateway-->>Registry: factor result
+      alt quorum reached
+        Registry-->>Orchestrator: approved
+        Orchestrator->>Tool: execute
+        Tool-->>Agent: result
+      else denied or timeout
+        Registry-->>Orchestrator: denied
+        Orchestrator-->>Agent: blocked
+      end
+    else denied
       Orchestrator-->>Agent: blocked
     end
   end
@@ -200,6 +267,28 @@ The package excludes raw chain of thought.
 - If classifier is disabled or times out, policy falls back to static rules.
 - If approval delivery fails on one adapter, router fanout continues to other targets.
 - If no approver is reachable, timeout policy applies (`deny` by default).
+- If quorum cannot be satisfied because active factors are below `minApprovals`, block and emit `insufficient-factors`.
+
+## Best-practices from external systems
+
+This design is aligned to common approval controls in production systems:
+
+- OWASP Authorization Cheat Sheet: enforce deny-by-default and least privilege in approval decisions, not allow-by-default behavior.
+- NIST SP 800-53 Rev. 5: apply separation of duties (`AC-5`) and explicit change-control approvals (`CM-3`) for high-impact operations.
+- HashiCorp Vault control groups: support threshold-style multi-person authorization for sensitive operations.
+- GitHub protected branch reviews and GitLab merge-request approvals: use required approval counts and invalidate stale approvals when the request changes.
+- Google Access Approval: keep explicit, auditable approvals with per-request traceability.
+- Microsoft Entra PIM guidance: separate requestor and approver roles for privileged operations.
+
+References:
+
+- [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)
+- [NIST SP 800-53 Rev. 5 (AC-5, CM-3)](https://www.govinfo.gov/content/pkg/FR-2020-12-10/pdf/2020-27049.pdf)
+- [Vault Enterprise control groups](https://developer.hashicorp.com/vault/docs/enterprise/control-groups)
+- [GitHub protected branches](https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
+- [GitLab merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
+- [Google Access Approval overview](https://cloud.google.com/access-approval/docs/overview)
+- [Microsoft Entra PIM approval guidance](https://learn.microsoft.com/en-us/entra/id-governance/privileged-identity-management/pim-how-to-change-default-settings)
 
 ## Security and audit requirements
 

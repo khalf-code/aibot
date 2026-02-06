@@ -452,7 +452,7 @@ const channelFieldConfigs: Record<string, {
 export function ChannelConfig({ className, currentPlatform = "macos" }: ChannelConfigProps) {
   const [activeSheet, setActiveSheet] = React.useState<ChannelId | null>(null);
   const [gettingStartedOpen, setGettingStartedOpen] = React.useState(true);
-  const [installOverrides, setInstallOverrides] = React.useState<Record<ChannelId, boolean>>({});
+  const [installOverrides, setInstallOverrides] = React.useState<Record<ChannelId, boolean>>({} as Record<ChannelId, boolean>);
   const [whatsappQrCode, setWhatsappQrCode] = React.useState<string | undefined>();
   const [isWhatsAppBusy, setIsWhatsAppBusy] = React.useState(false);
 

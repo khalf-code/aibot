@@ -46,9 +46,14 @@ const gatewayOptions = [
 ];
 
 function resolveGatewayMode(config: ClawdbrainConfig | undefined): GatewayMode {
-  const mode = config?.gateway?.mode;
-  if (mode === "remote") return "remote";
-  if (mode === "local") return "local";
+  // Check if remote gateway URL is configured
+  const gateway = config?.gateway as { remote?: { url?: string }; mode?: string } | undefined;
+  if (gateway?.remote?.url) return "remote";
+
+  // Check local binding mode
+  const mode = gateway?.mode;
+  if (mode === "local" || mode === "loopback") return "local";
+
   return "auto";
 }
 
