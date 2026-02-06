@@ -269,7 +269,7 @@ export async function initSessionState(params: {
     reasoningLevel: persistedReasoning ?? baseEntry?.reasoningLevel,
     ttsAuto: persistedTtsAuto ?? baseEntry?.ttsAuto,
     responseUsage: baseEntry?.responseUsage,
-    modelOverride: persistedModelOverride ?? baseEntry?.modelOverride,
+    modelOverride: isNewSession ? undefined : (persistedModelOverride ?? baseEntry?.modelOverride),
     providerOverride: persistedProviderOverride ?? baseEntry?.providerOverride,
     sendPolicy: baseEntry?.sendPolicy,
     queueMode: baseEntry?.queueMode,

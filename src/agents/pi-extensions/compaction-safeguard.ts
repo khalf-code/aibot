@@ -258,10 +258,36 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
                 });
               } catch (droppedError) {
                 console.warn(
-                  `Compaction safeguard: failed to summarize dropped messages, continuing without: ${
+                  `Compaction safeguard: failed to summarize dropped messages, using raw content fallback: ${
                     droppedError instanceof Error ? droppedError.message : String(droppedError)
                   }`,
                 );
+                // Preserve raw message content when summarization fails
+                // Extract non-empty text from dropped messages to avoid data loss
+                const droppedTexts = pruned.droppedMessagesList
+                  .filter((m): m is typeof m & { content?: { type: string; text: string }[] } => 
+                    m.role !== "assistant" || (Array.isArray(m.content) && m.content.length > 0)
+                  )
+                  .flatMap((m) => {
+                    if (typeof m.content === "string") return [m.content];
+                    if (Array.isArray(m.content)) {
+                      return m.content
+                        .filter((b) => b.type === "text" && typeof (b as any).text === "string")
+                        .map((b) => (b as any).text);
+                    }
+                    return [];
+                  })
+                  .filter((t) => t.trim().length > 0);
+                
+                if (droppedTexts.length > 0) {
+                  droppedSummary = `[Dropped message content - summarization failed]
+${droppedTexts
+                    .slice(0, 5)
+                    .join("
+---
+")}${droppedTexts.length > 5 ? "
+... and more" : ""}`;
+                }
               }
             }
           }
