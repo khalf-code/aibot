@@ -70,9 +70,18 @@ Looking for first-time setup? Start with [Getting Started](/start/getting-starte
 
 The installer sets up the CLI globally and runs onboarding. To skip onboarding:
 
-```bash
-curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard
-```
+<Tabs>
+  <Tab title="macOS / Linux / WSL2">
+    ```bash
+    curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard
+    ```
+  </Tab>
+  <Tab title="Windows (PowerShell)">
+    ```powershell
+    & ([scriptblock]::Create((iwr -useb https://openclaw.ai/install.ps1))) -NoOnboard
+    ```
+  </Tab>
+</Tabs>
 
 <Accordion title="Prefer a manual npm / pnpm install?">
   If you already have Node 22+ and want to skip the installer script:
