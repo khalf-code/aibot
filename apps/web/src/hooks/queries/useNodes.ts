@@ -7,6 +7,7 @@ import {
   type DevicePairingList,
   type ExecApprovalsSnapshot,
 } from "@/lib/api/nodes";
+import { useGateway } from "@/providers";
 import { useUIStore } from "@/stores/useUIStore";
 
 // ---------------------------------------------------------------------------
@@ -154,8 +155,9 @@ async function fetchExecApprovals(
 // ---------------------------------------------------------------------------
 
 export function useNodes() {
+  const { isConnected } = useGateway();
   const useLiveGateway = useUIStore((s) => s.useLiveGateway);
-  const live = (import.meta.env?.DEV ?? false) && useLiveGateway;
+  const live = useLiveGateway || isConnected;
   return useQuery({
     queryKey: nodeKeys.list(),
     queryFn: () => fetchNodes(live),
@@ -164,8 +166,9 @@ export function useNodes() {
 }
 
 export function useDevices() {
+  const { isConnected } = useGateway();
   const useLiveGateway = useUIStore((s) => s.useLiveGateway);
-  const live = (import.meta.env?.DEV ?? false) && useLiveGateway;
+  const live = useLiveGateway || isConnected;
   return useQuery({
     queryKey: nodeKeys.devices(),
     queryFn: () => fetchDevices(live),
@@ -177,8 +180,9 @@ export function useExecApprovals(
   target: "gateway" | "node" = "gateway",
   nodeId?: string,
 ) {
+  const { isConnected } = useGateway();
   const useLiveGateway = useUIStore((s) => s.useLiveGateway);
-  const live = (import.meta.env?.DEV ?? false) && useLiveGateway;
+  const live = useLiveGateway || isConnected;
   return useQuery({
     queryKey: nodeKeys.execApprovals(target, nodeId),
     queryFn: () => fetchExecApprovals(live, target, nodeId),
