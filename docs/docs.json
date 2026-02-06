@@ -999,6 +999,7 @@
                   "providers/anthropic",
                   "providers/openai",
                   "providers/openrouter",
+                  "providers/orq",
                   "bedrock",
                   "providers/vercel-ai-gateway",
                   "providers/moonshot",
