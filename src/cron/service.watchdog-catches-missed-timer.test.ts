@@ -90,4 +90,64 @@ describe("CronService watchdog catches missed timers", () => {
     cron.stop();
     await store.cleanup();
   });
+
+  it("watchdog catches missed timer when service starts with zero jobs", async () => {
+    const store = await makeStorePath();
+    const enqueueSystemEvent = vi.fn();
+    const requestHeartbeatNow = vi.fn();
+
+    const cron = new CronService({
+      storePath: store.storePath,
+      cronEnabled: true,
+      log: noopLogger,
+      enqueueSystemEvent,
+      requestHeartbeatNow,
+      runIsolatedAgentJob: vi.fn(async () => ({ status: "ok" })),
+    });
+
+    // Start with zero jobs — armTimer() early-returns because there's no
+    // nextWakeAtMs.  The watchdog must still be armed.
+    await cron.start();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalState = (cron as any).state;
+    expect(internalState.watchdog).not.toBeNull();
+
+    // Now add a job. The primary timer gets armed.
+    const job = await cron.add({
+      name: "late addition",
+      enabled: true,
+      schedule: { kind: "every", everyMs: 60_000 },
+      sessionTarget: "main",
+      wakeMode: "next-heartbeat",
+      payload: { kind: "systemEvent", text: "late-job" },
+    });
+
+    const firstDueAt = job.state.nextRunAtMs!;
+
+    // Simulate the primary timer being dropped.
+    if (internalState.timer) {
+      clearTimeout(internalState.timer);
+      internalState.timer = null;
+    }
+
+    // Advance past due time.
+    vi.setSystemTime(new Date(firstDueAt + 5_000));
+
+    // Watchdog (already running from start()) should catch it.
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    const jobs = await cron.list();
+    const updated = jobs.find((j) => j.id === job.id);
+
+    expect(enqueueSystemEvent).toHaveBeenCalledWith("late-job", { agentId: undefined });
+    expect(updated?.state.lastStatus).toBe("ok");
+    expect(noopLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ overdueMs: expect.any(Number) }),
+      "cron: watchdog detected missed timer, firing",
+    );
+
+    cron.stop();
+    await store.cleanup();
+  });
 });

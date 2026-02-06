@@ -19,6 +19,15 @@ export function armTimer(state: CronServiceState) {
     clearTimeout(state.timer);
   }
   state.timer = null;
+
+  // Always arm the watchdog while cron is enabled, even when there are no
+  // jobs yet.  Jobs added later go through armTimer() again, but if the
+  // primary setTimeout is silently dropped the watchdog must already be
+  // running to catch it.
+  if (state.deps.cronEnabled) {
+    armWatchdog(state);
+  }
+
   if (!state.deps.cronEnabled) {
     return;
   }
@@ -34,8 +43,6 @@ export function armTimer(state: CronServiceState) {
       state.deps.log.error({ err: String(err) }, "cron: timer tick failed");
     });
   }, clampedDelay);
-
-  armWatchdog(state);
 }
 
 /**
