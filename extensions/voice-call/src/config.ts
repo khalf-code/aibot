@@ -435,7 +435,9 @@ export function resolveVoiceCallConfig(config: VoiceCallConfig): VoiceCallConfig
       app: process.env.ASTERISK_ARI_APP || "",
       trunk: process.env.ASTERISK_ARI_TRUNK || "",
       rtpHost: process.env.ASTERISK_ARI_RTP_HOST || "",
-      rtpPort: process.env.ASTERISK_ARI_RTP_PORT ? Number(process.env.ASTERISK_ARI_RTP_PORT) : 12000,
+      rtpPort: process.env.ASTERISK_ARI_RTP_PORT
+        ? Number(process.env.ASTERISK_ARI_RTP_PORT)
+        : 12000,
       format: (process.env.ASTERISK_ARI_FORMAT as "ulaw" | "alaw" | undefined) || "ulaw",
     };
   }
@@ -515,12 +517,16 @@ export function validateProviderConfig(config: VoiceCallConfig): {
 
   if (config.provider === "asterisk-ari") {
     const a = config.asteriskAri;
-    if (!a?.baseUrl) errors.push("plugins.entries.voice-call.config.asteriskAri.baseUrl is required");
-    if (!a?.username) errors.push("plugins.entries.voice-call.config.asteriskAri.username is required");
-    if (!a?.password) errors.push("plugins.entries.voice-call.config.asteriskAri.password is required");
+    if (!a?.baseUrl)
+      errors.push("plugins.entries.voice-call.config.asteriskAri.baseUrl is required");
+    if (!a?.username)
+      errors.push("plugins.entries.voice-call.config.asteriskAri.username is required");
+    if (!a?.password)
+      errors.push("plugins.entries.voice-call.config.asteriskAri.password is required");
     if (!a?.app) errors.push("plugins.entries.voice-call.config.asteriskAri.app is required");
     if (!a?.trunk) errors.push("plugins.entries.voice-call.config.asteriskAri.trunk is required");
-    if (!a?.rtpHost) errors.push("plugins.entries.voice-call.config.asteriskAri.rtpHost is required");
+    if (!a?.rtpHost)
+      errors.push("plugins.entries.voice-call.config.asteriskAri.rtpHost is required");
   }
 
   return { valid: errors.length === 0, errors };

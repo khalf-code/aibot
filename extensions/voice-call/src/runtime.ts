@@ -4,11 +4,11 @@ import type { VoiceCallProvider } from "./providers/base.js";
 import type { TelephonyTtsRuntime } from "./telephony-tts.js";
 import { resolveVoiceCallConfig, validateProviderConfig } from "./config.js";
 import { CallManager } from "./manager.js";
+import { AsteriskAriProvider } from "./providers/asterisk-ari.js";
 import { MockProvider } from "./providers/mock.js";
 import { PlivoProvider } from "./providers/plivo.js";
 import { TelnyxProvider } from "./providers/telnyx.js";
 import { TwilioProvider } from "./providers/twilio.js";
-import { AsteriskAriProvider } from "./providers/asterisk-ari.js";
 import { createTelephonyTtsProvider } from "./telephony-tts.js";
 import { startTunnel, type TunnelResult } from "./tunnel.js";
 import {

@@ -360,7 +360,10 @@ const voiceCallPlugin = {
                     params.mode === "notify" || params.mode === "conversation"
                       ? params.mode
                       : undefined,
-                  fromName: typeof (params as any).fromName === "string" ? String((params as any).fromName) : undefined,
+                  fromName:
+                    typeof (params as any).fromName === "string"
+                      ? String((params as any).fromName)
+                      : undefined,
                 });
                 if (!result.success) {
                   throw new Error(result.error || "initiate failed");
