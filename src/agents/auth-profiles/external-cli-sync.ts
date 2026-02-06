@@ -1,9 +1,12 @@
-import type { AuthProfileCredential, AuthProfileStore, OAuthCredential } from "./types.js";
+import type { AuthProfileCredential, AuthProfileStore, OAuthCredential, TokenCredential } from "./types.js";
+import type { ClaudeCliCredential } from "../cli-credentials.js";
 import {
+  readClaudeCliCredentialsCached,
   readQwenCliCredentialsCached,
   readMiniMaxCliCredentialsCached,
 } from "../cli-credentials.js";
 import {
+  CLAUDE_CLI_PROFILE_ID,
   EXTERNAL_CLI_NEAR_EXPIRY_MS,
   EXTERNAL_CLI_SYNC_TTL_MS,
   QWEN_CLI_PROFILE_ID,
@@ -30,6 +33,39 @@ function shallowEqualOAuthCredentials(a: OAuthCredential | undefined, b: OAuthCr
   );
 }
 
+function shallowEqualTokenCredentials(a: TokenCredential | undefined, b: TokenCredential): boolean {
+  if (!a) {
+    return false;
+  }
+  if (a.type !== "token") {
+    return false;
+  }
+  return a.provider === b.provider && a.token === b.token && a.expires === b.expires;
+}
+
+/** Compare Claude CLI credentials which may be oauth or token type. */
+function shallowEqualClaudeCliCredentials(
+  existing: AuthProfileCredential | undefined,
+  incoming: ClaudeCliCredential,
+): boolean {
+  if (!existing) {
+    return false;
+  }
+  if (existing.type !== incoming.type) {
+    return false;
+  }
+  if (incoming.type === "oauth") {
+    return shallowEqualOAuthCredentials(
+      existing.type === "oauth" ? existing : undefined,
+      incoming,
+    );
+  }
+  return shallowEqualTokenCredentials(
+    existing.type === "token" ? existing : undefined,
+    incoming,
+  );
+}
+
 function isExternalProfileFresh(cred: AuthProfileCredential | undefined, now: number): boolean {
   if (!cred) {
     return false;
@@ -37,7 +73,7 @@ function isExternalProfileFresh(cred: AuthProfileCredential | undefined, now: nu
   if (cred.type !== "oauth" && cred.type !== "token") {
     return false;
   }
-  if (cred.provider !== "qwen-portal" && cred.provider !== "minimax-portal") {
+  if (cred.provider !== "anthropic" && cred.provider !== "qwen-portal" && cred.provider !== "minimax-portal") {
     return false;
   }
   if (typeof cred.expires !== "number") {
@@ -82,13 +118,47 @@ function syncExternalCliCredentialsForProvider(
 }
 
 /**
- * Sync OAuth credentials from external CLI tools (Qwen Code CLI, MiniMax CLI) into the store.
+ * Sync credentials from external CLI tools (Claude Code CLI, Qwen Code CLI, MiniMax CLI)
+ * into the store.
  *
  * Returns true if any credentials were updated.
  */
 export function syncExternalCliCredentials(store: AuthProfileStore): boolean {
   let mutated = false;
   const now = Date.now();
+
+  // Sync from Claude Code CLI (macOS Keychain → file fallback; may return oauth or token)
+  const existingClaude = store.profiles[CLAUDE_CLI_PROFILE_ID];
+  const shouldSyncClaude =
+    !existingClaude ||
+    existingClaude.provider !== "anthropic" ||
+    !isExternalProfileFresh(existingClaude, now);
+  const claudeCreds = shouldSyncClaude
+    ? readClaudeCliCredentialsCached({ ttlMs: EXTERNAL_CLI_SYNC_TTL_MS })
+    : null;
+  if (claudeCreds) {
+    const existingExpires =
+      existingClaude?.type === "oauth"
+        ? existingClaude.expires
+        : existingClaude?.type === "token" && typeof existingClaude.expires === "number"
+          ? existingClaude.expires
+          : 0;
+    const shouldUpdate =
+      !existingClaude ||
+      existingClaude.provider !== "anthropic" ||
+      existingExpires <= now ||
+      claudeCreds.expires > existingExpires;
+
+    if (shouldUpdate && !shallowEqualClaudeCliCredentials(existingClaude, claudeCreds)) {
+      store.profiles[CLAUDE_CLI_PROFILE_ID] = claudeCreds;
+      mutated = true;
+      log.info("synced anthropic credentials from claude cli", {
+        profileId: CLAUDE_CLI_PROFILE_ID,
+        type: claudeCreds.type,
+        expires: new Date(claudeCreds.expires).toISOString(),
+      });
+    }
+  }
 
   // Sync from Qwen Code CLI
   const existingQwen = store.profiles[QWEN_CLI_PROFILE_ID];
