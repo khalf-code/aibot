@@ -190,8 +190,6 @@ function transformToGraphData(
       category: ROLE_CATEGORY_INDEX[role] ?? 3,
       itemStyle: {
         color: colors.bg,
-        borderColor: colors.border,
-        borderWidth: 2,
         ...(isRunning ? { shadowBlur: 12, shadowColor: "rgba(59, 130, 246, 0.6)" } : {}),
       },
       // label inherited from series-level config (graph-label-overlap style)
@@ -636,15 +634,8 @@ function initECharts(
           friction: 0.6,
         },
         lineStyle: {
-          width: 1.5,
-          curveness: 0.3,
           color: "source",
-        },
-        edgeSymbol: ["none", "arrow"],
-        edgeSymbolSize: [0, 8],
-        emphasis: {
-          focus: "adjacency",
-          lineStyle: { width: 10 },
+          curveness: 0.3,
         },
         labelLayout: {
           hideOverlap: true,
@@ -653,8 +644,6 @@ function initECharts(
           min: 0.4,
           max: 2,
         },
-        animationDuration: 1500,
-        animationEasingUpdate: "quinticInOut",
       },
     ],
   };
