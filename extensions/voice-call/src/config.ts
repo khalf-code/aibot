@@ -533,16 +533,22 @@ export function validateProviderConfig(config: VoiceCallConfig): {
 
   if (config.provider === "asterisk-ari") {
     const a = config.asteriskAri;
-    if (!a?.baseUrl)
+    if (!a?.baseUrl) {
       errors.push("plugins.entries.voice-call.config.asteriskAri.baseUrl is required");
-    if (!a?.username)
+    }
+    if (!a?.username) {
       errors.push("plugins.entries.voice-call.config.asteriskAri.username is required");
-    if (!a?.password)
+    }
+    if (!a?.password) {
       errors.push("plugins.entries.voice-call.config.asteriskAri.password is required");
-    if (!a?.app) errors.push("plugins.entries.voice-call.config.asteriskAri.app is required");
+    }
+    if (!a?.app) {
+      errors.push("plugins.entries.voice-call.config.asteriskAri.app is required");
+    }
     // trunk is optional: if set, outbound calls dial via PJSIP/<trunk>/<to>; otherwise PJSIP/<to>
-    if (!a?.rtpHost)
+    if (!a?.rtpHost) {
       errors.push("plugins.entries.voice-call.config.asteriskAri.rtpHost is required");
+    }
   }
 
   return { valid: errors.length === 0, errors };

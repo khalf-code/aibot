@@ -69,11 +69,13 @@ async function ariFetchJson(params: {
   method?: string;
   query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
-}): Promise<any> {
+}): Promise<unknown> {
   const url = new URL(params.baseUrl.replace(/\/$/, "") + "/ari" + params.path);
   if (params.query) {
     for (const [k, v] of Object.entries(params.query)) {
-      if (v === undefined) continue;
+      if (v === undefined) {
+        continue;
+      }
       url.searchParams.set(k, String(v));
     }
   }
@@ -153,7 +155,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
 
   private async safeHangupChannel(channelId: string | undefined) {
     const id = (channelId || "").trim();
-    if (!id) return;
+    if (!id) {
+      return;
+    }
 
     // ARI supports different hangup semantics depending on channel type.
     // - Normal SIP channels generally work with POST /channels/{id}/hangup
@@ -195,24 +199,37 @@ export class AsteriskAriProvider implements VoiceCallProvider {
       method: "GET",
     });
 
-    if (!Array.isArray(channels)) return;
+    if (!Array.isArray(channels)) {
+      return;
+    }
 
     const activeExt = new Set<string>();
     for (const st of this.callMap.values()) {
-      if (st.extChannelId) activeExt.add(st.extChannelId);
+      if (st.extChannelId) {
+        activeExt.add(st.extChannelId);
+      }
     }
 
     for (const ch of channels) {
-      const id = String((ch as any)?.id || "");
-      const name = String((ch as any)?.name || "");
-      const dp = (ch as any)?.dialplan || undefined;
+      const chObj = ch as Record<string, unknown>;
+      const id = String(chObj.id || "");
+      const name = String(chObj.name || "");
+      const dp = (chObj.dialplan as Record<string, unknown> | undefined) || undefined;
       const appName = String(dp?.app_name || "");
       const appData = String(dp?.app_data || "");
-      if (!id || !name) continue;
+      if (!id || !name) {
+        continue;
+      }
       // ExternalMedia channels show up as dialplan Stasis(<app>) in ARI channel.dialplan fields.
-      if (appName != "Stasis" || appData !== this.cfg.app) continue;
-      if (!name.startsWith("UnicastRTP/")) continue;
-      if (activeExt.has(id)) continue;
+      if (appName != "Stasis" || appData !== this.cfg.app) {
+        continue;
+      }
+      if (!name.startsWith("UnicastRTP/")) {
+        continue;
+      }
+      if (activeExt.has(id)) {
+        continue;
+      }
       await this.safeHangupChannel(id);
     }
   }
@@ -240,7 +257,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
       } catch {
         return;
       }
-      if (!evt) return;
+      if (!evt) {
+        return;
+      }
       this.onAriEvent(evt);
     });
     this.ws.on("close", () => {
@@ -298,7 +317,7 @@ export class AsteriskAriProvider implements VoiceCallProvider {
         }),
       );
 
-      // Answer + attach external media + speak greeting
+      // Answer + attach external media. Any greeting should be handled at a higher level.
       void this.setupConversation({ providerCallId, sipChannelId, isOutbound: false });
     }
 
@@ -309,7 +328,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
       if (this.callMap.has(channelId)) {
         const providerCallId = channelId;
         const st = this.callMap.get(providerCallId);
-        if (!st) return;
+        if (!st) {
+          return;
+        }
         this.manager.processEvent(
           makeEvent({
             type: "call.ended",
@@ -344,17 +365,23 @@ export class AsteriskAriProvider implements VoiceCallProvider {
     // Find matching call by rinfo; externalMedia should send RTP from Asterisk to our port.
     // We keep the last seen peer per active call.
     // RTP header is 12 bytes.
-    if (msg.length <= 12) return;
+    if (msg.length <= 12) {
+      return;
+    }
     const payload = msg.subarray(12);
 
-    for (const [providerCallId, st] of this.callMap.entries()) {
-      if (!st.extChannelId) continue;
+    for (const [_providerCallId, st] of this.callMap.entries()) {
+      if (!st.extChannelId) {
+        continue;
+      }
       // Learn peer first packet.
       if (!st.rtpPeer) {
         st.rtpPeer = { address: rinfo.address, port: rinfo.port };
       }
       // Only accept from learned peer.
-      if (st.rtpPeer.address !== rinfo.address || st.rtpPeer.port !== rinfo.port) continue;
+      if (st.rtpPeer.address !== rinfo.address || st.rtpPeer.port !== rinfo.port) {
+        continue;
+      }
 
       if (st.speaking) {
         return;
@@ -373,7 +400,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
   }) {
     const providerCallId = params.providerCallId;
     const st = this.callMap.get(providerCallId);
-    if (!st) return;
+    if (!st) {
+      return;
+    }
 
     // Answer channel (inbound) if needed
     try {
@@ -450,7 +479,7 @@ export class AsteriskAriProvider implements VoiceCallProvider {
     }
     const sttProvider = new OpenAIRealtimeSTTProvider({
       apiKey,
-      model: (process.env.OPENAI_REALTIME_STT_MODEL || undefined) as string | undefined,
+      model: process.env.OPENAI_REALTIME_STT_MODEL || undefined,
       silenceDurationMs: 800,
       vadThreshold: 0.5,
     });
@@ -459,11 +488,15 @@ export class AsteriskAriProvider implements VoiceCallProvider {
     session.onSpeechStart(() => {
       // barge-in: stop speaking
       const s = this.callMap.get(providerCallId);
-      if (s) s.speaking = false;
+      if (s) {
+        s.speaking = false;
+      }
     });
     session.onTranscript((t) => {
       const s = this.callMap.get(providerCallId);
-      if (!s) return;
+      if (!s) {
+        return;
+      }
       this.manager.processEvent(
         makeEvent({
           type: "call.speech",
@@ -562,7 +595,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           const pending = this.pendingStasisStart.get(sipChannelId);
-          if (pending) clearTimeout(pending.timeout);
+          if (pending) {
+            clearTimeout(pending.timeout);
+          }
           this.pendingStasisStart.delete(sipChannelId);
           reject(new Error("Timed out waiting for StasisStart"));
         }, 8000);
@@ -575,12 +610,14 @@ export class AsteriskAriProvider implements VoiceCallProvider {
       // Degrade gracefully: call may still be ringing/answered outside Stasis.
     }
 
-    return { providerCallId, status: "initiated" } as any;
+    return { providerCallId, status: "initiated" };
   }
 
   async hangupCall(input: HangupCallInput): Promise<void> {
     const st = this.callMap.get(input.providerCallId);
-    if (!st) return;
+    if (!st) {
+      return;
+    }
     try {
       await ariFetchJson({
         baseUrl: this.cfg.baseUrl,
@@ -597,7 +634,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
 
   async playTts(input: PlayTtsInput): Promise<void> {
     const st = this.callMap.get(input.providerCallId);
-    if (!st) return;
+    if (!st) {
+      return;
+    }
 
     const apiKey = (process.env.OPENAI_API_KEY || "").trim();
 
@@ -614,7 +653,7 @@ export class AsteriskAriProvider implements VoiceCallProvider {
         const { stdout } = await execFileAsync(
           "sox",
           ["-t", "wav", "-", "-t", "raw", "-r", "8000", "-c", "1", "-e", "mu-law", "-b", "8", "-"],
-          { input: wav, maxBuffer: 50 * 1024 * 1024 } as any,
+          { input: wav, maxBuffer: 50 * 1024 * 1024 },
         );
         mulaw = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout);
       } finally {
@@ -650,7 +689,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
     const ssrc = 0x12345678;
 
     for (const frame of chunkAudio(mulaw, 160)) {
-      if (!st.speaking) break;
+      if (!st.speaking) {
+        break;
+      }
 
       const header = Buffer.alloc(12);
       header[0] = 0x80;
@@ -664,8 +705,11 @@ export class AsteriskAriProvider implements VoiceCallProvider {
       const packet = Buffer.concat([header, frame]);
       await new Promise<void>((resolve, reject) => {
         this.udp.send(packet, peer2.port, peer2.address, (err) => {
-          if (err) reject(err);
-          else resolve();
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve();
         });
       });
 
@@ -685,7 +729,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
 
   private async cleanup(providerCallId: string): Promise<void> {
     const st = this.callMap.get(providerCallId);
-    if (!st) return;
+    if (!st) {
+      return;
+    }
 
     try {
       st.stt?.close();

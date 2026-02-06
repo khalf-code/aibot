@@ -361,8 +361,8 @@ const voiceCallPlugin = {
                       ? params.mode
                       : undefined,
                   fromName:
-                    typeof (params as any).fromName === "string"
-                      ? String((params as any).fromName)
+                    typeof (params as { fromName?: unknown }).fromName === "string"
+                      ? String((params as { fromName?: unknown }).fromName)
                       : undefined,
                 });
                 if (!result.success) {
