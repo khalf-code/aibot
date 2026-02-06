@@ -112,7 +112,8 @@ describe("bundled extension resolver", () => {
 
       // Should resolve to openclaw's assets, not workspace root
       expect(resolved).toBe(assets);
-      expect(resolved.includes("packages/openclaw")).toBe(true);
+      // Verify path contains "openclaw" (works on both Windows and Unix)
+      expect(resolved.includes("openclaw")).toBe(true);
     } finally {
       fs.rmSync(workspaceRoot, { recursive: true, force: true });
     }
