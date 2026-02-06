@@ -255,8 +255,11 @@ export async function ensureLoaded(state: CronServiceState, opts?: { forceReload
   state.storeLoadedAtMs = state.deps.nowMs();
   state.storeFileMtimeMs = fileMtimeMs;
 
-  // Recompute next runs after loading to ensure accuracy
-  recomputeNextRuns(state);
+  // Recompute next runs after loading.  When force-reloading from the timer
+  // path we must NOT advance jobs that are currently due — otherwise they get
+  // skipped because runDueJobs() sees an already-advanced nextRunAtMs.
+  // Pass skipDue so recomputeNextRuns leaves due jobs alone.
+  recomputeNextRuns(state, { skipDue: !!opts?.forceReload });
 
   if (mutated) {
     await persist(state);

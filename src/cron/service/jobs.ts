@@ -58,7 +58,7 @@ export function computeJobNextRunAtMs(job: CronJob, nowMs: number): number | und
   return computeNextRunAtMs(job.schedule, nowMs);
 }
 
-export function recomputeNextRuns(state: CronServiceState) {
+export function recomputeNextRuns(state: CronServiceState, opts?: { skipDue?: boolean }) {
   if (!state.store) {
     return;
   }
@@ -79,6 +79,15 @@ export function recomputeNextRuns(state: CronServiceState) {
         "cron: clearing stuck running marker",
       );
       job.state.runningAtMs = undefined;
+    }
+    // When skipDue is set (force-reload from the timer path), don't
+    // recompute jobs that are currently due — runDueJobs needs to see
+    // them with their original nextRunAtMs so they actually execute.
+    if (opts?.skipDue) {
+      const next = job.state.nextRunAtMs;
+      if (typeof next === "number" && now >= next) {
+        continue;
+      }
     }
     job.state.nextRunAtMs = computeJobNextRunAtMs(job, now);
   }
