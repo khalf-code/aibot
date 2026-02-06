@@ -94,13 +94,17 @@ export async function resolveMicroModelRef(
 
 // ── Config-driven utility model resolution ─────────────────────────
 
-export type UtilityFeatureKey = "slugGenerator" | "sessionDescription";
+export type UtilityFeatureKey =
+  | "slugGenerator"
+  | "sessionDescription"
+  | "memoryFeedback"
+  | "memoryFlush";
 
 /**
  * Resolve a config string (provider/model or alias) to a ModelRef
  * using the model alias index.
  */
-function resolveModelRefFromConfigString(cfg: OpenClawConfig, raw: string): ModelRef | null {
+export function resolveModelRefFromConfigString(cfg: OpenClawConfig, raw: string): ModelRef | null {
   const trimmed = raw.trim();
   if (!trimmed) {
     return null;

@@ -12,6 +12,7 @@ import { resolveMemorySearchConfig } from "../agents/memory-search.js";
 import { resolveStateDir } from "../config/paths.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { createEmbeddingProvider } from "./embeddings.js";
+import { createMemoryOpsLogger } from "./ops-log/index.js";
 import { ProgressiveMemoryStore, type EmbedFn } from "./progressive-store.js";
 
 const log = createSubsystemLogger("progressive-memory");
@@ -40,7 +41,8 @@ export async function getProgressiveStore(params: {
     return cached;
   }
 
-  const store = new ProgressiveMemoryStore({ dbPath });
+  const opsLog = createMemoryOpsLogger(stateDir);
+  const store = new ProgressiveMemoryStore({ dbPath, opsLog });
 
   // Try to initialize vector search
   try {

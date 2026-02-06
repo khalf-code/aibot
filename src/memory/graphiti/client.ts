@@ -36,6 +36,7 @@ export type GraphitiClientOptions = {
   fetchFn?: typeof fetch;
   now?: () => Date;
   timeoutMs?: number;
+  opsLog?: import("../ops-log/index.js").MemoryOpsLogger;
 };
 
 export type GraphitiEpisodeWarning = {
@@ -97,6 +98,7 @@ export class GraphitiClient {
   private readonly fetchFn: typeof fetch;
   private readonly now: () => Date;
   private readonly timeoutMs: number;
+  private readonly opsLog?: import("../ops-log/index.js").MemoryOpsLogger;
 
   constructor(options: GraphitiClientOptions) {
     const host = options.serverHost ?? "localhost";
@@ -106,6 +108,7 @@ export class GraphitiClient {
     this.fetchFn = options.fetchFn ?? fetch;
     this.now = options.now ?? (() => new Date());
     this.timeoutMs = options.timeoutMs ?? 10_000;
+    this.opsLog = options.opsLog;
   }
 
   /** GET /healthcheck — lightweight liveness check. */
@@ -157,6 +160,19 @@ export class GraphitiClient {
 
     if (!response.ok) {
       memLog.debug("graphiti ingestEpisodes failed", { status: response.status });
+      this.opsLog?.log({
+        action: "graphiti.ingest",
+        traceId: request.traceId,
+        backend: "graphiti",
+        status: "failure",
+        detail: {
+          episodeCount: episodes.length,
+          nodeCount: 0,
+          edgeCount: 0,
+          episodeIds: episodes.map((e) => e.id),
+          error: `Graphiti ingest failed (${response.status}).`,
+        },
+      });
       return {
         ok: false,
         nodeCount: 0,
@@ -170,6 +186,21 @@ export class GraphitiClient {
       nodeCount: result.nodeCount,
       edgeCount: result.edgeCount,
     });
+
+    this.opsLog?.log({
+      action: "graphiti.ingest",
+      traceId: request.traceId,
+      backend: "graphiti",
+      status: "success",
+      detail: {
+        episodeCount: episodes.length,
+        nodeCount: result.nodeCount ?? 0,
+        edgeCount: result.edgeCount ?? 0,
+        episodeIds: episodes.map((e) => e.id),
+        warnings: warnings.map((w) => w.message),
+      },
+    });
+
     return result;
   }
 
@@ -195,6 +226,19 @@ export class GraphitiClient {
 
     if (!response.ok) {
       memLog.debug("graphiti search failed", { status: response.status });
+      this.opsLog?.log({
+        action: "graphiti.query",
+        backend: "graphiti",
+        status: "failure",
+        detail: {
+          query: request.query,
+          limit: request.limit,
+          factCount: 0,
+          nodeIds: [],
+          episodeIds: [],
+          error: `Graphiti query failed (${response.status}).`,
+        },
+      });
       return {
         nodes: [],
         edges: [],
@@ -216,6 +260,19 @@ export class GraphitiClient {
       label: fact.name,
       properties: { text: fact.fact },
     }));
+
+    this.opsLog?.log({
+      action: "graphiti.query",
+      backend: "graphiti",
+      status: "success",
+      detail: {
+        query: request.query,
+        limit: request.limit,
+        factCount: result.facts.length,
+        nodeIds: nodes.map((n) => n.id),
+        episodeIds: [],
+      },
+    });
 
     return {
       nodes,

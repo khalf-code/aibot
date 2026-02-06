@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+import type { MemoryOpsLogger } from "./ops-log/index.js";
 import type { QueryIntent } from "./query/index.js";
 import type {
   MemorySearchManager,
@@ -7,6 +9,7 @@ import type {
   MemorySyncProgressUpdate,
 } from "./types.js";
 import { memLog } from "./memory-log.js";
+import { SNIPPET_PREVIEW_LENGTH } from "./ops-log/index.js";
 
 export type ComposableBackendEntry = {
   id: string;
@@ -19,23 +22,39 @@ export type ComposableManagerConfig = {
   backends: ComposableBackendEntry[];
   intentParser?: (query: string) => QueryIntent;
   primary?: string; // id of primary backend for readFile/sync
+  opsLog?: MemoryOpsLogger;
+};
+
+export type ComposableSearchMeta = {
+  traceId: string;
+  backendAttribution: Record<string, string[]>;
+  intent?: QueryIntent;
 };
 
 export class ComposableMemoryManager implements MemorySearchManager {
   private readonly backends: ComposableBackendEntry[];
   private readonly intentParser?: (query: string) => QueryIntent;
   private readonly primaryId?: string;
+  private readonly opsLog?: MemoryOpsLogger;
+  private lastSearchMeta?: ComposableSearchMeta;
 
   constructor(config: ComposableManagerConfig) {
     this.backends = config.backends;
     this.intentParser = config.intentParser;
     this.primaryId = config.primary;
+    this.opsLog = config.opsLog;
+  }
+
+  getLastSearchMeta(): ComposableSearchMeta | undefined {
+    return this.lastSearchMeta;
   }
 
   async search(
     query: string,
     opts?: { maxResults?: number; minScore?: number; sessionKey?: string },
   ): Promise<MemorySearchResult[]> {
+    const searchStart = Date.now();
+    const traceId = crypto.randomUUID();
     const intent = this.intentParser?.(query);
 
     // Filter backends by routing condition
@@ -50,33 +69,131 @@ export class ComposableMemoryManager implements MemorySearchManager {
       backends: active.map((b) => b.id),
     });
 
+    // Emit query.start
+    this.opsLog?.log({
+      action: "query.start",
+      traceId,
+      sessionKey: opts?.sessionKey,
+      status: "success",
+      detail: {
+        query: query.slice(0, 200),
+        maxResults: opts?.maxResults,
+        minScore: opts?.minScore,
+        intent: intent
+          ? { entities: intent.entities, topics: intent.topics, timeHints: intent.timeHints }
+          : undefined,
+        activeBackends: active.map((b) => b.id),
+      },
+    });
+
     // Fan-out in parallel
     const settled = await Promise.allSettled(active.map((b) => b.manager.search(query, opts)));
 
-    // Collect results with backend weights
-    type WeightedResult = MemorySearchResult & { _backendWeight: number };
+    // Collect results with backend weights + attribution
+    type WeightedResult = MemorySearchResult & { _backendWeight: number; _backendId: string };
     const allResults: WeightedResult[] = [];
+    const backendAttribution: Record<string, string[]> = {};
 
     for (let i = 0; i < settled.length; i++) {
       const result = settled[i];
+      const backendId = active[i].id;
+
       if (result.status === "fulfilled") {
+        const paths: string[] = [];
         for (const r of result.value) {
-          allResults.push({ ...r, _backendWeight: active[i].weight });
+          allResults.push({
+            ...r,
+            sourceBackend: backendId,
+            _backendWeight: active[i].weight,
+            _backendId: backendId,
+          });
+          paths.push(r.path);
         }
+        backendAttribution[backendId] = paths;
+
+        // Emit per-backend result
+        this.opsLog?.log({
+          action: "query.backend_result",
+          traceId,
+          backend: backendId,
+          sessionKey: opts?.sessionKey,
+          status: "success",
+          detail: {
+            backend: backendId,
+            weight: active[i].weight,
+            resultCount: result.value.length,
+            results: result.value.map((r) => ({
+              path: r.path,
+              score: r.score,
+              snippetPreview: (r.snippet ?? "").slice(0, SNIPPET_PREVIEW_LENGTH),
+              startLine: r.startLine,
+              endLine: r.endLine,
+            })),
+          },
+        });
       } else {
         memLog.warn("composable search: backend failed", {
-          backend: active[i].id,
+          backend: backendId,
           error: String(result.reason),
+        });
+
+        this.opsLog?.log({
+          action: "query.backend_result",
+          traceId,
+          backend: backendId,
+          sessionKey: opts?.sessionKey,
+          status: "failure",
+          detail: {
+            backend: backendId,
+            weight: active[i].weight,
+            resultCount: 0,
+            results: [],
+            error: String(result.reason),
+          },
         });
       }
     }
 
     // Deduplicate by path+startLine+endLine, keep highest weighted score
+    const totalBeforeDedup = allResults.length;
     const deduped = deduplicateResults(allResults);
 
     // Sort by weighted score, apply maxResults
     const maxResults = opts?.maxResults ?? 6;
-    return deduped.toSorted((a, b) => b.score - a.score).slice(0, maxResults);
+    const finalResults = deduped.toSorted((a, b) => b.score - a.score).slice(0, maxResults);
+
+    // Compute per-backend dedup counts
+    const byBackend: Record<string, number> = {};
+    for (const r of allResults) {
+      byBackend[r._backendId] = (byBackend[r._backendId] ?? 0) + 1;
+    }
+
+    // Emit query.merged
+    this.opsLog?.log({
+      action: "query.merged",
+      traceId,
+      sessionKey: opts?.sessionKey,
+      status: "success",
+      durationMs: Date.now() - searchStart,
+      detail: {
+        totalBeforeDedup,
+        totalAfterDedup: deduped.length,
+        dedupStats: {
+          duplicatesRemoved: totalBeforeDedup - deduped.length,
+          byBackend,
+        },
+        finalResults: finalResults.map((r) => ({
+          path: r.path,
+          score: r.score,
+          snippetPreview: (r.snippet ?? "").slice(0, SNIPPET_PREVIEW_LENGTH),
+        })),
+        backendAttribution,
+      },
+    });
+
+    this.lastSearchMeta = { traceId, backendAttribution, intent };
+
+    return finalResults;
   }
 
   async readFile(params: {
@@ -161,7 +278,7 @@ export class ComposableMemoryManager implements MemorySearchManager {
 }
 
 function deduplicateResults(
-  results: Array<MemorySearchResult & { _backendWeight: number }>,
+  results: Array<MemorySearchResult & { _backendWeight: number; _backendId: string }>,
 ): MemorySearchResult[] {
   const byKey = new Map<string, MemorySearchResult>();
 
@@ -171,7 +288,7 @@ function deduplicateResults(
     const existing = byKey.get(key);
 
     if (!existing || weightedScore > existing.score) {
-      const { _backendWeight: _, ...rest } = r;
+      const { _backendWeight: _, _backendId: _bid, ...rest } = r;
       byKey.set(key, { ...rest, score: weightedScore });
     }
   }

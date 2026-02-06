@@ -156,6 +156,8 @@ export type ProgressiveStoreOptions = {
   vecExtensionPath?: string;
   /** Deduplication cosine similarity threshold (default: 0.92). */
   dedupThreshold?: number;
+  /** Optional ops logger for memory operations diagnostics. */
+  opsLog?: import("./ops-log/index.js").MemoryOpsLogger;
 };
 
 export type EmbedFn = (text: string) => Promise<number[]>;
@@ -168,11 +170,13 @@ export class ProgressiveMemoryStore {
   private ftsAvailable = false;
   private vecAvailable = false;
   private closed = false;
+  private readonly opsLog?: import("./ops-log/index.js").MemoryOpsLogger;
 
   constructor(options: ProgressiveStoreOptions) {
     this.dbPath = options.dbPath;
     this.dims = options.dims ?? DEFAULT_DIMS;
     this.dedupThreshold = options.dedupThreshold ?? DEDUP_THRESHOLD;
+    this.opsLog = options.opsLog;
 
     // Ensure parent directory exists
     const dir = path.dirname(this.dbPath);
@@ -257,7 +261,7 @@ export class ProgressiveMemoryStore {
         this.upsertVector(duplicate.id, embedding);
 
         this.setMeta("last_store", now);
-        return {
+        const mergedResult = {
           id: duplicate.id,
           category: params.category,
           stored: true,
@@ -265,6 +269,19 @@ export class ProgressiveMemoryStore {
           mergedWithId: duplicate.id,
           tokenCost: tokenEstimate,
         };
+        this.opsLog?.log({
+          action: "progressive.store",
+          backend: "progressive",
+          status: "success",
+          detail: {
+            id: duplicate.id,
+            category: params.category,
+            deduplicated: true,
+            mergedWithId: duplicate.id,
+            tokenCost: tokenEstimate,
+          },
+        });
+        return mergedResult;
       }
     }
 
@@ -319,6 +336,17 @@ export class ProgressiveMemoryStore {
     }
 
     this.setMeta("last_store", now);
+    this.opsLog?.log({
+      action: "progressive.store",
+      backend: "progressive",
+      status: "success",
+      detail: {
+        id,
+        category: params.category,
+        deduplicated: false,
+        tokenCost: tokenEstimate,
+      },
+    });
     return {
       id,
       category: params.category,
@@ -532,7 +560,20 @@ export class ProgressiveMemoryStore {
       merged = merged.filter((e) => PRIORITY_ORDER[e.priority] >= minOrder);
     }
 
-    return merged.slice(0, limit);
+    const results = merged.slice(0, limit);
+
+    this.opsLog?.log({
+      action: "progressive.recall",
+      backend: "progressive",
+      status: "success",
+      detail: {
+        query: query.slice(0, 200),
+        resultCount: results.length,
+        topScores: results.slice(0, 5).map((r) => r.score),
+      },
+    });
+
+    return results;
   }
 
   /**

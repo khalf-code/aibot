@@ -39,6 +39,8 @@ const UtilityModelConfigSchema = z
   .object({
     slugGenerator: UtilityModelFeatureSchema,
     sessionDescription: UtilityModelFeatureSchema,
+    memoryFeedback: UtilityModelFeatureSchema,
+    memoryFlush: UtilityModelFeatureSchema,
   })
   .strict()
   .optional();
@@ -146,6 +148,7 @@ export const AgentDefaultsSchema = z
             softThresholdTokens: z.number().int().nonnegative().optional(),
             prompt: z.string().optional(),
             systemPrompt: z.string().optional(),
+            model: z.string().optional(),
           })
           .strict()
           .optional(),

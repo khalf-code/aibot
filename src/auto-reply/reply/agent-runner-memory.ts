@@ -6,6 +6,10 @@ import type { VerboseLevel } from "../thinking.js";
 import type { GetReplyOptions } from "../types.js";
 import type { FollowupRun } from "./queue.js";
 import { resolveAgentModelFallbacksOverride } from "../../agents/agent-scope.js";
+import {
+  resolveModelRefFromConfigString,
+  resolveUtilityModelRef,
+} from "../../agents/micro-model.js";
 import { hasConfiguredModelFallback, runWithModelFallback } from "../../agents/model-fallback.js";
 import { isCliProvider } from "../../agents/model-selection.js";
 import { resolveSandboxConfigForAgent, resolveSandboxRuntimeStatus } from "../../agents/sandbox.js";
@@ -90,6 +94,55 @@ export async function runMemoryFlushIfNeeded(params: {
     return params.sessionEntry;
   }
 
+  // Resolve the flush model via the utility chain instead of the main run's (potentially expensive) model.
+  // Precedence: compaction.memoryFlush.model > utility.memoryFlush.model > utilityModel > micro-auto > primary
+  const flushAgentId = resolveAgentIdFromSessionKey(params.followupRun.run.sessionKey);
+  let flushProvider = params.followupRun.run.provider;
+  let flushModel = params.followupRun.run.model;
+  if (memoryFlushSettings.model) {
+    const inlineRef = resolveModelRefFromConfigString(params.cfg, memoryFlushSettings.model);
+    if (inlineRef) {
+      flushProvider = inlineRef.provider;
+      flushModel = inlineRef.model;
+    }
+  } else {
+    try {
+      const utilityRef = await resolveUtilityModelRef({
+        cfg: params.cfg,
+        feature: "memoryFlush",
+        agentId: flushAgentId,
+      });
+      flushProvider = utilityRef.provider;
+      flushModel = utilityRef.model;
+    } catch {
+      // Fall through to the main run's provider/model
+    }
+  }
+
+  const flushFallbacksOverride = resolveAgentModelFallbacksOverride(
+    params.followupRun.run.config,
+    flushAgentId,
+  );
+  const flushRuntimeKind = "pi" as const;
+  if (
+    !hasConfiguredModelFallback({
+      cfg: params.followupRun.run.config,
+      provider: flushProvider,
+      model: flushModel,
+      agentDir: params.followupRun.run.agentDir,
+      fallbacksOverride: flushFallbacksOverride,
+      runtimeKind: flushRuntimeKind,
+    })
+  ) {
+    memLog.warn("memory flush: skipped (no non-claude runtime providers configured)", {
+      sessionKey: params.sessionKey,
+      provider: flushProvider,
+      model: flushModel,
+      runtimeKind: flushRuntimeKind,
+    });
+    return params.sessionEntry;
+  }
+
   memLog.summary("memory flush: starting", {
     sessionKey: params.sessionKey,
     totalTokens: params.sessionEntry?.totalTokens,
@@ -125,29 +178,6 @@ export async function runMemoryFlushIfNeeded(params: {
   ]
     .filter(Boolean)
     .join("\n\n");
-  const flushFallbacksOverride = resolveAgentModelFallbacksOverride(
-    params.followupRun.run.config,
-    resolveAgentIdFromSessionKey(params.followupRun.run.sessionKey),
-  );
-  const flushRuntimeKind = "pi" as const;
-  if (
-    !hasConfiguredModelFallback({
-      cfg: params.followupRun.run.config,
-      provider: params.followupRun.run.provider,
-      model: params.followupRun.run.model,
-      agentDir: params.followupRun.run.agentDir,
-      fallbacksOverride: flushFallbacksOverride,
-      runtimeKind: flushRuntimeKind,
-    })
-  ) {
-    memLog.warn("memory flush: skipped (no non-claude runtime providers configured)", {
-      sessionKey: params.sessionKey,
-      provider: params.followupRun.run.provider,
-      model: params.followupRun.run.model,
-      runtimeKind: flushRuntimeKind,
-    });
-    return params.sessionEntry;
-  }
 
   // Create kernel once (reused across fallback attempts)
   const kernel = createDefaultExecutionKernel();
@@ -162,8 +192,8 @@ export async function runMemoryFlushIfNeeded(params: {
   try {
     const flushResult = await runWithModelFallback({
       cfg: params.followupRun.run.config,
-      provider: params.followupRun.run.provider,
-      model: params.followupRun.run.model,
+      provider: flushProvider,
+      model: flushModel,
       agentDir: params.followupRun.run.agentDir,
       fallbacksOverride: flushFallbacksOverride,
       runtimeKind: flushRuntimeKind,

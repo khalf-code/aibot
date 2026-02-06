@@ -7,13 +7,16 @@ import type {
   MemorySearchManager,
   MemorySyncProgressUpdate,
 } from "./types.js";
+import { resolveStateDir } from "../config/paths.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveMemoryBackendConfig } from "./backend-config.js";
 import { ComposableMemoryManager } from "./composable-manager.js";
 import { memLog } from "./memory-log.js";
+import { createMemoryOpsLogger, cleanupOldMemoryOpsLogs } from "./ops-log/index.js";
 
 const log = createSubsystemLogger("memory");
 const QMD_MANAGER_CACHE = new Map<string, MemorySearchManager>();
+let cleanupScheduled = false;
 
 export type MemorySearchManagerResult = {
   manager: MemorySearchManager | null;
@@ -81,11 +84,13 @@ export async function getMemorySearchManager(params: {
     try {
       const { GraphitiClient } = await import("./graphiti/client.js");
       const { GraphitiSearchAdapter } = await import("./graphiti/graphiti-search-adapter.js");
+      const graphitiOpsLog = createMemoryOpsLogger(resolveStateDir());
       const client = new GraphitiClient({
         serverHost: graphitiCfg.serverHost,
         servicePort: graphitiCfg.servicePort,
         apiKey: graphitiCfg.apiKey,
         timeoutMs: graphitiCfg.timeoutMs,
+        opsLog: graphitiOpsLog,
       });
       backends.push({ id: "graphiti", manager: new GraphitiSearchAdapter(client), weight: 0.7 });
     } catch (err) {
@@ -120,20 +125,23 @@ export async function getMemorySearchManager(params: {
     return { manager: null, error: "no memory backends available" };
   }
 
-  // Single backend — skip composable overhead
-  if (backends.length === 1) {
-    return { manager: backends[0].manager };
+  // Always wrap in ComposableMemoryManager so ops logging and sourceBackend
+  // stamping are applied even with a single backend.
+  const { parseQueryIntent } = await import("./query/index.js");
+  const opsLog = createMemoryOpsLogger(resolveStateDir());
+  const manager = new ComposableMemoryManager({
+    backends,
+    intentParser: parseQueryIntent,
+    primary: backends[0].id,
+    opsLog,
+  });
+
+  if (!cleanupScheduled) {
+    cleanupScheduled = true;
+    cleanupOldMemoryOpsLogs(resolveStateDir()).catch(() => {});
   }
 
-  // Multiple backends — compose
-  const { parseQueryIntent } = await import("./query/index.js");
-  return {
-    manager: new ComposableMemoryManager({
-      backends,
-      intentParser: parseQueryIntent,
-      primary: backends[0].id,
-    }),
-  };
+  return { manager };
 }
 
 async function resolveQmdBackend(

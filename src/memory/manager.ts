@@ -15,6 +15,7 @@ import type {
 } from "./types.js";
 import { resolveAgentDir, resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
 import { resolveMemorySearchConfig } from "../agents/memory-search.js";
+import { resolveStateDir } from "../config/paths.js";
 import { resolveSessionTranscriptsDirForAgent } from "../config/sessions/paths.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { onSessionTranscriptUpdate } from "../sessions/transcript-events.js";
@@ -48,6 +49,7 @@ import {
 } from "./internal.js";
 import { searchKeyword, searchVector } from "./manager-search.js";
 import { memLog } from "./memory-log.js";
+import { createMemoryOpsLogger, type MemoryOpsLogger } from "./ops-log/index.js";
 import { computeEmbeddingProviderKey } from "./provider-key.js";
 
 type SessionFileEntry = {
@@ -128,6 +130,7 @@ export class MemoryIndexManager implements MemorySearchManager {
   >();
   private sessionWarm = new Set<string>();
   private syncing: Promise<void> | null = null;
+  private readonly opsLog?: MemoryOpsLogger;
 
   static async get(params: {
     cfg: OpenClawConfig;
@@ -153,6 +156,7 @@ export class MemoryIndexManager implements MemorySearchManager {
       fallback: settings.fallback,
       local: settings.local,
     });
+    const opsLog = createMemoryOpsLogger(resolveStateDir());
     const manager = new MemoryIndexManager({
       cacheKey: key,
       cfg,
@@ -160,6 +164,7 @@ export class MemoryIndexManager implements MemorySearchManager {
       workspaceDir,
       settings,
       providerResult,
+      opsLog,
     });
     INDEX_CACHE.set(key, manager);
     return manager;
@@ -172,12 +177,14 @@ export class MemoryIndexManager implements MemorySearchManager {
     workspaceDir: string;
     settings: ResolvedMemorySearchConfig;
     providerResult: EmbeddingProviderResult;
+    opsLog?: MemoryOpsLogger;
   }) {
     this.cacheKey = params.cacheKey;
     this.cfg = params.cfg;
     this.agentId = params.agentId;
     this.workspaceDir = params.workspaceDir;
     this.settings = params.settings;
+    this.opsLog = params.opsLog;
     this.provider = params.providerResult.provider;
     this.requestedProvider = params.providerResult.requestedProvider;
     this.fallbackFrom = params.providerResult.fallbackFrom;
@@ -943,6 +950,17 @@ export class MemoryIndexManager implements MemorySearchManager {
       removed: removedCount,
       total: fileEntries.length,
     });
+    this.opsLog?.log({
+      action: "sync.file_indexed",
+      status: "success",
+      detail: {
+        source: "memory",
+        indexed: indexedCount,
+        skipped: skippedCount,
+        removed: removedCount,
+        total: fileEntries.length,
+      },
+    });
   }
 
   private async syncSessionFiles(params: {
@@ -968,8 +986,11 @@ export class MemoryIndexManager implements MemorySearchManager {
       });
     }
 
+    let sessionIndexedCount = 0;
+    let sessionSkippedCount = 0;
     const tasks = files.map((absPath) => async () => {
       if (!indexAll && !this.sessionsDirtyFiles.has(absPath)) {
+        sessionSkippedCount += 1;
         if (params.progress) {
           params.progress.completed += 1;
           params.progress.report({
@@ -981,6 +1002,7 @@ export class MemoryIndexManager implements MemorySearchManager {
       }
       const entry = await this.buildSessionEntry(absPath);
       if (!entry) {
+        sessionSkippedCount += 1;
         if (params.progress) {
           params.progress.completed += 1;
           params.progress.report({
@@ -992,6 +1014,7 @@ export class MemoryIndexManager implements MemorySearchManager {
       }
       const existingHash = this.store.getFileHash(entry.path, "sessions");
       if (!params.needsFullReindex && existingHash === entry.hash) {
+        sessionSkippedCount += 1;
         if (params.progress) {
           params.progress.completed += 1;
           params.progress.report({
@@ -1003,6 +1026,7 @@ export class MemoryIndexManager implements MemorySearchManager {
         return;
       }
       await this.indexFile(entry, { source: "sessions", content: entry.content });
+      sessionIndexedCount += 1;
       this.resetSessionDelta(absPath, entry.size);
       if (params.progress) {
         params.progress.completed += 1;
@@ -1015,12 +1039,25 @@ export class MemoryIndexManager implements MemorySearchManager {
     await this.runWithConcurrency(tasks, this.getIndexConcurrency());
 
     const stalePaths = this.store.listFilePaths("sessions");
+    let sessionRemovedCount = 0;
     for (const stalePath of stalePaths) {
       if (activePaths.has(stalePath)) {
         continue;
       }
       this.store.deleteStaleFile(stalePath, "sessions", this.provider.model);
+      sessionRemovedCount += 1;
     }
+    this.opsLog?.log({
+      action: "sync.file_indexed",
+      status: "success",
+      detail: {
+        source: "sessions",
+        indexed: sessionIndexedCount,
+        skipped: sessionSkippedCount,
+        removed: sessionRemovedCount,
+        total: files.length,
+      },
+    });
   }
 
   private createSyncProgress(
@@ -1074,6 +1111,12 @@ export class MemoryIndexManager implements MemorySearchManager {
       meta.chunkOverlap !== this.settings.chunking.overlap ||
       (vectorReady && !meta?.vectorDims);
 
+    this.opsLog?.log({
+      action: "sync.start",
+      status: "success",
+      detail: { reason: params?.reason, force: params?.force, needsFullReindex },
+    });
+
     memLog.trace("runSync: decision", {
       reason: params?.reason,
       force: params?.force,
@@ -1099,8 +1142,15 @@ export class MemoryIndexManager implements MemorySearchManager {
           force: params?.force,
           progress: progress ?? undefined,
         });
-        memLog.summary(`sync: full reindex completed in ${Date.now() - syncStart}ms`, {
-          elapsedMs: Date.now() - syncStart,
+        const reindexElapsed = Date.now() - syncStart;
+        memLog.summary(`sync: full reindex completed in ${reindexElapsed}ms`, {
+          elapsedMs: reindexElapsed,
+        });
+        this.opsLog?.log({
+          action: "sync.complete",
+          status: "success",
+          durationMs: reindexElapsed,
+          detail: { reason: params?.reason, fullReindex: true },
         });
         return;
       }
@@ -1132,6 +1182,16 @@ export class MemoryIndexManager implements MemorySearchManager {
         syncedMemory: shouldSyncMemory,
         syncedSessions: shouldSyncSessions,
         elapsedMs,
+      });
+      this.opsLog?.log({
+        action: "sync.complete",
+        status: "success",
+        durationMs: elapsedMs,
+        detail: {
+          reason: params?.reason,
+          syncedMemory: shouldSyncMemory,
+          syncedSessions: shouldSyncSessions,
+        },
       });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);

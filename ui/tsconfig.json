@@ -13,7 +13,8 @@
     "strict": true,
     "target": "ES2023",
     "types": ["vite/client"],
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "experimentalDecorators": true
   },
   "include": ["src/**/*", "*.config.ts"],
   "exclude": ["node_modules", "dist"]

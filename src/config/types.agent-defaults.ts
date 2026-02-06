@@ -117,6 +117,10 @@ export type UtilityModelConfig = {
   slugGenerator?: UtilityModelFeatureConfig;
   /** Per-feature override for session description generation. */
   sessionDescription?: UtilityModelFeatureConfig;
+  /** Per-feature override for memory feedback evaluation. */
+  memoryFeedback?: UtilityModelFeatureConfig;
+  /** Per-feature override for pre-compaction memory flush. */
+  memoryFlush?: UtilityModelFeatureConfig;
 };
 
 export type AgentDefaultsConfig = {
@@ -327,4 +331,6 @@ export type AgentCompactionMemoryFlushConfig = {
   prompt?: string;
   /** System prompt appended for the memory flush turn. */
   systemPrompt?: string;
+  /** Model override for the memory flush (provider/model or alias). Falls back to utility.memoryFlush.model → utilityModel → cheapest available. */
+  model?: string;
 };
