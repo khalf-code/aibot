@@ -15,7 +15,9 @@ services:
       - key: OPENCLAW_WORKSPACE_DIR
         value: /data/workspace
       - key: OPENCLAW_GATEWAY_TOKEN
-        generateValue: true
+        sync: false
+      - key: OPENCLAW_GATEWAY_TRUSTED_PROXIES
+        value: 10.0.0.0/8
     disk:
       name: openclaw-data
       mountPath: /data
