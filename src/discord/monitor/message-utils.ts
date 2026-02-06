@@ -98,7 +98,7 @@ export async function resolveMediaList(
   message: Message,
   maxBytes: number,
 ): Promise<DiscordMediaInfo[]> {
-  const attachments = message.attachments ?? [];
+  const attachments = resolveMessageAttachments(message) ?? [];
   if (attachments.length === 0) {
     return [];
   }
@@ -166,13 +166,28 @@ function buildDiscordAttachmentPlaceholder(attachments?: APIAttachment[]): strin
   return `${tag} (${count} ${suffix})`;
 }
 
+/**
+ * Resolves attachments from a Message, falling back to rawData if the Message
+ * is partial and the attachments getter returns undefined.
+ */
+function resolveMessageAttachments(message: Message): APIAttachment[] | undefined {
+  // First try the normal getter
+  const attachments = message.attachments;
+  if (attachments !== undefined) {
+    return attachments;
+  }
+  // Fallback to rawData for partial messages where the getter returns undefined
+  const rawData = (message as { rawData?: { attachments?: APIAttachment[] } }).rawData;
+  return rawData?.attachments;
+}
+
 export function resolveDiscordMessageText(
   message: Message,
   options?: { fallbackText?: string; includeForwarded?: boolean },
 ): string {
   const baseText =
     message.content?.trim() ||
-    buildDiscordAttachmentPlaceholder(message.attachments) ||
+    buildDiscordAttachmentPlaceholder(resolveMessageAttachments(message)) ||
     message.embeds?.[0]?.description ||
     options?.fallbackText?.trim() ||
     "";
