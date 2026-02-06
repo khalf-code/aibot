@@ -8,6 +8,7 @@ import {
   buildSendMessagesCommand,
   formatChatRef,
 } from "./simplex-commands.js";
+import { resolveSimplexCommandError } from "./simplex-errors.js";
 import { buildComposedMessages, resolveSimplexMediaMaxBytes } from "./simplex-media.js";
 import { isSimplexAllowlisted } from "./simplex-security.js";
 import { SimplexWsClient, type SimplexWsEvent } from "./simplex-ws-client.js";
@@ -235,8 +236,13 @@ async function sendSimplexPayload(params: {
   const response = await params.client.sendCommand(cmd);
   const resp = response.resp as {
     type?: string;
+    chatError?: { errorType?: { type?: string; message?: string } };
     chatItems?: Array<{ chatItem?: { meta?: { itemId?: number } } }>;
   };
+  const commandError = resolveSimplexCommandError(resp);
+  if (commandError) {
+    throw new Error(commandError);
+  }
   if (resp?.type === "newChatItems") {
     const itemId = resp.chatItems?.[0]?.chatItem?.meta?.itemId;
     return { messageId: typeof itemId === "number" ? itemId : undefined };

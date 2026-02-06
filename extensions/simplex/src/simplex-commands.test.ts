@@ -35,7 +35,7 @@ describe("simplex commands", () => {
     ).toBe("/freceive 7 '/tmp/My File\\'s Name.png'");
   });
 
-  it("quotes JSON payload in send command", () => {
+  it("emits raw JSON payload in send command", () => {
     expect(
       buildSendMessagesCommand({
         chatRef: "@123",
@@ -48,16 +48,16 @@ describe("simplex commands", () => {
           },
         ],
       }),
-    ).toBe('/_send @123 json \'[{"msgContent":{"type":"text","text":"hello world"}}]\'');
+    ).toBe('/_send @123 json [{"msgContent":{"type":"text","text":"hello world"}}]');
   });
 
-  it("quotes JSON payload in update group profile command", () => {
+  it("emits raw JSON payload in update group profile command", () => {
     expect(
       buildUpdateGroupProfileCommand({
         groupId: "my-group",
         profile: { displayName: "Team Room" },
       }),
-    ).toBe('/_group_profile #my-group \'{"displayName":"Team Room"}\'');
+    ).toBe('/_group_profile #my-group {"displayName":"Team Room"}');
   });
 
   it("rejects unsupported local/scoped chat refs", () => {

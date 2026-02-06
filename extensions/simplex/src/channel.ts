@@ -26,6 +26,7 @@ import {
   resolveSimplexSelf,
   resolveSimplexTargets,
 } from "./simplex-directory.js";
+import { resolveSimplexCommandError } from "./simplex-errors.js";
 import { buildComposedMessages } from "./simplex-media.js";
 import { startSimplexMonitor } from "./simplex-monitor.js";
 import { formatSimplexAllowFrom, resolveSimplexAllowFrom } from "./simplex-security.js";
@@ -196,7 +197,15 @@ async function sendComposedMessages(params: {
     chatRef: params.chatRef,
     composedMessages: params.composedMessages,
   });
-  await withSimplexClient(params.account, (client) => client.sendCommand(cmd));
+  const response = await withSimplexClient(params.account, (client) => client.sendCommand(cmd));
+  const resp = response.resp as {
+    type?: string;
+    chatError?: { errorType?: { type?: string; message?: string } };
+  };
+  const commandError = resolveSimplexCommandError(resp);
+  if (commandError) {
+    throw new Error(commandError);
+  }
 }
 
 function assertSimplexOutboundAccountReady(account: ResolvedSimplexAccount): void {

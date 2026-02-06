@@ -109,7 +109,7 @@ export function buildSendMessagesCommand(params: {
   const chatRef = normalizeChatRefToken(params.chatRef);
   const liveFlag = params.liveMessage ? " live=on" : "";
   const ttlFlag = typeof params.ttl === "number" ? ` ttl=${params.ttl}` : "";
-  const json = quoteCliArg(JSON.stringify(params.composedMessages));
+  const json = JSON.stringify(params.composedMessages);
   return `/_send ${chatRef}${liveFlag}${ttlFlag} json ${json}`;
 }
 
@@ -122,7 +122,7 @@ export function buildUpdateChatItemCommand(params: {
   const chatRef = normalizeChatRefToken(params.chatRef);
   const chatItemId = normalizeChatItemIdToken(params.chatItemId);
   const liveFlag = params.liveMessage ? " live=on" : "";
-  const json = quoteCliArg(JSON.stringify(params.updatedMessage));
+  const json = JSON.stringify(params.updatedMessage);
   return `/_update item ${chatRef} ${chatItemId}${liveFlag} json ${json}`;
 }
 
@@ -146,7 +146,7 @@ export function buildReactionCommand(params: {
   const chatRef = normalizeChatRefToken(params.chatRef);
   const chatItemId = normalizeChatItemIdToken(params.chatItemId);
   const toggle = params.add ? "on" : "off";
-  const json = quoteCliArg(JSON.stringify(params.reaction));
+  const json = JSON.stringify(params.reaction);
   return `/_reaction ${chatRef} ${chatItemId} ${toggle} ${json}`;
 }
 
@@ -231,11 +231,11 @@ function formatSearchArg(search?: string | null): string {
 }
 
 export function buildListUsersCommand(): string {
-  return "/_users";
+  return "/users";
 }
 
 export function buildShowActiveUserCommand(): string {
-  return "/_user";
+  return "/user";
 }
 
 export function buildListContactsCommand(userId: number | string): string {
@@ -287,5 +287,5 @@ export function buildUpdateGroupProfileCommand(params: {
   groupId: number | string;
   profile: Record<string, unknown>;
 }): string {
-  return `/_group_profile ${normalizeGroupRef(params.groupId)} ${quoteCliArg(JSON.stringify(params.profile))}`;
+  return `/_group_profile ${normalizeGroupRef(params.groupId)} ${JSON.stringify(params.profile)}`;
 }
