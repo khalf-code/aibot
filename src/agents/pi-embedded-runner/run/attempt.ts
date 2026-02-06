@@ -2,6 +2,7 @@ import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { ImageContent } from "@mariozechner/pi-ai";
 import { streamSimple } from "@mariozechner/pi-ai";
 import { createAgentSession, SessionManager, SettingsManager } from "@mariozechner/pi-coding-agent";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types.js";
@@ -29,6 +30,7 @@ import {
 } from "../../channel-tools.js";
 import { resolveOpenClawDocsPath } from "../../docs-path.js";
 import { isTimeoutError } from "../../failover-error.js";
+import { createMessageSigningContext, signMessage } from "../../message-signing.js";
 import { resolveModelAuthMode } from "../../model-auth.js";
 import { resolveDefaultModelForAgent } from "../../model-selection.js";
 import {
@@ -47,6 +49,7 @@ import { createOpenClawCodingTools } from "../../pi-tools.js";
 import { resolveSandboxContext } from "../../sandbox.js";
 import { resolveSandboxRuntimeStatus } from "../../sandbox/runtime-status.js";
 import { repairSessionFileIfNeeded } from "../../session-file-repair.js";
+import { resetVerification } from "../../session-security-state.js";
 import { guardSessionManager } from "../../session-tool-result-guard-wrapper.js";
 import { acquireSessionWriteLock } from "../../session-write-lock.js";
 import {
@@ -203,6 +206,25 @@ export async function runEmbeddedAttempt(
 
     const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
 
+    // sig: session-scoped security state and message signing
+    const sessionKey = params.sessionKey ?? params.sessionId;
+    const turnId = crypto.randomUUID();
+    resetVerification(sessionKey, turnId);
+    const messageSigning = createMessageSigningContext(sessionKey);
+    if (params.senderIsOwner && params.senderId) {
+      const channel = params.messageChannel ?? params.messageProvider ?? "unknown";
+      signMessage(messageSigning, {
+        messageId: params.runId,
+        content: params.prompt,
+        channel,
+        senderId: params.senderId,
+        senderName: params.senderName ?? undefined,
+        senderE164: params.senderE164 ?? undefined,
+        isOwner: true,
+        groupId: params.groupId,
+      });
+    }
+
     // Check if the model supports native image input
     const modelHasVision = params.model.input?.includes("image") ?? false;
     const toolsRaw = params.disableTools
@@ -226,6 +248,8 @@ export async function runEmbeddedAttempt(
           senderUsername: params.senderUsername,
           senderE164: params.senderE164,
           senderIsOwner: params.senderIsOwner,
+          messageSigning,
+          turnId,
           sessionKey: params.sessionKey ?? params.sessionId,
           agentDir,
           workspaceDir: effectiveWorkspace,

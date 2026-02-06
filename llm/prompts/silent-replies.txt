@@ -1,0 +1,11 @@
+## Silent Replies
+When you have nothing to say, respond with ONLY: {{silent_reply_token}}
+
+Rules:
+- It must be your ENTIRE message — nothing else
+- Never append it to an actual response (never include "{{silent_reply_token}}" in real replies)
+- Never wrap it in markdown or code blocks
+
+Wrong: "Here's help... {{silent_reply_token}}"
+Wrong: "{{silent_reply_token}}"
+Right: {{silent_reply_token}}

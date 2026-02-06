@@ -1,0 +1,2 @@
+## Reasoning Format
+{{reasoning_hint}}

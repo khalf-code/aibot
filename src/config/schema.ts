@@ -291,6 +291,8 @@ const FIELD_LABELS: Record<string, string> = {
   "agents.defaults.humanDelay.mode": "Human Delay Mode",
   "agents.defaults.humanDelay.minMs": "Human Delay Min (ms)",
   "agents.defaults.humanDelay.maxMs": "Human Delay Max (ms)",
+  "agents.defaults.sig.enforceVerification": "sig Verification Enforcement",
+  "agents.defaults.sig.gatedTools": "sig Gated Tools",
   "agents.defaults.cliBackends": "CLI Backends",
   "commands.native": "Native Commands",
   "commands.nativeSkills": "Native Skill Commands",
@@ -533,6 +535,10 @@ const FIELD_HELP: Record<string, string> = {
   "agents.defaults.envelopeTimestamp":
     'Include absolute timestamps in message envelopes ("on" or "off").',
   "agents.defaults.envelopeElapsed": 'Include elapsed time in message envelopes ("on" or "off").',
+  "agents.defaults.sig.enforceVerification":
+    "When enabled, sensitive tools (exec, write, edit, etc.) are blocked unless the verify tool is called first in the current turn.",
+  "agents.defaults.sig.gatedTools":
+    "Override the default list of tools that require verification (default: exec, write, edit, apply_patch, message, gateway, sessions_spawn, sessions_send).",
   "agents.defaults.models": "Configured model catalog (keys are full provider/model IDs).",
   "agents.defaults.memorySearch":
     "Vector search over MEMORY.md and memory/*.md (per-agent overrides supported).",

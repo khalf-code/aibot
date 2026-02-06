@@ -156,6 +156,13 @@ export const AgentDefaultsSchema = z
       })
       .strict()
       .optional(),
+    sig: z
+      .object({
+        enforceVerification: z.boolean().optional(),
+        gatedTools: z.array(z.string()).optional(),
+      })
+      .strict()
+      .optional(),
     sandbox: z
       .object({
         mode: z.union([z.literal("off"), z.literal("non-main"), z.literal("all")]).optional(),

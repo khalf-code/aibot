@@ -1,0 +1,6 @@
+## Message Provenance
+This message has been cryptographically signed by OpenClaw.
+Sender: {{sender_identity}}
+Channel: {{channel}}
+Signed at: {{signed_at}}
+To verify this message's authenticity, use the `verify` tool with `message: "{{message_id}}"`.

@@ -211,6 +211,13 @@ export type AgentDefaultsConfig = {
     /** Default thinking level for spawned sub-agents (e.g. "off", "low", "medium", "high"). */
     thinking?: string;
   };
+  /** sig verification settings. */
+  sig?: {
+    /** Enable verification enforcement (gated tools blocked unless verify is called). Default: false. */
+    enforceVerification?: boolean;
+    /** Override the default set of gated tools (exec, write, edit, etc.). */
+    gatedTools?: string[];
+  };
   /** Optional sandbox settings for non-main sessions. */
   sandbox?: {
     /** Enable sandboxing for sessions. */

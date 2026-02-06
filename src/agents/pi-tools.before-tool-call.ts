@@ -1,11 +1,16 @@
 import type { AnyAgentTool } from "./tools/common.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
+import { checkVerificationGate } from "./sig-verification-gate.js";
 import { normalizeToolName } from "./tool-policy.js";
 
 type HookContext = {
   agentId?: string;
   sessionKey?: string;
+  /** Current turn ID for sig verification gate. */
+  turnId?: string;
+  /** Config reference for sig verification gate. */
+  config?: import("../config/config.js").OpenClawConfig;
 };
 
 type HookOutcome = { blocked: true; reason: string } | { blocked: false; params: unknown };
@@ -22,6 +27,18 @@ export async function runBeforeToolCallHook(args: {
   toolCallId?: string;
   ctx?: HookContext;
 }): Promise<HookOutcome> {
+  // sig verification gate: deterministic check before plugin hooks.
+  // This runs first so injected text cannot bypass it.
+  const gateResult = checkVerificationGate(
+    args.toolName,
+    args.ctx?.sessionKey,
+    args.ctx?.turnId,
+    args.ctx?.config,
+  );
+  if (gateResult.blocked) {
+    return gateResult;
+  }
+
   const hookRunner = getGlobalHookRunner();
   if (!hookRunner?.hasHooks("before_tool_call")) {
     return { blocked: false, params: args.params };

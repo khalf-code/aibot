@@ -6,6 +6,7 @@ import {
   readTool,
 } from "@mariozechner/pi-coding-agent";
 import type { OpenClawConfig } from "../config/config.js";
+import type { MessageSigningContext } from "./message-signing.js";
 import type { ModelAuthMode } from "./model-auth.js";
 import type { AnyAgentTool } from "./pi-tools.types.js";
 import type { SandboxContext } from "./sandbox.js";
@@ -52,6 +53,7 @@ import {
   resolveToolProfilePolicy,
   stripPluginOnlyAllowlist,
 } from "./tool-policy.js";
+import { createSigVerifyTool } from "./tools/sig-verify-tool.js";
 
 function isOpenAIProvider(provider?: string) {
   const normalized = provider?.trim().toLowerCase();
@@ -164,6 +166,10 @@ export function createOpenClawCodingTools(options?: {
   disableMessageTool?: boolean;
   /** Whether the sender is an owner (required for owner-only tools). */
   senderIsOwner?: boolean;
+  /** Message signing context for sig verification. */
+  messageSigning?: MessageSigningContext;
+  /** Current turn ID for sig verification gate. */
+  turnId?: string;
 }): AnyAgentTool[] {
   const execToolName = "exec";
   const sandbox = options?.sandbox?.enabled ? options.sandbox : undefined;
@@ -360,6 +366,14 @@ export function createOpenClawCodingTools(options?: {
       requesterAgentIdOverride: agentId,
     }),
   ];
+  // sig: add verify tool for instruction/message verification
+  tools.push(
+    createSigVerifyTool({
+      messageSigning: options?.messageSigning,
+      sessionKey: options?.sessionKey,
+      turnId: options?.turnId,
+    }),
+  );
   // Security: treat unknown/undefined as unauthorized (opt-in, not opt-out)
   const senderIsOwner = options?.senderIsOwner === true;
   const toolsByAuthorization = applyOwnerOnlyToolPolicy(tools, senderIsOwner);
@@ -440,6 +454,8 @@ export function createOpenClawCodingTools(options?: {
     wrapToolWithBeforeToolCallHook(tool, {
       agentId,
       sessionKey: options?.sessionKey,
+      turnId: options?.turnId,
+      config: options?.config,
     }),
   );
   const withAbort = options?.abortSignal

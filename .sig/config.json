@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "templates": {
+    "engine": "jinja"
+  },
+  "sign": {
+    "identity": "openclaw"
+  }
+}
