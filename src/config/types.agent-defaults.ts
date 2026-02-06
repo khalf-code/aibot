@@ -1,3 +1,4 @@
+import type { RoutingConfig } from "../agents/smart-model-router/types.js";
 import type { ChannelId } from "../channels/plugins/types.js";
 import type {
   BlockStreamingChunkConfig,
@@ -241,6 +242,8 @@ export type AgentDefaultsConfig = {
     /** Auto-prune sandbox containers. */
     prune?: SandboxPruneSettings;
   };
+  /** Smart Model Router configuration for intelligent cost-optimized model selection. */
+  smartRouter?: Partial<RoutingConfig>;
 };
 
 export type AgentCompactionMode = "default" | "safeguard";

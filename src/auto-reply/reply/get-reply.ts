@@ -7,6 +7,10 @@ import {
   resolveAgentSkillsFilter,
 } from "../../agents/agent-scope.js";
 import { resolveModelRefFromString } from "../../agents/model-selection.js";
+import {
+  getClawdbotModelRouter,
+  buildRoutingContextFromMsgContext,
+} from "../../agents/smart-model-router/clawdbot-adapter.js";
 import { resolveAgentTimeoutMs } from "../../agents/timeout.js";
 import { DEFAULT_AGENT_WORKSPACE_DIR, ensureAgentWorkspace } from "../../agents/workspace.js";
 import { type OpenClawConfig, loadConfig } from "../../config/config.js";
@@ -76,21 +80,31 @@ export async function getReplyFromConfig(
     cfg,
     agentId,
   });
-  let provider = defaultProvider;
-  let model = defaultModel;
-  if (opts?.isHeartbeat) {
-    const heartbeatRaw = agentCfg?.heartbeat?.model?.trim() ?? "";
-    const heartbeatRef = heartbeatRaw
-      ? resolveModelRefFromString({
-          raw: heartbeatRaw,
-          defaultProvider,
-          aliasIndex,
-        })
-      : null;
-    if (heartbeatRef) {
-      provider = heartbeatRef.ref.provider;
-      model = heartbeatRef.ref.model;
-    }
+
+  // Smart Model Router - intelligent model selection for cost optimization
+  const smartRouterConfig = agentCfg?.smartRouter;
+  const smartRouter = getClawdbotModelRouter(smartRouterConfig);
+  const routingResult = smartRouter.routeRequest(
+    buildRoutingContextFromMsgContext({
+      Body: ctx.Body,
+      SessionKey: agentSessionKey,
+      agentId,
+      isHeartbeat: opts?.isHeartbeat,
+      ttsEnabled: ctx.TtsEnabled,
+      channel: ctx.Provider,
+      configuredModel: { provider: defaultProvider, model: defaultModel },
+      configuredProvider: defaultProvider,
+    }),
+  );
+
+  let provider = routingResult.provider;
+  let model = routingResult.model;
+
+  // If message was cleaned (e.g., @opus tag stripped), update context
+  if (routingResult.wasExplicitOverride && routingResult.cleanedMessage !== ctx.Body) {
+    ctx.Body = routingResult.cleanedMessage;
+    ctx.BodyForAgent = routingResult.cleanedMessage;
+    ctx.CommandBody = routingResult.cleanedMessage;
   }
 
   const workspaceDirRaw = resolveAgentWorkspaceDir(cfg, agentId) ?? DEFAULT_AGENT_WORKSPACE_DIR;
