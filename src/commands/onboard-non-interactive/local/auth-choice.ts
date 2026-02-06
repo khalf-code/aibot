@@ -22,6 +22,7 @@ import {
   applyVeniceConfig,
   applyVercelAiGatewayConfig,
   applyXiaomiConfig,
+  applyModelScopeConfig,
   applyZaiConfig,
   setAnthropicApiKey,
   setCloudflareAiGatewayConfig,
@@ -35,6 +36,7 @@ import {
   setVeniceApiKey,
   setVercelAiGatewayApiKey,
   setXiaomiApiKey,
+  setModelScopeApiKey,
   setZaiApiKey,
 } from "../../onboard-auth.js";
 import { resolveNonInteractiveApiKey } from "../api-keys.js";
@@ -215,6 +217,29 @@ export async function applyNonInteractiveAuthChoice(params: {
       mode: "api_key",
     });
     return applyXiaomiConfig(nextConfig);
+  }
+
+  if (authChoice === "modelscope-api-key") {
+    const resolved = await resolveNonInteractiveApiKey({
+      provider: "modelscope",
+      cfg: baseConfig,
+      flagValue: opts.modelscopeApiKey,
+      flagName: "--modelscope-api-key",
+      envVar: "MODELSCOPE_API_KEY",
+      runtime,
+    });
+    if (!resolved) {
+      return null;
+    }
+    if (resolved.source !== "profile") {
+      await setModelScopeApiKey(resolved.key);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "modelscope:default",
+      provider: "modelscope",
+      mode: "api_key",
+    });
+    return applyModelScopeConfig(nextConfig);
   }
 
   if (authChoice === "openai-api-key") {
