@@ -25,6 +25,7 @@ export const UNLOCK_SKIP_PATHS = [
   "/onboarding",
   "/health",
   "/debug",
+  "/landing",
 ] as const;
 
 /** Stale time for security state queries (30 seconds) */

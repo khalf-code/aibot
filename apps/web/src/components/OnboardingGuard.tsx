@@ -10,6 +10,7 @@ const SKIP_PATHS = [
   "/onboarding",
   "/health",
   "/debug",
+  "/landing",
 ] as const;
 
 interface OnboardingGuardProps {

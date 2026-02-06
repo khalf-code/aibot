@@ -14,11 +14,17 @@ export const Route = createRootRoute({
 });
 
 /** Paths where the AppShell should be hidden (fullscreen pages) */
-const FULLSCREEN_PATHS = ["/onboarding", "/unlock"] as const;
+const FULLSCREEN_PATHS = ["/onboarding", "/unlock", "/landing"] as const;
+
+/** Paths that bypass all guards (no Gateway, no onboarding, no unlock) */
+const PUBLIC_PATHS = ["/landing"] as const;
 
 function RootLayout() {
   const location = useLocation();
   const isFullscreen = FULLSCREEN_PATHS.some((path) =>
+    location.pathname.startsWith(path)
+  );
+  const isPublic = PUBLIC_PATHS.some((path) =>
     location.pathname.startsWith(path)
   );
 
@@ -30,26 +36,28 @@ function RootLayout() {
   const gatewayEnabled = !isDev || useLiveGateway;
 
   // Enable gateway stream handler to process streaming events
-  useGatewayStreamHandler({ enabled: gatewayEnabled });
-  useGatewayEventSync({ enabled: gatewayEnabled });
+  // Disable for public paths that don't need gateway
+  useGatewayStreamHandler({ enabled: gatewayEnabled && !isPublic });
+  useGatewayEventSync({ enabled: gatewayEnabled && !isPublic });
+
+  // Public paths bypass all guards entirely
+  const content = isFullscreen ? <Outlet /> : <AppShell><Outlet /></AppShell>;
 
   return (
     <ThemeProvider>
       <ShortcutsProvider>
         <ErrorBoundary>
-          <GatewayAuthGuard enabled={gatewayEnabled}>
-            <OnboardingGuard>
-              <UnlockGuard>
-                {isFullscreen ? (
-                  <Outlet />
-                ) : (
-                  <AppShell>
-                    <Outlet />
-                  </AppShell>
-                )}
-              </UnlockGuard>
-            </OnboardingGuard>
-          </GatewayAuthGuard>
+          {isPublic ? (
+            <Outlet />
+          ) : (
+            <GatewayAuthGuard enabled={gatewayEnabled}>
+              <OnboardingGuard>
+                <UnlockGuard>
+                  {content}
+                </UnlockGuard>
+              </OnboardingGuard>
+            </GatewayAuthGuard>
+          )}
         </ErrorBoundary>
         <Toaster
           position="bottom-right"
