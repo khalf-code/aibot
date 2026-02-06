@@ -220,7 +220,7 @@ export async function startSecretsProxy(opts: SecretsProxyOptions): Promise<http
         return;
       }
 
-      if (!isDomainAllowed(targetUrl, allowedDomains)) {
+      if (!isDomainAllowed(parsedUrl.toString(), allowedDomains)) {
         logger.warn(`Blocked request to unauthorized domain: ${parsedUrl.hostname}`);
         res.statusCode = 403;
         res.end(`Domain not in allowlist: ${parsedUrl.hostname}`);

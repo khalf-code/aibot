@@ -229,11 +229,13 @@ export async function prepareSanitizedMounts(opts?: {
   binds.push(`${cronDir}:/home/node/.openclaw/cron:rw`);
 
   // =========================================================================
-  // 7. CREDENTIALS DIRECTORY (read-only) - for pairing/allowFrom files
+  // 7. CREDENTIALS DIRECTORY (read-only) - for pairing files and LID mappings
   // =========================================================================
-  // Note: This contains pairing files (telegram-pairing.json, telegram-allowFrom.json)
-  // and OAuth tokens. OAuth tokens contain placeholders after sanitization,
-  // and the proxy handles token refresh on the host side.
+  // This contains:
+  // - telegram-pairing.json, telegram-allowFrom.json (channel pairing metadata, NOT secrets)
+  // - lid-mapping-*.json (WhatsApp LID-to-phone lookups, NOT secrets)
+  // - oauth.json (legacy, read-only migration source if present)
+  // OAuth tokens are stored in per-agent auth-profiles.json, NOT here.
   const credentialsDir = path.join(openclawDir, "credentials");
   if (fs.existsSync(credentialsDir)) {
     binds.push(`${credentialsDir}:/home/node/.openclaw/credentials:ro`);

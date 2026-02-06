@@ -234,9 +234,9 @@ export async function startGatewayContainer(opts: GatewayContainerOptions): Prom
   args.push(GATEWAY_IMAGE);
 
   // Run gateway with allow-unconfigured flag for secure mode
-  // Container must bind to 0.0.0.0 (--bind lan) for Docker port forwarding to work
-  // Security is enforced by host-side port binding to 127.0.0.1 (see -p flag above)
-  args.push("node", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan");
+  // Bind to loopback inside container - host port forwarding still works via Docker NAT
+  // This prevents other containers on the bridge network from directly accessing the gateway
+  args.push("node", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "loopback");
 
   logger.info(`Starting gateway container: ${GATEWAY_CONTAINER_NAME}`);
   await execDocker(args);
