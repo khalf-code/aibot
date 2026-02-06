@@ -45,11 +45,12 @@
 
         /* --- SVG state paths --- */
         .state-path {
-            fill: #e0f0ee;
+            fill: #eaeaea;
             stroke: #fff;
             stroke-width: 1.2;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                         filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        fill 0.3s ease,
                         stroke 0.3s ease;
             transform-box: fill-box;
             transform-origin: center center;
@@ -57,12 +58,13 @@
         }
 
         .state-path.featured {
-            fill: #2ebcb3;
+            fill: #eaeaea;
             cursor: pointer;
         }
 
         .state-path.featured:hover,
         .state-path.featured.active {
+            fill: #2ebcb3;
             transform: translateY(-6px);
             filter: drop-shadow(0 6px 10px rgba(46, 188, 179, 0.45));
             stroke: rgba(46, 188, 179, 0.6);
@@ -160,11 +162,10 @@
     <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 
     <script>
-        // States highlighted in teal on the map
+        // Only states with labels get hover effects
         const featuredStates = [
-            'California', 'Nevada', 'Arizona', 'Colorado', 'Wyoming',
-            'South Dakota', 'Nebraska', 'Kansas', 'Illinois', 'Ohio',
-            'Virginia', 'North Carolina', 'South Carolina', 'Georgia', 'Louisiana'
+            'Georgia', 'North Carolina', 'South Carolina', 'Virginia',
+            'Ohio', 'Nevada', 'Arizona', 'Colorado', 'South Dakota', 'Wyoming'
         ];
 
         // States shown as clickable chips beneath the map
