@@ -38,4 +38,8 @@ describe("classifyFailoverReason", () => {
       "rate_limit",
     );
   });
+  it("classifies unknown model errors as auth", () => {
+    expect(classifyFailoverReason("Unknown model: anthropic/claude-opus-4-6")).toBe("auth");
+    expect(classifyFailoverReason("Model not found: groq/llama-4")).toBe("auth");
+  });
 });
