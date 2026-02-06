@@ -247,6 +247,30 @@ function broadcastChatError(params: {
   params.context.nodeSendToSession(params.sessionKey, "chat", payload);
 }
 
+function summarizeChatErrorForUser(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const msg = raw.trim();
+  const lower = msg.toLowerCase();
+
+  if (lower.includes("429") || lower.includes("rate_limit")) {
+    return "Model is rate limited (HTTP 429). Try again in 1-2 minutes, or reduce message size / thinking.";
+  }
+  if (
+    lower.includes("401") ||
+    lower.includes("unauthorized") ||
+    lower.includes("invalid_api_key")
+  ) {
+    return "Model credentials are missing or invalid. Check your API key environment variables.";
+  }
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return "Model request timed out. Try again.";
+  }
+  if (!msg) {
+    return "Request failed unexpectedly. Check setup logs for details.";
+  }
+  return "Request failed. Check setup logs for details.";
+}
+
 export const chatHandlers: GatewayRequestHandlers = {
   "chat.history": async ({ params, respond, context }) => {
     if (!validateChatHistoryParams(params)) {
@@ -637,15 +661,15 @@ export const chatHandlers: GatewayRequestHandlers = {
             }
           }
 
-          // Preserve existing behavior for non-agent flows; for agent flows, only broadcast if we had to backstop.
-          if (!agentRunStarted || (shouldBackstopTranscript && (didAppendTranscript || message))) {
-            broadcastChatFinal({
-              context,
-              runId: clientRunId,
-              sessionKey: p.sessionKey,
-              message,
-            });
-          }
+          // Always broadcast a final event so the Control UI can stop its streaming placeholder and refresh history.
+          // For agent runs, we typically omit the message payload to avoid duplicates (history comes from transcript).
+          broadcastChatFinal({
+            context,
+            runId: clientRunId,
+            sessionKey: p.sessionKey,
+            message:
+              shouldBackstopTranscript && (didAppendTranscript || message) ? message : undefined,
+          });
           context.dedupe.set(`chat:${clientRunId}`, {
             ts: Date.now(),
             ok: true,
@@ -653,6 +677,32 @@ export const chatHandlers: GatewayRequestHandlers = {
           });
         })
         .catch((err) => {
+          const friendly = summarizeChatErrorForUser(err);
+          let injected: Record<string, unknown> | undefined;
+          try {
+            const { storePath: latestStorePath, entry: latestEntry } = loadSessionEntry(
+              p.sessionKey,
+            );
+            const sessionId = latestEntry?.sessionId ?? entry?.sessionId ?? clientRunId;
+            const sessionFile = latestEntry?.sessionFile;
+            if (sessionId && latestStorePath) {
+              const appended = appendAssistantTranscriptMessage({
+                message: `Error: ${friendly}`,
+                sessionId,
+                storePath: latestStorePath,
+                sessionFile,
+                createIfMissing: true,
+              });
+              if (appended.ok) {
+                injected = appended.message;
+              }
+            }
+          } catch (appendErr) {
+            context.logGateway.warn(
+              `webchat transcript error append failed: ${formatForLog(appendErr)}`,
+            );
+          }
+
           const error = errorShape(ErrorCodes.UNAVAILABLE, String(err));
           context.dedupe.set(`chat:${clientRunId}`, {
             ts: Date.now(),
@@ -660,7 +710,7 @@ export const chatHandlers: GatewayRequestHandlers = {
             payload: {
               runId: clientRunId,
               status: "error" as const,
-              summary: String(err),
+              summary: friendly,
             },
             error,
           });
@@ -668,7 +718,15 @@ export const chatHandlers: GatewayRequestHandlers = {
             context,
             runId: clientRunId,
             sessionKey: p.sessionKey,
-            errorMessage: String(err),
+            errorMessage: friendly,
+          });
+
+          // Also broadcast final so the UI refreshes chat history and shows the injected error message.
+          broadcastChatFinal({
+            context,
+            runId: clientRunId,
+            sessionKey: p.sessionKey,
+            message: injected,
           });
         })
         .finally(() => {
