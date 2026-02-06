@@ -505,7 +505,6 @@ export async function runAgentTurnWithFallback(params: {
       break;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      const isContextOverflow = isLikelyContextOverflowError(message);
       const isCompactionFailure = isCompactionFailureError(message);
       const isSessionCorruption = /function call turn comes immediately after/i.test(message);
       const isRoleOrderingError = /incorrect role information|roles must alternate/i.test(message);
@@ -615,7 +614,7 @@ export async function runAgentTurnWithFallback(params: {
         fallbackText = `⚠️ ${BILLING_ERROR_USER_MESSAGE}`;
       } else if (isAuthErrorMessage(message)) {
         fallbackText = "⚠️ Authentication failed. Check your API key or credentials and try again.";
-      } else if (isContextOverflow) {
+      } else if (isLikelyContextOverflowError(message)) {
         fallbackText =
           "⚠️ Context overflow — prompt too large for this model. Try a shorter message or a larger-context model.";
       } else if (isRoleOrderingError) {
