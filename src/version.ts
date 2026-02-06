@@ -5,8 +5,21 @@ declare const __OPENCLAW_VERSION__: string | undefined;
 function readVersionFromPackageJson(): string | null {
   try {
     const require = createRequire(import.meta.url);
-    const pkg = require("../package.json") as { version?: string };
-    return pkg.version ?? null;
+    // Try multiple candidate paths to handle different build output directories
+    // - "../package.json" works from dist/ (main and entry builds)
+    // - "../../package.json" works from dist/plugin-sdk/ (plugin-sdk build)
+    const candidates = ["../package.json", "../../package.json"];
+    for (const candidate of candidates) {
+      try {
+        const pkg = require(candidate) as { version?: string };
+        if (pkg.version) {
+          return pkg.version;
+        }
+      } catch {
+        // ignore missing candidate
+      }
+    }
+    return null;
   } catch {
     return null;
   }
