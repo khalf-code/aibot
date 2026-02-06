@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   getCompactionSafeguardRuntime,
   setCompactionSafeguardRuntime,
@@ -209,6 +209,100 @@ describe("isOversizedForSummary", () => {
     const isOversized = isOversizedForSummary(msg, CONTEXT_WINDOW);
     // Due to token estimation, this could be either true or false at the boundary
     expect(typeof isOversized).toBe("boolean");
+  });
+});
+
+describe("compaction-safeguard extension cancels on failure (#10332)", () => {
+  // Capture the handler registered by the extension
+  async function captureHandler() {
+    let handler: ((event: unknown, ctx: unknown) => Promise<unknown>) | undefined;
+    const api = {
+      on(_event: string, h: (event: unknown, ctx: unknown) => Promise<unknown>) {
+        handler = h;
+      },
+    };
+    const mod = await import("./compaction-safeguard.js");
+    const register = mod.default;
+    register(api as never);
+    if (!handler) {
+      throw new Error("Extension did not register a session_before_compact handler");
+    }
+    return handler;
+  }
+
+  const minimalPreparation = {
+    firstKeptEntryId: "entry-1",
+    tokensBefore: 100_000,
+    messagesToSummarize: [] as AgentMessage[],
+    turnPrefixMessages: [] as AgentMessage[],
+    isSplitTurn: false,
+    previousSummary: undefined,
+    fileOps: { read: new Set<string>(), edited: new Set<string>(), written: new Set<string>() },
+    settings: { enabled: true, reserveTokens: 16384, keepRecentTokens: 20000 },
+  };
+
+  const minimalEvent = {
+    type: "session_before_compact" as const,
+    preparation: minimalPreparation,
+    branchEntries: [],
+    customInstructions: undefined,
+    signal: new AbortController().signal,
+  };
+
+  it("cancels compaction when model is unavailable", async () => {
+    const handler = await captureHandler();
+    const ctx = {
+      model: undefined,
+      modelRegistry: { getApiKey: async () => "key" },
+      sessionManager: {},
+    };
+    const result = (await handler(minimalEvent, ctx)) as { cancel?: boolean; compaction?: unknown };
+    expect(result.cancel).toBe(true);
+    expect(result.compaction).toBeUndefined();
+  });
+
+  it("cancels compaction when API key is unavailable", async () => {
+    const handler = await captureHandler();
+    const ctx = {
+      model: { provider: "test", id: "test-model" },
+      modelRegistry: { getApiKey: async () => undefined },
+      sessionManager: {},
+    };
+    const result = (await handler(minimalEvent, ctx)) as { cancel?: boolean; compaction?: unknown };
+    expect(result.cancel).toBe(true);
+    expect(result.compaction).toBeUndefined();
+  });
+
+  it("cancels compaction when summarization throws", async () => {
+    // Mock summarizeInStages to throw, simulating API/model failure
+    const compactionMod = await import("../compaction.js");
+    const originalFn = compactionMod.summarizeInStages;
+    vi.spyOn(compactionMod, "summarizeInStages").mockRejectedValue(
+      new Error("API connection failed"),
+    );
+
+    try {
+      const handler = await captureHandler();
+      const ctx = {
+        model: { provider: "test", id: "test-model", contextWindow: 128_000 },
+        modelRegistry: { getApiKey: async () => "valid-key" },
+        sessionManager: {},
+      };
+      const event = {
+        ...minimalEvent,
+        preparation: {
+          ...minimalPreparation,
+          messagesToSummarize: [
+            { role: "user", content: "hello", timestamp: Date.now() },
+          ] as AgentMessage[],
+        },
+      };
+      const result = (await handler(event, ctx)) as { cancel?: boolean; compaction?: unknown };
+      expect(result.cancel).toBe(true);
+      expect(result.compaction).toBeUndefined();
+    } finally {
+      vi.mocked(compactionMod.summarizeInStages).mockImplementation(originalFn);
+    }
   });
 });
 
