@@ -51,7 +51,8 @@ function resolveRunner() {
 }
 
 function run(cmd, args) {
-  const child = spawn(cmd, args, {
+  const shellCmd = process.platform === "win32" ? `"${cmd}"` : cmd;
+  const child = spawn(shellCmd, args, {
     cwd: uiDir,
     stdio: "inherit",
     env: process.env,
@@ -66,7 +67,8 @@ function run(cmd, args) {
 }
 
 function runSync(cmd, args, envOverride) {
-  const result = spawnSync(cmd, args, {
+  const shellCmd = process.platform === "win32" ? `"${cmd}"` : cmd;
+  const result = spawnSync(shellCmd, args, {
     cwd: uiDir,
     stdio: "inherit",
     env: envOverride ?? process.env,
