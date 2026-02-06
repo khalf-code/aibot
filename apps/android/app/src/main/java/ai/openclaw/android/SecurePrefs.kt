@@ -77,6 +77,12 @@ class SecurePrefs(context: Context) {
     )
   val lastDiscoveredStableId: StateFlow<String> = _lastDiscoveredStableId
 
+  private val _gatewayToken = MutableStateFlow(loadGatewayTokenRaw())
+  val gatewayToken: StateFlow<String> = _gatewayToken
+
+  private val _gatewayPassword = MutableStateFlow(loadGatewayPasswordRaw())
+  val gatewayPassword: StateFlow<String> = _gatewayPassword
+
   private val _canvasDebugStatusEnabled =
     MutableStateFlow(prefs.getBoolean("canvas.debugStatusEnabled", false))
   val canvasDebugStatusEnabled: StateFlow<Boolean> = _canvasDebugStatusEnabled
@@ -156,7 +162,9 @@ class SecurePrefs(context: Context) {
 
   fun saveGatewayToken(token: String) {
     val key = "gateway.token.${_instanceId.value}"
-    prefs.edit { putString(key, token.trim()) }
+    val trimmed = token.trim()
+    prefs.edit { putString(key, trimmed) }
+    _gatewayToken.value = trimmed
   }
 
   fun loadGatewayPassword(): String? {
@@ -167,7 +175,19 @@ class SecurePrefs(context: Context) {
 
   fun saveGatewayPassword(password: String) {
     val key = "gateway.password.${_instanceId.value}"
-    prefs.edit { putString(key, password.trim()) }
+    val trimmed = password.trim()
+    prefs.edit { putString(key, trimmed) }
+    _gatewayPassword.value = trimmed
+  }
+
+  private fun loadGatewayTokenRaw(): String {
+    val key = "gateway.token.${_instanceId.value}"
+    return prefs.getString(key, null)?.trim().orEmpty()
+  }
+
+  private fun loadGatewayPasswordRaw(): String {
+    val key = "gateway.password.${_instanceId.value}"
+    return prefs.getString(key, null)?.trim().orEmpty()
   }
 
   fun loadGatewayTlsFingerprint(stableId: String): String? {
