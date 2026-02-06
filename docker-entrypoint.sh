@@ -77,6 +77,32 @@ if [ ! -e "/app/node_modules/openclaw" ]; then
     ln -s .. /app/node_modules/openclaw 2>/dev/null || true
 fi
 
+# If we intend to drop privileges to the `node` user, ensure the selected state dir is actually
+# writable by that user. Some volume mounts don't allow chown; in that case, fall back to /tmp
+# so the gateway can start and pass health checks.
+if [ "$(id -u)" -eq 0 ] && command -v su >/dev/null 2>&1; then
+    chown -R node:node "$OPENCLAW_DATA_DIR" /app 2>/dev/null || true
+    if ! su -p -s /bin/sh node -c "test -w \"$OPENCLAW_STATE_DIR\""; then
+        echo "[entrypoint] State dir not writable for node; falling back to /tmp"
+        OPENCLAW_DATA_DIR="/tmp/openclaw"
+        OPENCLAW_STATE_DIR="$OPENCLAW_DATA_DIR/.openclaw"
+        OPENCLAW_WORKSPACE_DIR="$OPENCLAW_DATA_DIR/workspace"
+        OPENCLAW_CONFIG_PATH="$OPENCLAW_STATE_DIR/openclaw.json"
+        export OPENCLAW_DATA_DIR
+        export OPENCLAW_STATE_DIR
+        export OPENCLAW_WORKSPACE_DIR
+        export OPENCLAW_CONFIG_PATH
+        export CLAWDBOT_STATE_DIR="$OPENCLAW_STATE_DIR"
+        export MOLTBOT_STATE_DIR="$OPENCLAW_STATE_DIR"
+        export HOME="$OPENCLAW_DATA_DIR"
+        mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_WORKSPACE_DIR" 2>/dev/null || true
+        chown -R node:node "$OPENCLAW_DATA_DIR" /app 2>/dev/null || true
+        echo "[entrypoint] State dir: $OPENCLAW_STATE_DIR"
+        echo "[entrypoint] Config path: $OPENCLAW_CONFIG_PATH"
+        echo "[entrypoint] Workspace: $OPENCLAW_WORKSPACE_DIR"
+    fi
+fi
+
 # Decode persisted Google login state if provided (used by Playwright/Gmail).
 GOOGLE_STATE_PATH="$OPENCLAW_STATE_DIR/google-state.json"
 if [ -n "${GOOGLE_STATE_B64:-}" ]; then
