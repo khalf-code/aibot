@@ -28,6 +28,9 @@
   ],
   "type": "module",
   "main": "index.js",
+  "devDependencies": {
+    "openclaw": "workspace:*"
+  },
   "peerDependencies": {
     "openclaw": "*"
   },

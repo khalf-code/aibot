@@ -523,10 +523,7 @@ importers:
         version: link:../..
 
   extensions/wecom:
-    dependencies:
-      fast-xml-parser:
-        specifier: 5.3.4
-        version: 5.3.4
+    devDependencies:
       openclaw:
         specifier: workspace:*
         version: link:../..
