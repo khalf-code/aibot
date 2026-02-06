@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import type { AnyAgentTool } from "../../../src/agents/tools/common.js";
+import { readNumberParam, readStringParam, type AnyAgentTool } from "../../../src/agents/tools/common.js";
 import type { ZhipuEngine, ZhipuContentSize, PluginLogger } from "./types.js";
 import { wrapExternal, jsonResult } from "./types.js";
 import { mcpSearch, formatMcpResults } from "./zhipu-mcp.js";
@@ -121,8 +121,13 @@ export function createZhipuWebSearchTool(options: ZhipuSearchToolOptions): AnyAg
     parameters: WebSearchSchema,
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
-      const query = typeof params.query === "string" ? params.query.trim() : "";
-      if (!query) {
+      let query: string;
+      try {
+        query = readStringParam(params, "query", { required: true }).trim();
+        if (!query) {
+          return jsonResult({ error: "missing_query", message: "query parameter is required." });
+        }
+      } catch {
         return jsonResult({ error: "missing_query", message: "query parameter is required." });
       }
 
@@ -177,7 +182,7 @@ async function executeApiSearch(ctx: {
   const { params, query, apiKey, engine, contentSize, logger } = ctx;
 
   const count = Math.min(
-    Math.max(typeof params.count === "number" ? Math.trunc(params.count) : DEFAULT_COUNT, 1),
+    Math.max(readNumberParam(params, "count", { integer: true }) ?? DEFAULT_COUNT, 1),
     MAX_COUNT,
   );
 
