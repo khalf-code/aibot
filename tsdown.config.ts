@@ -18,7 +18,7 @@ export default defineConfig([
     platform: "node",
   },
   {
-    entry: "src/plugin-sdk/index.ts",
+    entry: "src/plugin-sdk.ts",
     env,
     fixedExtension: false,
     platform: "node",

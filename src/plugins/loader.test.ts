@@ -232,6 +232,70 @@ describe("loadOpenClawPlugins", () => {
     expect(Object.keys(registry.gatewayHandlers)).toContain("allowed.ping");
   });
 
+  it("resolves openclaw/plugin-sdk in production mode", { timeout: 60_000 }, () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    const prevVitest = process.env.VITEST;
+    const distDir = path.join(process.cwd(), "dist");
+    const sdkPath = path.join(distDir, "plugin-sdk.js");
+    const prevSdk =
+      fs.existsSync(sdkPath) && fs.statSync(sdkPath).isFile()
+        ? fs.readFileSync(sdkPath, "utf-8")
+        : null;
+    try {
+      process.env.NODE_ENV = "production";
+      delete process.env.VITEST;
+
+      fs.mkdirSync(distDir, { recursive: true });
+      fs.writeFileSync(
+        sdkPath,
+        `export const emptyPluginConfigSchema = { type: "object", additionalProperties: false, properties: {} };`,
+        "utf-8",
+      );
+
+      process.env.OPENCLAW_BUNDLED_PLUGINS_DIR = "/nonexistent/bundled/plugins";
+      const plugin = writePlugin({
+        id: "sdk-user",
+        body: `import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
+void emptyPluginConfigSchema;
+export default { id: "sdk-user", register() {} };`,
+      });
+
+      const registry = loadOpenClawPlugins({
+        cache: false,
+        workspaceDir: plugin.dir,
+        config: {
+          plugins: {
+            load: { paths: [plugin.file] },
+            allow: ["sdk-user"],
+          },
+        },
+      });
+
+      const loaded = registry.plugins.find((entry) => entry.id === "sdk-user");
+      expect(loaded?.status).toBe("loaded");
+    } finally {
+      try {
+        if (prevSdk === null) {
+          fs.rmSync(sdkPath, { force: true });
+        } else {
+          fs.writeFileSync(sdkPath, prevSdk, "utf-8");
+        }
+      } catch {
+        // ignore
+      }
+      if (prevNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = prevNodeEnv;
+      }
+      if (prevVitest === undefined) {
+        delete process.env.VITEST;
+      } else {
+        process.env.VITEST = prevVitest;
+      }
+    }
+  });
+
   it("denylist disables plugins even if allowed", () => {
     process.env.OPENCLAW_BUNDLED_PLUGINS_DIR = "/nonexistent/bundled/plugins";
     const plugin = writePlugin({
