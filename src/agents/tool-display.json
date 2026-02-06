@@ -129,7 +129,7 @@
         "hover": { "label": "hover", "detailKeys": ["x", "y", "durationMs", "steps", "stepDelayMs", "jitterPx"] },
         "find": { "label": "find", "detailKeys": ["text", "match", "controlType", "maxResults"] },
         "click_text": { "label": "click text", "detailKeys": ["text", "match", "controlType", "resultIndex", "steps", "stepDelayMs", "jitterPx"] },
-        "focus_text": { "label": "focus text", "detailKeys": ["text", "match", "controlType", "resultIndex", "focusMode", "steps", "stepDelayMs", "jitterPx"] },
+        "click_text_uia": { "label": "click text (uia)", "detailKeys": ["text", "match", "controlType", "resultIndex", "invokeFallback"] },
         "focus_text": { "label": "focus text", "detailKeys": ["text", "match", "controlType", "resultIndex", "focusMode", "steps", "stepDelayMs", "jitterPx"] },
         "set_value_text": { "label": "set value", "detailKeys": ["text", "value", "match", "controlType", "resultIndex"] },
         "move": { "label": "move", "detailKeys": ["x", "y", "steps", "stepDelayMs", "jitterPx"] },
