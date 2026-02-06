@@ -22,7 +22,10 @@ function createMockReq(body: string): MockReq {
   req.method = "POST";
   req.url = "/hook";
   req.headers = { "x-bot-api-secret-token": "secret" };
-  queueMicrotask(() => req.end(Buffer.from(body, "utf8")));
+  queueMicrotask(() => {
+    req.write(Buffer.from(body, "utf8"));
+    req.end();
+  });
   return req;
 }
 

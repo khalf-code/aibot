@@ -12,7 +12,7 @@ export async function canBindLoopback(): Promise<boolean> {
           server.listen(0, "127.0.0.1", () => {
             const address = server.address() as AddressInfo | null;
             if (!address) {
-              server.close(() => resolve());
+              server.close(() => reject(new Error("loopback bind returned null address")));
               return;
             }
             server.close((err) => (err ? reject(err) : resolve()));
