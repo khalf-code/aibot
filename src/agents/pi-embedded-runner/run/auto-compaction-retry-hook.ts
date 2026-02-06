@@ -9,6 +9,7 @@ export type AutoCompactionRetryHookContextLike = {
     systemPromptTokens: number;
     totalTokens: number;
     tokenBudget: number;
+    overheadTokensEstimate?: number;
     overBy: number;
   };
 };
@@ -23,7 +24,7 @@ export function createAutoCompactionRetryHook(params: {
   logger: LoggerLike;
   logPrefix: string;
 }): (ctx: AutoCompactionRetryHookContextLike) => AutoCompactionRetryHookResult {
-  const SAFETY_MARGIN_TOKENS = 512;
+  const DEFAULT_OVERHEAD_TOKENS_ESTIMATE = 512;
 
   let cachedRetryPrompt: { text: string; tokens: number } | null = null;
   const getRetryPrompt = () => {
@@ -43,7 +44,11 @@ export function createAutoCompactionRetryHook(params: {
     "Try a larger-context model or reduce injected workspace files.";
 
   return (ctx) => {
-    const safeBudget = Math.max(0, ctx.estimates.tokenBudget - SAFETY_MARGIN_TOKENS);
+    const overheadTokensEstimate =
+      typeof ctx.estimates.overheadTokensEstimate === "number"
+        ? ctx.estimates.overheadTokensEstimate
+        : DEFAULT_OVERHEAD_TOKENS_ESTIMATE;
+    const safeBudget = Math.max(0, ctx.estimates.tokenBudget - overheadTokensEstimate);
 
     // Fits already: keep the full system prompt.
     if (ctx.estimates.totalTokens <= safeBudget) {
