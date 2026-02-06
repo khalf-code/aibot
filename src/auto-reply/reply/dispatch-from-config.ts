@@ -263,7 +263,9 @@ export async function dispatchReplyFromConfig(params: {
       let abortSessionEntry;
       try {
         const store = loadSessionStore(abortStorePath);
-        abortSessionEntry = abortSessionKey ? store[abortSessionKey] : undefined;
+        abortSessionEntry = abortSessionKey
+          ? (store[abortSessionKey.toLowerCase()] ?? store[abortSessionKey])
+          : undefined;
       } catch {
         // Best-effort: if store load fails, fall through without an entry.
       }
