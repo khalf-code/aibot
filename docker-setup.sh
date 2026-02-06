@@ -171,6 +171,7 @@ upsert_env() {
     done
     if [[ "$key_seen" == false ]]; then
       printf '%s=%s\n' "$k" "${!k-}" >>"$tmp"
+      seen_keys+=("$k")
     fi
   done
 
