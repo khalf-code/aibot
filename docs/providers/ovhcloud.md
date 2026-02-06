@@ -4,6 +4,7 @@ read_when:
   - You want OVHcloud AI Endpoints models in Clawdbot
   - You need OVHcloud setup guidance
 ---
+
 # OVHcloud AI Endpoints
 
 OVHcloud is the leading cloud provider in Europe and provides AI Endpoints: inference APIs for a selection of open-source models, such as Llama, Qwen, GPT OSS, and more. All inferences run in Europe, offering GDPR compliance, sovereignty, and data privacy. Your prompt and the LLM response are neither used nor saved.
@@ -39,9 +40,9 @@ export OVHCLOUD_API_KEY="your-api-key-here"
 {
   agents: {
     defaults: {
-      model: { primary: "ovhcloud/gpt-oss-120b" }
-    }
-  }
+      model: { primary: "ovhcloud/gpt-oss-120b" },
+    },
+  },
 }
 ```
 
@@ -66,6 +67,7 @@ This usually means the **OVHcloud provider isn't configured** (no provider entry
 Make sure the model id is **case-sensitive**: `ovhcloud/gpt-oss-120b`.
 
 Then recheck with:
+
 ```bash
 clawdbot models list
 ```
