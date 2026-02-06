@@ -7,16 +7,15 @@ export type SimplexAllowlistEntry = {
   value: string;
 };
 
-const SIMPLEX_PREFIX_RE = /^simplex:/i;
-const SIMPLEX_GROUP_PREFIX_RE = /^(#|group:)/i;
-const SIMPLEX_SENDER_PREFIX_RE = /^(@|contact:|user:|member:)/i;
-
 function normalizeSimplexId(value: string): string {
   return value.trim().toLowerCase();
 }
 
 function stripSimplexPrefix(value: string): string {
-  return value.replace(SIMPLEX_PREFIX_RE, "").trim();
+  const trimmed = value.trim();
+  return trimmed.toLowerCase().startsWith("simplex:")
+    ? trimmed.slice("simplex:".length).trim()
+    : trimmed;
 }
 
 export function parseSimplexAllowlistEntry(raw: string | number): SimplexAllowlistEntry | null {
@@ -31,12 +30,25 @@ export function parseSimplexAllowlistEntry(raw: string | number): SimplexAllowli
   if (!entry) {
     return null;
   }
-  if (SIMPLEX_GROUP_PREFIX_RE.test(entry)) {
-    const value = entry.replace(SIMPLEX_GROUP_PREFIX_RE, "");
+  const lowered = entry.toLowerCase();
+  if (entry.startsWith("#")) {
+    const value = entry.slice(1);
     return { kind: "group", value: normalizeSimplexId(value) };
   }
-  if (SIMPLEX_SENDER_PREFIX_RE.test(entry)) {
-    const value = entry.replace(SIMPLEX_SENDER_PREFIX_RE, "");
+  if (lowered.startsWith("group:")) {
+    const value = entry.slice("group:".length);
+    return { kind: "group", value: normalizeSimplexId(value) };
+  }
+  if (entry.startsWith("@")) {
+    const value = entry.slice(1);
+    return { kind: "sender", value: normalizeSimplexId(value) };
+  }
+  if (
+    lowered.startsWith("contact:") ||
+    lowered.startsWith("user:") ||
+    lowered.startsWith("member:")
+  ) {
+    const value = entry.slice(entry.indexOf(":") + 1);
     return { kind: "sender", value: normalizeSimplexId(value) };
   }
   return { kind: "sender", value: normalizeSimplexId(entry) };

@@ -33,6 +33,18 @@ import { SimplexWsClient } from "./simplex-ws-client.js";
 
 const activeClients = new Map<string, SimplexWsClient>();
 
+function stripSimplexPrefix(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.toLowerCase().startsWith("simplex:")
+    ? trimmed.slice("simplex:".length).trim()
+    : trimmed;
+}
+
+function stripLeadingAt(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.startsWith("@") ? trimmed.slice(1).trim() : trimmed;
+}
+
 async function sleep(ms: number, abortSignal: AbortSignal): Promise<void> {
   if (abortSignal.aborted) {
     throw new Error("SimpleX connect aborted");
@@ -139,7 +151,13 @@ function normalizeSimplexContactRef(value: string): string {
   if (trimmed.startsWith("@")) {
     return trimmed;
   }
-  if (/^(contact|user|member|simplex):/i.test(trimmed)) {
+  const lowered = trimmed.toLowerCase();
+  if (
+    lowered.startsWith("contact:") ||
+    lowered.startsWith("user:") ||
+    lowered.startsWith("member:") ||
+    lowered.startsWith("simplex:")
+  ) {
     return `@${trimmed.slice(trimmed.indexOf(":") + 1).trim()}`;
   }
   return `@${trimmed}`;
@@ -204,7 +222,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
   onboarding: simplexOnboardingAdapter,
   pairing: {
     idLabel: "simplexContactId",
-    normalizeAllowEntry: (entry) => entry.replace(/^simplex:/i, "").replace(/^@/, ""),
+    normalizeAllowEntry: (entry) => stripLeadingAt(stripSimplexPrefix(entry)),
     notifyApproval: async ({ cfg, id }) => {
       const accountId = resolveDefaultSimplexAccountId(cfg);
       const account = resolveSimplexAccount({ cfg, accountId });
@@ -248,7 +266,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
     formatAllowFrom: ({ allowFrom }) => formatSimplexAllowFrom(allowFrom),
   },
   messaging: {
-    normalizeTarget: (raw) => raw.replace(/^simplex:/i, "").trim(),
+    normalizeTarget: (raw) => stripSimplexPrefix(raw),
     targetResolver: {
       looksLikeId: (input) => input.trim().startsWith("@") || input.trim().startsWith("#"),
       hint: "@<contactId> or #<groupId>",
@@ -279,7 +297,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
         policyPath: `${basePath}dmPolicy`,
         allowFromPath: basePath,
         approveHint: formatPairingApproveHint("simplex"),
-        normalizeEntry: (raw) => raw.replace(/^simplex:/i, "").replace(/^@/, ""),
+        normalizeEntry: (raw) => stripLeadingAt(stripSimplexPrefix(raw)),
       };
     },
     collectWarnings: ({ account, cfg }) => {

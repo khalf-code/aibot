@@ -99,7 +99,9 @@ function normalizeSimplexChatRef(raw: string, chatType?: string | null): string 
   if (!trimmed) {
     return trimmed;
   }
-  const withoutPrefix = trimmed.replace(/^simplex:/i, "").trim();
+  const withoutPrefix = trimmed.toLowerCase().startsWith("simplex:")
+    ? trimmed.slice("simplex:".length).trim()
+    : trimmed;
   if (!withoutPrefix) {
     return withoutPrefix;
   }

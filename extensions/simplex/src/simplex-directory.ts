@@ -132,7 +132,9 @@ function normalizeSimplexInputId(input: string): { id: string; explicit: boolean
   if (!trimmed) {
     return { id: "", explicit: false };
   }
-  const withoutPrefix = trimmed.replace(/^simplex:/i, "").trim();
+  const withoutPrefix = trimmed.toLowerCase().startsWith("simplex:")
+    ? trimmed.slice("simplex:".length).trim()
+    : trimmed;
   const lowered = withoutPrefix.toLowerCase();
   if (lowered.startsWith("#")) {
     return { id: withoutPrefix.slice(1).trim(), explicit: true };

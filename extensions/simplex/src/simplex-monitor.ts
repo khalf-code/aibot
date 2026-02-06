@@ -64,6 +64,33 @@ function pendingKey(accountId: string, fileId: number): string {
   return `${accountId}:${fileId}`;
 }
 
+function normalizeSimplexSenderId(value?: string | null): string | undefined {
+  let trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("simplex:")) {
+    trimmed = trimmed.slice("simplex:".length).trim();
+  }
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed.startsWith("@")) {
+    trimmed = trimmed.slice(1).trim();
+  } else {
+    const kindLower = trimmed.toLowerCase();
+    if (kindLower.startsWith("contact:")) {
+      trimmed = trimmed.slice("contact:".length).trim();
+    } else if (kindLower.startsWith("user:")) {
+      trimmed = trimmed.slice("user:".length).trim();
+    } else if (kindLower.startsWith("member:")) {
+      trimmed = trimmed.slice("member:".length).trim();
+    }
+  }
+  return trimmed || undefined;
+}
+
 function resolveMessageText(
   content: { type?: string; text?: string } | undefined,
   fileName?: string,
@@ -369,7 +396,8 @@ async function handleSimplexEvent(params: {
       continue;
     }
 
-    const dmPeerId = context.senderId ?? String(context.chatId);
+    const normalizedSenderId = normalizeSimplexSenderId(context.senderId);
+    const dmPeerId = normalizedSenderId ?? String(context.chatId);
     const chatRef = formatChatRef({
       type: context.chatType,
       id: context.chatType === "group" ? context.chatId : dmPeerId,
@@ -409,7 +437,7 @@ async function handleSimplexEvent(params: {
     const allowlistForCommands = isGroup ? effectiveGroupAllowFrom : effectiveDmAllowFrom;
     const senderAllowedForCommands = isSimplexAllowlisted({
       allowFrom: allowlistForCommands,
-      senderId: context.senderId,
+      senderId: normalizedSenderId,
       groupId: String(context.chatId),
       allowGroupId: isGroup,
     });
@@ -440,7 +468,7 @@ async function handleSimplexEvent(params: {
         }
         const allowed = isSimplexAllowlisted({
           allowFrom: effectiveGroupAllowFrom,
-          senderId: context.senderId,
+          senderId: normalizedSenderId,
           groupId: String(context.chatId),
           allowGroupId: true,
         });
@@ -461,12 +489,12 @@ async function handleSimplexEvent(params: {
       if (dmPolicy !== "open") {
         const allowed = isSimplexAllowlisted({
           allowFrom: effectiveDmAllowFrom,
-          senderId: context.senderId,
+          senderId: normalizedSenderId,
           allowGroupId: false,
         });
         if (!allowed) {
           if (dmPolicy === "pairing") {
-            const senderId = context.senderId ?? String(context.chatId);
+            const senderId = normalizedSenderId ?? String(context.chatId);
             const { code, created } = await core.channel.pairing.upsertPairingRequest({
               channel: "simplex",
               id: senderId,
@@ -720,6 +748,12 @@ async function dispatchInbound(params: {
           Boolean(payload.mediaUrl) ||
           (Array.isArray(payload.mediaUrls) && payload.mediaUrls.length > 0);
         if (!payload.text && !hasMedia) {
+          return;
+        }
+        if (!pending.account.enabled || !pending.account.configured) {
+          pending.runtime.error?.(
+            `[${pending.account.accountId}] SimpleX reply skipped: account not ready (enabled=${pending.account.enabled}, configured=${pending.account.configured})`,
+          );
           return;
         }
         await sendSimplexPayload({

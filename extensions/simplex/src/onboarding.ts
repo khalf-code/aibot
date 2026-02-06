@@ -116,7 +116,9 @@ function setSimplexAllowFrom(
 
 function parseAllowFromInput(raw: string): string[] {
   return raw
-    .split(/[\n,;]+/g)
+    .replaceAll("\n", ",")
+    .replaceAll(";", ",")
+    .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
 }

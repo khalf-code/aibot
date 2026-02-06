@@ -48,7 +48,16 @@ function quoteCliArg(value: string): string {
   if (!trimmed || hasControlNewline) {
     throw new Error("invalid SimpleX CLI argument");
   }
-  return `'${trimmed.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+  return `'${trimmed.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`;
+}
+
+function hasWhitespace(value: string): boolean {
+  for (const ch of value) {
+    if (ch.trim() === "") {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function formatChatRef(ref: SimplexChatRef): string {
@@ -151,7 +160,12 @@ function normalizeContactRef(value: number | string): string {
   if (raw.startsWith("@")) {
     return raw;
   }
-  if (/^(contact|user|member):/i.test(raw)) {
+  const lowered = raw.toLowerCase();
+  if (
+    lowered.startsWith("contact:") ||
+    lowered.startsWith("user:") ||
+    lowered.startsWith("member:")
+  ) {
     return `@${raw.slice(raw.indexOf(":") + 1).trim()}`;
   }
   return `@${raw}`;
@@ -165,7 +179,7 @@ function normalizeGroupRef(value: number | string): string {
   if (raw.startsWith("#")) {
     return raw;
   }
-  if (/^group:/i.test(raw)) {
+  if (raw.toLowerCase().startsWith("group:")) {
     return `#${raw.slice("group:".length).trim()}`;
   }
   return `#${raw}`;
@@ -176,8 +190,8 @@ function formatSearchArg(search?: string | null): string {
   if (!trimmed) {
     return "";
   }
-  if (/\s/.test(trimmed)) {
-    return `'${trimmed.replace(/'/g, "\\'")}'`;
+  if (hasWhitespace(trimmed)) {
+    return `'${trimmed.replaceAll("'", "\\'")}'`;
   }
   return trimmed;
 }

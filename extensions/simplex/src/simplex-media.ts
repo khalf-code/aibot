@@ -26,7 +26,8 @@ export async function resolveMediaPath(params: {
   maxBytes: number;
 }): Promise<{ path: string; contentType?: string; fileName?: string }> {
   const core = getSimplexRuntime();
-  if (/^https?:/i.test(params.mediaUrl)) {
+  const mediaUrlLower = params.mediaUrl.toLowerCase();
+  if (mediaUrlLower.startsWith("http:") || mediaUrlLower.startsWith("https:")) {
     const fetched = await core.channel.media.fetchRemoteMedia({
       url: params.mediaUrl,
       maxBytes: params.maxBytes,
