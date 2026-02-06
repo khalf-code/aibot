@@ -226,6 +226,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
     notifyApproval: async ({ cfg, id }) => {
       const accountId = resolveDefaultSimplexAccountId(cfg);
       const account = resolveSimplexAccount({ cfg, accountId });
+      assertSimplexOutboundAccountReady(account);
       const composedMessages = await buildComposedMessages({
         cfg,
         accountId,

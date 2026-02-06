@@ -37,6 +37,7 @@ export class SimplexWsClient {
   private readonly connectTimeoutMs: number;
   private readonly logger?: SimplexWsClientOptions["logger"];
   private ws: WebSocket | null = null;
+  private connectPromise: Promise<void> | null = null;
   private pending = new Map<string, PendingCommand>();
   private eventHandlers = new Set<(event: SimplexWsEvent) => void>();
 
@@ -57,7 +58,11 @@ export class SimplexWsClient {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       return;
     }
-    await new Promise<void>((resolve, reject) => {
+    if (this.connectPromise) {
+      await this.connectPromise;
+      return;
+    }
+    const connectAttempt = new Promise<void>((resolve, reject) => {
       let settled = false;
       let opened = false;
 
@@ -122,6 +127,16 @@ export class SimplexWsClient {
         settleReject(error);
       });
     });
+    const inFlight = connectAttempt.finally(() => {
+      if (this.connectPromise === inFlight) {
+        this.connectPromise = null;
+      }
+    });
+    this.connectPromise = inFlight;
+    await inFlight;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("SimpleX WS failed to connect");
+    }
   }
 
   async close(): Promise<void> {
