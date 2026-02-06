@@ -114,7 +114,7 @@ export async function setVeniceApiKey(key: string, agentDir?: string) {
   });
 }
 
-export async function setAskSageApiKey(key: string, agentDir?: string) {
+export function setAskSageApiKey(key: string, agentDir?: string) {
   // Write to resolved agent dir so gateway finds credentials on startup.
   upsertAuthProfile({
     profileId: "asksage:default",
