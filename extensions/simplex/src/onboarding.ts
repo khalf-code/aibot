@@ -52,7 +52,7 @@ function setSimplexEnabled(cfg: OpenClawConfig, accountId: string): OpenClawConf
           ...cfg.channels?.simplex?.accounts,
           [accountId]: {
             ...cfg.channels?.simplex?.accounts?.[accountId],
-            enabled: cfg.channels?.simplex?.accounts?.[accountId]?.enabled ?? true,
+            enabled: true,
           },
         },
       },
@@ -105,7 +105,7 @@ function setSimplexAllowFrom(
           ...cfg.channels?.simplex?.accounts,
           [accountId]: {
             ...cfg.channels?.simplex?.accounts?.[accountId],
-            enabled: cfg.channels?.simplex?.accounts?.[accountId]?.enabled ?? true,
+            enabled: true,
             allowFrom,
           },
         },

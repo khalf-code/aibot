@@ -84,39 +84,65 @@ export function startSimplexCli(params: {
       });
     });
 
+  const isNoSuchProcess = (err: unknown): boolean =>
+    typeof err === "object" && err !== null && (err as NodeJS.ErrnoException).code === "ESRCH";
+
+  let stoppingPromise: Promise<void> | null = null;
+
   return {
     proc,
     ready,
     stop: async (options) => {
-      if (exited || proc.killed) {
-        return;
+      if (stoppingPromise) {
+        return await stoppingPromise;
       }
-      const sigintTimeoutMs = options?.sigintTimeoutMs ?? 3_000;
-      const sigtermTimeoutMs = options?.sigtermTimeoutMs ?? 2_000;
 
-      const sendSignal = async (signal: NodeJS.Signals, timeoutMs: number): Promise<boolean> => {
-        try {
-          proc.kill(signal);
-        } catch (err) {
-          params.log?.warn?.(`SimpleX CLI stop (${signal}) failed: ${String(err)}`);
-          return false;
+      stoppingPromise = (async () => {
+        if (exited || proc.killed) {
+          return;
         }
-        return await waitWithTimeout(timeoutMs);
-      };
+        const sigintTimeoutMs = options?.sigintTimeoutMs ?? 3_000;
+        const sigtermTimeoutMs = options?.sigtermTimeoutMs ?? 2_000;
 
-      const exitedAfterSigint = await sendSignal("SIGINT", sigintTimeoutMs);
-      if (!exitedAfterSigint && !proc.killed) {
-        const exitedAfterSigterm = await sendSignal("SIGTERM", sigtermTimeoutMs);
-        if (!exitedAfterSigterm && !proc.killed) {
+        // Give simplex-chat EOF so it can exit cleanly if blocked on stdin.
+        if (!proc.stdin.destroyed) {
+          proc.stdin.end();
+        }
+
+        const sendSignal = async (signal: NodeJS.Signals, timeoutMs: number): Promise<boolean> => {
+          if (exited) {
+            return true;
+          }
           try {
-            proc.kill("SIGKILL");
+            proc.kill(signal);
           } catch (err) {
-            params.log?.warn?.(`SimpleX CLI SIGKILL failed: ${String(err)}`);
+            if (isNoSuchProcess(err)) {
+              return true;
+            }
+            params.log?.warn?.(`SimpleX CLI stop (${signal}) failed: ${String(err)}`);
+            return false;
+          }
+          return await waitWithTimeout(timeoutMs);
+        };
+
+        const exitedAfterSigint = await sendSignal("SIGINT", sigintTimeoutMs);
+        if (!exitedAfterSigint && !proc.killed) {
+          const exitedAfterSigterm = await sendSignal("SIGTERM", sigtermTimeoutMs);
+          if (!exitedAfterSigterm && !proc.killed) {
+            try {
+              proc.kill("SIGKILL");
+            } catch (err) {
+              if (!isNoSuchProcess(err)) {
+                params.log?.warn?.(`SimpleX CLI SIGKILL failed: ${String(err)}`);
+              }
+            }
           }
         }
-      }
 
-      await waitForExit();
+        await waitForExit();
+      })();
+
+      return await stoppingPromise;
     },
   };
 }

@@ -181,6 +181,15 @@ async function sendComposedMessages(params: {
   await withSimplexClient(params.account, (client) => client.sendCommand(cmd));
 }
 
+function assertSimplexOutboundAccountReady(account: ResolvedSimplexAccount): void {
+  if (!account.enabled) {
+    throw new Error(`SimpleX account "${account.accountId}" is disabled`);
+  }
+  if (!account.configured) {
+    throw new Error(`SimpleX account "${account.accountId}" is not configured`);
+  }
+}
+
 export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
   id: "simplex",
   meta: {
@@ -293,6 +302,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
     textChunkLimit: 4000,
     sendPayload: async ({ cfg, to, payload, accountId }) => {
       const account = resolveSimplexAccount({ cfg, accountId });
+      assertSimplexOutboundAccountReady(account);
       const composedMessages = await buildComposedMessages({
         cfg,
         accountId,
@@ -310,6 +320,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
     },
     sendText: async ({ cfg, to, text, accountId }) => {
       const account = resolveSimplexAccount({ cfg, accountId });
+      assertSimplexOutboundAccountReady(account);
       const composedMessages = await buildComposedMessages({
         cfg,
         accountId,
@@ -323,6 +334,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
         return { channel: "simplex", to };
       }
       const account = resolveSimplexAccount({ cfg, accountId });
+      assertSimplexOutboundAccountReady(account);
       const composedMessages = await buildComposedMessages({
         cfg,
         accountId,
@@ -440,7 +452,7 @@ export const simplexPlugin: ChannelPlugin<ResolvedSimplexAccount> = {
 
       activeClients.delete(account.accountId);
       await monitor.client.close().catch(() => undefined);
-      await cliHandle?.stop();
+      await cliHandle?.stop().catch(() => undefined);
     },
     stopAccount: async (ctx) => {
       const client = activeClients.get(ctx.account.accountId);
