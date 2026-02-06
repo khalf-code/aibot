@@ -10,6 +10,7 @@ import {
   migrateLegacyConfig,
   readConfigFileSnapshot,
 } from "../config/config.js";
+import { resolveConfigEnvVars } from "../config/env-substitution.js";
 import { applyPluginAutoEnable } from "../config/plugin-auto-enable.js";
 import { note } from "../terminal/note.js";
 import { resolveHomeDir } from "../utils.js";
@@ -19,6 +20,8 @@ import { autoMigrateLegacyStateDir } from "./doctor-state-migrations.js";
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
+
+type JsonPathPart = string | number;
 
 type UnrecognizedKeysIssue = ZodIssue & {
   code: "unrecognized_keys";
@@ -71,6 +74,116 @@ function resolvePathTarget(root: unknown, path: Array<string | number>): unknown
     current = record[part];
   }
   return current;
+}
+
+type EnvTemplateEntry = {
+  path: JsonPathPart[];
+  template: string;
+  resolved: string;
+};
+
+function collectEnvTemplateEntries(
+  value: unknown,
+  env: NodeJS.ProcessEnv,
+  path: JsonPathPart[] = [],
+  out: EnvTemplateEntry[] = [],
+): EnvTemplateEntry[] {
+  if (typeof value === "string") {
+    try {
+      const resolved = resolveConfigEnvVars(value, env);
+      if (typeof resolved === "string" && resolved !== value) {
+        out.push({ path, template: value, resolved });
+      }
+    } catch {
+      // If substitution fails for this string, skip it and keep the resolved runtime value.
+    }
+    return out;
+  }
+  if (Array.isArray(value)) {
+    for (const [index, item] of value.entries()) {
+      collectEnvTemplateEntries(item, env, [...path, index], out);
+    }
+    return out;
+  }
+  if (!isRecord(value)) {
+    return out;
+  }
+  for (const [key, child] of Object.entries(value)) {
+    collectEnvTemplateEntries(child, env, [...path, key], out);
+  }
+  return out;
+}
+
+function getValueAtPath(root: unknown, path: JsonPathPart[]): unknown {
+  let current = root;
+  for (const part of path) {
+    if (typeof part === "number") {
+      if (!Array.isArray(current) || part < 0 || part >= current.length) {
+        return undefined;
+      }
+      current = current[part];
+      continue;
+    }
+    if (!isRecord(current) || !(part in current)) {
+      return undefined;
+    }
+    current = current[part];
+  }
+  return current;
+}
+
+function setValueAtPath(root: unknown, path: JsonPathPart[], value: string): boolean {
+  if (path.length === 0) {
+    return false;
+  }
+  let current = root;
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const part = path[index];
+    if (typeof part === "number") {
+      if (!Array.isArray(current) || part < 0 || part >= current.length) {
+        return false;
+      }
+      current = current[part];
+      continue;
+    }
+    if (!isRecord(current) || !(part in current)) {
+      return false;
+    }
+    current = current[part];
+  }
+  const leaf = path[path.length - 1];
+  if (typeof leaf === "number") {
+    if (!Array.isArray(current) || leaf < 0 || leaf >= current.length) {
+      return false;
+    }
+    current[leaf] = value;
+    return true;
+  }
+  if (!isRecord(current) || !(leaf in current)) {
+    return false;
+  }
+  current[leaf] = value;
+  return true;
+}
+
+export function restoreConfigEnvTemplates(params: {
+  rawConfig: unknown;
+  config: OpenClawConfig;
+  env?: NodeJS.ProcessEnv;
+}): OpenClawConfig {
+  const templateEntries = collectEnvTemplateEntries(params.rawConfig, params.env ?? process.env);
+  if (templateEntries.length === 0) {
+    return params.config;
+  }
+
+  const next = structuredClone(params.config);
+  for (const entry of templateEntries) {
+    if (getValueAtPath(next, entry.path) !== entry.resolved) {
+      continue;
+    }
+    setValueAtPath(next, entry.path, entry.template);
+  }
+  return next;
 }
 
 function stripUnknownConfigKeys(config: OpenClawConfig): {
@@ -305,5 +418,10 @@ export async function loadAndMaybeMigrateDoctorConfig(params: {
 
   noteOpencodeProviderOverrides(cfg);
 
-  return { cfg, path: snapshot.path ?? CONFIG_PATH, shouldWriteConfig };
+  return {
+    cfg,
+    path: snapshot.path ?? CONFIG_PATH,
+    shouldWriteConfig,
+    sourceParsedConfig: snapshot.parsed,
+  };
 }
