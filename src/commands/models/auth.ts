@@ -21,7 +21,11 @@ import { logConfigUpdated } from "../../config/logging.js";
 import { resolvePluginProviders } from "../../plugins/providers.js";
 import { stylePromptHint, stylePromptMessage } from "../../terminal/prompt-style.js";
 import { createClackPrompter } from "../../wizard/clack-prompter.js";
-import { validateAnthropicSetupToken } from "../auth-token.js";
+import {
+  tryParseClaudeCredentials,
+  validateAnthropicRefreshToken,
+  validateAnthropicSetupToken,
+} from "../auth-token.js";
 import { isRemoteEnvironment } from "../oauth-env.js";
 import { createVpsAwareOAuthHandlers } from "../oauth-flow.js";
 import { applyAuthProfileConfig } from "../onboard-auth.js";
@@ -89,31 +93,90 @@ export async function modelsAuthSetupTokenCommand(
   }
 
   const tokenInput = await text({
-    message: "Paste Anthropic setup-token",
+    message: "Paste Anthropic setup-token (or full .credentials.json)",
     validate: (value) => validateAnthropicSetupToken(String(value ?? "")),
   });
-  const token = String(tokenInput).trim();
+  const tokenStr = String(tokenInput).trim();
   const profileId = resolveDefaultTokenProfileId(provider);
 
-  upsertAuthProfile({
-    profileId,
-    credential: {
-      type: "token",
-      provider,
-      token,
-    },
-  });
+  // Check if user pasted full JSON credentials (with refresh token)
+  const parsedCreds = tryParseClaudeCredentials(tokenStr);
 
-  await updateConfig((cfg) =>
-    applyAuthProfileConfig(cfg, {
+  if (parsedCreds) {
+    // Store as type: "oauth" with refresh token for auto-refresh
+    upsertAuthProfile({
       profileId,
-      provider,
-      mode: "token",
-    }),
-  );
+      credential: {
+        type: "oauth",
+        provider,
+        access: parsedCreds.accessToken,
+        refresh: parsedCreds.refreshToken,
+        expires: parsedCreds.expiresAt,
+      },
+    });
 
-  logConfigUpdated(runtime);
-  runtime.log(`Auth profile: ${profileId} (${provider}/token)`);
+    await updateConfig((cfg) =>
+      applyAuthProfileConfig(cfg, {
+        profileId,
+        provider,
+        mode: "oauth",
+      }),
+    );
+
+    logConfigUpdated(runtime);
+    runtime.log(`Auth profile: ${profileId} (${provider}/oauth, auto-refresh enabled)`);
+  } else {
+    // Plain token — ask for optional refresh token
+    const refreshInput = await text({
+      message: "Paste refresh token (sk-ant-ort01-...) for auto-refresh, or leave blank",
+      validate: (value) => validateAnthropicRefreshToken(String(value ?? "")),
+    });
+    const refreshToken = String(refreshInput ?? "").trim();
+
+    if (refreshToken) {
+      upsertAuthProfile({
+        profileId,
+        credential: {
+          type: "oauth",
+          provider,
+          access: tokenStr,
+          refresh: refreshToken,
+          expires: Date.now() + 3600 * 1000,
+        },
+      });
+
+      await updateConfig((cfg) =>
+        applyAuthProfileConfig(cfg, {
+          profileId,
+          provider,
+          mode: "oauth",
+        }),
+      );
+
+      logConfigUpdated(runtime);
+      runtime.log(`Auth profile: ${profileId} (${provider}/oauth, auto-refresh enabled)`);
+    } else {
+      upsertAuthProfile({
+        profileId,
+        credential: {
+          type: "token",
+          provider,
+          token: tokenStr,
+        },
+      });
+
+      await updateConfig((cfg) =>
+        applyAuthProfileConfig(cfg, {
+          profileId,
+          provider,
+          mode: "token",
+        }),
+      );
+
+      logConfigUpdated(runtime);
+      runtime.log(`Auth profile: ${profileId} (${provider}/token)`);
+    }
+  }
 }
 
 export async function modelsAuthPasteTokenCommand(
