@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import {
   ANTHROPIC_REFRESH_TOKEN_PREFIX,
   ANTHROPIC_SETUP_TOKEN_MIN_LENGTH,
