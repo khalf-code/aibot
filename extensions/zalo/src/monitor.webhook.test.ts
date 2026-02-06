@@ -1,14 +1,13 @@
 import type { OpenClawConfig, PluginRuntime } from "openclaw/plugin-sdk";
-import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import type { ResolvedZaloAccount } from "./types.js";
 import { handleZaloWebhookRequest, registerZaloWebhookTarget } from "./monitor.js";
 
-type MockReq = EventEmitter & {
+type MockReq = PassThrough & {
   method?: string;
   url?: string;
   headers: Record<string, string>;
-  destroy: () => void;
 };
 
 type MockRes = {
@@ -19,15 +18,11 @@ type MockRes = {
 };
 
 function createMockReq(body: string): MockReq {
-  const req = new EventEmitter() as MockReq;
+  const req = new PassThrough() as MockReq;
   req.method = "POST";
   req.url = "/hook";
   req.headers = { "x-bot-api-secret-token": "secret" };
-  req.destroy = () => {};
-  queueMicrotask(() => {
-    req.emit("data", Buffer.from(body, "utf8"));
-    req.emit("end");
-  });
+  queueMicrotask(() => req.end(Buffer.from(body, "utf8")));
   return req;
 }
 

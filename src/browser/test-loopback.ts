@@ -3,10 +3,7 @@ import { createServer, type AddressInfo } from "node:net";
 let cached: Promise<boolean> | null = null;
 
 export async function canBindLoopback(): Promise<boolean> {
-  if (cached) {
-    return await cached;
-  }
-  cached = (async () => {
+  cached ??= (async () => {
     try {
       await new Promise<void>((resolve, reject) => {
         const server = createServer();
