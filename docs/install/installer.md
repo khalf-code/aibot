@@ -27,7 +27,7 @@ Windows (PowerShell) help:
 & ([scriptblock]::Create((iwr -useb https://openclaw.ai/install.ps1))) -?
 ```
 
-If the installer completes but `openclaw` is not found in a new terminal, it's usually a Node/npm PATH issue. See: [Node.js](/install/node#openclaw-command-not-found).
+If the installer completes but `openclaw` is not found in a new terminal, it's usually a Node/npm PATH issue. See: [Node.js](/install/node#troubleshooting).
 
 ## Flags and environment variables
 
