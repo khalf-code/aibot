@@ -987,6 +987,8 @@ export function renderApp(state: AppViewState) {
                 onCloseSidebar: () => (state as unknown as OpenClawApp).handleCloseSidebar(),
                 onSplitRatioChange: (ratio: number) =>
                   (state as unknown as OpenClawApp).handleSplitRatioChange(ratio),
+                onButtonClick: (text: string, payload: string) =>
+                  (state as unknown as OpenClawApp).handleSendChat(payload),
                 assistantName: state.assistantName,
                 assistantAvatar: state.assistantAvatar,
               })
