@@ -88,9 +88,8 @@ function makeUniqueToolId(params: { id: string; used: Set<string>; mode: ToolCal
   }
 
   const hash = shortHash(params.id);
-  // Use separator based on mode: none for strict, underscore for anthropic/non-strict variants
-  const useUnderscore = params.mode === "anthropic" || params.mode !== "strict";
-  const separator = useUnderscore ? "_" : "";
+  // Use separator based on mode: none for strict, underscore for non-strict variants
+  const separator = params.mode === "strict" ? "" : "_";
   const maxBaseLen = MAX_LEN - separator.length - hash.length;
   const clippedBase = base.length > maxBaseLen ? base.slice(0, maxBaseLen) : base;
   const candidate = `${clippedBase}${separator}${hash}`;
