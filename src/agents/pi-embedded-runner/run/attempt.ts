@@ -19,7 +19,7 @@ import { resolveUserPath } from "../../../utils.js";
 import { normalizeMessageChannel } from "../../../utils/message-channel.js";
 import { isReasoningTagProvider } from "../../../utils/provider-utils.js";
 import { resolveOpenClawAgentDir } from "../../agent-paths.js";
-import { resolveSessionAgentIds } from "../../agent-scope.js";
+import { resolveSessionAgentIds, resolveAgentConfig } from "../../agent-scope.js";
 import { createAnthropicPayloadLogger } from "../../anthropic-payload-log.js";
 import { makeBootstrapWarn, resolveBootstrapContextForRun } from "../../bootstrap-files.js";
 import { createCacheTrace } from "../../cache-trace.js";
@@ -56,6 +56,7 @@ import {
   resolveSkillsPromptForRun,
 } from "../../skills.js";
 import { applyStartupPruning } from "../../startup-pruning.js";
+import { applyIdentityAwareStartupPruning } from "../../identity-aware-startup-pruning.js";
 import { buildSystemPromptParams } from "../../system-prompt-params.js";
 import { buildSystemPromptReport } from "../../system-prompt-report.js";
 import { resolveTranscriptPolicy } from "../../transcript-policy.js";
@@ -440,12 +441,43 @@ export async function runEmbeddedAttempt(
       const pruningConfig = params.config?.agents?.defaults?.compaction?.startupPruning;
       if (pruningConfig?.enabled) {
         try {
-          const wasPruned = await applyStartupPruning({
-            sessionManager,
-            config: pruningConfig,
-            provider: params.provider,
-            modelId: params.modelId,
-          });
+          // Check if agent has identity persistence enabled for enhanced pruning
+          const { sessionAgentId } = resolveSessionAgentIds({ sessionKey: params.sessionKey, config: params.config });
+          const agentConfig = resolveAgentConfig(params.config || {}, sessionAgentId);
+          const identityEnabled = agentConfig?.identityPersistence?.enabled;
+
+          let wasPruned: boolean;
+          if (identityEnabled && agentConfig.identityPersistence) {
+            // Use identity-aware pruning with enhanced config
+            const identityAwareConfig = {
+              ...pruningConfig,
+              identityPersistence: {
+                enabled: true,
+                workspacePath: effectiveWorkspace,
+                preserveIdentityChunks: true,
+                maxIdentityTokens: Math.floor((pruningConfig.targetTokens || 160000) * 0.1), // Reserve 10%
+                updateConstants: true
+              }
+            };
+            const result = await applyIdentityAwareStartupPruning({
+              sessionManager,
+              config: identityAwareConfig,
+              provider: params.provider,
+              modelId: params.modelId,
+            });
+            wasPruned = result.pruningApplied;
+            if (result.identityChunksPreserved > 0 || result.patternsExtracted > 0) {
+              console.log(`[identity-aware-pruning] Enhanced pruning applied: ${result.identityChunksPreserved} chunks preserved, ${result.patternsExtracted} patterns extracted`);
+            }
+          } else {
+            // Use standard pruning
+            wasPruned = await applyStartupPruning({
+              sessionManager,
+              config: pruningConfig,
+              provider: params.provider,
+              modelId: params.modelId,
+            });
+          }
           if (wasPruned) {
             console.log("[startup-pruning] Session pruned on load");
           }

@@ -16,7 +16,7 @@ model as `provider/model`.
 Venice is our recommended Venice AI setup for privacy-first inference with an option to use Opus for the hardest tasks.
 
 - Default: `venice/llama-3.3-70b`
-- Best overall: `venice/claude-opus-45` (Opus remains the strongest)
+- Best overall: `venice/claude-opus-46` (Opus remains the strongest)
 
 See [Venice AI](/providers/venice).
 
@@ -27,7 +27,7 @@ See [Venice AI](/providers/venice).
 
 ```json5
 {
-  agents: { defaults: { model: { primary: "anthropic/claude-opus-4-5" } } },
+  agents: { defaults: { model: { primary: "anthropic/claude-opus-4-6" } } },
 }
 ```
 
