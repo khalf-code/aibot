@@ -107,8 +107,10 @@ export async function discoverOvhcloudModels(): Promise<ModelDefinitionConfig[]>
 
     // Convert discovered models to ModelDefinitionConfig
     const models: ModelDefinitionConfig[] = data.data.map((apiModel) => {
-      const isReasoning = apiModel.supported_features?.includes("reasoning") ?? false;
-      const hasVision = apiModel.input_modalities?.includes("image") ?? false;
+      const features = apiModel.supported_features ?? [];
+      const modalities = apiModel.input_modalities ?? [];
+      const isReasoning = features.includes("reasoning");
+      const hasVision = modalities.includes("image");
 
       // Parse pricing (values are strings representing cost per token, convert to cost per million tokens)
       // Example: "0.00000009" per token = 0.09 per million tokens

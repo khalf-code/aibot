@@ -29,10 +29,12 @@ export function normalizeModelCompat(model: Model<Api>): Model<Api> {
   }
 
   if (isOvhcloud) {
-    if (compat?.supportsStore === false) {
+    if (openaiModel.compat?.supportsStore === false) {
       return model;
     }
-    openaiModel.compat = compat ? { ...compat, supportsStore: false } : { supportsStore: false };
+    openaiModel.compat = openaiModel.compat
+      ? { ...openaiModel.compat, supportsStore: false }
+      : { supportsStore: false };
   }
 
   return openaiModel;
