@@ -5,11 +5,7 @@ homepage: https://docs.openclaw.ai/tools/skills
 metadata:
   {
     "openclaw":
-      {
-        "emoji": "💻",
-        "requires": { "bins": ["top", "df", "free"] },
-        "platforms": ["macos", "linux"]
-      }
+      { "emoji": "💻", "requires": { "bins": ["top", "df"] }, "platforms": ["macos", "linux"] },
   }
 ---
 
