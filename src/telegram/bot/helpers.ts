@@ -482,10 +482,14 @@ function parseVcardFields(vcard: string): Map<string, string> {
 
     if (upper.startsWith("EMAIL")) {
       const value = line.split(":").slice(1).join(":").trim();
-      if (value) fields.set("Email", value);
+      if (value) {
+        fields.set("Email", value);
+      }
     } else if (upper.startsWith("BDAY")) {
       const value = line.split(":").slice(1).join(":").trim();
-      if (value) fields.set("Birthday", value);
+      if (value) {
+        fields.set("Birthday", value);
+      }
     } else if (upper.startsWith("ORG")) {
       const value = line
         .split(":")
@@ -494,16 +498,24 @@ function parseVcardFields(vcard: string): Map<string, string> {
         .replace(/;/g, ", ")
         .trim()
         .replace(/, $/, "");
-      if (value) fields.set("Organization", value);
+      if (value) {
+        fields.set("Organization", value);
+      }
     } else if (upper.startsWith("TITLE")) {
       const value = line.split(":").slice(1).join(":").trim();
-      if (value) fields.set("Title", value);
+      if (value) {
+        fields.set("Title", value);
+      }
     } else if (upper.startsWith("URL")) {
       const value = line.split(":").slice(1).join(":").trim();
-      if (value) fields.set("URL", value);
+      if (value) {
+        fields.set("URL", value);
+      }
     } else if (upper.startsWith("NOTE")) {
       const value = line.split(":").slice(1).join(":").trim();
-      if (value) fields.set("Note", value);
+      if (value) {
+        fields.set("Note", value);
+      }
     } else if (upper.startsWith("ADR")) {
       // ADR fields are semicolon-separated: PO Box;Extended;Street;City;Region;Postal;Country
       const value = line.split(":").slice(1).join(":");
@@ -511,7 +523,9 @@ function parseVcardFields(vcard: string): Map<string, string> {
         .split(";")
         .map((p) => p.trim())
         .filter(Boolean);
-      if (parts.length > 0) fields.set("Address", parts.join(", "));
+      if (parts.length > 0) {
+        fields.set("Address", parts.join(", "));
+      }
     }
   }
 
