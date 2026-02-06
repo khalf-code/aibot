@@ -36,6 +36,7 @@ export type AuthChoice =
   | "copilot-proxy"
   | "qwen-portal"
   | "aliyun-bailian-api-key"
+  | "xai-api-key"
   | "skip";
 export type GatewayAuthChoice = "token" | "password";
 export type ResetScope = "config" | "config+creds+sessions" | "full";
@@ -81,6 +82,7 @@ export type OnboardOptions = {
   veniceApiKey?: string;
   aliyunBailianApiKey?: string;
   opencodeZenApiKey?: string;
+  xaiApiKey?: string;
   gatewayPort?: number;
   gatewayBind?: GatewayBind;
   gatewayAuth?: GatewayAuthChoice;
