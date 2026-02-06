@@ -351,15 +351,26 @@ export class OpenClawApp extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     handleConnected(this as unknown as Parameters<typeof handleConnected>[0]);
+
+    // Listen for locale changes to trigger UI update
+    window.addEventListener('localeChanged', this.handleLocaleChange.bind(this));
   }
 
   protected firstUpdated() {
     handleFirstUpdated(this as unknown as Parameters<typeof handleFirstUpdated>[0]);
   }
 
+  private handleLocaleChange(e: Event) {
+    // Force a re-render when locale changes
+    this.requestUpdate();
+  }
+
   disconnectedCallback() {
     handleDisconnected(this as unknown as Parameters<typeof handleDisconnected>[0]);
     super.disconnectedCallback();
+
+    // Remove event listener when component is destroyed
+    window.removeEventListener('localeChanged', this.handleLocaleChange.bind(this));
   }
 
   protected updated(changed: Map<PropertyKey, unknown>) {

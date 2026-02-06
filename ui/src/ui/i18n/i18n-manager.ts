@@ -46,11 +46,19 @@ export class I18nManager {
       locale = defaultLocale as Locale;
     }
 
+    const oldLocale = this.currentLocale;
     this.currentLocale = locale;
     localStorage.setItem('openclaw.locale', locale);
 
-    // Dispatch event for UI updates
-    window.dispatchEvent(new CustomEvent('localeChanged', { detail: { locale } }));
+    // Dispatch event for UI updates only if locale changed
+    if (oldLocale !== locale) {
+      window.dispatchEvent(new CustomEvent('localeChanged', {
+        detail: { locale, oldLocale }
+      }));
+
+      // Also update the lang attribute on html element for accessibility
+      document.documentElement.lang = locale;
+    }
   }
 
   // Get translation by key path (e.g., 'common.save')
