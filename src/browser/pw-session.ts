@@ -6,6 +6,7 @@ import type {
   Request,
   Response,
 } from "playwright-core";
+import fs from "node:fs";
 import { chromium } from "playwright-core";
 import { formatErrorMessage } from "../infra/errors.js";
 import { getHeadersWithAuth } from "./cdp.helpers.js";
@@ -100,6 +101,13 @@ const MAX_NETWORK_REQUESTS = 500;
 
 let cached: ConnectedBrowser | null = null;
 let connecting: Promise<ConnectedBrowser> | null = null;
+const STORAGE_STATE_PATH = (() => {
+  const raw = process.env.GOOGLE_STORAGE_STATE_PATH?.trim();
+  if (!raw) {
+    return null;
+  }
+  return fs.existsSync(raw) ? raw : null;
+})();
 
 function normalizeCdpUrl(raw: string) {
   return raw.replace(/\/$/, "");
@@ -315,6 +323,19 @@ function observeBrowser(browser: Browser) {
   }
 }
 
+async function ensureDefaultContext(browser: Browser): Promise<BrowserContext> {
+  const existing = browser.contexts()[0];
+  if (existing) {
+    observeContext(existing);
+    return existing;
+  }
+  const context = STORAGE_STATE_PATH
+    ? await browser.newContext({ storageState: STORAGE_STATE_PATH })
+    : await browser.newContext();
+  observeContext(context);
+  return context;
+}
+
 async function connectBrowser(cdpUrl: string): Promise<ConnectedBrowser> {
   const normalized = normalizeCdpUrl(cdpUrl);
   if (cached?.cdpUrl === normalized) {
@@ -326,9 +347,9 @@ async function connectBrowser(cdpUrl: string): Promise<ConnectedBrowser> {
 
   const connectWithRetry = async (): Promise<ConnectedBrowser> => {
     let lastErr: unknown;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const timeout = 5000 + attempt * 2000;
+        const timeout = 3000 + attempt * 1000;
         const wsUrl = await getChromeWebSocketUrl(normalized, timeout).catch(() => null);
         const endpoint = wsUrl ?? normalized;
         const headers = getHeadersWithAuth(endpoint);
@@ -344,7 +365,7 @@ async function connectBrowser(cdpUrl: string): Promise<ConnectedBrowser> {
         return connected;
       } catch (err) {
         lastErr = err;
-        const delay = 250 + attempt * 250;
+        const delay = 200 + attempt * 200;
         await new Promise((r) => setTimeout(r, delay));
       }
     }
@@ -556,7 +577,7 @@ export async function createPageViaPlaywright(opts: { cdpUrl: string; url: strin
   type: string;
 }> {
   const { browser } = await connectBrowser(opts.cdpUrl);
-  const context = browser.contexts()[0] ?? (await browser.newContext());
+  const context = await ensureDefaultContext(browser);
   ensureContextState(context);
 
   const page = await context.newPage();

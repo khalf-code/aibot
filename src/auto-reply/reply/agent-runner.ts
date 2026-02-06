@@ -20,8 +20,8 @@ import {
   updateSessionStore,
   updateSessionStoreEntry,
 } from "../../config/sessions.js";
-import { emitDiagnosticEvent, isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
 import { logVerbose } from "../../globals.js";
+import { emitDiagnosticEvent, isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
 import { defaultRuntime } from "../../runtime.js";
 import { estimateUsageCost, resolveModelCostConfig } from "../../utils/usage-format.js";
 import { resolveResponseUsageMode, type VerboseLevel } from "../thinking.js";
@@ -36,14 +36,14 @@ import {
 import { runMemoryFlushIfNeeded } from "./agent-runner-memory.js";
 import { buildReplyPayloads } from "./agent-runner-payloads.js";
 import { appendUsageLine, formatResponseUsageLine } from "./agent-runner-utils.js";
+import { createAudioAsVoiceBuffer, createBlockReplyPipeline } from "./block-reply-pipeline.js";
+import { resolveBlockStreamingCoalescing } from "./block-streaming.js";
 import {
   buildMuscleTaskPrompt,
   buildPipelineSynthesisPrompt,
   parseBrainPlan,
   resolveReplyPipelineConfig,
 } from "./brain-muscle-pipeline.js";
-import { createAudioAsVoiceBuffer, createBlockReplyPipeline } from "./block-reply-pipeline.js";
-import { resolveBlockStreamingCoalescing } from "./block-streaming.js";
 import { createFollowupRunner } from "./followup-runner.js";
 import { enqueueFollowupRun, type FollowupRun, type QueueSettings } from "./queue.js";
 import { createReplyToModeFilterForChannel, resolveReplyToMode } from "./reply-threading.js";
@@ -52,6 +52,7 @@ import { persistSessionUsageUpdate } from "./session-usage.js";
 import { createTypingSignaler } from "./typing-mode.js";
 
 const BLOCK_REPLY_SEND_TIMEOUT_MS = 15_000;
+const TIMING_ENABLED = process.env.OPENCLAW_TIMING === "1";
 
 export async function runReplyAgent(params: {
   commandBody: string;
@@ -175,7 +176,9 @@ export async function runReplyAgent(params: {
   });
   const pipelineEnabled = pipeline.enabled && pipeline.muscleModels.length > 0;
   if (pipeline.enabled && pipeline.muscleModels.length === 0) {
-    logVerbose("reply pipeline enabled but no muscle models configured; falling back to brain-only");
+    logVerbose(
+      "reply pipeline enabled but no muscle models configured; falling back to brain-only",
+    );
   }
 
   const appendSystemPrompt = (
@@ -363,7 +366,16 @@ export async function runReplyAgent(params: {
       cleanupTranscripts: true,
     });
 
-  const runBrainMuscleBrainPipeline = async (): Promise<ReturnType<typeof runAgentTurnWithFallback>> => {
+  const runBrainMuscleBrainPipeline = async (): Promise<
+    ReturnType<typeof runAgentTurnWithFallback>
+  > => {
+    const logTiming = (label: string, startedAt: number) => {
+      if (!TIMING_ENABLED) {
+        return;
+      }
+      defaultRuntime.log(`[timing] ${label}: ${Date.now() - startedAt}ms`);
+    };
+
     const brain = pipeline.brain;
     const musclePrimary = pipeline.muscleModels[0];
     const muscleFallbacks = pipeline.muscleModels
@@ -384,7 +396,10 @@ export async function runReplyAgent(params: {
       model: brain.model,
       sessionId: crypto.randomUUID(),
       sessionFile: pipelineSession.sessionFile,
-      extraSystemPrompt: appendSystemPrompt(followupRun.run.extraSystemPrompt, pipeline.plannerPrompt),
+      extraSystemPrompt: appendSystemPrompt(
+        followupRun.run.extraSystemPrompt,
+        pipeline.plannerPrompt,
+      ),
       disableTools: true,
       authProfileId:
         followupRun.run.provider === brain.provider ? followupRun.run.authProfileId : undefined,
@@ -395,6 +410,7 @@ export async function runReplyAgent(params: {
     });
 
     try {
+      const tPlanner = Date.now();
       const plannerOutcome = await runAgentTurnWithFallback({
         commandBody,
         followupRun: plannerRun,
@@ -419,6 +435,7 @@ export async function runReplyAgent(params: {
         storePath: undefined,
         resolvedVerboseLevel,
       });
+      logTiming("brain-muscle planner", tPlanner);
 
       if (plannerOutcome.kind === "final") {
         return plannerOutcome;
@@ -457,6 +474,7 @@ export async function runReplyAgent(params: {
               ? followupRun.run.authProfileIdSource
               : undefined,
         });
+        const tMuscle = Date.now();
         const muscleOutcome = await runAgentTurnWithFallback({
           commandBody: musclePrompt,
           followupRun: muscleRun,
@@ -482,6 +500,7 @@ export async function runReplyAgent(params: {
           storePath: undefined,
           resolvedVerboseLevel,
         });
+        logTiming("brain-muscle muscle", tMuscle);
         if (muscleOutcome.kind === "final") {
           return muscleOutcome;
         }
@@ -507,7 +526,8 @@ export async function runReplyAgent(params: {
             : undefined,
       });
 
-      return await runAgentTurnWithFallback({
+      const tSynthesis = Date.now();
+      const synthesisOutcome = await runAgentTurnWithFallback({
         commandBody,
         followupRun: synthesisRun,
         sessionCtx,
@@ -530,37 +550,40 @@ export async function runReplyAgent(params: {
         storePath,
         resolvedVerboseLevel,
       });
+      logTiming("brain-muscle synthesis", tSynthesis);
+      return synthesisOutcome;
     } finally {
       await pipelineSession.cleanup();
     }
   };
   try {
     const runStartedAt = Date.now();
-    const runOutcome = pipelineEnabled && !isHeartbeat
-      ? await runBrainMuscleBrainPipeline()
-      : await runAgentTurnWithFallback({
-          commandBody,
-          followupRun,
-          sessionCtx,
-          opts,
-          typingSignals,
-          blockReplyPipeline,
-          blockStreamingEnabled,
-          blockReplyChunking,
-          resolvedBlockStreamingBreak,
-          applyReplyToMode,
-          shouldEmitToolResult,
-          shouldEmitToolOutput,
-          pendingToolTasks,
-          resetSessionAfterCompactionFailure,
-          resetSessionAfterRoleOrderingConflict,
-          isHeartbeat,
-          sessionKey,
-          getActiveSessionEntry: () => activeSessionEntry,
-          activeSessionStore,
-          storePath,
-          resolvedVerboseLevel,
-        });
+    const runOutcome =
+      pipelineEnabled && !isHeartbeat
+        ? await runBrainMuscleBrainPipeline()
+        : await runAgentTurnWithFallback({
+            commandBody,
+            followupRun,
+            sessionCtx,
+            opts,
+            typingSignals,
+            blockReplyPipeline,
+            blockStreamingEnabled,
+            blockReplyChunking,
+            resolvedBlockStreamingBreak,
+            applyReplyToMode,
+            shouldEmitToolResult,
+            shouldEmitToolOutput,
+            pendingToolTasks,
+            resetSessionAfterCompactionFailure,
+            resetSessionAfterRoleOrderingConflict,
+            isHeartbeat,
+            sessionKey,
+            getActiveSessionEntry: () => activeSessionEntry,
+            activeSessionStore,
+            storePath,
+            resolvedVerboseLevel,
+          });
 
     if (runOutcome.kind === "final") {
       return finalizeWithFollowup(runOutcome.payload, queueKey, runFollowupTurn);

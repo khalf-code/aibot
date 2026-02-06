@@ -72,6 +72,44 @@ echo "[entrypoint] Workspace: $OPENCLAW_WORKSPACE_DIR"
 # Create directories
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_WORKSPACE_DIR" 2>/dev/null || true
 
+# Decode persisted Google login state if provided (used by Playwright/Gmail).
+GOOGLE_STATE_PATH="$OPENCLAW_STATE_DIR/google-state.json"
+if [ -n "${GOOGLE_STATE_B64:-}" ]; then
+    echo "[entrypoint] Writing google-state.json from GOOGLE_STATE_B64 into $GOOGLE_STATE_PATH"
+    if [ "${#GOOGLE_STATE_B64}" -gt 750000 ]; then
+        echo "[entrypoint] GOOGLE_STATE_B64 too large; refusing to start"
+        exit 1
+    fi
+    if echo "$GOOGLE_STATE_B64" | base64 -d >"$GOOGLE_STATE_PATH" 2>/dev/null; then
+        chmod 600 "$GOOGLE_STATE_PATH" 2>/dev/null || true
+    else
+        echo "[entrypoint] Failed to decode GOOGLE_STATE_B64; refusing to start"
+        rm -f "$GOOGLE_STATE_PATH" 2>/dev/null || true
+        exit 1
+    fi
+elif [ -f "$GOOGLE_STATE_PATH" ]; then
+    echo "[entrypoint] Found existing google-state.json at $GOOGLE_STATE_PATH"
+else
+    echo "[entrypoint] Warning: no GOOGLE_STATE_B64 provided and no google-state.json found; Gmail web login will be unavailable"
+fi
+
+if [ -n "${GOOGLE_STORAGE_STATE_PATH:-}" ] && [ ! -f "${GOOGLE_STORAGE_STATE_PATH}" ]; then
+    echo "[entrypoint] GOOGLE_STORAGE_STATE_PATH is set but file is missing: ${GOOGLE_STORAGE_STATE_PATH}"
+    exit 1
+fi
+
+export GOOGLE_STORAGE_STATE_PATH="${GOOGLE_STORAGE_STATE_PATH:-$GOOGLE_STATE_PATH}"
+
+# Validate storage state JSON if present
+if [ -n "${GOOGLE_STORAGE_STATE_PATH}" ] && [ -f "${GOOGLE_STORAGE_STATE_PATH}" ]; then
+    if ! P="${GOOGLE_STORAGE_STATE_PATH}" node -e "const fs=require('fs');const p=process.env.P;try{const j=JSON.parse(fs.readFileSync(p,'utf8'));if(!j||typeof j!=='object'){throw new Error('not object')} if(!Array.isArray(j.cookies)){throw new Error('cookies missing')} console.log('[entrypoint] google-state.json validated with', j.cookies.length, 'cookies')}catch(e){console.error('[entrypoint] Invalid google-state.json:', e.message);process.exit(1)}"; then
+        exit 1
+    fi
+elif [ "${GOOGLE_STATE_REQUIRED:-0}" != "0" ]; then
+    echo "[entrypoint] GOOGLE_STATE_REQUIRED=1 but no google-state.json available; refusing to start"
+    exit 1
+fi
+
 # Generate a gateway token if not already set (required for non-loopback binding)
 if [ -z "${OPENCLAW_GATEWAY_TOKEN:-}" ]; then
     # Check if we have a persisted token in config
@@ -108,6 +146,7 @@ if (!configPath) {
 }
 
 const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const googleStatePath = process.env.GOOGLE_STORAGE_STATE_PATH || '';
 
 let cfg = {};
 try {
@@ -129,6 +168,20 @@ delete cfg.gateway.customBindHost;
 cfg.browser = cfg.browser || {};
 cfg.browser.headless = true;
 cfg.browser.noSandbox = true;
+// Prefer Playwright's managed Chromium when available (Docker builds install it).
+if (!cfg.browser.executablePath) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pw = require('playwright');
+    const exePath =
+      typeof pw?.chromium?.executablePath === 'function' ? pw.chromium.executablePath() : '';
+    if (typeof exePath === 'string' && exePath.trim()) {
+      cfg.browser.executablePath = exePath.trim();
+    }
+  } catch {
+    // Ignore if playwright isn't installed in this build.
+  }
+}
 
 // Clean up legacy browser profile keys that are no longer valid.
 if (cfg.browser && cfg.browser.profiles) {
@@ -160,11 +213,10 @@ cfg.agents = cfg.agents || {};
 cfg.agents.defaults = cfg.agents.defaults || {};
 cfg.agents.defaults.model = {
   primary: 'anthropic/claude-opus-4-5',
-  fallbacks: ['openrouter/openrouter/auto', 'openrouter/anthropic/claude-haiku-4.5']
+  fallbacks: ['anthropic/claude-haiku-4.5']
 };
 cfg.agents.defaults.models = {
   'anthropic/claude-opus-4-5': {},
-  'openrouter/openrouter/auto': {},
   'openrouter/anthropic/claude-haiku-4.5': {}
 };
 
@@ -172,12 +224,17 @@ cfg.agents.defaults.models = {
 // Brain stays as the configured primary model; muscle defaults to model fallbacks unless overridden.
 cfg.agents.defaults.replyPipeline = cfg.agents.defaults.replyPipeline || {};
 cfg.agents.defaults.replyPipeline.enabled = true;
+cfg.agents.defaults.replyPipeline.brainModel = 'anthropic/claude-opus-4-5';
+cfg.agents.defaults.replyPipeline.muscleModels = ['anthropic/claude-haiku-4.5'];
 
 fs.mkdirSync(path.dirname(configPath), { recursive: true });
 fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2));
 console.log('[entrypoint] Config written');
 if (cfg.browser && cfg.browser.profiles) {
   console.log('[entrypoint] Browser profiles:', Object.keys(cfg.browser.profiles).join(', '));
+}
+if (googleStatePath) {
+  console.log('[entrypoint] Playwright storageState set from:', googleStatePath);
 }
 NODE
 
