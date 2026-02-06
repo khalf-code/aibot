@@ -265,6 +265,5 @@ export type AgentCompactionMemoryFlushConfig = {
   prompt?: string;
   /** System prompt appended for the memory flush turn. */
   systemPrompt?: string;
-  /** Run memory flush even during hearbeat polls (default: false). */
-  runDuringHeartbeats?: boolean;
+  /** Run memory flush even during heartbeat polls (default: false). */
 };
