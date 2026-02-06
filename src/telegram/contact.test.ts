@@ -107,9 +107,9 @@ describe("formatContactText", () => {
     expect(text).toContain("[Contact: Jane Doe]");
     expect(text).toContain("Phone: +15555550123");
     expect(text).toContain("Telegram ID: 123456789");
-    expect(text).toContain("Email: jane.doe@example.com");
+    expect(text).toContain("Email: john.doe@example.com");
     expect(text).toContain("Birthday: 1990-06-15");
-    expect(text).toContain("Organization: NeuroHIVE");
+    expect(text).toContain("Organization: Acme Corp");
     expect(text).toContain("Title: Founder");
     expect(text).toContain("URL: https://example.com");
     expect(text).toContain("Address:");
