@@ -163,7 +163,7 @@ describe("ui localization coverage", () => {
     const zhSource = readFileSync(zhPath, "utf8");
     const zhKeys = collectLocaleKeys(zhSource);
 
-    const missing = [...usedIds].filter((id) => !zhKeys.has(id)).sort();
+    const missing = [...usedIds].filter((id) => !zhKeys.has(id)).toSorted();
     expect(missing).toEqual([]);
   });
 });

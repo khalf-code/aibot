@@ -300,7 +300,7 @@ function autoTranslateSegment(segment: string): string | null {
   if (!base) {
     return null;
   }
-  return unit ? `${base}（${unit}）` : base;
+  return unit ? `${base}（` + unit + "）" : base;
 }
 
 function partFallback(token: string): string {
@@ -316,12 +316,15 @@ function autoLabelForPath(path: string[]): string | null {
   if (filtered.length === 0) {
     return null;
   }
-  const last = filtered[filtered.length - 1]!;
+  const last = filtered.at(-1);
+  if (!last) {
+    return null;
+  }
   const translated = autoTranslateSegment(last);
   if (translated) {
     return translated;
   }
-  const parent = filtered.length > 1 ? filtered[filtered.length - 2]! : null;
+  const parent = filtered.length > 1 ? (filtered.at(-2) ?? null) : null;
   if (parent) {
     const parentTranslated = autoTranslateSegment(parent);
     if (parentTranslated) {
@@ -1444,12 +1447,6 @@ const FIELD_LABELS_ZH: Record<string, string> = {
   "channels.*.guilds.*.channels.*.toolsBySender.*": "发送者工具策略",
   "channels.*.accounts.*.guilds.*.toolsBySender.*": "发送者工具策略",
   "channels.*.accounts.*.guilds.*.channels.*.toolsBySender.*": "发送者工具策略",
-  "channels.*.serviceAccount": "服务账号",
-  "channels.*.serviceAccountFile": "服务账号文件",
-  "channels.*.audienceType": "受众类型",
-  "channels.*.audience": "受众",
-  "channels.*.botUser": "机器人用户",
-  "channels.*.typingIndicator": "输入指示器",
   "channels.*.httpUrl": "HTTP 地址",
   "channels.*.httpHost": "HTTP 主机",
   "channels.*.httpPort": "HTTP 端口",
@@ -1628,7 +1625,6 @@ const FIELD_LABELS_ZH: Record<string, string> = {
   "channels.*.dm.groupChannels": "私聊群频道列表",
   "channels.*.dm.groupChannels.*": "私聊群频道条目",
   "channels.*.allowBots": "允许 Bot 消息",
-  "channels.*.requireMention": "要求提及",
   "channels.*.actions.polls": "允许投票",
   "channels.*.actions.permissions": "权限查询能力",
   "channels.*.actions.messages": "消息读取能力",
@@ -2873,13 +2869,10 @@ function applyPluginHints(
       help: preserveLocalized ? (baseCurrent.help ?? pluginHelp) : pluginHelp,
     };
     const enabledCurrent = next[`${basePath}.enabled`] ?? {};
+    const enableLabel = locale === "zh-CN" ? `启用 ${name}` : `Enable ${name}`;
     next[`${basePath}.enabled`] = {
       ...enabledCurrent,
-      label: preserveLocalized
-        ? (enabledCurrent.label ?? (locale === "zh-CN" ? `启用 ${name}` : `Enable ${name}`))
-        : locale === "zh-CN"
-          ? `启用 ${name}`
-          : `Enable ${name}`,
+      label: preserveLocalized ? (enabledCurrent.label ?? enableLabel) : enableLabel,
     };
     const configCurrent = next[`${basePath}.config`] ?? {};
     const configLabel = locale === "zh-CN" ? `${name} 配置` : `${name} Config`;
