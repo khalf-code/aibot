@@ -124,7 +124,7 @@ export const registerTelegramHandlers = ({
         return;
       }
       const first = sortedEntries[0];
-      const last = sortedEntries[sortedEntries.length - 1];
+      const sortedLast = sortedEntries[sortedEntries.length - 1];
       const baseCtx = first.ctx;
       const getFile =
         typeof baseCtx.getFile === "function" ? baseCtx.getFile.bind(baseCtx) : async () => ({});
@@ -134,9 +134,11 @@ export const registerTelegramHandlers = ({
         caption: undefined,
         caption_entities: undefined,
         entities: undefined,
-        date: last.msg.date ?? first.msg.date,
+        date: sortedLast.msg.date ?? first.msg.date,
       };
-      const messageIdOverride = last.msg.message_id ? String(last.msg.message_id) : undefined;
+      const messageIdOverride = sortedLast.msg.message_id
+        ? String(sortedLast.msg.message_id)
+        : undefined;
       await processMessage(
         { message: syntheticMessage, me: baseCtx.me, getFile },
         allCombinedMedia,
