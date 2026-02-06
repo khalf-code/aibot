@@ -215,13 +215,74 @@ describe("redactConfigSnapshot", () => {
     expect(result.raw).toContain(REDACTED_SENTINEL);
   });
 
-  it("redacts sensitive fields even when the value is not a string", () => {
+  it("preserves non-string values on sensitive keys (numbers are not credentials)", () => {
     const snapshot = makeSnapshot({
       gateway: { auth: { token: 1234 } },
     });
     const result = redactConfigSnapshot(snapshot);
-    const gw = result.config.gateway as Record<string, Record<string, string>>;
-    expect(gw.auth.token).toBe(REDACTED_SENTINEL);
+    const gw = result.config.gateway as Record<string, Record<string, unknown>>;
+    // A numeric "token" is not a credential — only string values are redacted
+    expect(gw.auth.token).toBe(1234);
+  });
+
+  it("preserves numerical fields whose key contains 'token' (not credentials)", () => {
+    const config = {
+      agents: {
+        defaults: {
+          compaction: {
+            memoryFlush: {
+              softThresholdTokens: 1234,
+            },
+          },
+          contextTokens: 200000,
+        },
+      },
+      models: {
+        defaults: {
+          maxTokens: 4096,
+          defaultMaxTokens: 2048,
+        },
+      },
+    };
+    const snapshot = makeSnapshot(config);
+    const result = redactConfigSnapshot(snapshot);
+    // Numerical "tokens" fields are not credentials — they should pass through
+    expect(result.config).toEqual(config);
+  });
+
+  it("preserves boolean fields whose key contains 'token' (not credentials)", () => {
+    const snapshot = makeSnapshot({
+      channels: {
+        slack: {
+          botToken: "xoxb-fake-slack-bot-token-placeholder",
+          userTokenReadOnly: true,
+        },
+      },
+    });
+    const result = redactConfigSnapshot(snapshot);
+    const channels = result.config.channels as Record<string, Record<string, unknown>>;
+    expect(channels.slack.botToken).toBe(REDACTED_SENTINEL);
+    expect(channels.slack.userTokenReadOnly).toBe(true);
+  });
+
+  it("round-trips config with numerical token fields through redact → restore", () => {
+    const originalConfig = {
+      agents: {
+        defaults: {
+          compaction: {
+            memoryFlush: { softThresholdTokens: 1234 },
+          },
+          contextTokens: 200000,
+        },
+      },
+      channels: {
+        telegram: { botToken: "fake-telegram-token-placeholder-value" },
+      },
+    };
+    const snapshot = makeSnapshot(originalConfig);
+    const redacted = redactConfigSnapshot(snapshot);
+    const restored = restoreRedactedValues(redacted.config, snapshot.config);
+    expect(restored).toEqual(originalConfig);
   });
 });
 

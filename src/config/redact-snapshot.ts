@@ -34,7 +34,10 @@ function redactObject(obj: unknown): unknown {
   }
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    if (isSensitiveKey(key) && value !== null && value !== undefined) {
+    if (isSensitiveKey(key) && typeof value === "string") {
+      // Only redact string values — real credentials are always strings.
+      // Numerical config keys like softThresholdTokens, contextTokens,
+      // maxTokens, and booleans like userTokenReadOnly are not credentials.
       result[key] = REDACTED_SENTINEL;
     } else if (typeof value === "object" && value !== null) {
       result[key] = redactObject(value);
