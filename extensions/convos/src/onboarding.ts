@@ -11,6 +11,13 @@ import { ConvosSDKClient } from "./sdk-client.js";
 
 const channel = "convos" as const;
 
+type ConvosOnboardingAdapter = ChannelOnboardingAdapter & {
+  verifyClient?: (params: {
+    cfg: OpenClawConfig;
+    prompter: { note: (body: string, title?: string) => Promise<void> };
+  }) => Promise<void>;
+};
+
 // Convos invite URLs can be:
 // - Full URL: https://convos.app/join/SLUG or convos://join/SLUG
 // - V2 URL: https://*.convos.org/...?i=PAYLOAD or https://convos.app/...?i=PAYLOAD
@@ -73,7 +80,7 @@ const dmPolicy: ChannelOnboardingDmPolicy = {
   setPolicy: (cfg, policy) => setConvosDmPolicy(cfg, policy),
 };
 
-export const convosOnboardingAdapter: ChannelOnboardingAdapter = {
+export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
   channel,
 
   getStatus: async ({ cfg }) => {
@@ -96,17 +103,53 @@ export const convosOnboardingAdapter: ChannelOnboardingAdapter = {
     };
   },
 
-  configure: async ({ cfg, prompter, createNewIdentity }) => {
+  configure: async (ctx) => {
+    const { cfg, prompter } = ctx;
+    const createNewIdentity = (ctx as { createNewIdentity?: boolean }).createNewIdentity;
     let next = cfg;
     const account = resolveConvosAccount({ cfg: next as CoreConfig });
 
     // Check for existing configuration (skip when creating new identity)
     if (account.privateKey && account.ownerConversationId && !createNewIdentity) {
-      const keep = await prompter.confirm({
-        message: `Convos already configured (conversation: ${account.ownerConversationId.slice(0, 12)}...). Keep it?`,
-        initialValue: true,
+      const action = await prompter.select({
+        message: "Convos already configured.",
+        options: [
+          { value: "generate" as const, label: "Generate new one" },
+          { value: "check" as const, label: "Check our current one" },
+          { value: "skip" as const, label: "Skip" },
+        ],
+        initialValue: "skip",
       });
-      if (keep) {
+      if (action === "check") {
+        const runtime = getConvosRuntime();
+        const stateDir = runtime.state.resolveStateDir();
+        const dbPath = resolveConvosDbPath({
+          stateDir,
+          env: account.env,
+          accountId: account.accountId,
+          privateKey: account.privateKey,
+        });
+        const client = await ConvosSDKClient.create({
+          privateKey: account.privateKey,
+          env: account.env,
+          dbPath,
+          debug: account.debug,
+        });
+        try {
+          await client.start();
+          const inboxId = client.getInboxId();
+          await prompter.note(`Convos client verified.\n\nInbox ID: ${inboxId}`, "Verify client");
+        } catch (err) {
+          await prompter.note(
+            `Client verification failed: ${err instanceof Error ? err.message : String(err)}`,
+            "Verify client",
+          );
+        } finally {
+          await client.stop();
+        }
+        return { cfg: next };
+      }
+      if (action === "skip") {
         return { cfg: next };
       }
     }

@@ -60,11 +60,16 @@ export const xmtpOnboardingAdapter: ChannelOnboardingAdapter = {
     const account = resolveXmtpAccount({ cfg: next as CoreConfig });
 
     if (account.configured && !createNewIdentity) {
-      const replace = await prompter.confirm({
-        message: "XMTP already configured. Replace with new credentials?",
-        initialValue: false,
+      const action = await prompter.select({
+        message: "XMTP already configured.",
+        options: [
+          { value: "generate" as const, label: "Generate new one" },
+          { value: "check" as const, label: "Check our current one" },
+          { value: "skip" as const, label: "Skip" },
+        ],
+        initialValue: "skip",
       });
-      if (!replace) {
+      if (action === "check") {
         const publicAddress = walletAddressFromPrivateKey(account.walletKey);
         await prompter.note("Initializing XMTP client…", "XMTP");
         try {
@@ -74,15 +79,18 @@ export const xmtpOnboardingAdapter: ChannelOnboardingAdapter = {
             env: account.env,
           });
           await prompter.note(
-            `XMTP client started successfully.\n\nPublic address: ${publicAddress}`,
-            "XMTP",
+            `XMTP client verified.\n\nPublic address: ${publicAddress}`,
+            "Verify client",
           );
         } catch (err) {
           await prompter.note(
-            `Client initialization failed: ${err instanceof Error ? err.message : String(err)}`,
-            "XMTP",
+            `Client verification failed: ${err instanceof Error ? err.message : String(err)}`,
+            "Verify client",
           );
         }
+        return { cfg: next };
+      }
+      if (action === "skip") {
         return { cfg: next };
       }
     }
