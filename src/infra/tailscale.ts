@@ -434,7 +434,7 @@ function readCachedWhois(ip: string, now: number): TailscaleWhoisIdentity | null
 const WHOIS_CACHE_MAX_SIZE = 1000;
 
 function writeCachedWhois(ip: string, value: TailscaleWhoisIdentity | null, ttlMs: number) {
-  // Evict oldest entries by insertion order (FIFO)
+  // Prune expired entries and enforce max size
   if (whoisCache.size >= WHOIS_CACHE_MAX_SIZE) {
     const now = Date.now();
     // First pass: remove expired entries
@@ -443,15 +443,18 @@ function writeCachedWhois(ip: string, value: TailscaleWhoisIdentity | null, ttlM
         whoisCache.delete(key);
       }
     }
-    // Second pass: if still over limit, remove oldest entries
+    // Second pass: if still over limit, evict oldest by insertion order (FIFO)
     while (whoisCache.size >= WHOIS_CACHE_MAX_SIZE) {
-      const oldestKey = whoisCache.keys().next().value as string | undefined;
-      if (!oldestKey) break;
+      const oldestKey = whoisCache.keys().next().value;
+      if (!oldestKey) {
+        break;
+      }
       whoisCache.delete(oldestKey);
     }
   }
   whoisCache.set(ip, { value, expiresAt: Date.now() + ttlMs });
 }
+
 
 export async function readTailscaleWhoisIdentity(
   ip: string,
