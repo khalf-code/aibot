@@ -4,3 +4,11 @@ export { GoalList } from "./GoalList";
 export { MilestoneTracker } from "./MilestoneTracker";
 export { GoalDetailPanel } from "./GoalDetailPanel";
 export { CreateGoalModal } from "./CreateGoalModal";
+export { GoalTemplatePicker } from "./GoalTemplatePicker";
+export {
+  GOAL_TEMPLATES,
+  GOAL_TEMPLATE_CATEGORIES,
+  getTemplatesByCategory,
+  getTemplateById,
+} from "./goal-templates";
+export type { GoalTemplate, GoalTemplateCategory } from "./goal-templates";
