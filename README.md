@@ -544,6 +544,6 @@ Thanks to all clawtributors:
 </p>
 
 
-# open clowd
-# clowd bot
-# open bot
+# Clawd
+# Moltbot
+# OpenClaw
