@@ -58,6 +58,36 @@ export function computeJobNextRunAtMs(job: CronJob, nowMs: number): number | und
   return computeNextRunAtMs(job.schedule, nowMs);
 }
 
+function computeExpectedNextRunAtMsForStoredDueTime(
+  job: CronJob,
+  storedNextRunAtMs: number,
+): number | undefined {
+  // When a job is due (storedNextRunAtMs <= now), recomputing at "now" usually advances it
+  // into the future. That's correct for schedule edits, but wrong for unchanged schedules
+  // because it can skip the due run.
+  //
+  // We detect schedule edits by checking whether the *current* schedule would have produced
+  // the stored due time in the first place.
+  //
+  // For cron + anchored every schedules, computing from just before the due time should
+  // reproduce it.
+  //
+  // For non-anchored "every" schedules (anchorMs omitted), the schedule is effectively
+  // relative to the compute time. We approximate the original compute time as
+  // (storedNextRunAtMs - everyMs) or, if available, lastRunAtMs (which is what executeJob
+  // uses when it recomputes after a run).
+  if (job.schedule.kind === "every" && typeof job.schedule.anchorMs !== "number") {
+    const everyMs = Math.max(1, Math.floor(job.schedule.everyMs));
+    const refNow =
+      typeof job.state.lastRunAtMs === "number"
+        ? job.state.lastRunAtMs
+        : Math.max(0, storedNextRunAtMs - everyMs);
+    return computeJobNextRunAtMs(job, refNow);
+  }
+
+  return computeJobNextRunAtMs(job, storedNextRunAtMs - 1);
+}
+
 export function recomputeNextRuns(state: CronServiceState, opts?: { skipDue?: boolean }) {
   if (!state.store) {
     return;
@@ -83,12 +113,30 @@ export function recomputeNextRuns(state: CronServiceState, opts?: { skipDue?: bo
     // When skipDue is set (force-reload from the timer path), don't
     // recompute jobs that are currently due — runDueJobs needs to see
     // them with their original nextRunAtMs so they actually execute.
+    //
+    // However, if the on-disk schedule was edited while a job is due, we *must*
+    // allow recomputation so the due-ness doesn't get stuck on the stale schedule.
     if (opts?.skipDue) {
-      const next = job.state.nextRunAtMs;
-      if (typeof next === "number" && now >= next) {
+      const storedNext = job.state.nextRunAtMs;
+      if (typeof storedNext === "number" && now >= storedNext) {
+        const expected = computeExpectedNextRunAtMsForStoredDueTime(job, storedNext);
+        const recomputedNow = computeJobNextRunAtMs(job, now);
+
+        // If the current schedule still matches the stored due time, only skip recompute
+        // when it would advance the job beyond that due time.
+        if (
+          expected === storedNext &&
+          typeof recomputedNow === "number" &&
+          recomputedNow > storedNext
+        ) {
+          continue;
+        }
+
+        job.state.nextRunAtMs = recomputedNow;
         continue;
       }
     }
+
     job.state.nextRunAtMs = computeJobNextRunAtMs(job, now);
   }
 }

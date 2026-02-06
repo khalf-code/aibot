@@ -22,6 +22,8 @@ async function makeStorePath() {
 }
 
 describe("CronService force-reload preserves due jobs", () => {
+  const cleanups: Array<() => Promise<void>> = [];
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-02-06T00:00:00.000Z"));
@@ -31,16 +33,20 @@ describe("CronService force-reload preserves due jobs", () => {
     noopLogger.error.mockClear();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers();
+    for (const cleanup of cleanups) {
+      await cleanup().catch(() => {});
+    }
+    cleanups.length = 0;
   });
 
   it("does not skip an isolated job when the timer fires", async () => {
     // Regression test: recomputeNextRuns during force-reload was advancing
     // due jobs past their nextRunAtMs before runDueJobs could see them.
-    // This mirrors the existing "runs an isolated job" test pattern exactly,
-    // but validates it still works after the force-reload fix.
     const store = await makeStorePath();
+    cleanups.push(store.cleanup);
+
     const enqueueSystemEvent = vi.fn();
     const requestHeartbeatNow = vi.fn();
     const runIsolatedAgentJob = vi.fn(async () => ({
@@ -82,13 +88,12 @@ describe("CronService force-reload preserves due jobs", () => {
     expect(requestHeartbeatNow).toHaveBeenCalled();
 
     cron.stop();
-    await store.cleanup();
   });
 
   it("executes due jobs after store force-reload via manual run", async () => {
-    // This test directly validates the fix: a job that is due should
-    // still execute even after a force-reload recomputes schedules.
     const store = await makeStorePath();
+    cleanups.push(store.cleanup);
+
     const enqueueSystemEvent = vi.fn();
     const requestHeartbeatNow = vi.fn();
     const runIsolatedAgentJob = vi.fn(async () => ({
@@ -107,7 +112,6 @@ describe("CronService force-reload preserves due jobs", () => {
 
     await cron.start();
 
-    // Add a job and manually run it to confirm execution works.
     const job = await cron.add({
       name: "email check",
       enabled: true,
@@ -118,7 +122,6 @@ describe("CronService force-reload preserves due jobs", () => {
       delivery: { mode: "none" },
     });
 
-    // Force-run the job (this triggers the same executeJob path).
     await cron.run(job.id, "force");
 
     expect(runIsolatedAgentJob).toHaveBeenCalledTimes(1);
@@ -128,7 +131,6 @@ describe("CronService force-reload preserves due jobs", () => {
       }),
     );
 
-    // After execution, nextRunAtMs should be in the future.
     const jobs = await cron.list();
     const updated = jobs.find((j) => j.id === job.id);
     expect(updated).toBeDefined();
@@ -136,6 +138,76 @@ describe("CronService force-reload preserves due jobs", () => {
     expect(updated!.state.nextRunAtMs).toBeGreaterThan(Date.now());
 
     cron.stop();
-    await store.cleanup();
+  });
+
+  it("allows recompute for due jobs when schedule was edited on disk", async () => {
+    // Greptile review: if a due job's schedule was changed in the store file
+    // (e.g. by another process), the force-reload skipDue logic should detect
+    // the schedule mismatch and allow recomputation instead of preserving the
+    // stale nextRunAtMs.
+    //
+    // We test this by writing a modified store file directly (simulating a
+    // cross-service edit), then triggering force-reload via the timer path.
+    const store = await makeStorePath();
+    cleanups.push(store.cleanup);
+
+    const enqueueSystemEvent = vi.fn();
+    const requestHeartbeatNow = vi.fn();
+    const runIsolatedAgentJob = vi.fn(async () => ({
+      status: "ok" as const,
+      summary: "ran",
+    }));
+
+    const cron = new CronService({
+      storePath: store.storePath,
+      cronEnabled: true,
+      log: noopLogger,
+      enqueueSystemEvent,
+      requestHeartbeatNow,
+      runIsolatedAgentJob,
+    });
+
+    await cron.start();
+
+    // Add a job at 00:05 UTC. The cron service is at midnight, so
+    // nextRunAtMs = 00:05.
+    const job = await cron.add({
+      name: "schedule-change test",
+      enabled: true,
+      schedule: { kind: "cron", expr: "5 0 * * *", tz: "UTC" },
+      sessionTarget: "isolated",
+      wakeMode: "now",
+      payload: { kind: "agentTurn", message: "do work" },
+      delivery: { mode: "none" },
+    });
+
+    const initial = await cron.list();
+    const initialJob = initial.find((j) => j.id === job.id)!;
+    expect(initialJob.state.nextRunAtMs).toBe(Date.parse("2026-02-06T00:05:00.000Z"));
+
+    // Now directly edit the store file to change the schedule to 02:00 UTC,
+    // simulating a cross-service edit. We read, patch, and write.
+    const storeData = JSON.parse(await fs.readFile(store.storePath, "utf-8"));
+    const storedJob = storeData.jobs.find((j: { id: string }) => j.id === job.id);
+    storedJob.schedule = { kind: "cron", expr: "0 2 * * *", tz: "UTC" };
+    await fs.writeFile(store.storePath, JSON.stringify(storeData));
+
+    // Advance time past 00:05 so the job would be due under the OLD schedule.
+    vi.setSystemTime(new Date("2026-02-06T00:05:01.000Z"));
+
+    // Let the timer fire — force-reload reads the edited file.
+    await vi.runOnlyPendingTimersAsync();
+
+    // The job should NOT have run — the new schedule says 02:00, not 00:05.
+    // The skipDue logic should detect the schedule mismatch and recompute.
+    const jobs = await cron.list();
+    const updated = jobs.find((j) => j.id === job.id);
+    expect(updated).toBeDefined();
+    // nextRunAtMs should reflect the new 02:00 UTC schedule.
+    expect(updated!.state.nextRunAtMs).toBe(Date.parse("2026-02-06T02:00:00.000Z"));
+    // The job should not have executed since the schedule changed.
+    expect(runIsolatedAgentJob).not.toHaveBeenCalled();
+
+    cron.stop();
   });
 });
