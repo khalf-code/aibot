@@ -28,12 +28,7 @@ On Windows, we strongly recommend running OpenClaw under [WSL2](https://learn.mi
 Downloads the CLI, installs it globally via npm, and launches the onboarding wizard.
 
 <Tabs>
-  <Tab title="macOS">
-    ```bash
-    curl -fsSL https://openclaw.ai/install.sh | bash
-    ```
-  </Tab>
-  <Tab title="Linux / WSL2">
+  <Tab title="macOS / Linux / WSL2">
     ```bash
     curl -fsSL https://openclaw.ai/install.sh | bash
     ```
