@@ -40,10 +40,11 @@ import {
 } from "./message-utils.js";
 import { buildDirectLabel, buildGuildLabel, resolveReplyContext } from "./reply-context.js";
 import { deliverDiscordReply } from "./reply-delivery.js";
+import { DiscordStatusOutbox, resolveDiscordStatusOutboxConfig } from "./status-outbox.js";
 import { resolveDiscordAutoThreadReplyPlan, resolveDiscordThreadStarter } from "./threading.js";
 import { sendTyping } from "./typing.js";
 
-async function removeDiscordStatusReactions(params: {
+export async function removeDiscordStatusReactions(params: {
   channelId: string;
   messageId: string;
   emojis: string[];
@@ -61,7 +62,7 @@ async function removeDiscordStatusReactions(params: {
   );
 }
 
-async function setDiscordStatusReaction(params: {
+export async function setDiscordStatusReaction(params: {
   channelId: string;
   messageId: string;
   emoji: string;
@@ -151,6 +152,8 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
 
   const statusCfg = discordConfig?.statusReactions;
   const statusEnabled = statusCfg?.enabled === true;
+  const outboxCfg = resolveDiscordStatusOutboxConfig(cfg);
+  const outbox = outboxCfg.enabled ? new DiscordStatusOutbox() : null;
   const statusWorking = (statusCfg?.working ?? "🤔").trim();
   const statusDone = (statusCfg?.done ?? "👍").trim();
   const statusError = (statusCfg?.error ?? "😢").trim();
@@ -167,6 +170,11 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
       emoji: statusWorking,
       allStateEmojis: statusEmojis,
       rest: client.rest,
+    });
+    outbox?.upsertWorking({
+      messageId: message.id,
+      channelId: message.channelId,
+      replyToId: message.id,
     });
   }
 
@@ -480,10 +488,12 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
         allStateEmojis: statusEmojis,
         rest: client.rest,
       });
+      outbox?.markTerminal({ messageId: message.id, state: "error" });
     }
     throw err;
   } finally {
     markDispatchIdle();
+    outbox?.close();
   }
 
   if (!queuedFinal) {
@@ -513,6 +523,10 @@ export async function processDiscordMessage(ctx: DiscordMessagePreflightContext)
       allStateEmojis: statusEmojis,
       rest: client.rest,
     });
+    // Mark terminal after the reply pipeline completed without throwing.
+    // This is still best-effort (a hard restart can interrupt mid-run),
+    // and the outbox reconciliation on startup handles those cases.
+    outbox?.markTerminal({ messageId: message.id, state: "done" });
   }
 
   if (shouldLogVerbose()) {

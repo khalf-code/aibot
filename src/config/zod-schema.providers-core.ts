@@ -313,6 +313,24 @@ export const DiscordAccountSchema = z
         done: z.string().optional(),
         /** Reaction used on failure (default: 😢). */
         error: z.string().optional(),
+        /**
+         * Restart-safe outbox + reconciliation for deterministic status reactions.
+         *
+         * If the gateway restarts mid-run after setting 🤔 but before replying, the next
+         * startup will reconcile stale "working" entries by:
+         * - flipping the reaction to 😢
+         * - optionally posting a fixed recovery line as a reply to the original message
+         */
+        outbox: z
+          .object({
+            enabled: z.boolean().optional(),
+            abortAfterSeconds: z.number().optional(),
+            watchdogSeconds: z.number().optional(),
+            retentionDays: z.number().optional(),
+            abortMessage: z.string().optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),
