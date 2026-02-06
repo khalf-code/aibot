@@ -8,6 +8,7 @@ import {
   SessionChat,
   SessionActivityFeed,
   SessionWorkspacePane,
+  SessionOverviewPanel,
   type Activity,
 } from "@/components/domain/session";
 import { useAgent } from "@/hooks/queries/useAgents";
@@ -19,7 +20,10 @@ import { buildAgentSessionKey, type ChatMessage } from "@/lib/api/sessions";
 import type { StreamingMessage } from "@/stores/useSessionStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, TerminalSquare, Timer } from "lucide-react";
+import { formatRelativeTime, getSessionLabel } from "@/components/domain/session/session-helpers";
 
 export const Route = createFileRoute("/agents/$agentId/session/$sessionKey")({
   component: AgentSessionPage,
@@ -70,6 +74,54 @@ const mockActivities: Activity[] = [
   },
 ];
 
+function getLatestMessageTimestamp(messages: ReadonlyArray<ChatMessage>): number | undefined {
+  return messages.reduce<number | undefined>((latest, message) => {
+    if (!message.timestamp) {return latest;}
+    const parsed = Date.parse(message.timestamp);
+    if (Number.isNaN(parsed)) {return latest;}
+    if (!latest || parsed > latest) {return parsed;}
+    return latest;
+  }, undefined);
+}
+
+interface SessionSummaryStripProps {
+  sessionLabel: string;
+  messageCount: number;
+  lastActiveAt?: number;
+  chatBackend: "gateway" | "vercel-ai";
+}
+
+function SessionSummaryStrip({
+  sessionLabel,
+  messageCount,
+  lastActiveAt,
+  chatBackend,
+}: SessionSummaryStripProps) {
+  return (
+    <div className="px-4 pb-3 xl:hidden">
+      <Card className="border-border/60 bg-card/40">
+        <CardContent className="p-3 flex flex-wrap items-center gap-3 text-xs">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Session</p>
+            <p className="text-sm font-semibold truncate">{sessionLabel}</p>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Timer className="h-3.5 w-3.5" />
+            <span>{lastActiveAt ? formatRelativeTime(lastActiveAt) : "Waiting"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <TerminalSquare className="h-3.5 w-3.5" />
+            <span>{messageCount} messages</span>
+          </div>
+          <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+            {chatBackend === "gateway" ? "Gateway" : "Vercel AI"}
+          </Badge>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function AgentSessionPage() {
   const { agentId, sessionKey: sessionKeyParam } = Route.useParams();
   const navigate = Route.useNavigate();
@@ -114,6 +166,14 @@ function AgentSessionPage() {
     // Use gateway history from server
     return chatHistory?.messages ?? [];
   }, [chatBackend, sessionKey, chatHistory?.messages, vercelStore]);
+
+  const selectedSession = React.useMemo(
+    () => sessions?.find((session) => session.key === sessionKey),
+    [sessions, sessionKey]
+  );
+  const messageCount = selectedSession?.messageCount ?? messages.length;
+  const derivedLastActive = getLatestMessageTimestamp(messages);
+  const lastActiveAt = selectedSession?.lastMessageAt ?? derivedLastActive;
 
   // Handle session change (switching to an existing session)
   const handleSessionChange = React.useCallback(
@@ -179,15 +239,46 @@ function AgentSessionPage() {
         onNewSession={handleNewSession}
       />
 
+      <SessionSummaryStrip
+        sessionLabel={selectedSession ? getSessionLabel(selectedSession) : "Current session"}
+        messageCount={messageCount}
+        lastActiveAt={lastActiveAt}
+        chatBackend={chatBackend}
+      />
+
       {/* Main content area - flex-1 with min-h-0 allows proper height distribution */}
-      <div className="flex-1 flex min-h-0">
-        {/* Chat section (center ~60%) - min-h-0 is critical for flex children */}
+      <div
+        className={cn(
+          "flex-1 min-h-0 grid",
+          workspacePaneMaximized
+            ? "grid-cols-1"
+            : "grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_360px]"
+        )}
+      >
+        <aside
+          className={cn(
+            "hidden xl:flex flex-col border-r border-border/50 bg-muted/20 p-4",
+            workspacePaneMaximized && "hidden"
+          )}
+        >
+          <SessionOverviewPanel
+            agent={agent}
+            session={selectedSession}
+            messageCount={messageCount}
+            lastActiveAt={lastActiveAt}
+            workspaceDir={`~/.clawdbrain/agents/${agentId}/workspace`}
+            chatBackend={chatBackend}
+            onNewSession={handleNewSession}
+          />
+        </aside>
+
+        {/* Chat section (center) */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            "flex-1 min-w-0 min-h-0 flex flex-col",
+            "min-w-0 min-h-0 flex flex-col",
             workspacePaneMaximized && "hidden"
           )}
         >
@@ -203,38 +294,45 @@ function AgentSessionPage() {
           />
         </motion.div>
 
-        {/* Right sidebar (activity + workspace) */}
-        <motion.div
+        {/* Right sidebar */}
+        <motion.aside
           initial={{ opacity: 0, x: 10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.2, delay: 0.1 }}
           className={cn(
-            "w-[380px] border-l border-border/50 flex flex-col bg-card/30 p-3 gap-3",
-            workspacePaneMaximized && "flex-1 w-full"
+            "min-h-0 flex flex-col border-l border-border/50 bg-card/30",
+            workspacePaneMaximized && "border-l-0"
           )}
         >
-          {/* Activity Feed (top of right sidebar) - hidden when maximized */}
-          {!workspacePaneMaximized && (
-            <div className="h-[280px] border border-border/50 rounded-xl overflow-hidden shrink-0 bg-card/40">
-              <div className="px-4 py-3 border-b border-border/50">
-                <h3 className="text-sm font-medium">Activity</h3>
-              </div>
-              <SessionActivityFeed activities={activities} maxItems={8} />
+          <Tabs defaultValue="activity" className="flex-1 min-h-0">
+            <div className="px-3 pt-3">
+              <TabsList variant="line" className="w-full justify-start">
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="workspace">Workspace</TabsTrigger>
+              </TabsList>
             </div>
-          )}
 
-          {/* Workspace Pane (bottom of right sidebar or full when maximized) */}
-          <div className={cn("flex-1 min-h-0", workspacePaneMaximized && "p-4")}>
-            <SessionWorkspacePane
-              isMaximized={workspacePaneMaximized}
-              onToggleMaximize={() => setWorkspacePaneMaximized((v) => !v)}
-              sessionKey={sessionKey}
-              workspaceDir={`~/.clawdbrain/agents/${agentId}/workspace`}
-              agentId={agentId}
-              className="h-full"
-            />
-          </div>
-        </motion.div>
+            <TabsContent value="activity" className="flex-1 min-h-0 px-3 pb-3">
+              <div className="h-full border border-border/50 rounded-xl overflow-hidden bg-card/40">
+                <div className="px-4 py-3 border-b border-border/50">
+                  <h3 className="text-sm font-medium">Activity</h3>
+                </div>
+                <SessionActivityFeed activities={activities} maxItems={12} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="workspace" className="flex-1 min-h-0 px-3 pb-3">
+              <SessionWorkspacePane
+                isMaximized={workspacePaneMaximized}
+                onToggleMaximize={() => setWorkspacePaneMaximized((v) => !v)}
+                sessionKey={sessionKey}
+                workspaceDir={`~/.clawdbrain/agents/${agentId}/workspace`}
+                agentId={agentId}
+                className="h-full"
+              />
+            </TabsContent>
+          </Tabs>
+        </motion.aside>
       </div>
     </div>
   );

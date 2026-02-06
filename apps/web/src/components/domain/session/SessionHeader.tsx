@@ -19,9 +19,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AgentAvatar, StatusBadge } from "@/components/composed";
-import { ChatBackendToggle } from "./ChatBackendToggle";
 import type { Agent, AgentStatus } from "@/hooks/queries/useAgents";
 import type { GatewaySessionRow } from "@/lib/api/sessions";
+import { formatRelativeTime, getSessionLabel } from "./session-helpers";
 import {
   ArrowLeft,
   Settings,
@@ -44,36 +44,6 @@ export interface SessionHeaderProps {
   onNewSession?: () => void;
   /** Additional CSS classes */
   className?: string;
-}
-
-/**
- * Format relative time from timestamp
- */
-function formatRelativeTime(timestamp?: number): string {
-  if (!timestamp) {return "";}
-
-  const now = Date.now();
-  const diffMs = now - timestamp;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) {return "Just now";}
-  if (diffMins < 60) {return `${diffMins}m ago`;}
-  if (diffHours < 24) {return `${diffHours}h ago`;}
-  if (diffDays < 7) {return `${diffDays}d ago`;}
-  return new Date(timestamp).toLocaleDateString();
-}
-
-/**
- * Get display label for a session
- */
-function getSessionLabel(session: GatewaySessionRow): string {
-  if (session.label) {return session.label;}
-  if (session.derivedTitle) {return session.derivedTitle;}
-  // Extract the session name from the key (e.g., "agent:1:main" -> "main")
-  const parts = session.key.split(":");
-  return parts[parts.length - 1] || "Session";
 }
 
 export function SessionHeader({
@@ -187,7 +157,6 @@ export function SessionHeader({
 
       {/* Right section: Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        <ChatBackendToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">

@@ -14,4 +14,8 @@ export {
   SessionWorkspacePane,
   type SessionWorkspacePaneProps,
 } from "./SessionWorkspacePane";
+export {
+  SessionOverviewPanel,
+  type SessionOverviewPanelProps,
+} from "./SessionOverviewPanel";
 export { ChatBackendToggle, type ChatBackendToggleProps } from "./ChatBackendToggle";

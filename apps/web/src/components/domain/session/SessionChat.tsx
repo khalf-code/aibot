@@ -112,6 +112,11 @@ export function SessionChat({
   }, [messages, streamingMessage, agentName, agentStatus]);
 
   const isStreaming = streamingMessage?.isStreaming ?? false;
+  const starterPrompts = [
+    "Summarize the current session goals.",
+    "Draft a plan and checklist for this task.",
+    "Review the latest outputs and suggest next steps.",
+  ];
 
   return (
     <div className={cn("flex flex-col h-full min-h-0 bg-background", className)}>
@@ -138,6 +143,20 @@ export function SessionChat({
                     Send a message to begin chatting with {agentName}. The agent
                     can help you with tasks, answer questions, and more.
                   </p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {starterPrompts.map((prompt) => (
+                      <Button
+                        key={prompt}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => onSend(prompt)}
+                        disabled={disabled || isLoading || isStreaming}
+                      >
+                        {prompt}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (
