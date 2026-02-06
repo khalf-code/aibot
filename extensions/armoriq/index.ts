@@ -104,7 +104,16 @@ const POLICY_UPDATE_INSTRUCTIONS = `Policy updates:
 - If details are missing, infer reasonable defaults: reason="User policy update", mode="merge", tool="*", action="deny" for "block/disallow" intents.
 - For "credit card" or "payment" requests, set dataClass to PCI or PAYMENT.
 - Only use policy_update for explicit policy changes.
-- If the user asks for help/commands, return the policy command cheat-sheet.`;
+- If the user asks for help/commands, return the policy command cheat-sheet.
+- New rules are prepended (top of list) so they take priority over existing rules.
+- Reset clears all rules; default behavior with no rules is allow-all.
+
+Tool access enforcement:
+- The ArmorIQ policy engine is the SOLE authority for deciding whether a tool call is allowed or blocked.
+- If the policy engine permits a tool call, you MUST execute it. Do NOT independently refuse, second-guess, or add your own safety judgment on top of the policy decision.
+- If the policy engine blocks a tool call, it will be blocked automatically. You do not need to enforce it yourself.
+- Never override, bypass, or supplement the policy engine with your own allow/deny logic.
+- Your role is to execute what the policy permits and inform the user when the policy blocks something.`;
 
 const clientCache = new Map<string, ArmorIQClient>();
 const planCache = new Map<string, PlanCacheEntry>();
@@ -248,12 +257,12 @@ function formatPolicyHelp(): string {
     "1. Policy list: list all rules",
     "2. Policy get policy1: show one rule by id",
     "3. Policy delete policy1: remove a rule by id",
-    "4. Policy reset: replace all rules with allow-all",
+    "4. Policy reset: clear all rules (reverts to default-allow)",
     "5. Policy update policy1: block send_email for payment data",
     "6. Policy update policy2: allow write_file",
-    "7. Policy new: block upload_file for PII (creates new policyN)",
+    "7. Policy new: block upload_file for PII (creates new policyN, added at top)",
     "8. Policy prioritize policy2 1: move rule to position 1 (higher priority)",
-    "Note: Rules are evaluated top-to-bottom; first match wins.",
+    "Note: Rules are evaluated top-to-bottom; first match wins. New rules go to the top.",
   ].join("\n");
 }
 
@@ -269,7 +278,7 @@ function formatPolicyNeedId(): string {
 
 function formatPolicyList(state: PolicyState): string {
   if (!state.policy.rules.length) {
-    return `Policy version ${state.version}. No rules configured.`;
+    return `Policy version ${state.version}. No explicit rules. Default: allow all tools.`;
   }
   const lines = state.policy.rules.map(
     (rule, idx) => `${idx + 1}. ${formatPolicyRule(rule)} (order=${idx + 1})`,
@@ -411,9 +420,6 @@ function parsePolicyTextCommand(text: string, state: PolicyState): PolicyCommand
   const lower = trimmed.toLowerCase();
   const ids = extractPolicyIdsFromText(trimmed, state);
 
-  if (/\b(help|commands|prompt)\b/.test(lower) && /\bpolicy|policies\b/.test(lower)) {
-    return { kind: "help" };
-  }
   const reorderMatch = trimmed.match(
     /\bpolicy\s*(?:priorit(?:y|ize|ise)|reorder|move)\s+(policy\d+|[a-z0-9][\w.-]*)\s+(?:to\s+)?(\d+)\b/i,
   );
@@ -431,6 +437,9 @@ function parsePolicyTextCommand(text: string, state: PolicyState): PolicyCommand
   }
   if (/\b(new|create|add)\b/.test(lower) && /\bpolicy|policies\b/.test(lower)) {
     return { kind: "update", update: buildPolicyUpdateFromText(trimmed, state) };
+  }
+  if (/\b(help|commands|prompt)\b/.test(lower) && !/\b(new|create|add|update|delete|reset|list)\b/.test(lower) && /\bpolicy|policies\b/.test(lower)) {
+    return { kind: "help" };
   }
   if (/\b(list|show|view)\b/.test(lower) && /\bpolicy|policies\b/.test(lower)) {
     return { kind: "list" };
@@ -1428,13 +1437,7 @@ export default function register(api: OpenClawPluginApi) {
               const resetUpdate: PolicyUpdate = {
                 reason: command.reason,
                 mode: "replace",
-                rules: [
-                  {
-                    id: "allow-all",
-                    action: "allow",
-                    tool: "*",
-                  },
-                ],
+                rules: [],
               };
               const parsedReset = PolicyUpdateSchema.safeParse(resetUpdate);
               if (!parsedReset.success) {

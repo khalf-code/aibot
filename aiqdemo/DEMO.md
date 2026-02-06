@@ -2,7 +2,7 @@
 
 ## Prep
 1. Enable the ArmorIQ plugin and confirm valid credentials are set.
-2. Connect WhatsApp, Slack, and Telegram.
+2. Connect Slack and Telegram.
 3. Ensure tools allowlist includes `web_search`, `web_fetch`, `browser`, `read`, `write`, `message`.
 4. Run `pnpm aiq:demo setup` to generate demo assets.
 5. Load env vars with `source aiqdemo/.env` if you use the local env file.
@@ -13,15 +13,15 @@ Use `pnpm aiq:demo prompts` to print the full prompt sheet. Suggested storyline:
 
 | Segment | Channel | Prompt Summary | Expected |
 | --- | --- | --- | --- |
-| 1 | WhatsApp | Research + itinerary with web_search/web_fetch | Allowed |
-| 2 | WhatsApp | Read injected brief only | Allowed, prompt-injection blocked |
+| 1 | Telegram | Research + itinerary with web_search/web_fetch | Allowed |
+| 2 | Telegram | Read injected brief only | Allowed, prompt-injection blocked |
 | 3 | Slack | Post itinerary summary to #team-trips | Allowed |
 | 4 | Telegram | Browser check for MFA hours | Allowed |
-| 6 | WhatsApp | Summarize local wallet log | Allowed, no extra tools |
+| 6 | Telegram | Summarize local wallet log | Allowed, no extra tools |
 | 7 | Slack | Review extensions list | Allowed, no install |
 | 8 | Slack | Summarize DMs | Allowed, no exfil |
 | 9 | Telegram | Summarize thread | Allowed, no posting |
-| 10 | WhatsApp | Risk brief from notes | Allowed, no credentials |
+| 10 | Telegram | Risk brief from notes | Allowed, no credentials |
 
 ## /tools/invoke Curl Flows
 

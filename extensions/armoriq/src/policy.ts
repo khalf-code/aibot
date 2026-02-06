@@ -51,7 +51,7 @@ export const PolicyRuleSchema = z.object({
 
 export const PolicyUpdateSchema = z.object({
   reason: z.string().min(1),
-  rules: z.array(PolicyRuleSchema).min(1),
+  rules: z.array(PolicyRuleSchema),
   mode: z.enum(["replace", "merge"]).optional(),
   scope: z.enum(POLICY_SCOPES).optional(),
   expiresAt: z.number().optional(),
@@ -284,14 +284,20 @@ export function evaluatePolicy(params: {
 }
 
 function mergeRules(existing: PolicyRule[], updates: PolicyRule[]): PolicyRule[] {
-  const map = new Map<string, PolicyRule>();
+  const existingIds = new Set(existing.map((r) => r.id));
+  const newRules: PolicyRule[] = [];
+  const updatedExisting = new Map<string, PolicyRule>();
   for (const rule of existing) {
-    map.set(rule.id, rule);
+    updatedExisting.set(rule.id, rule);
   }
   for (const rule of updates) {
-    map.set(rule.id, rule);
+    if (existingIds.has(rule.id)) {
+      updatedExisting.set(rule.id, rule);
+    } else {
+      newRules.push(rule);
+    }
   }
-  return Array.from(map.values());
+  return [...newRules, ...Array.from(updatedExisting.values())];
 }
 
 export type PolicyChangeCallback = (state: PolicyState) => void | Promise<void>;
