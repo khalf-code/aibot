@@ -83,6 +83,12 @@ function sleep(ms: number, abortSignal?: AbortSignal): Promise<void> {
 }
 
 function extractZulipHttpStatus(err: unknown): number | null {
+  if (err && typeof err === "object" && "status" in err) {
+    const value = (err as { status?: unknown }).status;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
   const match = /Zulip API error \((\d{3})\):/.exec(String(err));
   if (!match) {
     return null;

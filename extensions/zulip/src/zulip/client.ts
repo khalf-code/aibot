@@ -6,6 +6,11 @@ export type ZulipAuth = {
   apiKey: string;
 };
 
+export type ZulipHttpError = Error & {
+  status?: number;
+  retryAfterMs?: number;
+};
+
 export type ZulipApiError = {
   result: "error";
   msg?: string;
@@ -20,6 +25,25 @@ export type ZulipApiSuccess = {
 function buildAuthHeader(email: string, apiKey: string): string {
   const token = Buffer.from(`${email}:${apiKey}`, "utf8").toString("base64");
   return `Basic ${token}`;
+}
+
+function sleep(ms: number, abortSignal?: AbortSignal): Promise<void> {
+  if (ms <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    abortSignal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        reject(err);
+      },
+      { once: true },
+    );
+  });
 }
 
 async function readJson(res: Response): Promise<unknown> {
@@ -79,6 +103,12 @@ export async function zulipRequest<T = unknown>(params: {
 
   const data = await readJson(res);
   if (!res.ok) {
+    const retryAfterRaw = res.headers.get("retry-after");
+    const retryAfterSeconds = retryAfterRaw ? Number(retryAfterRaw) : null;
+    const retryAfterMs =
+      retryAfterSeconds != null && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? Math.floor(retryAfterSeconds * 1000)
+        : undefined;
     const msgValue =
       data && typeof data === "object" && "msg" in (data as Record<string, unknown>)
         ? (data as { msg?: unknown }).msg
@@ -89,7 +119,44 @@ export async function zulipRequest<T = unknown>(params: {
         : msgValue != null
           ? JSON.stringify(msgValue)
           : `HTTP ${res.status}`;
-    throw new Error(`Zulip API error (${res.status}): ${msg}`.trim());
+    const err: ZulipHttpError = new Error(`Zulip API error (${res.status}): ${msg}`.trim());
+    err.status = res.status;
+    err.retryAfterMs = retryAfterMs;
+    throw err;
   }
   return data as T;
+}
+
+export async function zulipRequestWithRetry<T = unknown>(
+  params: Parameters<typeof zulipRequest<T>>[0] & {
+    retry?: {
+      maxRetries?: number;
+      baseDelayMs?: number;
+      maxDelayMs?: number;
+    };
+  },
+): Promise<T> {
+  const maxRetries = params.retry?.maxRetries ?? 4;
+  const baseDelayMs = params.retry?.baseDelayMs ?? 750;
+  const maxDelayMs = params.retry?.maxDelayMs ?? 15_000;
+
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      return await zulipRequest<T>(params);
+    } catch (err) {
+      const status = (err as ZulipHttpError).status;
+      const retryAfterMs = (err as ZulipHttpError).retryAfterMs;
+      const isRetryable = status === 429 || status === 503 || status === 502 || status === 504;
+      if (!isRetryable || attempt >= maxRetries) {
+        throw err;
+      }
+      const expDelay = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt);
+      const jitter = Math.floor(Math.random() * 250);
+      const delayMs = Math.max(expDelay + jitter, retryAfterMs ?? 0);
+      attempt += 1;
+      await sleep(delayMs, params.abortSignal).catch(() => undefined);
+    }
+  }
 }

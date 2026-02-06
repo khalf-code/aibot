@@ -1,5 +1,5 @@
 import type { ZulipApiSuccess, ZulipAuth } from "./client.js";
-import { zulipRequest } from "./client.js";
+import { zulipRequestWithRetry } from "./client.js";
 
 export type ZulipSendMessageResponse = ZulipApiSuccess & {
   id?: number;
@@ -12,7 +12,7 @@ export async function sendZulipStreamMessage(params: {
   content: string;
   abortSignal?: AbortSignal;
 }): Promise<ZulipSendMessageResponse> {
-  return await zulipRequest<ZulipSendMessageResponse>({
+  return await zulipRequestWithRetry<ZulipSendMessageResponse>({
     auth: params.auth,
     method: "POST",
     path: "/api/v1/messages",
@@ -23,5 +23,6 @@ export async function sendZulipStreamMessage(params: {
       content: params.content,
     },
     abortSignal: params.abortSignal,
+    retry: { maxRetries: 5, baseDelayMs: 1000, maxDelayMs: 20_000 },
   });
 }
