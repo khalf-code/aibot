@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ExternalLink, CheckCircle2, Loader2, ShieldCheck, Zap, KeyRound, Settings } from "lucide-react";
+import { ExternalLink, CheckCircle2, Loader2, ShieldCheck, Zap, KeyRound } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { showSuccess } from "@/lib/toast";
@@ -24,7 +24,6 @@ import { ScopeSelector } from "./ScopeSelector";
 import { getProviderScopes, getDefaultScopes } from "@/lib/scopes";
 import type {
   ConnectionWizardData,
-  ConnectionAuthMethod,
   ConnectionAuthField,
   ConnectionSyncOption,
 } from "./ConnectionWizardDialog";

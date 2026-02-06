@@ -90,7 +90,8 @@ function AgentStatusDashboardPage() {
   const handleHealthFilterChange = (value: HealthFilter) => {
     setHealthFilter(value);
     navigate({
-      search: (prev) => ({ ...prev, health: value === "all" ? undefined : value }),
+      from: Route.fullPath,
+      search: { health: value === "all" ? undefined : value },
       replace: true,
     });
   };

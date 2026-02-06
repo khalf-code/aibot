@@ -12,7 +12,6 @@ import {
   getProviderScopes,
   getDefaultScopes,
   expandScopes,
-  type ScopeDefinition,
   type ScopePreset,
 } from "@/lib/scopes";
 

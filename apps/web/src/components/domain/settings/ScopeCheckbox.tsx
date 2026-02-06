@@ -1,7 +1,6 @@
 "use client";
 
-import * as React from "react";
-import { Check, AlertTriangle, Info, Shield } from "lucide-react";
+import { AlertTriangle, Info, Shield } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -29,17 +28,6 @@ function getRiskColor(risk: ScopeRiskLevel): string {
       return "text-yellow-500";
     default:
       return "text-green-500";
-  }
-}
-
-function getRiskBadgeVariant(risk: ScopeRiskLevel): "destructive" | "warning" | "secondary" {
-  switch (risk) {
-    case "high":
-      return "destructive";
-    case "medium":
-      return "warning";
-    default:
-      return "secondary";
   }
 }
 

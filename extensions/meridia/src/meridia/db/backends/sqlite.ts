@@ -1,25 +1,32 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import type { MeridiaExperienceRecord, MeridiaTraceEvent } from "../../types.js";
 import type {
+  BackendHealthCheck,
   MeridiaDbBackend,
   MeridiaDbStats,
   MeridiaSessionListItem,
   MeridiaSessionSummary,
   MeridiaToolStatsItem,
+  MeridiaTransaction,
+  PoolStats,
   RecordQueryFilters,
   RecordQueryResult,
+  TransactionOptions,
 } from "../backend.js";
-import type { MeridiaExperienceRecord, MeridiaTraceEvent } from "../../types.js";
-import { isDefaultMeridiaDir, resolveMeridiaDir } from "../../paths.js";
 import { wipeDir } from "../../fs.js";
+import { isDefaultMeridiaDir, resolveMeridiaDir } from "../../paths.js";
 
 const require = createRequire(import.meta.url);
 
 const SCHEMA_VERSION = "1";
+
+// ────────────────────────────────────────────────────────────────────────────
+// Database Helpers
+// ────────────────────────────────────────────────────────────────────────────
 
 function openDb(dbPath: string): DatabaseSync {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -117,7 +124,9 @@ function ensureSchema(db: DatabaseSync): { ftsAvailable: boolean; ftsError?: str
   db.exec(
     `CREATE INDEX IF NOT EXISTS idx_meridia_records_session_key ON meridia_records(session_key);`,
   );
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_meridia_records_tool_name ON meridia_records(tool_name);`);
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_meridia_records_tool_name ON meridia_records(tool_name);`,
+  );
   db.exec(`CREATE INDEX IF NOT EXISTS idx_meridia_records_score ON meridia_records(score);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_meridia_records_kind ON meridia_records(kind);`);
 
@@ -133,7 +142,9 @@ function ensureSchema(db: DatabaseSync): { ftsAvailable: boolean; ftsError?: str
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_meridia_trace_ts ON meridia_trace(ts);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_meridia_trace_kind ON meridia_trace(kind);`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_meridia_trace_session_key ON meridia_trace(session_key);`);
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_meridia_trace_session_key ON meridia_trace(session_key);`,
+  );
 
   let ftsAvailable = false;
   let ftsError: string | undefined;
@@ -158,6 +169,10 @@ function ensureSchema(db: DatabaseSync): { ftsAvailable: boolean; ftsError?: str
 
   return { ftsAvailable, ...(ftsError ? { ftsError } : {}) };
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Text Helpers
+// ────────────────────────────────────────────────────────────────────────────
 
 function clampText(input: string, maxChars: number): string {
   if (input.length <= maxChars) {
@@ -184,12 +199,17 @@ function buildSearchableText(record: MeridiaExperienceRecord): string {
   if (record.content?.context) parts.push(record.content.context);
   if (record.content?.tags?.length) parts.push(record.content.tags.join(" "));
   if (record.content?.anchors?.length) parts.push(record.content.anchors.join(" "));
-  if (record.data?.args !== undefined) parts.push(clampText(safeJsonStringify(record.data.args), 500));
+  if (record.data?.args !== undefined)
+    parts.push(clampText(safeJsonStringify(record.data.args), 500));
   if (record.data?.result !== undefined) {
     parts.push(clampText(safeJsonStringify(record.data.result), 1000));
   }
   return parts.join(" ");
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Filter Helpers
+// ────────────────────────────────────────────────────────────────────────────
 
 function applyFilters(filters?: RecordQueryFilters): { where: string; params: unknown[] } {
   const conditions: string[] = [];
@@ -232,16 +252,189 @@ function parseTraceJson(raw: string): MeridiaTraceEvent {
   return JSON.parse(raw) as MeridiaTraceEvent;
 }
 
-export class SqliteBackend implements MeridiaDbBackend {
+// ────────────────────────────────────────────────────────────────────────────
+// SQLite Transaction Implementation
+// ────────────────────────────────────────────────────────────────────────────
+
+class SqliteTransaction implements MeridiaTransaction {
   private db: DatabaseSync;
+  private ftsAvailable: boolean;
+  private committed = false;
+  private rolledBack = false;
+
+  constructor(db: DatabaseSync, ftsAvailable: boolean) {
+    this.db = db;
+    this.ftsAvailable = ftsAvailable;
+  }
+
+  private checkActive(): void {
+    if (this.committed || this.rolledBack) {
+      throw new Error("Transaction is no longer active");
+    }
+  }
+
+  insertExperienceRecord(record: MeridiaExperienceRecord): boolean {
+    this.checkActive();
+    return insertRecordSync(this.db, record, this.ftsAvailable);
+  }
+
+  insertExperienceRecordsBatch(records: MeridiaExperienceRecord[]): number {
+    this.checkActive();
+    let inserted = 0;
+    for (const record of records) {
+      if (insertRecordSync(this.db, record, this.ftsAvailable)) {
+        inserted++;
+      }
+    }
+    return inserted;
+  }
+
+  insertTraceEvent(event: MeridiaTraceEvent): boolean {
+    this.checkActive();
+    return insertTraceSync(this.db, event);
+  }
+
+  insertTraceEventsBatch(events: MeridiaTraceEvent[]): number {
+    this.checkActive();
+    let inserted = 0;
+    for (const event of events) {
+      if (insertTraceSync(this.db, event)) {
+        inserted++;
+      }
+    }
+    return inserted;
+  }
+
+  setMeta(key: string, value: string): void {
+    this.checkActive();
+    this.db
+      .prepare(`INSERT OR REPLACE INTO meridia_meta (key, value) VALUES (?, ?)`)
+      .run(key, value);
+  }
+
+  async commit(): Promise<void> {
+    this.checkActive();
+    this.db.exec("COMMIT");
+    this.committed = true;
+  }
+
+  async rollback(): Promise<void> {
+    if (this.committed) {
+      throw new Error("Cannot rollback a committed transaction");
+    }
+    if (!this.rolledBack) {
+      try {
+        this.db.exec("ROLLBACK");
+      } catch {
+        // ignore
+      }
+      this.rolledBack = true;
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Sync Insert Helpers (used by both direct calls and transactions)
+// ────────────────────────────────────────────────────────────────────────────
+
+function insertRecordSync(
+  db: DatabaseSync,
+  record: MeridiaExperienceRecord,
+  ftsAvailable: boolean,
+): boolean {
+  const dataJson = JSON.stringify(record);
+  const dataText = buildSearchableText(record);
+  const tagsJson = record.content?.tags?.length ? JSON.stringify(record.content.tags) : null;
+  const evaluation = record.capture.evaluation;
+
+  const result = db
+    .prepare(`
+      INSERT OR IGNORE INTO meridia_records
+        (id, ts, kind, session_key, session_id, run_id, tool_name, tool_call_id, is_error,
+         score, threshold, eval_kind, eval_model, eval_reason, tags_json, data_json, data_text)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    .run(
+      record.id,
+      record.ts,
+      record.kind,
+      record.session?.key ?? null,
+      record.session?.id ?? null,
+      record.session?.runId ?? null,
+      record.tool?.name ?? null,
+      record.tool?.callId ?? null,
+      record.tool?.isError ? 1 : 0,
+      record.capture.score,
+      record.capture.threshold ?? null,
+      evaluation.kind,
+      evaluation.model ?? null,
+      evaluation.reason ?? null,
+      tagsJson,
+      dataJson,
+      dataText,
+    );
+
+  const inserted = (result.changes ?? 0) > 0;
+  if (inserted && ftsAvailable && tableExists(db, "meridia_records_fts")) {
+    try {
+      const row = db.prepare(`SELECT rowid FROM meridia_records WHERE id = ?`).get(record.id) as
+        | { rowid: number }
+        | undefined;
+      if (row) {
+        db.prepare(
+          `INSERT INTO meridia_records_fts (rowid, tool_name, eval_reason, data_text) VALUES (?, ?, ?, ?)`,
+        ).run(row.rowid, record.tool?.name ?? "", evaluation.reason ?? "", dataText);
+      }
+    } catch {
+      // ignore FTS insert failures
+    }
+  }
+
+  return inserted;
+}
+
+function insertTraceSync(db: DatabaseSync, event: MeridiaTraceEvent): boolean {
+  const dataJson = JSON.stringify(event);
+  const result = db
+    .prepare(
+      `INSERT OR IGNORE INTO meridia_trace (id, ts, kind, session_key, data_json) VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(event.id, event.ts, event.kind, event.session?.key ?? null, dataJson);
+  return (result.changes ?? 0) > 0;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SQLite Backend Implementation
+// ────────────────────────────────────────────────────────────────────────────
+
+export class SqliteBackend implements MeridiaDbBackend {
+  readonly type = "sqlite" as const;
+
+  private db: DatabaseSync | null = null;
   private ftsAvailable = false;
   private schemaVersion: string | null = null;
+  private dbPath: string;
+  private allowAutoWipe: boolean;
+  private initCalled = false;
 
-  constructor(params: { dbPath: string; cfg?: OpenClawConfig; hookKey?: string; allowAutoWipe: boolean }) {
-    fs.mkdirSync(path.dirname(params.dbPath), { recursive: true, mode: 0o700 });
+  constructor(params: { dbPath: string; allowAutoWipe?: boolean }) {
+    this.dbPath = params.dbPath;
+    this.allowAutoWipe = params.allowAutoWipe ?? true;
+  }
 
-    const dbExists = fs.existsSync(params.dbPath);
-    const dirPath = path.dirname(params.dbPath);
+  // ──────────────────────────────────────────────────────────────────────────
+  // Lifecycle
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async init(): Promise<void> {
+    if (this.initCalled && this.db) {
+      return;
+    }
+
+    fs.mkdirSync(path.dirname(this.dbPath), { recursive: true, mode: 0o700 });
+
+    const dbExists = fs.existsSync(this.dbPath);
+    const dirPath = path.dirname(this.dbPath);
     const dirHasFiles =
       fs.existsSync(dirPath) &&
       (() => {
@@ -251,15 +444,16 @@ export class SqliteBackend implements MeridiaDbBackend {
           return false;
         }
       })();
+
     if (dbExists) {
-      const tmp = openDb(params.dbPath);
+      const tmp = openDb(this.dbPath);
       const mismatch = hasAnyUserTables(tmp) && !isExpectedSchema(tmp);
       try {
         tmp.close();
       } catch {}
 
       if (mismatch) {
-        if (!params.allowAutoWipe || !isDefaultMeridiaDir(dirPath)) {
+        if (!this.allowAutoWipe || !isDefaultMeridiaDir(dirPath)) {
           throw new Error(
             `Unsupported Meridia data detected in ${JSON.stringify(dirPath)}. ` +
               `Run: openclaw meridia reset --dir ${JSON.stringify(dirPath)} --force`,
@@ -272,7 +466,7 @@ export class SqliteBackend implements MeridiaDbBackend {
         wipeDir(dirPath);
       }
     } else if (dirHasFiles) {
-      if (!params.allowAutoWipe || !isDefaultMeridiaDir(dirPath)) {
+      if (!this.allowAutoWipe || !isDefaultMeridiaDir(dirPath)) {
         throw new Error(
           `Unsupported Meridia data detected in ${JSON.stringify(dirPath)}. ` +
             `Run: openclaw meridia reset --dir ${JSON.stringify(dirPath)} --force`,
@@ -285,146 +479,169 @@ export class SqliteBackend implements MeridiaDbBackend {
       wipeDir(dirPath);
     }
 
-    this.db = openDb(params.dbPath);
+    this.db = openDb(this.dbPath);
     const result = ensureSchema(this.db);
     this.ftsAvailable = result.ftsAvailable;
     this.schemaVersion = readSchemaVersion(this.db);
+    this.initCalled = true;
   }
 
-  ensureSchema(): { ftsAvailable: boolean; ftsError?: string } {
-    const res = ensureSchema(this.db);
+  async ensureSchema(): Promise<{ ftsAvailable: boolean; ftsError?: string }> {
+    this.ensureDb();
+    const res = ensureSchema(this.db!);
     this.ftsAvailable = res.ftsAvailable;
-    this.schemaVersion = readSchemaVersion(this.db);
+    this.schemaVersion = readSchemaVersion(this.db!);
     return res;
   }
 
-  close(): void {
-    try {
-      this.db.close();
-    } catch {
-      // ignore
-    }
-  }
-
-  insertExperienceRecord(record: MeridiaExperienceRecord): boolean {
-    const dataJson = JSON.stringify(record);
-    const dataText = buildSearchableText(record);
-    const tagsJson = record.content?.tags?.length ? JSON.stringify(record.content.tags) : null;
-    const evaluation = record.capture.evaluation;
-
-    const result = this.db
-      .prepare(`
-        INSERT OR IGNORE INTO meridia_records
-          (id, ts, kind, session_key, session_id, run_id, tool_name, tool_call_id, is_error,
-           score, threshold, eval_kind, eval_model, eval_reason, tags_json, data_json, data_text)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-      .run(
-        record.id,
-        record.ts,
-        record.kind,
-        record.session?.key ?? null,
-        record.session?.id ?? null,
-        record.session?.runId ?? null,
-        record.tool?.name ?? null,
-        record.tool?.callId ?? null,
-        record.tool?.isError ? 1 : 0,
-        record.capture.score,
-        record.capture.threshold ?? null,
-        evaluation.kind,
-        evaluation.model ?? null,
-        evaluation.reason ?? null,
-        tagsJson,
-        dataJson,
-        dataText,
-      );
-
-    const inserted = (result.changes ?? 0) > 0;
-    if (inserted && this.ftsAvailable && tableExists(this.db, "meridia_records_fts")) {
+  async close(): Promise<void> {
+    if (this.db) {
       try {
-        const row = this.db
-          .prepare(`SELECT rowid FROM meridia_records WHERE id = ?`)
-          .get(record.id) as { rowid: number } | undefined;
-        if (row) {
-          this.db
-            .prepare(
-              `INSERT INTO meridia_records_fts (rowid, tool_name, eval_reason, data_text) VALUES (?, ?, ?, ?)`,
-            )
-            .run(row.rowid, record.tool?.name ?? "", evaluation.reason ?? "", dataText);
-        }
+        this.db.close();
       } catch {
         // ignore
       }
+      this.db = null;
     }
-
-    return inserted;
+    this.initCalled = false;
   }
 
-  insertExperienceRecordsBatch(records: MeridiaExperienceRecord[]): number {
+  // ──────────────────────────────────────────────────────────────────────────
+  // Health & Monitoring
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async healthCheck(): Promise<BackendHealthCheck> {
+    const start = performance.now();
+    try {
+      this.ensureDb();
+      // Simple query to check database is responsive
+      this.db!.prepare("SELECT 1").get();
+      const latencyMs = performance.now() - start;
+      return {
+        status: "healthy",
+        latencyMs,
+        details: {
+          dbPath: this.dbPath,
+          ftsAvailable: this.ftsAvailable,
+          schemaVersion: this.schemaVersion,
+        },
+      };
+    } catch (err) {
+      return {
+        status: "unhealthy",
+        latencyMs: performance.now() - start,
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  getPoolStats(): PoolStats | null {
+    // SQLite doesn't use connection pooling
+    return null;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Transactions
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async beginTransaction(_options?: TransactionOptions): Promise<MeridiaTransaction> {
+    this.ensureDb();
+    this.db!.exec("BEGIN");
+    return new SqliteTransaction(this.db!, this.ftsAvailable);
+  }
+
+  async withTransaction<T>(
+    fn: (tx: MeridiaTransaction) => Promise<T>,
+    options?: TransactionOptions,
+  ): Promise<T> {
+    const tx = await this.beginTransaction(options);
+    try {
+      const result = await fn(tx);
+      await tx.commit();
+      return result;
+    } catch (err) {
+      await tx.rollback();
+      throw err;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Record Operations
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async insertExperienceRecord(record: MeridiaExperienceRecord): Promise<boolean> {
+    this.ensureDb();
+    return insertRecordSync(this.db!, record, this.ftsAvailable);
+  }
+
+  async insertExperienceRecordsBatch(records: MeridiaExperienceRecord[]): Promise<number> {
     if (records.length === 0) {
       return 0;
     }
-    this.db.exec("BEGIN");
+    this.ensureDb();
+    this.db!.exec("BEGIN");
     try {
       let inserted = 0;
       for (const record of records) {
-        if (this.insertExperienceRecord(record)) {
+        if (insertRecordSync(this.db!, record, this.ftsAvailable)) {
           inserted++;
         }
       }
-      this.db.exec("COMMIT");
+      this.db!.exec("COMMIT");
       return inserted;
     } catch (err) {
       try {
-        this.db.exec("ROLLBACK");
+        this.db!.exec("ROLLBACK");
       } catch {}
       throw err;
     }
   }
 
-  insertTraceEvent(event: MeridiaTraceEvent): boolean {
-    const dataJson = JSON.stringify(event);
-    const result = this.db
-      .prepare(
-        `INSERT OR IGNORE INTO meridia_trace (id, ts, kind, session_key, data_json) VALUES (?, ?, ?, ?, ?)`,
-      )
-      .run(event.id, event.ts, event.kind, event.session?.key ?? null, dataJson);
-    return (result.changes ?? 0) > 0;
+  async insertTraceEvent(event: MeridiaTraceEvent): Promise<boolean> {
+    this.ensureDb();
+    return insertTraceSync(this.db!, event);
   }
 
-  insertTraceEventsBatch(events: MeridiaTraceEvent[]): number {
+  async insertTraceEventsBatch(events: MeridiaTraceEvent[]): Promise<number> {
     if (events.length === 0) {
       return 0;
     }
-    this.db.exec("BEGIN");
+    this.ensureDb();
+    this.db!.exec("BEGIN");
     try {
       let inserted = 0;
       for (const event of events) {
-        if (this.insertTraceEvent(event)) {
+        if (insertTraceSync(this.db!, event)) {
           inserted++;
         }
       }
-      this.db.exec("COMMIT");
+      this.db!.exec("COMMIT");
       return inserted;
     } catch (err) {
       try {
-        this.db.exec("ROLLBACK");
+        this.db!.exec("ROLLBACK");
       } catch {}
       throw err;
     }
   }
 
-  getRecordById(id: string): RecordQueryResult | null {
-    const row = this.db
-      .prepare(`SELECT data_json FROM meridia_records WHERE id = ?`)
-      .get(id) as { data_json?: string } | undefined;
+  async getRecordById(id: string): Promise<RecordQueryResult | null> {
+    this.ensureDb();
+    const row = this.db!.prepare(`SELECT data_json FROM meridia_records WHERE id = ?`).get(id) as
+      | { data_json?: string }
+      | undefined;
     if (!row?.data_json) {
       return null;
     }
     return { record: parseRecordJson(row.data_json) };
   }
 
-  searchRecords(query: string, filters?: RecordQueryFilters): RecordQueryResult[] {
+  // ──────────────────────────────────────────────────────────────────────────
+  // Query Operations
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async searchRecords(query: string, filters?: RecordQueryFilters): Promise<RecordQueryResult[]> {
+    this.ensureDb();
     const trimmed = query.trim();
     if (!trimmed) {
       return [];
@@ -432,12 +649,11 @@ export class SqliteBackend implements MeridiaDbBackend {
 
     const limit = Math.min(Math.max(filters?.limit ?? 20, 1), 100);
     const { where, params } = applyFilters(filters);
-    const hasFts = this.ftsAvailable && tableExists(this.db, "meridia_records_fts");
+    const hasFts = this.ftsAvailable && tableExists(this.db!, "meridia_records_fts");
 
     if (hasFts) {
-      const rows = this.db
-        .prepare(
-          `
+      const rows = this.db!.prepare(
+        `
           SELECT r.data_json AS data_json, bm25(meridia_records_fts) AS rank
           FROM meridia_records_fts
           JOIN meridia_records r ON meridia_records_fts.rowid = r.rowid
@@ -445,139 +661,151 @@ export class SqliteBackend implements MeridiaDbBackend {
           ORDER BY rank ASC
           LIMIT ${limit}
         `,
-        )
-        .all(...params, trimmed) as Array<{ data_json: string; rank: number }>;
+      ).all(...params, trimmed) as Array<{ data_json: string; rank: number }>;
 
       return rows.map((row) => ({ record: parseRecordJson(row.data_json), rank: row.rank }));
     }
 
     const like = `%${trimmed}%`;
-    const rows = this.db
-      .prepare(
-        `
+    const rows = this.db!.prepare(
+      `
         SELECT r.data_json AS data_json
         FROM meridia_records r
         ${where ? `${where} AND (r.data_text LIKE ? OR r.eval_reason LIKE ?)` : "WHERE (r.data_text LIKE ? OR r.eval_reason LIKE ?)"}
         ORDER BY r.ts DESC
         LIMIT ${limit}
       `,
-      )
-      .all(...params, like, like) as Array<{ data_json: string }>;
+    ).all(...params, like, like) as Array<{ data_json: string }>;
     return rows.map((row) => ({ record: parseRecordJson(row.data_json) }));
   }
 
-  getRecordsByDateRange(from: string, to: string, filters?: RecordQueryFilters): RecordQueryResult[] {
+  async getRecordsByDateRange(
+    from: string,
+    to: string,
+    filters?: RecordQueryFilters,
+  ): Promise<RecordQueryResult[]> {
+    this.ensureDb();
     const limit = Math.min(Math.max(filters?.limit ?? 50, 1), 500);
     const merged: RecordQueryFilters = { ...filters, from, to, limit };
     const { where, params } = applyFilters(merged);
-    const rows = this.db
-      .prepare(
-        `
+    const rows = this.db!.prepare(
+      `
         SELECT r.data_json AS data_json
         FROM meridia_records r
         ${where}
         ORDER BY r.ts DESC
         LIMIT ${limit}
       `,
-      )
-      .all(...params) as Array<{ data_json: string }>;
+    ).all(...params) as Array<{ data_json: string }>;
     return rows.map((row) => ({ record: parseRecordJson(row.data_json) }));
   }
 
-  getRecordsBySession(sessionKey: string, params?: { limit?: number }): RecordQueryResult[] {
+  async getRecordsBySession(
+    sessionKey: string,
+    params?: { limit?: number },
+  ): Promise<RecordQueryResult[]> {
+    this.ensureDb();
     const limit = Math.min(Math.max(params?.limit ?? 200, 1), 500);
-    const rows = this.db
-      .prepare(
-        `
+    const rows = this.db!.prepare(
+      `
         SELECT r.data_json AS data_json
         FROM meridia_records r
         WHERE r.session_key = ?
         ORDER BY r.ts DESC
         LIMIT ${limit}
       `,
-      )
-      .all(sessionKey) as Array<{ data_json: string }>;
+    ).all(sessionKey) as Array<{ data_json: string }>;
     return rows.map((row) => ({ record: parseRecordJson(row.data_json) }));
   }
 
-  getRecordsByTool(toolName: string, params?: { limit?: number }): RecordQueryResult[] {
+  async getRecordsByTool(
+    toolName: string,
+    params?: { limit?: number },
+  ): Promise<RecordQueryResult[]> {
+    this.ensureDb();
     const limit = Math.min(Math.max(params?.limit ?? 200, 1), 500);
-    const rows = this.db
-      .prepare(
-        `
+    const rows = this.db!.prepare(
+      `
         SELECT r.data_json AS data_json
         FROM meridia_records r
         WHERE r.tool_name = ?
         ORDER BY r.ts DESC
         LIMIT ${limit}
       `,
-      )
-      .all(toolName) as Array<{ data_json: string }>;
+    ).all(toolName) as Array<{ data_json: string }>;
     return rows.map((row) => ({ record: parseRecordJson(row.data_json) }));
   }
 
-  getRecentRecords(limit: number = 20, filters?: Omit<RecordQueryFilters, "limit">): RecordQueryResult[] {
+  async getRecentRecords(
+    limit: number = 20,
+    filters?: Omit<RecordQueryFilters, "limit">,
+  ): Promise<RecordQueryResult[]> {
+    this.ensureDb();
     const resolved = Math.min(Math.max(limit, 1), 200);
     const { where, params } = applyFilters({ ...filters, limit: resolved });
-    const rows = this.db
-      .prepare(
-        `
+    const rows = this.db!.prepare(
+      `
         SELECT r.data_json AS data_json
         FROM meridia_records r
         ${where}
         ORDER BY r.ts DESC
         LIMIT ${resolved}
       `,
-      )
-      .all(...params) as Array<{ data_json: string }>;
+    ).all(...params) as Array<{ data_json: string }>;
     return rows.map((row) => ({ record: parseRecordJson(row.data_json) }));
   }
 
-  getTraceEventsByDateRange(from: string, to: string, params?: { kind?: string; limit?: number }): MeridiaTraceEvent[] {
+  async getTraceEventsByDateRange(
+    from: string,
+    to: string,
+    params?: { kind?: string; limit?: number },
+  ): Promise<MeridiaTraceEvent[]> {
+    this.ensureDb();
     const limit = Math.min(Math.max(params?.limit ?? 2000, 1), 50_000);
     const kind = params?.kind?.trim();
     const rows = kind
-      ? (this.db
-          .prepare(
-            `
+      ? (this.db!.prepare(
+          `
             SELECT data_json
             FROM meridia_trace
             WHERE ts >= ? AND ts <= ? AND kind = ?
             ORDER BY ts DESC
             LIMIT ${limit}
           `,
-          )
-          .all(from, to, kind) as Array<{ data_json: string }>)
-      : (this.db
-          .prepare(
-            `
+        ).all(from, to, kind) as Array<{ data_json: string }>)
+      : (this.db!.prepare(
+          `
             SELECT data_json
             FROM meridia_trace
             WHERE ts >= ? AND ts <= ?
             ORDER BY ts DESC
             LIMIT ${limit}
           `,
-          )
-          .all(from, to) as Array<{ data_json: string }>);
+        ).all(from, to) as Array<{ data_json: string }>);
     return rows.map((row) => parseTraceJson(row.data_json));
   }
 
-  getStats(): MeridiaDbStats {
+  // ──────────────────────────────────────────────────────────────────────────
+  // Stats & Metadata
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async getStats(): Promise<MeridiaDbStats> {
+    this.ensureDb();
     const recordCount = (
-      this.db.prepare(`SELECT COUNT(*) AS cnt FROM meridia_records`).get() as { cnt: number }
+      this.db!.prepare(`SELECT COUNT(*) AS cnt FROM meridia_records`).get() as { cnt: number }
     ).cnt;
     const traceCount = (
-      this.db.prepare(`SELECT COUNT(*) AS cnt FROM meridia_trace`).get() as { cnt: number }
+      this.db!.prepare(`SELECT COUNT(*) AS cnt FROM meridia_trace`).get() as { cnt: number }
     ).cnt;
     const sessionCount = (
-      this.db
-        .prepare(`SELECT COUNT(DISTINCT session_key) AS cnt FROM meridia_records WHERE session_key IS NOT NULL`)
-        .get() as { cnt: number }
+      this.db!.prepare(
+        `SELECT COUNT(DISTINCT session_key) AS cnt FROM meridia_records WHERE session_key IS NOT NULL`,
+      ).get() as { cnt: number }
     ).cnt;
-    const oldest = this.db.prepare(`SELECT MIN(ts) AS ts FROM meridia_records`).get() as {
+    const oldest = this.db!.prepare(`SELECT MIN(ts) AS ts FROM meridia_records`).get() as {
       ts: string | null;
     };
-    const newest = this.db.prepare(`SELECT MAX(ts) AS ts FROM meridia_records`).get() as {
+    const newest = this.db!.prepare(`SELECT MAX(ts) AS ts FROM meridia_records`).get() as {
       ts: string | null;
     };
     return {
@@ -590,9 +818,9 @@ export class SqliteBackend implements MeridiaDbBackend {
     };
   }
 
-  getToolStats(): MeridiaToolStatsItem[] {
-    const rows = this.db
-      .prepare(`
+  async getToolStats(): Promise<MeridiaToolStatsItem[]> {
+    this.ensureDb();
+    const rows = this.db!.prepare(`
         SELECT
           tool_name,
           COUNT(*) as cnt,
@@ -603,8 +831,7 @@ export class SqliteBackend implements MeridiaDbBackend {
         WHERE tool_name IS NOT NULL
         GROUP BY tool_name
         ORDER BY cnt DESC
-      `)
-      .all() as Array<{
+      `).all() as Array<{
       tool_name: string;
       cnt: number;
       avg_score: number | null;
@@ -621,12 +848,15 @@ export class SqliteBackend implements MeridiaDbBackend {
     }));
   }
 
-  listSessions(params?: { limit?: number; offset?: number }): MeridiaSessionListItem[] {
+  async listSessions(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<MeridiaSessionListItem[]> {
+    this.ensureDb();
     const limit = params?.limit ?? 50;
     const offset = params?.offset ?? 0;
-    const rows = this.db
-      .prepare(
-        `
+    const rows = this.db!.prepare(
+      `
         SELECT
           session_key,
           COUNT(*) as record_count,
@@ -638,8 +868,7 @@ export class SqliteBackend implements MeridiaDbBackend {
         ORDER BY MAX(ts) DESC
         LIMIT ? OFFSET ?
       `,
-      )
-      .all(limit, offset) as Array<{
+    ).all(limit, offset) as Array<{
       session_key: string;
       record_count: number;
       first_ts: string | null;
@@ -653,26 +882,27 @@ export class SqliteBackend implements MeridiaDbBackend {
     }));
   }
 
-  getSessionSummary(sessionKey: string): MeridiaSessionSummary | null {
+  async getSessionSummary(sessionKey: string): Promise<MeridiaSessionSummary | null> {
+    this.ensureDb();
     const recordCount = (
-      this.db
-        .prepare(`SELECT COUNT(*) as cnt FROM meridia_records WHERE session_key = ?`)
-        .get(sessionKey) as { cnt: number }
+      this.db!.prepare(`SELECT COUNT(*) as cnt FROM meridia_records WHERE session_key = ?`).get(
+        sessionKey,
+      ) as { cnt: number }
     ).cnt;
 
     if (recordCount === 0) {
       return null;
     }
 
-    const firstRecord = this.db
-      .prepare(`SELECT ts FROM meridia_records WHERE session_key = ? ORDER BY ts ASC LIMIT 1`)
-      .get(sessionKey) as { ts: string } | undefined;
-    const lastRecord = this.db
-      .prepare(`SELECT ts FROM meridia_records WHERE session_key = ? ORDER BY ts DESC LIMIT 1`)
-      .get(sessionKey) as { ts: string } | undefined;
-    const toolRows = this.db
-      .prepare(`SELECT DISTINCT tool_name FROM meridia_records WHERE session_key = ? AND tool_name IS NOT NULL`)
-      .all(sessionKey) as Array<{ tool_name: string }>;
+    const firstRecord = this.db!.prepare(
+      `SELECT ts FROM meridia_records WHERE session_key = ? ORDER BY ts ASC LIMIT 1`,
+    ).get(sessionKey) as { ts: string } | undefined;
+    const lastRecord = this.db!.prepare(
+      `SELECT ts FROM meridia_records WHERE session_key = ? ORDER BY ts DESC LIMIT 1`,
+    ).get(sessionKey) as { ts: string } | undefined;
+    const toolRows = this.db!.prepare(
+      `SELECT DISTINCT tool_name FROM meridia_records WHERE session_key = ? AND tool_name IS NOT NULL`,
+    ).all(sessionKey) as Array<{ tool_name: string }>;
 
     return {
       sessionKey,
@@ -683,34 +913,53 @@ export class SqliteBackend implements MeridiaDbBackend {
     };
   }
 
-  getMeta(key: string): string | null {
+  async getMeta(key: string): Promise<string | null> {
+    this.ensureDb();
     try {
-      const row = this.db
-        .prepare(`SELECT value FROM meridia_meta WHERE key = ?`)
-        .get(key) as { value?: string } | undefined;
+      const row = this.db!.prepare(`SELECT value FROM meridia_meta WHERE key = ?`).get(key) as
+        | { value?: string }
+        | undefined;
       return typeof row?.value === "string" ? row.value : null;
     } catch {
       return null;
     }
   }
 
-  setMeta(key: string, value: string): void {
-    this.db.prepare(`INSERT OR REPLACE INTO meridia_meta (key, value) VALUES (?, ?)`).run(key, value);
+  async setMeta(key: string, value: string): Promise<void> {
+    this.ensureDb();
+    this.db!.prepare(`INSERT OR REPLACE INTO meridia_meta (key, value) VALUES (?, ?)`).run(
+      key,
+      value,
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Private Helpers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  private ensureDb(): asserts this is { db: DatabaseSync } {
+    if (!this.db) {
+      throw new Error("SQLite backend not initialized. Call init() first.");
+    }
   }
 }
 
-export function createSqliteBackend(params: { cfg?: OpenClawConfig; hookKey?: string; dbPath: string }): SqliteBackend {
-  const meridiaDir = path.dirname(params.dbPath);
-  const allowAutoWipe = isDefaultMeridiaDir(meridiaDir);
-  return new SqliteBackend({
-    dbPath: params.dbPath,
-    cfg: params.cfg,
-    hookKey: params.hookKey,
-    allowAutoWipe,
-  });
+// ────────────────────────────────────────────────────────────────────────────
+// Factory Functions
+// ────────────────────────────────────────────────────────────────────────────
+
+export function createSqliteBackend(params: {
+  dbPath: string;
+  allowAutoWipe?: boolean;
+}): SqliteBackend {
+  return new SqliteBackend(params);
 }
 
-export function resolveMeridiaDbPath(params?: { cfg?: OpenClawConfig; hookKey?: string; dbPathOverride?: string }): string {
+export function resolveMeridiaDbPath(params?: {
+  cfg?: OpenClawConfig;
+  hookKey?: string;
+  dbPathOverride?: string;
+}): string {
   if (params?.dbPathOverride) {
     return params.dbPathOverride;
   }
