@@ -22,6 +22,8 @@ export type CompactionIndicatorStatus = {
 
 export type ChatProps = {
   sessionKey: string;
+  isRecording?: boolean;
+  onToggleRecording?: () => void;
   onSessionKeyChange: (next: string) => void;
   thinkingLevel: string | null;
   showThinking: boolean;
@@ -394,6 +396,20 @@ export function renderChat(props: ChatProps) {
             ></textarea>
           </label>
           <div class="chat-compose__actions">
+            ${
+              props.onToggleRecording
+                ? html`
+                  <button
+                    class="btn ${props.isRecording ? "danger" : ""}"
+                    ?disabled=${!props.connected}
+                    @click=${props.onToggleRecording}
+                    title="${props.isRecording ? "Stop recording" : "Start recording"}"
+                  >
+                    ${props.isRecording ? icons.micOff : icons.mic}
+                  </button>
+                `
+                : nothing
+            }
             <button
               class="btn"
               ?disabled=${!props.connected || (!canAbort && props.sending)}

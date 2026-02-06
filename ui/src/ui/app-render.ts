@@ -914,6 +914,8 @@ export function renderApp(state: AppViewState) {
           state.tab === "chat"
             ? renderChat({
                 sessionKey: state.sessionKey,
+                isRecording: (state as unknown as OpenClawApp).chatRecording,
+                onToggleRecording: () => (state as unknown as OpenClawApp).toggleRecording(),
                 onSessionKeyChange: (next) => {
                   state.sessionKey = next;
                   state.chatMessage = "";

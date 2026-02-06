@@ -124,6 +124,9 @@ export class OpenClawApp extends LitElement {
   @state() sessionKey = this.settings.sessionKey;
   @state() chatLoading = false;
   @state() chatSending = false;
+  @state() chatRecording = false;
+  private recognition: any = null;
+  private recordingSessionBase = "";
   @state() chatMessage = "";
   @state() chatMessages: unknown[] = [];
   @state() chatToolMessages: unknown[] = [];
@@ -384,10 +387,79 @@ export class OpenClawApp extends LitElement {
     );
   }
 
+  toggleRecording() {
+    if (this.chatRecording) {
+      this.recognition?.stop();
+      this.chatRecording = false;
+      return;
+    }
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert(
+        "Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.",
+      );
+      return;
+    }
+
+    this.recognition = new SpeechRecognition();
+    this.recognition.continuous = true;
+    this.recognition.interimResults = true;
+    this.recognition.lang = navigator.language || "zh-CN";
+
+    this.recognition.onstart = () => {
+      this.chatRecording = true;
+      this.recordingSessionBase = this.chatMessage;
+    };
+
+    this.recognition.onresult = (event: any) => {
+      let sessionTranscript = "";
+      for (let i = 0; i < event.results.length; ++i) {
+        sessionTranscript += event.results[i][0].transcript;
+      }
+
+      if (sessionTranscript) {
+        const prefix =
+          this.recordingSessionBase && !this.recordingSessionBase.endsWith(" ") ? " " : "";
+        this.chatMessage = this.recordingSessionBase + prefix + sessionTranscript;
+      }
+    };
+
+    this.recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      this.chatRecording = false;
+
+      if (event.error === "no-speech") {
+        // Just stop quietly, or maybe show a toast in a real app.
+        // For now, let's not alert to avoid spamming if it just timed out naturally.
+        // But if the user is complaining it "didn't work", they might need to know.
+        console.warn("Speech recognition: No speech detected.");
+      } else if (event.error === "not-allowed") {
+        alert("Microphone access denied. Please allow microphone access in your browser settings.");
+      } else if (event.error === "audio-capture") {
+        alert(
+          "No microphone was found. Ensure that a microphone is installed and that microphone settings are configured correctly.",
+        );
+      }
+    };
+
+    this.recognition.onend = () => {
+      this.chatRecording = false;
+    };
+
+    this.recognition.start();
+  }
+
   async handleSendChat(
     messageOverride?: string,
     opts?: Parameters<typeof handleSendChatInternal>[2],
   ) {
+    // Clear recording base when sending, so it doesn't reappear
+    if (messageOverride == null) {
+      this.recordingSessionBase = "";
+    }
+
     await handleSendChatInternal(
       this as unknown as Parameters<typeof handleSendChatInternal>[0],
       messageOverride,
