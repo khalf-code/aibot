@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { createAutoCompactionRetryHook } from "./auto-compaction-retry-hook.js";
 
 describe("createAutoCompactionRetryHook", () => {
-  it("proceeds without changes when the full prompt fits", () => {
+  it("proceeds without changes when the full prompt fits (including safety margin)", () => {
     const warn = vi.fn();
     const hook = createAutoCompactionRetryHook({
-      retrySystemPrompt: "SLIM",
+      getRetrySystemPrompt: () => "SLIM",
       onDowngradeSystemPrompt: vi.fn(),
       logger: { warn },
       logPrefix: "t",
@@ -16,7 +16,7 @@ describe("createAutoCompactionRetryHook", () => {
         messageTokens: 100,
         systemPromptTokens: 100,
         totalTokens: 200,
-        tokenBudget: 250,
+        tokenBudget: 1200,
         overBy: 0,
       },
     });
@@ -30,7 +30,7 @@ describe("createAutoCompactionRetryHook", () => {
     const onDowngradeSystemPrompt = vi.fn();
     const retrySystemPrompt = "x".repeat(400); // ~100 tokens
     const hook = createAutoCompactionRetryHook({
-      retrySystemPrompt,
+      getRetrySystemPrompt: () => retrySystemPrompt,
       onDowngradeSystemPrompt,
       logger: { warn },
       logPrefix: "t",
@@ -39,10 +39,10 @@ describe("createAutoCompactionRetryHook", () => {
     const decision = hook({
       estimates: {
         messageTokens: 100,
-        systemPromptTokens: 500,
-        totalTokens: 600,
-        tokenBudget: 250,
-        overBy: 350,
+        systemPromptTokens: 900,
+        totalTokens: 1000,
+        tokenBudget: 1200,
+        overBy: 312,
       },
     });
 
@@ -56,7 +56,7 @@ describe("createAutoCompactionRetryHook", () => {
     const onDowngradeSystemPrompt = vi.fn();
     const retrySystemPrompt = "x".repeat(400); // ~100 tokens
     const hook = createAutoCompactionRetryHook({
-      retrySystemPrompt,
+      getRetrySystemPrompt: () => retrySystemPrompt,
       onDowngradeSystemPrompt,
       logger: { warn },
       logPrefix: "t",
@@ -64,11 +64,11 @@ describe("createAutoCompactionRetryHook", () => {
 
     const decision = hook({
       estimates: {
-        messageTokens: 500,
-        systemPromptTokens: 500,
-        totalTokens: 1000,
-        tokenBudget: 250,
-        overBy: 750,
+        messageTokens: 700,
+        systemPromptTokens: 900,
+        totalTokens: 1600,
+        tokenBudget: 1200,
+        overBy: 912,
       },
     });
 
@@ -81,4 +81,3 @@ describe("createAutoCompactionRetryHook", () => {
     expect(decision.errorMessage).toContain("Auto-compaction succeeded");
   });
 });
-
