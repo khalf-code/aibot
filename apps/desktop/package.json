@@ -1,0 +1,55 @@
+{
+  "name": "openclaw-cn-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "src/main.cjs",
+  "scripts": {
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "34.3.0",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "productName": "OpenClaw CN",
+    "appId": "ai.openclaw.cn",
+    "files": [
+      "src/**",
+      "README.md"
+    ],
+    "extraResources": [
+      {
+        "from": "../../dist/control-ui",
+        "to": "control-ui",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "icon": "build/icon.png"
+    }
+  }
+}

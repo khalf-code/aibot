@@ -1,6 +1,7 @@
 packages:
   - .
   - ui
+  - apps/desktop
   - packages/*
   - extensions/*
 
@@ -8,6 +9,8 @@ onlyBuiltDependencies:
   - "@whiskeysockets/baileys"
   - "@lydell/node-pty"
   - "@matrix-org/matrix-sdk-crypto-nodejs"
+  - electron
+  - electron-builder
   - authenticate-pam
   - esbuild
   - protobufjs

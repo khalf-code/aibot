@@ -45,7 +45,12 @@ function which(cmd) {
 function resolveRunner() {
   const pnpm = which("pnpm");
   if (pnpm) {
-    return { cmd: pnpm, kind: "pnpm" };
+    return { cmd: pnpm, argsPrefix: [], kind: "pnpm" };
+  }
+  const corepack = which("corepack");
+  if (corepack) {
+    // Allow running UI tasks without a globally-installed pnpm binary.
+    return { cmd: corepack, argsPrefix: ["pnpm"], kind: "corepack-pnpm" };
   }
   return null;
 }
@@ -125,13 +130,13 @@ if (action !== "install" && !script) {
 }
 
 if (action === "install") {
-  run(runner.cmd, ["install", ...rest]);
+  run(runner.cmd, [...runner.argsPrefix, "install", ...rest]);
 } else {
   if (!depsInstalled(action === "test" ? "test" : "build")) {
     const installEnv =
       action === "build" ? { ...process.env, NODE_ENV: "production" } : process.env;
     const installArgs = action === "build" ? ["install", "--prod"] : ["install"];
-    runSync(runner.cmd, installArgs, installEnv);
+    runSync(runner.cmd, [...runner.argsPrefix, ...installArgs], installEnv);
   }
-  run(runner.cmd, ["run", script, ...rest]);
+  run(runner.cmd, [...runner.argsPrefix, "run", script, ...rest]);
 }

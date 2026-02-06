@@ -299,6 +299,10 @@ export class OpenClawApp extends LitElement {
   private themeMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
   private topbarObserver: ResizeObserver | null = null;
   private commandCenterKeyHandler = (e: KeyboardEvent) => this.handleCommandCenterKey(e);
+  private desktopCommandCenterHandler = () => {
+    this.commandCenterOpen = true;
+    this.commandCenterSelectedIndex = 0;
+  };
 
   createRenderRoot() {
     return this;
@@ -308,6 +312,11 @@ export class OpenClawApp extends LitElement {
     super.connectedCallback();
     handleConnected(this as unknown as Parameters<typeof handleConnected>[0]);
     window.addEventListener("keydown", this.commandCenterKeyHandler, { capture: true });
+    window.addEventListener(
+      "openclawDesktop:openCommandCenter",
+      this.desktopCommandCenterHandler,
+      false,
+    );
   }
 
   protected firstUpdated() {
@@ -316,6 +325,11 @@ export class OpenClawApp extends LitElement {
 
   disconnectedCallback() {
     window.removeEventListener("keydown", this.commandCenterKeyHandler, { capture: true });
+    window.removeEventListener(
+      "openclawDesktop:openCommandCenter",
+      this.desktopCommandCenterHandler,
+      false,
+    );
     handleDisconnected(this as unknown as Parameters<typeof handleDisconnected>[0]);
     super.disconnectedCallback();
   }
