@@ -4,6 +4,31 @@ import { writeConfigFile } from "../config/config-file.js";
 import { loadOpenClawPlugins } from "../plugins/loader.js";
 import { updateNpmInstalledPlugins } from "../plugins/update.js";
 
+const PLUGIN_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+async function fetchLatestNpmVersion(packageName: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://registry.npmjs.org/${encodeURIComponent(packageName)}/latest`,
+      {
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as { version?: unknown };
+    return typeof json?.version === "string" ? json.version : null;
+  } catch {
+    return null;
+  }
+}
+
+function shouldCheckForUpdates(lastCheckedAt?: string): boolean {
+  if (!lastCheckedAt) return true;
+  const lastChecked = new Date(lastCheckedAt).getTime();
+  if (Number.isNaN(lastChecked)) return true;
+  return Date.now() - lastChecked > PLUGIN_UPDATE_CHECK_INTERVAL_MS;
+}
+
 export async function autoUpdatePluginsOnStartup(params: {
   cfg: ReturnType<typeof loadConfig>;
   log: {
@@ -18,15 +43,39 @@ export async function autoUpdatePluginsOnStartup(params: {
   }
 
   const installs = params.cfg.plugins?.installs ?? {};
-  const hasNpmPlugins = Object.values(installs).some((r) => r.source === "npm");
-  if (!hasNpmPlugins) {
+  const npmPlugins = Object.entries(installs).filter(([, r]) => r.source === "npm" && r.spec);
+  if (npmPlugins.length === 0) {
     return params.cfg;
   }
 
-  params.log.info("[plugins] Checking for plugin updates...");
+  const pluginsNeedingUpdate: string[] = [];
+  for (const [pluginId, record] of npmPlugins) {
+    if (!shouldCheckForUpdates(record.installedAt)) {
+      continue;
+    }
+
+    const latestVersion = await fetchLatestNpmVersion(record.spec!);
+    if (!latestVersion) {
+      continue;
+    }
+
+    if (!record.version || record.version !== latestVersion) {
+      pluginsNeedingUpdate.push(pluginId);
+      params.log.info(
+        `[plugins] Update available: ${pluginId} ${record.version ?? "unknown"} -> ${latestVersion}`,
+      );
+    }
+  }
+
+  if (pluginsNeedingUpdate.length === 0) {
+    return params.cfg;
+  }
+
+  params.log.info(`[plugins] Updating ${pluginsNeedingUpdate.length} plugin(s)...`);
 
   const result = await updateNpmInstalledPlugins({
     config: params.cfg,
+    pluginIds: pluginsNeedingUpdate,
     logger: {
       info: (msg) => params.log.info(msg),
       warn: (msg) => params.log.warn(msg),
