@@ -689,7 +689,7 @@ export function applyChutesProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
     id: "Qwen/Qwen2.5-72B-Instruct",
     name: "Qwen 2.5 72B Instruct",
     reasoning: false,
-    input: ["text"],
+    input: ["text"] as const,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 131072,
     maxTokens: 8192
@@ -779,7 +779,7 @@ export function applyChutesProviderConfigWithModel(
     id: modelId,
     name: modelId,
     reasoning: false,
-    input: ["text"],
+    input: ["text"] as const,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 131072,
     maxTokens: 8192
