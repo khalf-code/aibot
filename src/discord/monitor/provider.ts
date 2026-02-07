@@ -4,6 +4,7 @@ import { Routes } from "discord-api-types/v10";
 import { inspect } from "node:util";
 import type { HistoryEntry } from "../../auto-reply/reply/history.js";
 import type { OpenClawConfig, ReplyToMode } from "../../config/config.js";
+import type { ExecApprovalDecision } from "../../infra/exec-approvals.js";
 import type { RuntimeEnv } from "../../runtime.js";
 import { resolveTextChunkLimit } from "../../auto-reply/chunk.js";
 import { listNativeCommandSpecsForConfig } from "../../auto-reply/commands-registry.js";
@@ -15,10 +16,12 @@ import {
   resolveNativeSkillsEnabled,
 } from "../../config/commands.js";
 import { loadConfig } from "../../config/config.js";
+import { GatewayClient } from "../../gateway/client.js";
 import { danger, logVerbose, shouldLogVerbose, warn } from "../../globals.js";
 import { formatErrorMessage } from "../../infra/errors.js";
 import { createDiscordRetryRunner } from "../../infra/retry-policy.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
+import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../../utils/message-channel.js";
 import { resolveDiscordAccount } from "../accounts.js";
 import { attachDiscordGatewayLogging } from "../gateway-logging.js";
 import { getDiscordGatewayEmitter, waitForDiscordGatewayStop } from "../monitor.gateway.js";
@@ -474,6 +477,38 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
       })
     : null;
 
+  // Build a resolve function for exec approval buttons.
+  // When the full handler is enabled it already has a gateway connection;
+  // otherwise create a lazy one so forwarder-sent buttons still work.
+  let lazyResolverClient: GatewayClient | null = null;
+  let lazyResolverReady: Promise<void> | null = null;
+  const resolveApproval = execApprovalsHandler
+    ? (id: string, decision: ExecApprovalDecision) =>
+        execApprovalsHandler.resolveApproval(id, decision)
+    : async (id: string, decision: ExecApprovalDecision): Promise<boolean> => {
+        if (!lazyResolverClient) {
+          lazyResolverReady = new Promise<void>((resolve) => {
+            lazyResolverClient = new GatewayClient({
+              url: "ws://127.0.0.1:18789",
+              clientName: GATEWAY_CLIENT_NAMES.GATEWAY_CLIENT,
+              clientDisplayName: "Discord Approval Button",
+              mode: GATEWAY_CLIENT_MODES.BACKEND,
+              scopes: ["operator.approvals"],
+              onHelloOk: () => resolve(),
+              onConnectError: () => resolve(),
+            });
+            lazyResolverClient.start();
+          });
+        }
+        await lazyResolverReady;
+        try {
+          await lazyResolverClient!.request("exec.approval.resolve", { id, decision });
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
   const components = [
     createDiscordCommandArgFallbackButton({
       cfg,
@@ -481,11 +516,8 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
       accountId: account.accountId,
       sessionPrefix,
     }),
+    createExecApprovalButton({ resolve: resolveApproval }),
   ];
-
-  if (execApprovalsHandler) {
-    components.push(createExecApprovalButton({ handler: execApprovalsHandler }));
-  }
 
   const client = new Client(
     {
@@ -671,6 +703,7 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
     if (execApprovalsHandler) {
       await execApprovalsHandler.stop();
     }
+    (lazyResolverClient as GatewayClient | null)?.stop();
   }
 }
 

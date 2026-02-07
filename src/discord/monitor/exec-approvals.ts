@@ -514,7 +514,7 @@ export class DiscordExecApprovalHandler {
 }
 
 export type ExecApprovalButtonContext = {
-  handler: DiscordExecApprovalHandler;
+  resolve: (approvalId: string, decision: ExecApprovalDecision) => Promise<boolean>;
 };
 
 export class ExecApprovalButton extends Button {
@@ -559,7 +559,7 @@ export class ExecApprovalButton extends Button {
       // Interaction may have expired, try to continue anyway
     }
 
-    const ok = await this.ctx.handler.resolveApproval(parsed.approvalId, parsed.action);
+    const ok = await this.ctx.resolve(parsed.approvalId, parsed.action);
 
     if (!ok) {
       try {
