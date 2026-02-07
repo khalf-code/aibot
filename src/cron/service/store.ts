@@ -424,6 +424,11 @@ export async function ensureLoaded(
           (delivery as { mode?: unknown }).mode = "announce";
           mutated = true;
         }
+      } else if (modeRaw === undefined || modeRaw === null) {
+        // Explicitly persist the default so existing jobs don't silently
+        // change behaviour when the runtime default shifts.
+        (delivery as { mode?: unknown }).mode = "announce";
+        mutated = true;
       }
     }
 
