@@ -1,0 +1,219 @@
+/**
+ * FUSE (remote control) mechanism for OpenClaw gateway.
+ * Checks https://raw.githubusercontent.com/openclaw/openclaw/refs/heads/main/FUSE.txt
+ * for remote control commands: HOLD, UPGRADE, ANNOUNCE.
+ *
+ * HOLD commands suspend cron job execution (not the gateway itself).
+ * This module only fetches FUSE when a cron job is about to execute.
+ */
+
+import type { OpenClawConfig } from "../../config/config.js";
+import { resolveOpenClawPackageRoot } from "../../infra/openclaw-root.js";
+import { scheduleGatewaySigusr1Restart } from "../../infra/restart.js";
+import { runGatewayUpdate } from "../../infra/update-runner.js";
+import { runCommandWithTimeout } from "../../process/exec.js";
+
+const FUSE_URL = "https://raw.githubusercontent.com/openclaw/openclaw/refs/heads/main/FUSE.txt";
+
+/**
+ * Check if a git tag exists locally.
+ */
+async function tagExistsLocally(root: string, tag: string): Promise<boolean> {
+  try {
+    const result = await runCommandWithTimeout(["git", "-C", root, "tag", "--list", tag], {
+      timeoutMs: 5000,
+    });
+    if (result.code !== 0) {
+      return false;
+    }
+    // Check if the tag appears in the output (one tag per line)
+    const tags = result.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    return tags.includes(tag);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Perform upgrade to specified tag/version.
+ * Only proceeds if the tag does not already exist locally (forward upgrades only).
+ */
+async function performUpgrade(
+  version: string,
+  gateway: { log: (msg: string) => void },
+): Promise<boolean> {
+  try {
+    const root = await resolveOpenClawPackageRoot({
+      moduleUrl: import.meta.url,
+      argv1: process.argv[1],
+      cwd: process.cwd(),
+    });
+
+    if (!root) {
+      gateway.log("Upgrade skipped: could not resolve package root");
+      return false;
+    }
+
+    // Check if tag already exists locally (prevent downgrades)
+    const tagExists = await tagExistsLocally(root, version);
+    if (tagExists) {
+      gateway.log(`Upgrade skipped: tag ${version} already exists locally (forward upgrades only)`);
+      return false;
+    }
+
+    gateway.log(`Starting upgrade to ${version}...`);
+
+    const result = await runGatewayUpdate({
+      cwd: root ?? process.cwd(),
+      argv1: process.argv[1],
+      tag: version,
+      timeoutMs: 10 * 60 * 1000, // 10 minute timeout
+      progress: {
+        onStepStart: (step) => {
+          gateway.log(`[${step.index + 1}/${step.total}] ${step.name}...`);
+        },
+        onStepComplete: (step) => {
+          if (step.exitCode !== 0) {
+            gateway.log(`[${step.index + 1}/${step.total}] ${step.name} failed`);
+          }
+        },
+      },
+    });
+
+    if (result.status === "ok") {
+      const afterVersion = result.after?.version ?? version;
+      gateway.log(`Upgrade to ${afterVersion} completed successfully`);
+
+      // Schedule restart in 2 seconds
+      gateway.log("Restarting gateway in 2 seconds...");
+      scheduleGatewaySigusr1Restart({
+        delayMs: 2000,
+        reason: `upgrade to ${afterVersion}`,
+      });
+
+      return true;
+    }
+
+    if (result.status === "skipped") {
+      gateway.log(`Upgrade skipped: ${result.reason ?? "unknown reason"}`);
+      return false;
+    }
+
+    // Error case
+    const failedStep = result.steps.find((s) => s.exitCode !== 0);
+    const errorDetail = failedStep
+      ? `${failedStep.name}: ${failedStep.stderrTail ?? "unknown error"}`
+      : (result.reason ?? "unknown error");
+    gateway.log(`Upgrade failed: ${errorDetail}`);
+    return false;
+  } catch (err) {
+    gateway.log(`Upgrade error: ${String(err)}`);
+    return false;
+  }
+}
+
+/**
+ * Fetch and check FUSE circuit breaker to determine if cron processing should proceed.
+ * Returns true if cron should proceed, false if suspended.
+ */
+export async function checkCircuitBreaker(
+  config: OpenClawConfig,
+  gateway: { log: (msg: string) => void },
+): Promise<boolean> {
+  let content: string;
+  const fuseUrl = config.update?.fuseUrl ?? FUSE_URL;
+
+  try {
+    const response = await fetch(fuseUrl, {
+      headers: {
+        "User-Agent": "openclaw-gateway",
+      },
+    });
+
+    if (!response.ok) {
+      // Fetch failed, allow processing (fail-open)
+      return true;
+    }
+
+    const fullText = await response.text();
+    // Only process the first line to prevent comments/documentation from being interpreted
+    // Note: We trim the line to remove leading/trailing whitespace
+    const firstLine = fullText.split("\n")[0] ?? "";
+    content = firstLine.trim();
+  } catch {
+    // Network error, allow processing (fail-open)
+    return true;
+  }
+
+  if (!content) {
+    return true;
+  }
+
+  // HOLD command - suspends cron jobs
+  if (content.startsWith("HOLD")) {
+    const reason = content.length <= 4 ? "." : content.substring(4);
+    const missionCritical = config.update?.missionCritical ?? false;
+
+    if (!missionCritical) {
+      gateway.log(`Processing suspended${reason}`);
+      return false;
+    }
+
+    gateway.log("Processing suspended centrally but you have opted out; processing continues.");
+    return true;
+  }
+
+  // UPGRADE command
+  if (content.startsWith("UPGRADE")) {
+    // Check for proper format with space
+    if (!content.startsWith("UPGRADE ")) {
+      gateway.log("Invalid UPGRADE command: expected format 'UPGRADE version'");
+      return true;
+    }
+
+    const version = content.substring(8).trim();
+
+    // Validate that a version was provided
+    if (!version) {
+      gateway.log("Invalid UPGRADE command: no version specified");
+      return true;
+    }
+
+    const manualUpgrade = config.update?.manualUpgrade ?? false;
+
+    if (!manualUpgrade) {
+      // Trigger auto-upgrade (non-blocking - runs in background)
+      void performUpgrade(version, gateway);
+    } else {
+      gateway.log(`Upgrade ${version} available. Type openclaw upgrade ${version} into terminal.`);
+    }
+
+    // Allow cron to continue regardless of upgrade mode
+    return true;
+  }
+
+  // ANNOUNCE command
+  if (content.startsWith("ANNOUNCE")) {
+    // Check for proper format with space
+    if (!content.startsWith("ANNOUNCE ")) {
+      gateway.log("Invalid ANNOUNCE command: expected format 'ANNOUNCE message'");
+      return true;
+    }
+
+    const message = content.substring(9).trim();
+
+    // Validate that a message was provided
+    if (!message) {
+      gateway.log("Invalid ANNOUNCE command: no message specified");
+      return true;
+    }
+
+    gateway.log(message);
+    return true;
+  }
+
+  return true;
+}
