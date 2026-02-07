@@ -140,7 +140,7 @@ const AUTH_CHOICE_GROUP_DEFS: {
     value: "chutes",
     label: "Chutes (Bittensor)",
     hint: "Decentralized inference",
-    choices: ["chutes-api-key", "chutes"]
+    choices: ["chutes-api-key", "chutes"],
   },
   {
     value: "cloudflare-ai-gateway",
@@ -170,12 +170,12 @@ export function buildAuthChoiceOptions(params: {
   options.push({
     value: "chutes-api-key",
     label: "Chutes (Bittensor) API key",
-    hint: "Decentralized inference on Bittensor"
+    hint: "Decentralized inference on Bittensor",
   });
   options.push({
     value: "chutes",
     label: "Chutes (Bittensor) OAuth",
-    hint: "Wallet-based login"
+    hint: "Wallet-based login",
   });
   options.push({ value: "openai-api-key", label: "OpenAI API key" });
   options.push({ value: "xai-api-key", label: "xAI (Grok) API key" });

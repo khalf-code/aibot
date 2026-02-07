@@ -122,9 +122,9 @@ export async function setChutesApiKey(key: string, agentDir?: string) {
     credential: {
       type: "api_key",
       provider: "chutes",
-      key
+      key,
     },
-    agentDir: resolveAuthAgentDir(agentDir)
+    agentDir: resolveAuthAgentDir(agentDir),
   });
 }
 

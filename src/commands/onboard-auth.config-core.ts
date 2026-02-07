@@ -678,7 +678,7 @@ export function applyChutesProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
   const models = { ...cfg.agents?.defaults?.models };
   models[CHUTES_DEFAULT_MODEL_REF] = {
     ...models[CHUTES_DEFAULT_MODEL_REF],
-    alias: models[CHUTES_DEFAULT_MODEL_REF]?.alias ?? "Qwen 2.5 72B"
+    alias: models[CHUTES_DEFAULT_MODEL_REF]?.alias ?? "Qwen 2.5 72B",
   };
 
   const providers = { ...cfg.models?.providers };
@@ -689,14 +689,12 @@ export function applyChutesProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
     id: "Qwen/Qwen2.5-72B-Instruct",
     name: "Qwen 2.5 72B Instruct",
     reasoning: false,
-    input: ["text"] as const,
+    input: ["text"] as Array<"text" | "image">,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 131072,
-    maxTokens: 8192
+    maxTokens: 8192,
   };
-  const hasDefaultModel = existingModels.some(
-    (model) => model.id === "Qwen/Qwen2.5-72B-Instruct"
-  );
+  const hasDefaultModel = existingModels.some((model) => model.id === "Qwen/Qwen2.5-72B-Instruct");
   const mergedModels = hasDefaultModel ? existingModels : [...existingModels, defaultModel];
   const { apiKey: existingApiKey, ...existingProviderRest } = (existingProvider ?? {}) as Record<
     string,
@@ -709,7 +707,7 @@ export function applyChutesProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
     baseUrl: CHUTES_BASE_URL,
     api: "openai-completions",
     ...(normalizedApiKey ? { apiKey: normalizedApiKey } : {}),
-    models: mergedModels.length > 0 ? mergedModels : [defaultModel]
+    models: mergedModels.length > 0 ? mergedModels : [defaultModel],
   };
 
   return {
@@ -718,13 +716,13 @@ export function applyChutesProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
       ...cfg.agents,
       defaults: {
         ...cfg.agents?.defaults,
-        models
-      }
+        models,
+      },
     },
     models: {
       mode: cfg.models?.mode ?? "merge",
-      providers
-    }
+      providers,
+    },
   };
 }
 
@@ -744,13 +742,13 @@ export function applyChutesConfig(cfg: OpenClawConfig): OpenClawConfig {
         model: {
           ...(existingModel && "fallbacks" in (existingModel as Record<string, unknown>)
             ? {
-                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks
+                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks,
               }
             : undefined),
-          primary: CHUTES_DEFAULT_MODEL_REF
-        }
-      }
-    }
+          primary: CHUTES_DEFAULT_MODEL_REF,
+        },
+      },
+    },
   };
 }
 
@@ -779,10 +777,10 @@ export function applyChutesProviderConfigWithModel(
     id: modelId,
     name: modelId,
     reasoning: false,
-    input: ["text"] as const,
+    input: ["text"] as Array<"text" | "image">,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 131072,
-    maxTokens: 8192
+    maxTokens: 8192,
   };
   const hasModel = existingModels.some((model) => model.id === modelId);
   const mergedModels = hasModel ? existingModels : [...existingModels, userModel];
@@ -799,7 +797,7 @@ export function applyChutesProviderConfigWithModel(
     baseUrl: CHUTES_BASE_URL,
     api: "openai-completions",
     ...(normalizedApiKey ? { apiKey: normalizedApiKey } : {}),
-    models: mergedModels.length > 0 ? mergedModels : [userModel]
+    models: mergedModels.length > 0 ? mergedModels : [userModel],
   };
 
   return {
@@ -808,13 +806,13 @@ export function applyChutesProviderConfigWithModel(
       ...cfg.agents,
       defaults: {
         ...cfg.agents?.defaults,
-        models
-      }
+        models,
+      },
     },
     models: {
       mode: cfg.models?.mode ?? "merge",
-      providers
-    }
+      providers,
+    },
   };
 }
 
@@ -833,13 +831,13 @@ export function applyChutesConfigWithModel(cfg: OpenClawConfig, modelRef: string
         model: {
           ...(existingModel && "fallbacks" in (existingModel as Record<string, unknown>)
             ? {
-                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks
+                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks,
               }
             : undefined),
-          primary: modelRef
-        }
-      }
-    }
+          primary: modelRef,
+        },
+      },
+    },
   };
 }
 

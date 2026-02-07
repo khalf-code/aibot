@@ -496,7 +496,7 @@ export async function applyNonInteractiveAuthChoice(params: {
       flagValue: opts.chutesApiKey,
       flagName: "--chutes-api-key",
       envVar: "CHUTES_API_KEY",
-      runtime
+      runtime,
     });
     if (!resolved) {
       return null;
@@ -511,8 +511,8 @@ export async function applyNonInteractiveAuthChoice(params: {
         [
           "Chutes requires a model ID (--chutes-model-id).",
           "Model IDs are assigned when models are deployed on Bittensor.",
-          "Check https://chutes.ai for available models."
-        ].join("\n")
+          "Check https://chutes.ai for available models.",
+        ].join("\n"),
       );
       runtime.exit(1);
       return null;
@@ -521,7 +521,7 @@ export async function applyNonInteractiveAuthChoice(params: {
     nextConfig = applyAuthProfileConfig(nextConfig, {
       profileId: "chutes:default",
       provider: "chutes",
-      mode: "api_key"
+      mode: "api_key",
     });
     return applyChutesConfigWithModel(nextConfig, chutesModelRef);
   }

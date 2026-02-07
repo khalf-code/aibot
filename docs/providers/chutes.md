@@ -23,22 +23,22 @@ title: "Chutes (Bittensor)"
 
 Chutes connects you to Bittensor's decentralized network:
 
-| Component | Description |
-|-----------|-------------|
-| **Bittensor** | Decentralized AI network with incentivized miners |
-| **Subnet 64** | Subnet dedicated to AI inference workloads |
-| **Miners** | GPU operators running open-source models |
-| **Chutes API** | OpenAI-compatible layer routing to miners |
+| Component      | Description                                       |
+| -------------- | ------------------------------------------------- |
+| **Bittensor**  | Decentralized AI network with incentivized miners |
+| **Subnet 64**  | Subnet dedicated to AI inference workloads        |
+| **Miners**     | GPU operators running open-source models          |
+| **Chutes API** | OpenAI-compatible layer routing to miners         |
 
 ## Features
 
-| Feature | Support |
-|---------|---------|
-| **Streaming** | ✅ Supported |
-| **Function calling** | ✅ Supported on compatible models |
-| **Vision/Images** | ✅ Supported on vision models |
-| **JSON mode** | ✅ Supported via `response_format` |
-| **Embeddings** | ✅ Available at `/v1/embeddings` |
+| Feature              | Support                            |
+| -------------------- | ---------------------------------- |
+| **Streaming**        | ✅ Supported                       |
+| **Function calling** | ✅ Supported on compatible models  |
+| **Vision/Images**    | ✅ Supported on vision models      |
+| **JSON mode**        | ✅ Supported via `response_format` |
+| **Embeddings**       | ✅ Available at `/v1/embeddings`   |
 
 ## Setup
 
@@ -58,6 +58,7 @@ openclaw onboard --auth-choice chutes-api-key
 ```
 
 This will:
+
 1. Prompt for your API key (or use existing `CHUTES_API_KEY`)
 2. Prompt for your preferred model ID (check [chutes.ai](https://chutes.ai) for available models)
 3. Configure the Chutes provider
@@ -89,15 +90,15 @@ Chutes model IDs follow the format `provider/model-name`. Model availability dep
 
 ### Common Models
 
-| Model ID | Name | Use Case |
-|----------|------|----------|
-| `Qwen/Qwen2.5-72B-Instruct` | Qwen 2.5 72B | General purpose, recommended |
-| `Qwen/Qwen3-235B-A22B-Instruct-2507` | Qwen 3 235B | Large, powerful |
-| `Qwen/Qwen3-14B` | Qwen 3 14B | Fast, lightweight |
-| `tngtech/DeepSeek-R1T-Chimera` | DeepSeek R1T | Strong reasoning |
-| `OpenGVLab/InternVL3-78B` | InternVL3 78B | Vision tasks |
-| `unsloth/gemma-3-12b-it` | Gemma 3 12B | Fast, efficient |
-| `zai-org/GLM-4.6` | GLM 4.6 | Multilingual |
+| Model ID                             | Name          | Use Case                     |
+| ------------------------------------ | ------------- | ---------------------------- |
+| `Qwen/Qwen2.5-72B-Instruct`          | Qwen 2.5 72B  | General purpose, recommended |
+| `Qwen/Qwen3-235B-A22B-Instruct-2507` | Qwen 3 235B   | Large, powerful              |
+| `Qwen/Qwen3-14B`                     | Qwen 3 14B    | Fast, lightweight            |
+| `tngtech/DeepSeek-R1T-Chimera`       | DeepSeek R1T  | Strong reasoning             |
+| `OpenGVLab/InternVL3-78B`            | InternVL3 78B | Vision tasks                 |
+| `unsloth/gemma-3-12b-it`             | Gemma 3 12B   | Fast, efficient              |
+| `zai-org/GLM-4.6`                    | GLM 4.6       | Multilingual                 |
 
 ### Finding More Models
 
@@ -128,11 +129,11 @@ Add models to your config as you discover them on Chutes:
         models: [
           { id: "Qwen/Qwen2.5-72B-Instruct", name: "Qwen 2.5 72B" },
           { id: "tngtech/DeepSeek-R1T-Chimera", name: "DeepSeek R1T" },
-          { id: "Qwen/Qwen3-14B", name: "Qwen 3 14B" }
-        ]
-      }
-    }
-  }
+          { id: "Qwen/Qwen3-14B", name: "Qwen 3 14B" },
+        ],
+      },
+    },
+  },
 }
 ```
 
@@ -146,16 +147,17 @@ Since Chutes runs on decentralized Bittensor miners, models may occasionally be 
     defaults: {
       model: {
         primary: "chutes/Qwen/Qwen2.5-72B-Instruct",
-        fallbacks: ["chutes/Qwen/Qwen3-14B", "chutes/unsloth/gemma-3-12b-it"]
-      }
-    }
-  }
+        fallbacks: ["chutes/Qwen/Qwen3-14B", "chutes/unsloth/gemma-3-12b-it"],
+      },
+    },
+  },
 }
 ```
 
 When the primary model fails, OpenClaw automatically tries the fallback models in order.
 
 **Tips for reliability:**
+
 - Configure 2-3 fallback models from different miners
 - Check [chutes.ai](https://chutes.ai) for model availability
 - Smaller models (7B, 8B) tend to have more available miners
@@ -189,6 +191,7 @@ openclaw onboard --auth-choice chutes
 ```
 
 This opens a browser for Bittensor wallet login via OAuth PKCE flow. Useful for:
+
 - Miners and validators on Subnet 64
 - Users who prefer wallet-based identity
 - Staking rewards tracking
@@ -199,10 +202,10 @@ Most users should use API key auth — wallet OAuth is optional.
 
 Chutes provides two base URLs:
 
-| Endpoint | URL | Purpose |
-|----------|-----|---------|
-| **Inference** | `https://llm.chutes.ai/v1` | Chat completions, embeddings |
-| **Management** | `https://api.chutes.ai` | Account, API keys, usage |
+| Endpoint       | URL                        | Purpose                      |
+| -------------- | -------------------------- | ---------------------------- |
+| **Inference**  | `https://llm.chutes.ai/v1` | Chat completions, embeddings |
+| **Management** | `https://api.chutes.ai`    | Account, API keys, usage     |
 
 OpenClaw uses the inference endpoint (`llm.chutes.ai/v1`).
 
@@ -229,13 +232,13 @@ Chutes uses TAO-based pricing (Bittensor's native token). Check [chutes.ai](http
 
 ## Comparison: Chutes vs Centralized Providers
 
-| Aspect | Chutes (Decentralized) | Centralized (OpenAI, etc.) |
-|--------|------------------------|----------------------------|
-| **Infrastructure** | Distributed miners | Data centers |
-| **Model availability** | Dynamic (miner-dependent) | Fixed catalog |
-| **Pricing** | TAO-based, competitive | Fixed per-token |
-| **Latency** | Varies by miner | Consistent |
-| **Privacy** | Decentralized network | Provider-controlled |
+| Aspect                 | Chutes (Decentralized)    | Centralized (OpenAI, etc.) |
+| ---------------------- | ------------------------- | -------------------------- |
+| **Infrastructure**     | Distributed miners        | Data centers               |
+| **Model availability** | Dynamic (miner-dependent) | Fixed catalog              |
+| **Pricing**            | TAO-based, competitive    | Fixed per-token            |
+| **Latency**            | Varies by miner           | Consistent                 |
+| **Privacy**            | Decentralized network     | Provider-controlled        |
 
 ## Troubleshooting
 
@@ -263,6 +266,7 @@ Chutes inference API is at `https://llm.chutes.ai/v1`. Ensure your network allow
 ### Slow responses
 
 Response time depends on miner load and network conditions. For faster responses:
+
 - Use smaller models (8B, 7B)
 - Try during off-peak hours
 
@@ -287,12 +291,12 @@ Response time depends on miner load and network conditions. For faster responses
             input: ["text"],
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
             contextWindow: 131072,
-            maxTokens: 8192
-          }
-        ]
-      }
-    }
-  }
+            maxTokens: 8192,
+          },
+        ],
+      },
+    },
+  },
 }
 ```
 

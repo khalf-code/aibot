@@ -766,7 +766,7 @@ export async function applyAuthChoiceApiProviders(
           "Get your API key at: https://chutes.ai",
           "API keys start with 'cpk_'. Model availability depends on active miners.",
         ].join("\n"),
-        "Chutes (Bittensor)"
+        "Chutes (Bittensor)",
       );
     }
 
@@ -774,7 +774,7 @@ export async function applyAuthChoiceApiProviders(
     if (envKey) {
       const useExisting = await params.prompter.confirm({
         message: `Use existing CHUTES_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
-        initialValue: true
+        initialValue: true,
       });
       if (useExisting) {
         await setChutesApiKey(envKey.apiKey, params.agentDir);
@@ -784,23 +784,23 @@ export async function applyAuthChoiceApiProviders(
     if (!hasCredential) {
       const key = await params.prompter.text({
         message: "Enter Chutes API key",
-        validate: validateApiKeyInput
+        validate: validateApiKeyInput,
       });
       await setChutesApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
     }
     nextConfig = applyAuthProfileConfig(nextConfig, {
       profileId: "chutes:default",
       provider: "chutes",
-      mode: "api_key"
+      mode: "api_key",
     });
 
     // Prompt for model ID since Chutes uses dynamic model IDs assigned at deployment
     await params.prompter.note(
       [
         "Chutes models have unique IDs assigned when deployed.",
-        "Check https://chutes.ai for available models and their IDs."
+        "Check https://chutes.ai for available models and their IDs.",
       ].join("\n"),
-      "Model Selection"
+      "Model Selection",
     );
     const modelId = await params.prompter.text({
       message: "Enter Chutes model ID (e.g., 'llama-70b')",
@@ -822,7 +822,7 @@ export async function applyAuthChoiceApiProviders(
         applyProviderConfig: (cfg) => applyChutesProviderConfigWithModel(cfg, chutesModelRef),
         noteDefault: chutesModelRef,
         noteAgentModel,
-        prompter: params.prompter
+        prompter: params.prompter,
       });
       nextConfig = applied.config;
       agentModelOverride = applied.agentModelOverride ?? agentModelOverride;
