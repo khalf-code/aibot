@@ -491,7 +491,10 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
       typeof normalized.content === "string"
         ? normalized.content
         : normalized.content.map((c) => c.text ?? "").join("");
-    if (normalized.role === "system" && messageText.trim() === BARE_SESSION_RESET_PROMPT) {
+    if (
+      normalized.role === "system" &&
+      messageText.trim() === BARE_SESSION_RESET_PROMPT
+    ) {
       continue;
     }
 
