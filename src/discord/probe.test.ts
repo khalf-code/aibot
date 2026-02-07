@@ -44,6 +44,22 @@ describe("fetchDiscordApplicationId", () => {
     expect(id).toBeUndefined();
   });
 
+  it("returns undefined on 400", async () => {
+    const id = await fetchDiscordApplicationId("valid.token.here", 4000, mockFetch(400));
+    expect(id).toBeUndefined();
+  });
+
+  it("returns undefined on 404", async () => {
+    const id = await fetchDiscordApplicationId("valid.token.here", 4000, mockFetch(404));
+    expect(id).toBeUndefined();
+  });
+
+  it("throws on 429", async () => {
+    await expect(
+      fetchDiscordApplicationId("valid.token.here", 4000, mockFetch(429)),
+    ).rejects.toThrow("Discord application ID fetch failed (429)");
+  });
+
   it("throws on 500", async () => {
     await expect(
       fetchDiscordApplicationId("valid.token.here", 4000, mockFetch(500)),
@@ -54,12 +70,6 @@ describe("fetchDiscordApplicationId", () => {
     await expect(
       fetchDiscordApplicationId("valid.token.here", 4000, mockFetch(503)),
     ).rejects.toThrow("Discord application ID fetch failed (503)");
-  });
-
-  it("throws on 429", async () => {
-    await expect(
-      fetchDiscordApplicationId("valid.token.here", 4000, mockFetch(429)),
-    ).rejects.toThrow("Discord application ID fetch failed (429)");
   });
 
   it("throws on network error", async () => {

@@ -425,6 +425,7 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
   }
 
   let applicationId: string | undefined;
+  let lastError: unknown;
   try {
     applicationId = await retryAsync(() => fetchDiscordApplicationId(token, 4000), {
       attempts: 3,
@@ -432,11 +433,11 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
       maxDelayMs: 10_000,
       jitter: 0.15,
     });
-  } catch {
-    // All retries exhausted on transient failures — applicationId stays undefined
+  } catch (err) {
+    lastError = err;
   }
   if (!applicationId) {
-    throw new Error("Failed to resolve Discord application id");
+    throw new Error("Failed to resolve Discord application id", { cause: lastError });
   }
 
   const maxDiscordCommands = 100;

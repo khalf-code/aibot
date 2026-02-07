@@ -183,10 +183,10 @@ export async function fetchDiscordApplicationId(
     const json = (await res.json()) as { id?: string };
     return json.id ?? undefined;
   }
-  // Permanent auth failures — don't retry
-  if (res.status === 401 || res.status === 403) {
-    return undefined;
+  // Transient — throw so caller can retry
+  if (res.status === 429 || res.status >= 500) {
+    throw new Error(`Discord application ID fetch failed (${res.status})`);
   }
-  // Transient (5xx, 429, etc.) — throw so caller can retry
-  throw new Error(`Discord application ID fetch failed (${res.status})`);
+  // Permanent (4xx auth/client errors) — don't retry
+  return undefined;
 }
