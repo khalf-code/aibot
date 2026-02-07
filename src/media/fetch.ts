@@ -77,8 +77,33 @@ async function readErrorBodySnippet(res: Response, maxChars = 200): Promise<stri
   }
 }
 
-const MEDIA_FETCH_MAX_RETRIES = 3;
+/** Maximum number of retry attempts for transient network errors. */
+const MEDIA_FETCH_MAX_ATTEMPTS = 3;
 const MEDIA_FETCH_BASE_DELAY_MS = 1000;
+
+/**
+ * Transient network error patterns worth retrying — these are fetch-level
+ * failures (Node undici / DNS), not application-level errors like SSRF
+ * blocks, invalid URLs, or redirect limits.
+ */
+const TRANSIENT_ERROR_PATTERNS = [
+  "fetch failed",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "UND_ERR_SOCKET",
+  "AbortError",
+] as const;
+
+function isTransientFetchError(err: unknown): boolean {
+  if (err instanceof TypeError && String(err.message).includes("fetch failed")) return true;
+  const msg = String(err);
+  return TRANSIENT_ERROR_PATTERNS.some((pattern) => msg.includes(pattern));
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -92,11 +117,11 @@ export async function fetchRemoteMedia(options: FetchMediaOptions): Promise<Fetc
   let release: (() => Promise<void>) | null = null;
   let lastErr: unknown;
 
-  for (let attempt = 0; attempt <= MEDIA_FETCH_MAX_RETRIES; attempt++) {
-    if (attempt > 0) {
-      const delay = MEDIA_FETCH_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+  for (let attempt = 1; attempt <= MEDIA_FETCH_MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      const delay = MEDIA_FETCH_BASE_DELAY_MS * Math.pow(2, attempt - 2);
       console.warn(
-        `[media-fetch] Retry ${attempt}/${MEDIA_FETCH_MAX_RETRIES} for ${url} after ${delay}ms`,
+        `[media-fetch] Retry ${attempt - 1}/${MEDIA_FETCH_MAX_ATTEMPTS - 1} for ${url} after ${delay}ms`,
       );
       await sleep(delay);
     }
@@ -122,6 +147,11 @@ export async function fetchRemoteMedia(options: FetchMediaOptions): Promise<Fetc
           /* ignore cleanup errors */
         }
         release = null;
+      }
+      // Only retry transient network errors; deterministic failures
+      // (SSRF blocks, invalid URLs, redirect limits) fail immediately.
+      if (!isTransientFetchError(err)) {
+        break;
       }
     }
   }
