@@ -243,8 +243,12 @@ export async function uploadImageFeishu(params: {
  * Resolve Feishu API base URL from domain config.
  */
 function resolveBaseUrl(domain?: FeishuDomain): string {
-  if (domain === "lark") return "https://open.larksuite.com";
-  if (!domain || domain === "feishu") return "https://open.feishu.cn";
+  if (domain === "lark") {
+    return "https://open.larksuite.com";
+  }
+  if (!domain || domain === "feishu") {
+    return "https://open.feishu.cn";
+  }
   // Custom domain for private deployment
   return domain.replace(/\/+$/, "");
 }
@@ -260,7 +264,8 @@ async function getTenantAccessToken(
   appSecret: string,
   baseUrl: string,
 ): Promise<string> {
-  const cached = tokenCache.get(appId);
+  const cacheKey = `${baseUrl}:${appId}`;
+  const cached = tokenCache.get(cacheKey);
   // Refresh 60s before actual expiry
   if (cached && Date.now() < cached.expiresAt - 60_000) {
     return cached.token;
@@ -286,7 +291,7 @@ async function getTenantAccessToken(
   }
 
   const token = data.tenant_access_token;
-  tokenCache.set(appId, {
+  tokenCache.set(cacheKey, {
     token,
     expiresAt: Date.now() + (data.expire ?? 7200) * 1000,
   });
@@ -334,6 +339,11 @@ export async function uploadFileFeishu(params: {
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Feishu file upload failed: HTTP ${res.status}${body ? ` — ${body}` : ""}`);
+  }
 
   const data = (await res.json()) as {
     code: number;
