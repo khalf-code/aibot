@@ -234,7 +234,8 @@ export class QmdMemoryManager implements MemorySearchManager {
       this.qmd.limits.maxResults,
       opts?.maxResults ?? this.qmd.limits.maxResults,
     );
-    const modeRaw = process.env.OPENCLAW_QMD_MODE?.trim().toLowerCase();
+    // Read mode from the same env object used to spawn qmd to avoid surprises if the runtime injects env.
+    const modeRaw = this.env.OPENCLAW_QMD_MODE?.trim().toLowerCase();
     const primaryCmd = modeRaw === "search" ? "search" : "query";
     const args = [primaryCmd, trimmed, "--json", "-n", String(limit)];
 
