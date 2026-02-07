@@ -3,7 +3,7 @@
  * Demonstrates how to register a custom search provider.
  */
 
-import type { OpenClawPluginModule } from "../../src/plugins/types.js";
+import type { OpenClawPluginModule } from "openclaw/plugin-sdk";
 
 const plugin: OpenClawPluginModule = {
   id: "kagi-search",
