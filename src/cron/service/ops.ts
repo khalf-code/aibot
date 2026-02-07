@@ -76,8 +76,28 @@ export async function add(state: CronServiceState, input: CronJobCreate) {
     await ensureLoaded(state);
     const job = createJob(state, input);
     state.store?.jobs.push(job);
+
+    // Defensive: recompute all next-run times to ensure consistency
+    // This handles edge cases where job.state.nextRunAtMs might not be set correctly
+    recomputeNextRuns(state);
+
     await persist(state);
+
+    // Log timer arming for debugging job scheduling issues
+    const beforeTimer = nextWakeAtMs(state);
     armTimer(state);
+    state.deps.log.info(
+      {
+        jobId: job.id,
+        jobName: job.name,
+        nextRunAtMs: job.state.nextRunAtMs,
+        schedulerNextWakeAtMs: beforeTimer,
+        timerArmed: state.timer !== null,
+        cronEnabled: state.deps.cronEnabled,
+      },
+      "cron: job added",
+    );
+
     emit(state, {
       jobId: job.id,
       action: "added",

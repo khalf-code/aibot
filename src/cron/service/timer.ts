@@ -19,13 +19,24 @@ export function armTimer(state: CronServiceState) {
   }
   state.timer = null;
   if (!state.deps.cronEnabled) {
+    state.deps.log.debug({}, "cron: armTimer skipped - scheduler disabled");
     return;
   }
   const nextAt = nextWakeAtMs(state);
   if (!nextAt) {
+    const jobCount = state.store?.jobs.length ?? 0;
+    const enabledCount = state.store?.jobs.filter((j) => j.enabled).length ?? 0;
+    const withNextRun =
+      state.store?.jobs.filter((j) => j.enabled && typeof j.state.nextRunAtMs === "number")
+        .length ?? 0;
+    state.deps.log.debug(
+      { jobCount, enabledCount, withNextRun },
+      "cron: armTimer skipped - no jobs with nextRunAtMs",
+    );
     return;
   }
-  const delay = Math.max(nextAt - state.deps.nowMs(), 0);
+  const now = state.deps.nowMs();
+  const delay = Math.max(nextAt - now, 0);
   // Wake at least once a minute to avoid schedule drift and recover quickly
   // when the process was paused or wall-clock time jumps.
   const clampedDelay = Math.min(delay, MAX_TIMER_DELAY_MS);
@@ -36,6 +47,10 @@ export function armTimer(state: CronServiceState) {
       state.deps.log.error({ err: String(err) }, "cron: timer tick failed");
     }
   }, clampedDelay);
+  state.deps.log.debug(
+    { nextAt, delayMs: clampedDelay, clamped: delay > MAX_TIMER_DELAY_MS },
+    "cron: timer armed",
+  );
 }
 
 export async function onTimer(state: CronServiceState) {
