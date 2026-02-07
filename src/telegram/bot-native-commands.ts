@@ -369,11 +369,13 @@ export const registerTelegramNativeCommands = ({
 
   // Clear stale commands before registering new ones to prevent
   // leftover commands from deleted skills persisting across restarts (#5717).
-  withTelegramApiErrorLogging({
-    operation: "deleteMyCommands",
-    runtime,
-    fn: () => bot.api.deleteMyCommands(),
-  }).catch(() => {});
+  if (typeof bot.api.deleteMyCommands === "function") {
+    withTelegramApiErrorLogging({
+      operation: "deleteMyCommands",
+      runtime,
+      fn: () => bot.api.deleteMyCommands(),
+    }).catch(() => {});
+  }
 
   if (allCommands.length > 0) {
     withTelegramApiErrorLogging({
