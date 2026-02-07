@@ -3,6 +3,8 @@ import type { GatewayRequestHandlers } from "./types.js";
 import { loadConfig } from "../../config/config.js";
 import { loadProviderUsageSummary } from "../../infra/provider-usage.js";
 import { loadCostUsageSummary } from "../../infra/session-cost-usage.js";
+import { getDailyCostStatus } from "../../security/cost-ceiling.js";
+import { compareProviderCosts } from "../../utils/usage-format.js";
 
 const COST_USAGE_CACHE_TTL_MS = 30_000;
 
@@ -84,5 +86,22 @@ export const usageHandlers: GatewayRequestHandlers = {
     const days = parseDays(params?.days);
     const summary = await loadCostUsageSummaryCached({ days, config });
     respond(true, summary, undefined);
+  },
+  // C9: Real-time daily cost ceiling status
+  "usage.ceiling": async ({ respond }) => {
+    respond(true, getDailyCostStatus(), undefined);
+  },
+  // C10: Compare costs across configured providers for a given workload
+  "usage.compare": async ({ respond, params }) => {
+    const config = loadConfig();
+    const input = typeof params?.input === "number" ? params.input : 1000;
+    const output = typeof params?.output === "number" ? params.output : 500;
+    const cacheRead = typeof params?.cacheRead === "number" ? params.cacheRead : 0;
+    const cacheWrite = typeof params?.cacheWrite === "number" ? params.cacheWrite : 0;
+    const estimates = compareProviderCosts({
+      usage: { input, output, cacheRead, cacheWrite },
+      config,
+    });
+    respond(true, { estimates }, undefined);
   },
 };

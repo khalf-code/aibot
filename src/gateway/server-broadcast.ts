@@ -41,6 +41,11 @@ export function createGatewayBroadcaster(params: { clients: Set<GatewayWsClient>
       stateVersion?: { presence?: number; health?: number };
     },
   ) => {
+    // P1: Skip serialization + logging when no clients are connected
+    if (params.clients.size === 0) {
+      ++seq;
+      return;
+    }
     const eventSeq = ++seq;
     const frame = JSON.stringify({
       type: "event",

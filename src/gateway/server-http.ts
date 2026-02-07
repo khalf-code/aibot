@@ -1,3 +1,4 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { TlsOptions } from "node:tls";
 import type { WebSocketServer } from "ws";
 import {
@@ -35,6 +36,7 @@ import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
 import type { RateLimiter } from "./rate-limiter.js";
+import { getAuditLog } from "../security/audit-log.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
 
@@ -54,6 +56,10 @@ type HookDispatchers = {
     allowUnsafeExternalContent?: boolean;
   }) => string;
 };
+
+const RATE_LIMIT_BODY = Buffer.from(
+  JSON.stringify({ error: "Too Many Requests", message: "Rate limit exceeded. Please try again later." }),
+);
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
@@ -91,52 +97,78 @@ function getClientIp(req: IncomingMessage, trustedProxies: string[]): string {
   return req.socket.remoteAddress ?? "unknown";
 }
 
+// ── Per-response CSP nonce (S2) ────────────────────────────────────────
+
+const responseNonces = new WeakMap<ServerResponse, string>();
+
+function generateNonce(): string {
+  return randomBytes(16).toString("base64");
+}
+
+/** Retrieve the CSP nonce assigned to a response (for inline <script> tags). */
+export function getResponseNonce(res: ServerResponse): string | undefined {
+  return responseNonces.get(res);
+}
+
 /**
- * Set comprehensive security headers on HTTP responses
+ * Set comprehensive security headers on HTTP responses.
  *
- * These headers provide defense-in-depth security protections:
- * - HSTS: Forces HTTPS connections
- * - X-Content-Type-Options: Prevents MIME sniffing
- * - X-Frame-Options: Prevents clickjacking
- * - X-XSS-Protection: Enables browser XSS filters
- * - Referrer-Policy: Controls referrer information
- * - Permissions-Policy: Restricts browser features
- * - CSP: Content Security Policy
- *
- * BACKWARD COMPATIBLE: Uses 'unsafe-inline' in CSP to maintain compatibility with existing UI
- *
- * @param res - HTTP response object
+ * S2: Uses per-request nonce instead of 'unsafe-inline' for script-src.
+ * S9: Blocks cross-origin requests (no Access-Control-Allow-Origin by default).
  */
 function setSecurityHeaders(res: ServerResponse): void {
-  // Strict Transport Security (HSTS) - only set if using HTTPS
-  // Note: HSTS should only be set over HTTPS connections
-  // In production with HTTPS, uncomment this:
-  // res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  const nonce = generateNonce();
+  responseNonces.set(res, nonce);
 
   // Prevent MIME type sniffing
-  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader("X-Content-Type-Options", "nosniff");
 
   // Prevent clickjacking
-  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader("X-Frame-Options", "DENY");
 
   // Enable browser XSS protection
-  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader("X-XSS-Protection", "1; mode=block");
 
   // Control referrer information
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 
-  // Restrict browser features (cameras, microphones, geolocation)
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Restrict browser features
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
-  // Content Security Policy
-  // Note: Uses 'unsafe-inline' to maintain backward compatibility with existing UI
+  // Content Security Policy — nonce-based (S2)
   res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline'; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "frame-ancestors 'none'"
+    "Content-Security-Policy",
+    `default-src 'self'; ` +
+    `script-src 'self' 'nonce-${nonce}'; ` +
+    `style-src 'self' 'unsafe-inline'; ` +
+    `frame-ancestors 'none'`,
   );
+}
+
+/**
+ * Handle CORS preflight and enforce same-origin policy (S9).
+ * Returns true if the request was a preflight OPTIONS that was handled.
+ */
+function handleCors(req: IncomingMessage, res: ServerResponse): boolean {
+  const origin = req.headers.origin;
+
+  // No Origin header = same-origin or non-browser request — allow
+  if (!origin) {
+    return false;
+  }
+
+  // Block cross-origin by default: do NOT set Access-Control-Allow-Origin
+  // (browsers will reject the response)
+
+  if (req.method === "OPTIONS") {
+    // Respond to preflight with 204 but without ACAO — browser will block
+    res.statusCode = 204;
+    res.setHeader("Content-Length", "0");
+    res.end();
+    return true;
+  }
+
+  return false;
 }
 
 export type HooksRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
@@ -162,7 +194,11 @@ export function createHooksRequestHandler(
     }
 
     const { token, fromQuery } = extractHookToken(req, url);
-    if (!token || token !== hooksConfig.token) {
+    const expected = hooksConfig.token;
+    if (!token || token.length !== expected.length || !timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
+      getAuditLog()?.log("hook_auth_failure", `path=${url.pathname}`, {
+        ip: req.socket.remoteAddress ?? "unknown",
+      });
       res.statusCode = 401;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.end("Unauthorized");
@@ -327,24 +363,25 @@ export function createGatewayHttpServer(opts: {
     }
 
     try {
+      // S9: Handle CORS preflight — blocks cross-origin requests by default
+      if (handleCors(req, res)) {
+        return;
+      }
+
       const configSnapshot = loadConfig();
       const trustedProxies = configSnapshot.gateway?.trustedProxies ?? [];
 
-      // OPTIONAL: Rate limiting (only applies if rateLimiter is configured)
+      // Rate limiting (enabled by default, see S7)
       if (rateLimiter) {
         const clientIp = getClientIp(req, trustedProxies);
         const allowed = rateLimiter.tryConsume(clientIp);
 
         if (!allowed) {
+          getAuditLog()?.log("rate_limited", `ip=${clientIp}`, { ip: clientIp });
           res.statusCode = 429;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Retry-After", "60");
-          res.end(
-            JSON.stringify({
-              error: "Too Many Requests",
-              message: "Rate limit exceeded. Please try again later.",
-            }),
-          );
+          res.end(RATE_LIMIT_BODY);
           return;
         }
       }
