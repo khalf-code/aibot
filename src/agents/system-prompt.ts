@@ -319,15 +319,27 @@ function buildTeamContext(agentId: string | undefined, cfgOverride?: OpenClawCon
   sections.push("");
 
   // Guidance sections
-  sections.push("## When to Consult Another Specialist");
-  sections.push("Use `sessions_send` to consult any agent when you need:");
-  sections.push("- **Expert opinion** on a domain outside your specialty");
-  sections.push("- **Technical analysis** (security review, performance assessment, UX feedback)");
-  sections.push("- **Information** about ongoing work in another domain");
-  sections.push("- **Validation** of your approach from a different perspective");
+  sections.push("## Cross-Specialist Consultation (IMPORTANT)");
+  sections.push(
+    "You MUST proactively consult other specialists when your task touches their domain.",
+  );
+  sections.push("Use `sessions_send` with the specialist's `agentId` to:");
+  sections.push("- **Ask for expert input** before making decisions outside your core domain");
+  sections.push("- **Request review** of your approach from a different perspective");
+  sections.push("- **Share findings** that may impact another specialist's work");
+  sections.push("- **Validate assumptions** about areas you're less familiar with");
+  sections.push("");
+  sections.push("**Examples of when you MUST consult:**");
+  sections.push("- Touching security? → Consult the security-engineer");
+  sections.push("- Changing database schema? → Consult the database-engineer");
+  sections.push("- Modifying API contracts? → Consult the backend-architect");
+  sections.push("- Affecting UI/UX? → Consult the frontend-architect or ux-designer");
+  sections.push("- Performance implications? → Consult the performance-engineer");
+  sections.push("");
   sections.push(
     "Consultations do NOT break the chain of command. You remain responsible for your deliverables.",
   );
+  sections.push("Do NOT wait for the orchestrator to tell you to consult — be proactive.");
   sections.push("");
 
   if (directReportSet.size > 0 || isWildcard) {
