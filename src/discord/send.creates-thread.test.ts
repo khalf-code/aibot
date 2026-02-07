@@ -69,6 +69,42 @@ describe("sendMessageDiscord", () => {
     );
   });
 
+  it("creates a forum post with message content", async () => {
+    const { rest, postMock } = makeRest();
+    postMock.mockResolvedValue({ id: "t1" });
+    await createThreadDiscord(
+      "forum1",
+      { name: "Forum Post", message: { content: "Initial message" } },
+      { rest, token: "t" },
+    );
+    expect(postMock).toHaveBeenCalledWith(
+      Routes.threads("forum1", undefined),
+      expect.objectContaining({
+        body: { name: "Forum Post", message: { content: "Initial message" } },
+      }),
+    );
+  });
+
+  it("creates a forum post with applied tags", async () => {
+    const { rest, postMock } = makeRest();
+    postMock.mockResolvedValue({ id: "t1" });
+    await createThreadDiscord(
+      "forum1",
+      { name: "Tagged Post", message: { content: "Content" }, appliedTags: ["tag1", "tag2"] },
+      { rest, token: "t" },
+    );
+    expect(postMock).toHaveBeenCalledWith(
+      Routes.threads("forum1", undefined),
+      expect.objectContaining({
+        body: {
+          name: "Tagged Post",
+          message: { content: "Content" },
+          applied_tags: ["tag1", "tag2"],
+        },
+      }),
+    );
+  });
+
   it("lists active threads by guild", async () => {
     const { rest, getMock } = makeRest();
     getMock.mockResolvedValue({ threads: [] });

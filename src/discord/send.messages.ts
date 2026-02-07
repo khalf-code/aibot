@@ -105,6 +105,14 @@ export async function createThreadDiscord(
   if (payload.autoArchiveMinutes) {
     body.auto_archive_duration = payload.autoArchiveMinutes;
   }
+  // For forum/media channels: include initial message content
+  if (payload.message) {
+    body.message = payload.message;
+  }
+  // For forum channels: include applied tags
+  if (payload.appliedTags?.length) {
+    body.applied_tags = payload.appliedTags;
+  }
   const route = Routes.threads(channelId, payload.messageId);
   return await rest.post(route, { body });
 }
