@@ -323,9 +323,16 @@ export function createExecApprovalForwarder(
     }
     pending.delete(resolved.id);
 
+    // Discord targets get the embed edited in-place via button interaction,
+    // so skip sending a separate resolved message to them.
+    const targets = entry.targets.filter((t) => normalizeMessageChannel(t.channel) !== "discord");
+    if (targets.length === 0) {
+      return;
+    }
+
     const cfg = getConfig();
     const text = buildResolvedMessage(resolved);
-    await deliverToTargets({ cfg, targets: entry.targets, text, deliver });
+    await deliverToTargets({ cfg, targets, text, deliver });
   };
 
   const stop = () => {
