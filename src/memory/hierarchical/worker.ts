@@ -256,7 +256,7 @@ async function findEligibleChunks(params: {
     // behind the conversation head). This uses the same entry stream we iterate
     // so the boundary is correctly aligned.
     let tailTokens = 0;
-    let cutoffIndex = entries.length;
+    let cutoffIndex = -1;
     for (let i = entries.length - 1; i >= 0; i--) {
       const entry = entries[i];
       if (entry.type !== "message") {
@@ -270,7 +270,7 @@ async function findEligibleChunks(params: {
       }
     }
 
-    if (cutoffIndex === 0) {
+    if (cutoffIndex <= 0) {
       return []; // Not enough history yet
     }
 
