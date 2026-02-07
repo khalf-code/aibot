@@ -10,37 +10,37 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 interface AgentConfig {
-	id: string;
-	name?: string;
-	model?: { primary: string };
-	sandbox?: { mode: string };
-	workspace?: string;
+  id: string;
+  name?: string;
+  model?: { primary: string };
+  sandbox?: { mode: string };
+  workspace?: string;
 }
 
 function loadConfig() {
-	try {
-		const cfg = readFileSync(join(homedir(), ".openclaw/openclaw.json"), "utf-8");
-		return JSON.parse(cfg);
-	} catch {
-		return null;
-	}
+  try {
+    const cfg = readFileSync(join(homedir(), ".openclaw/openclaw.json"), "utf-8");
+    return JSON.parse(cfg);
+  } catch {
+    return null;
+  }
 }
 
 function getAgents(config: any): AgentConfig[] {
-	const agents: AgentConfig[] = [];
-	if (config?.agents?.defaults) {
-		agents.push({ id: "main", name: "Main", ...config.agents.defaults });
-	}
-	if (config?.agents?.list) {
-		agents.push(...config.agents.list);
-	}
-	return agents;
+  const agents: AgentConfig[] = [];
+  if (config?.agents?.defaults) {
+    agents.push({ id: "main", name: "Main", ...config.agents.defaults });
+  }
+  if (config?.agents?.list) {
+    agents.push(...config.agents.list);
+  }
+  return agents;
 }
 
 /**
@@ -48,74 +48,74 @@ function getAgents(config: any): AgentConfig[] {
  * Doubles backslashes and quotes to prevent injection
  */
 function escapeAppleScript(str: string): string {
-	return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 export default function (pi: ExtensionAPI) {
-	pi.registerCommand("agent", {
-		description: "Switch between agents (opens new terminal)",
-		handler: async (args, ctx) => {
-			const config = loadConfig();
-			if (!config) {
-				ctx.ui.notify("Failed to load config", "error");
-				return;
-			}
+  pi.registerCommand("agent", {
+    description: "Switch between agents (opens new terminal)",
+    handler: async (args, ctx) => {
+      const config = loadConfig();
+      if (!config) {
+        ctx.ui.notify("Failed to load config", "error");
+        return;
+      }
 
-			const agents = getAgents(config);
-			let targetId = args ? args.trim() : "";
+      const agents = getAgents(config);
+      let targetId = args ? args.trim() : "";
 
-			// Show selector if no agent specified
-			if (!targetId) {
-				const items = agents.map((a) => {
-					const model = a.model?.primary?.split("/").pop() || "unknown";
-					const sandbox = a.sandbox?.mode || "off";
-					return `${a.id} (${model}, sandbox: ${sandbox})`;
-				});
+      // Show selector if no agent specified
+      if (!targetId) {
+        const items = agents.map((a) => {
+          const model = a.model?.primary?.split("/").pop() || "unknown";
+          const sandbox = a.sandbox?.mode || "off";
+          return `${a.id} (${model}, sandbox: ${sandbox})`;
+        });
 
-				const selected = await ctx.ui.select("Select Agent", items);
-				if (!selected) return;
+        const selected = await ctx.ui.select("Select Agent", items);
+        if (!selected) return;
 
-				targetId = selected.split(" ")[0];
-			}
+        targetId = selected.split(" ")[0];
+      }
 
-			const agent = agents.find((a) => a.id === targetId);
-			if (!agent) {
-				ctx.ui.notify(`Agent "${targetId}" not found`, "error");
-				return;
-			}
+      const agent = agents.find((a) => a.id === targetId);
+      if (!agent) {
+        ctx.ui.notify(`Agent "${targetId}" not found`, "error");
+        return;
+      }
 
-			// Check Docker if sandbox mode enabled
-			const sandboxMode = agent.sandbox?.mode || "off";
-			if (sandboxMode !== "off") {
-				try {
-					const result = await pi.exec("docker", ["info"], { timeout: 5000 });
-					if (result.code !== 0) {
-						ctx.ui.notify(`Warning: Sandbox enabled but Docker not running`, "warning");
-					}
-				} catch {
-					ctx.ui.notify(`Warning: Could not check Docker status`, "warning");
-				}
-			}
+      // Check Docker if sandbox mode enabled
+      const sandboxMode = agent.sandbox?.mode || "off";
+      if (sandboxMode !== "off") {
+        try {
+          const result = await pi.exec("docker", ["info"], { timeout: 5000 });
+          if (result.code !== 0) {
+            ctx.ui.notify(`Warning: Sandbox enabled but Docker not running`, "warning");
+          }
+        } catch {
+          ctx.ui.notify(`Warning: Could not check Docker status`, "warning");
+        }
+      }
 
-			// Create unique session key for proper isolation
-			// Format: agent:{agentId}:{sessionType}:{uniqueId}
-			const uniqueId = randomUUID().substring(0, 8);
-			const sessionKey = `agent:${targetId}:main:${uniqueId}`;
-			const workspace = agent.workspace || ctx.cwd;
+      // Create unique session key for proper isolation
+      // Format: agent:{agentId}:{sessionType}:{uniqueId}
+      const uniqueId = randomUUID().substring(0, 8);
+      const sessionKey = `agent:${targetId}:main:${uniqueId}`;
+      const workspace = agent.workspace || ctx.cwd;
 
-			// Escape strings to prevent AppleScript injection
-			const escapedSession = escapeAppleScript(sessionKey);
-			const escapedWorkspace = escapeAppleScript(workspace);
-			const cmd = `openclaw --session "${escapedSession}" --workspace "${escapedWorkspace}"`;
+      // Escape strings to prevent AppleScript injection
+      const escapedSession = escapeAppleScript(sessionKey);
+      const escapedWorkspace = escapeAppleScript(workspace);
+      const cmd = `openclaw --session "${escapedSession}" --workspace "${escapedWorkspace}"`;
 
-			const script = `tell application "Terminal"\n\tactivate\n\tdo script "${escapeAppleScript(cmd)}"\nend tell`;
+      const script = `tell application "Terminal"\n\tactivate\n\tdo script "${escapeAppleScript(cmd)}"\nend tell`;
 
-			try {
-				await pi.exec("osascript", ["-e", script], { timeout: 5000 });
-				ctx.ui.notify(`Opened ${targetId} (${sandboxMode})`, "info");
-			} catch (error) {
-				ctx.ui.notify(`Failed to open terminal: ${error}`, "error");
-			}
-		},
-	});
+      try {
+        await pi.exec("osascript", ["-e", script], { timeout: 5000 });
+        ctx.ui.notify(`Opened ${targetId} (${sandboxMode})`, "info");
+      } catch (error) {
+        ctx.ui.notify(`Failed to open terminal: ${error}`, "error");
+      }
+    },
+  });
 }

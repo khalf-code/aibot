@@ -5,6 +5,7 @@ Quick switching between sandboxed/unsandboxed modes for the same local model.
 ## Use Case
 
 When running local models (Ollama, LM Studio), you face a trade-off:
+
 - **Unsandboxed (fast)**: No Docker overhead, but risky for file operations
 - **Sandboxed (safe)**: Docker isolation, but slower startup
 
@@ -62,6 +63,7 @@ Add agents with different sandbox modes to `~/.openclaw/openclaw.json`:
 ## Example Workflow
 
 1. **Code Review** (safe, read-only):
+
    ```bash
    /agent qwen    # Fast, no Docker needed
    ```
