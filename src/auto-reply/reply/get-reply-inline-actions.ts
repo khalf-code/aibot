@@ -184,9 +184,7 @@ export async function handleInlineActions(params: {
       });
 
       const normalizedDispatchName = normalizeToolName(dispatch.toolName);
-      const tool = tools.find(
-        (candidate) => candidate.name === normalizedDispatchName,
-      );
+      const tool = tools.find((candidate) => candidate.name === normalizedDispatchName);
       if (!tool) {
         typing.cleanup();
         return { kind: "reply", reply: { text: `❌ Tool not available: ${dispatch.toolName}` } };
