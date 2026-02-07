@@ -31,14 +31,14 @@ Prompt injection is listed as "out of scope" for security reports because:
 - Use `dmPolicy="pairing"` (default) to require approval before responding to unknown senders
 - Configure allowlists (`allowFrom`) to limit who can interact with your assistant
 - Use `agents.defaults.sandbox.mode: "non-main"` to sandbox non-main sessions
-- Review the [Security guide](https://docs.openclaw.ai/gateway/security) for hardening options
+- Review the [Security guide](https://docs.openclaw.ai/gateway/security/) for hardening options
 - Run `openclaw security audit --deep` to identify risky configurations
 
 ## Operational Guidance
 
 For threat model + hardening guidance (including `openclaw security audit --deep` and `--fix`), see:
 
-- `https://docs.openclaw.ai/gateway/security`
+- `https://docs.openclaw.ai/gateway/security/`
 
 ### Web Interface Safety
 
