@@ -1,6 +1,5 @@
 {
   "id": "kagi-search",
-  "kind": "search-provider",
   "description": "Example Kagi search provider plugin for web_search",
   "entry": "./index.ts",
   "configSchema": {
