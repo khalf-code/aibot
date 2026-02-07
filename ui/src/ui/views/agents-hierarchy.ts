@@ -585,11 +585,28 @@ function renderHierarchyTree(
 // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 let chartInstance: echarts.ECharts | null = null;
 let lastDataHash = "";
+let lastTopologyHash = "";
 let clickHandlerAttached = false;
 let pulseTimer: ReturnType<typeof setInterval> | null = null;
 let settleTimer: ReturnType<typeof setTimeout> | null = null;
 let lockedPositions: Map<string, { x: number; y: number }> | null = null;
 
+/** Topology hash: only node keys and parent-child structure. Changes here → full force re-run. */
+function computeTopologyHash(roots: AgentHierarchyNode[]): string {
+  const keys: string[] = [];
+  function collect(nodes: AgentHierarchyNode[]) {
+    for (const node of nodes) {
+      keys.push(node.sessionKey);
+      if (node.children.length > 0) {
+        collect(node.children);
+      }
+    }
+  }
+  collect(roots);
+  return keys.join("|");
+}
+
+/** Full data hash including status/usage. Changes here → visual-only in-place update. */
 function computeDataHash(roots: AgentHierarchyNode[]): string {
   const keys: string[] = [];
   function collect(nodes: AgentHierarchyNode[]) {
@@ -629,11 +646,11 @@ function scheduleEChartsInit(
       return;
     }
 
-    const newHash = computeDataHash(roots);
+    const newDataHash = computeDataHash(roots);
 
-    // Check if chart already exists and data hasn't changed
+    // Check if chart already exists and data hasn't changed at all
     const existingChart = echarts.getInstanceByDom(container);
-    if (existingChart && chartInstance === existingChart && lastDataHash === newHash) {
+    if (existingChart && chartInstance === existingChart && lastDataHash === newDataHash) {
       return;
     }
 
@@ -641,40 +658,59 @@ function scheduleEChartsInit(
     const h = container.clientHeight || 500;
     const graphData = transformToGraphData(roots, w, h, collabEdges);
 
-    // If chart exists but data changed, just update the data
+    // If chart exists, check whether topology changed or just visuals
     if (existingChart && chartInstance === existingChart) {
-      lastDataHash = newHash;
-      if (settleTimer) {
-        clearTimeout(settleTimer);
-      }
-      if (pulseTimer) {
-        clearInterval(pulseTimer);
-        pulseTimer = null;
-      }
-      // Pin existing nodes at their current positions so only new nodes
-      // are placed by the force simulation (smooth incremental update).
-      const updatedNodes = applyLockedPositions(graphData.nodes);
-      const nodeCount = updatedNodes.length;
-      existingChart.setOption({
-        series: [
-          {
-            data: updatedNodes,
-            edges: graphData.edges,
-            force: {
-              repulsion: computeRepulsion(nodeCount),
-              edgeLength: computeEdgeLength(nodeCount),
+      const newTopoHash = computeTopologyHash(roots);
+      const topologyChanged = newTopoHash !== lastTopologyHash;
+      lastDataHash = newDataHash;
+
+      if (topologyChanged) {
+        // Topology changed (new/removed nodes) → re-run force for new nodes
+        lastTopologyHash = newTopoHash;
+        if (settleTimer) {
+          clearTimeout(settleTimer);
+        }
+        if (pulseTimer) {
+          clearInterval(pulseTimer);
+          pulseTimer = null;
+        }
+        // Pin existing nodes, let new ones be placed by force
+        const updatedNodes = applyLockedPositions(graphData.nodes);
+        const nodeCount = updatedNodes.length;
+        existingChart.setOption({
+          series: [
+            {
+              data: updatedNodes,
+              edges: graphData.edges,
+              force: {
+                repulsion: computeRepulsion(nodeCount),
+                edgeLength: computeEdgeLength(nodeCount),
+              },
             },
-          },
-        ],
-      });
-      // Re-lock all positions (including new nodes) after force settles
-      schedulePositionLock(graphData);
+          ],
+        });
+        // Re-lock all positions after force settles
+        schedulePositionLock(graphData);
+      } else {
+        // Visual-only change (status/usage) → update in place, no force re-run
+        const updatedNodes = applyLockedPositions(graphData.nodes);
+        existingChart.setOption({
+          series: [{ data: updatedNodes, edges: graphData.edges }],
+        });
+        // Keep existing pulse timer running — no need to restart
+        // Just update graphData reference for the pulse timer
+        if (pulseTimer) {
+          // Restart pulse with fresh graphData but keep positions locked
+          startPulseTimer(graphData);
+        }
+      }
       return;
     }
 
     // Initialize new chart
     initECharts(container, graphData, onNodeClick);
-    lastDataHash = newHash;
+    lastDataHash = newDataHash;
+    lastTopologyHash = computeTopologyHash(roots);
   });
 
   return nothing;

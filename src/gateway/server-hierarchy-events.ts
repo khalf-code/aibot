@@ -5,6 +5,7 @@ import {
   resolveDefaultAgentId,
 } from "../agents/agent-scope.js";
 import { getAllDelegations, getAgentDelegationMetrics } from "../agents/delegation-registry.js";
+import { resolveAgentIdentity } from "../agents/identity.js";
 import {
   listAllSubagentRuns,
   type SubagentRunRecord,
@@ -91,6 +92,41 @@ function extractAgentIdFromSessionKey(sessionKey: string): string | undefined {
   return parsed?.agentId ?? undefined;
 }
 
+/** Derive a short specialization label from agentId (e.g. "backend-architect" → "Backend"). */
+function deriveShortSpec(agentId: string): string {
+  // Strip common suffixes to get the domain word(s)
+  const stripped = agentId
+    .replace(/-architect$/, "")
+    .replace(/-engineer$/, "")
+    .replace(/-specialist$/, "")
+    .replace(/-manager$/, "")
+    .replace(/-designer$/, "")
+    .replace(/-analyst$/, "")
+    .replace(/-strategist$/, "")
+    .replace(/-lead$/, "")
+    .replace(/-engine$/, "");
+  // Capitalize each word
+  return stripped
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * Build a display label for an agent: "Nickname|Spec" when identity has a name,
+ * otherwise fall back to the config name or "Agent: {id}".
+ */
+function computeAgentDisplayLabel(cfg: ReturnType<typeof loadConfig>, agentId: string): string {
+  const identity = resolveAgentIdentity(cfg, agentId);
+  const nickname = identity?.name?.trim();
+  if (nickname) {
+    const spec = deriveShortSpec(agentId);
+    return `${nickname} | ${spec}`;
+  }
+  const configName = resolveAgentConfig(cfg, agentId)?.name;
+  return configName || `Agent: ${agentId}`;
+}
+
 function buildHierarchySnapshot(): HierarchySnapshot {
   const runs = listAllSubagentRuns();
   const cfg = loadConfig();
@@ -120,7 +156,8 @@ function buildHierarchySnapshot(): HierarchySnapshot {
       runId: run.runId,
       agentId,
       agentRole,
-      label: run.label || agentName || (agentId ? `Agent: ${agentId}` : undefined),
+      label:
+        (agentId ? computeAgentDisplayLabel(cfg, agentId) : undefined) || run.label || agentName,
       task: run.task,
       status,
       startedAt: run.startedAt,
@@ -164,7 +201,10 @@ function buildHierarchySnapshot(): HierarchySnapshot {
           sessionKey: parentKey,
           agentId: rootAgentId,
           agentRole: rootRole,
-          label: rootName || (rootAgentId ? `Agent: ${rootAgentId}` : "Root Session"),
+          label:
+            (rootAgentId ? computeAgentDisplayLabel(cfg, rootAgentId) : undefined) ||
+            rootName ||
+            "Root Session",
           status: "running",
           children,
         };
@@ -185,7 +225,7 @@ function buildHierarchySnapshot(): HierarchySnapshot {
       sessionKey: defaultSessionKey,
       agentId: defaultAgentId,
       agentRole: defaultRole,
-      label: defaultName || `Agent: ${defaultAgentId}`,
+      label: computeAgentDisplayLabel(cfg, defaultAgentId),
       status: "running",
       children: [],
     });
