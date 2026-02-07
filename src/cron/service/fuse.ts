@@ -115,6 +115,33 @@ async function performUpgrade(
   }
 }
 
+// Fetch that handles file:// URLs
+async function fetchURL(url: string | URL, options?: RequestInit) {
+  const urlString = typeof url === "string" ? url : url.toString();
+
+  if (urlString.startsWith("file://")) {
+    // Handle file:// URLs by reading from filesystem
+    const filePath = urlString.replace("file://", "");
+    try {
+      const { readFileSync } = await import("node:fs");
+      const content = readFileSync(filePath, "utf-8");
+      return {
+        ok: true,
+        text: async () => content,
+      } as Response;
+    } catch {
+      return {
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      } as Response;
+    }
+  }
+
+  // For non-file URLs, use Node
+  return await fetch(url, options);
+}
+
 /**
  * Fetch and check FUSE circuit breaker to determine if cron processing should proceed.
  * Returns true if cron should proceed, false if suspended.
@@ -127,7 +154,7 @@ export async function checkCircuitBreaker(
   const fuseUrl = config.update?.fuseUrl ?? FUSE_URL;
 
   try {
-    const response = await fetch(fuseUrl, {
+    const response = await fetchURL(fuseUrl, {
       headers: {
         "User-Agent": "openclaw-gateway",
       },

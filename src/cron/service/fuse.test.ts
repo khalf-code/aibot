@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { OpenClawConfig } from "../../config/config.js";
-import { checkCircuitBreaker } from "./fuse.js";
+import { checkCircuitBreaker, fetchURL } from "./fuse.js";
 
 // Mock the update-runner and restart modules
 vi.mock("../../infra/update-runner.js", () => ({
@@ -41,21 +41,7 @@ describe("fuse circuit breaker", () => {
 
       if (urlString.startsWith("file://")) {
         // Handle file:// URLs by reading from filesystem
-        const filePath = urlString.replace("file://", "");
-        try {
-          const { readFileSync } = await import("node:fs");
-          const content = readFileSync(filePath, "utf-8");
-          return {
-            ok: true,
-            text: async () => content,
-          } as Response;
-        } catch {
-          return {
-            ok: false,
-            status: 404,
-            statusText: "Not Found",
-          } as Response;
-        }
+        return await fetchURL(url);
       }
 
       // For non-file URLs, return a mock response
