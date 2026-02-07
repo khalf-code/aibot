@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any
 
 import httpx
@@ -65,6 +66,47 @@ _RESOLVE_FIELD_MASK = (
     "places.location,"
     "places.types"
 )
+
+
+def _validate_place_id(place_id: str) -> None:
+    """
+    Validate Google Places API place_id format to prevent path traversal.
+    
+    Google Place IDs are alphanumeric strings that may contain underscores and hyphens.
+    This validation prevents path traversal attacks (e.g., ../../../etc/passwd) while
+    allowing all legitimate place_id formats.
+    
+    Args:
+        place_id: The place ID string to validate
+        
+    Raises:
+        HTTPException: If place_id format is invalid
+        
+    Note:
+        This addresses SonarCloud pythonsecurity:S7044. While the URL scheme and host
+        are fixed (https://places.googleapis.com), validating the place_id prevents
+        any potential path manipulation and satisfies security analysis requirements.
+    """
+    if not place_id or not isinstance(place_id, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid place_id: must be a non-empty string.",
+        )
+    
+    # Google place IDs are typically 20-200 characters
+    if len(place_id) < 10 or len(place_id) > 300:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid place_id length: {len(place_id)}. Expected 10-300 characters.",
+        )
+    
+    # Only allow alphanumeric characters, underscores, and hyphens
+    # This prevents path traversal characters like ../, //, %2e%2e/, etc.
+    if not re.match(r'^[A-Za-z0-9_-]+$', place_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid place_id format: must contain only alphanumeric characters, underscores, and hyphens.",
+        )
 
 
 class _GoogleResponse:
@@ -235,6 +277,9 @@ def search_places(request: SearchRequest) -> SearchResponse:
 
 
 def get_place_details(place_id: str) -> PlaceDetails:
+    # Validate place_id to prevent path traversal (addresses SonarCloud pythonsecurity:S7044)
+    _validate_place_id(place_id)
+    
     url = f"{GOOGLE_PLACES_BASE_URL}/places/{place_id}"
     response = _request("GET", url, None, _DETAILS_FIELD_MASK)
 
