@@ -1593,20 +1593,24 @@ public struct AgentsCreateParams: Codable, Sendable {
     public let name: String
     public let workspace: String
     public let emoji: String?
+    public let avatar: String?
 
     public init(
         name: String,
         workspace: String,
-        emoji: String?
+        emoji: String?,
+        avatar: String?
     ) {
         self.name = name
         self.workspace = workspace
         self.emoji = emoji
+        self.avatar = avatar
     }
     private enum CodingKeys: String, CodingKey {
         case name
         case workspace
         case emoji
+        case avatar
     }
 }
 
@@ -1640,23 +1644,27 @@ public struct AgentsUpdateParams: Codable, Sendable {
     public let name: String?
     public let workspace: String?
     public let model: String?
+    public let avatar: String?
 
     public init(
         agentid: String,
         name: String?,
         workspace: String?,
-        model: String?
+        model: String?,
+        avatar: String?
     ) {
         self.agentid = agentid
         self.name = name
         self.workspace = workspace
         self.model = model
+        self.avatar = avatar
     }
     private enum CodingKeys: String, CodingKey {
         case agentid = "agentId"
         case name
         case workspace
         case model
+        case avatar
     }
 }
 

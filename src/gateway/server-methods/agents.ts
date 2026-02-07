@@ -144,6 +144,10 @@ function sanitizeIdentityLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function resolveOptionalStringParam(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 async function moveToTrashBestEffort(pathname: string): Promise<void> {
   if (!pathname) {
     return;
@@ -232,14 +236,20 @@ export const agentsHandlers: GatewayRequestHandlers = {
     await ensureAgentWorkspace({ dir: workspaceDir, ensureBootstrapFiles: !skipBootstrap });
     await fs.mkdir(resolveSessionTranscriptsDirForAgent(agentId), { recursive: true });
 
-    const emoji =
-      typeof params.emoji === "string" && params.emoji.trim() ? params.emoji.trim() : undefined;
-    if (emoji) {
+    const emoji = resolveOptionalStringParam(params.emoji);
+    const avatar = resolveOptionalStringParam(params.avatar);
+    if (emoji || avatar) {
       await fs.mkdir(workspaceDir, { recursive: true });
       const identityPath = path.join(workspaceDir, DEFAULT_IDENTITY_FILENAME);
       const safeName = sanitizeIdentityLine(rawName);
-      const safeEmoji = sanitizeIdentityLine(emoji);
-      await fs.appendFile(identityPath, `\n- Name: ${safeName}\n- Emoji: ${safeEmoji}\n`, "utf-8");
+      const lines = [
+        "",
+        `- Name: ${safeName}`,
+        ...(emoji ? [`- Emoji: ${sanitizeIdentityLine(emoji)}`] : []),
+        ...(avatar ? [`- Avatar: ${sanitizeIdentityLine(avatar)}`] : []),
+        "",
+      ];
+      await fs.appendFile(identityPath, lines.join("\n"), "utf-8");
     }
 
     respond(true, { ok: true, agentId, name: rawName, workspace: workspaceDir }, undefined);
@@ -275,8 +285,8 @@ export const agentsHandlers: GatewayRequestHandlers = {
         ? resolveUserPath(params.workspace.trim())
         : undefined;
 
-    const model =
-      typeof params.model === "string" && params.model.trim() ? params.model.trim() : undefined;
+    const model = resolveOptionalStringParam(params.model);
+    const avatar = resolveOptionalStringParam(params.avatar);
 
     const nextConfig = applyAgentConfig(cfg, {
       agentId,
@@ -292,6 +302,13 @@ export const agentsHandlers: GatewayRequestHandlers = {
     if (workspaceDir) {
       const skipBootstrap = Boolean(nextConfig.agents?.defaults?.skipBootstrap);
       await ensureAgentWorkspace({ dir: workspaceDir, ensureBootstrapFiles: !skipBootstrap });
+    }
+
+    if (avatar) {
+      const workspace = workspaceDir ?? resolveAgentWorkspaceDir(nextConfig, agentId);
+      await fs.mkdir(workspace, { recursive: true });
+      const identityPath = path.join(workspace, DEFAULT_IDENTITY_FILENAME);
+      await fs.appendFile(identityPath, `\n- Avatar: ${sanitizeIdentityLine(avatar)}\n`, "utf-8");
     }
 
     respond(true, { ok: true, agentId }, undefined);
