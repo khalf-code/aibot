@@ -51,7 +51,6 @@ async function deriveKey(
       SCRYPT_KEY_LEN,
       { N: cost.N, r: cost.r, p: cost.p },
       (err, derivedKey) => {
-      (err, derivedKey) => {
         if (err) {
           reject(err);
         } else {
