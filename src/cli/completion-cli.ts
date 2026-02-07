@@ -265,8 +265,33 @@ export function registerCompletionCli(program: Command) {
 
       if (options.install) {
         const targetShell = options.shell ?? resolveShellFromEnv();
+        
+        // Auto-cache completion scripts first to avoid terminal startup delay
+        // This is the key fix for the 8+ second delay issue!
+        const cachePath = resolveCompletionCachePath(targetShell, program.name());
+        const cacheExists = await pathExists(cachePath);
+        if (!cacheExists) {
+          console.log(`Caching completion scripts for ${targetShell}...`);
+          await writeCompletionCache({
+            program,
+            shells: [targetShell],
+            binName: program.name(),
+          });
+          console.log(`Completion cached to ${cachePath}`);
+        }
+        
         await installCompletion(targetShell, Boolean(options.yes), program.name());
         return;
+      }
+
+      // Check if user is using slow dynamic completion pattern and warn them
+      const isSlow = await usesSlowDynamicCompletion(shell, program.name());
+      if (isSlow) {
+        console.warn(`⚠️  WARNING: You appear to be using slow dynamic completion pattern.`);
+        console.warn(`   This can cause ${'>'}8 second terminal startup delays!`);
+        console.warn(`   Run 'openclaw completion --install' to switch to fast cached mode.`);
+        console.warn(``);
+      }
       }
 
       if (options.writeState) {

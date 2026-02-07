@@ -138,6 +138,17 @@ Run `openclaw doctor` to surface risky/misconfigured DM policies.
 
 - [Gateway WS control plane](https://docs.openclaw.ai/gateway) with sessions, presence, config, cron, webhooks, [Control UI](https://docs.openclaw.ai/web), and [Canvas host](https://docs.openclaw.ai/platforms/mac/canvas#canvas-a2ui).
 - [CLI surface](https://docs.openclaw.ai/tools/agent-send): gateway, agent, send, [wizard](https://docs.openclaw.ai/start/wizard), and [doctor](https://docs.openclaw.ai/gateway/doctor).
+
+**Shell Completion (Important!)**
+```bash
+# Recommended: Use cached completion for fast terminal startup
+openclaw completion --install
+
+# This caches the completion script to ~/.openclaw/completions/
+# and updates your shell profile to use the cached version.
+# Avoid: source <(openclaw completion --shell bash)
+# This causes 8+ second terminal startup delays!
+```
 - [Pi agent runtime](https://docs.openclaw.ai/concepts/agent) in RPC mode with tool streaming and block streaming.
 - [Session model](https://docs.openclaw.ai/concepts/session): `main` for direct chats, group isolation, activation modes, queue modes, reply-back. Group rules: [Groups](https://docs.openclaw.ai/concepts/groups).
 - [Media pipeline](https://docs.openclaw.ai/nodes/images): images/audio/video, transcription hooks, size caps, temp file lifecycle. Audio details: [Audio](https://docs.openclaw.ai/nodes/audio).
