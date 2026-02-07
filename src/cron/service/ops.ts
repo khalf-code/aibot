@@ -41,6 +41,9 @@ export function stop(state: CronServiceState) {
 export async function status(state: CronServiceState) {
   return await locked(state, async () => {
     await ensureLoaded(state);
+    if (state.store) {
+      recomputeNextRuns(state);
+    }
     return {
       enabled: state.deps.cronEnabled,
       storePath: state.deps.storePath,
@@ -53,6 +56,9 @@ export async function status(state: CronServiceState) {
 export async function list(state: CronServiceState, opts?: { includeDisabled?: boolean }) {
   return await locked(state, async () => {
     await ensureLoaded(state);
+    if (state.store) {
+      recomputeNextRuns(state);
+    }
     const includeDisabled = opts?.includeDisabled === true;
     const jobs = (state.store?.jobs ?? []).filter((j) => includeDisabled || j.enabled);
     return jobs.sort((a, b) => (a.state.nextRunAtMs ?? 0) - (b.state.nextRunAtMs ?? 0));
