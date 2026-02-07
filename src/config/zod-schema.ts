@@ -19,6 +19,16 @@ const BrowserSnapshotDefaultsSchema = z
   .strict()
   .optional();
 
+const BrowserTabReuseSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    matchDomain: z.boolean().optional(),
+    matchExact: z.boolean().optional(),
+    focusExisting: z.boolean().optional(),
+  })
+  .strict()
+  .optional();
+
 const NodeHostSchema = z
   .object({
     browserProxy: z
@@ -205,6 +215,7 @@ export const OpenClawSchema = z
         attachOnly: z.boolean().optional(),
         defaultProfile: z.string().optional(),
         snapshotDefaults: BrowserSnapshotDefaultsSchema,
+        tabReuse: BrowserTabReuseSchema,
         profiles: z
           .record(
             z
