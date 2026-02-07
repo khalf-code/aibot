@@ -434,6 +434,53 @@ describe("CronService", () => {
     await store.cleanup();
   });
 
+  it("disables a one-shot at job after failure to prevent retry storm", async () => {
+    const store = await makeStorePath();
+    const enqueueSystemEvent = vi.fn();
+    const requestHeartbeatNow = vi.fn();
+    const runIsolatedAgentJob = vi.fn(async () => ({
+      status: "error" as const,
+      error: "model not allowed: anthropic/claude-sonnet-4",
+    }));
+
+    const cron = new CronService({
+      storePath: store.storePath,
+      cronEnabled: true,
+      log: noopLogger,
+      enqueueSystemEvent,
+      requestHeartbeatNow,
+      runIsolatedAgentJob,
+    });
+
+    await cron.start();
+    const atMs = Date.parse("2025-12-13T00:00:01.000Z");
+    const job = await cron.add({
+      name: "retry storm test",
+      enabled: true,
+      deleteAfterRun: false,
+      schedule: { kind: "at", at: new Date(atMs).toISOString() },
+      sessionTarget: "isolated",
+      wakeMode: "now",
+      payload: { kind: "agentTurn", message: "do it" },
+    });
+
+    vi.setSystemTime(new Date("2025-12-13T00:00:01.000Z"));
+    await vi.runOnlyPendingTimersAsync();
+
+    const jobs = await waitForJobs(cron, (items) =>
+      items.some((item) => item.id === job.id && !item.enabled),
+    );
+    const updated = jobs.find((j) => j.id === job.id);
+    expect(updated?.enabled).toBe(false);
+    expect(updated?.state.lastStatus).toBe("error");
+    expect(updated?.state.nextRunAtMs).toBeUndefined();
+    // Should only run once, not retry
+    expect(runIsolatedAgentJob).toHaveBeenCalledTimes(1);
+
+    cron.stop();
+    await store.cleanup();
+  });
+
   it("rejects unsupported session/payload combinations", async () => {
     const store = await makeStorePath();
 

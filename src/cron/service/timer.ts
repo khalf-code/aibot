@@ -122,6 +122,11 @@ export async function onTimer(state: CronServiceState) {
             if (job.schedule.kind === "at" && result.status === "ok") {
               job.enabled = false;
               job.state.nextRunAtMs = undefined;
+            } else if (job.schedule.kind === "at" && result.status === "error") {
+              // One-shot jobs should not retry indefinitely on failure.
+              // Disable to prevent retry storms (e.g. "model not allowed").
+              job.enabled = false;
+              job.state.nextRunAtMs = undefined;
             } else if (job.enabled) {
               job.state.nextRunAtMs = computeJobNextRunAtMs(job, result.endedAt);
             } else {
@@ -351,6 +356,11 @@ export async function executeJob(
 
     if (!shouldDelete) {
       if (job.schedule.kind === "at" && status === "ok") {
+        job.enabled = false;
+        job.state.nextRunAtMs = undefined;
+      } else if (job.schedule.kind === "at" && status === "error") {
+        // One-shot jobs should not retry indefinitely on failure.
+        // Disable to prevent retry storms (e.g. "model not allowed").
         job.enabled = false;
         job.state.nextRunAtMs = undefined;
       } else if (job.enabled) {
