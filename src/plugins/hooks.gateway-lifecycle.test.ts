@@ -54,8 +54,8 @@ describe("gateway lifecycle hooks", () => {
     await runner.runGatewayStart({ port: 18789 }, {});
 
     expect(calls).toHaveLength(2);
-    expect(calls[0]!.port).toBe(18789);
-    expect(calls[1]!.port).toBe(18789);
+    expect(calls[0]?.port).toBe(18789);
+    expect(calls[1]?.port).toBe(18789);
   });
 
   // -----------------------------------------------------------------------
@@ -87,8 +87,8 @@ describe("gateway lifecycle hooks", () => {
     await runner.runGatewayStop({ reason: "shutdown" }, {});
 
     expect(calls).toHaveLength(2);
-    expect(calls[0]!.reason).toBe("shutdown");
-    expect(calls[1]!.reason).toBe("shutdown");
+    expect(calls[0]?.reason).toBe("shutdown");
+    expect(calls[1]?.reason).toBe("shutdown");
   });
 
   // -----------------------------------------------------------------------
