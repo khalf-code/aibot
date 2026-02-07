@@ -268,9 +268,9 @@ fit your use case.
 
 Example: Gaia Minds maintains a contribution-focused assistant skill set:
 
-- Gaia repository: `https://github.com/Gaia-minds/gaia-minds`
-- Skill: `skills/gaia-assistant-builder/SKILL.md`
-- Program guide: `infrastructure/personal-assistant-program.md`
+- Gaia repository: [Gaia Minds](https://github.com/Gaia-minds/gaia-minds)
+- Skill: [gaia-assistant-builder/SKILL.md](https://github.com/Gaia-minds/gaia-minds/blob/main/skills/gaia-assistant-builder/SKILL.md)
+- Program guide: [personal-assistant-program.md](https://github.com/Gaia-minds/gaia-minds/blob/main/infrastructure/personal-assistant-program.md)
 
 This split keeps OpenClaw generic while allowing domain- or governance-specific
 workflows to live in their own public repos.
