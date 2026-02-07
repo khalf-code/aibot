@@ -64,10 +64,6 @@ async function monitorSingleAccount(params: {
     "im.message.receive_v1": async (data) => {
       try {
         const event = data as unknown as FeishuMessageEvent;
-        const credentials =
-          account.appId && account.appSecret
-            ? { appId: account.appId, appSecret: account.appSecret, domain: account.domain }
-            : undefined;
         await handleFeishuMessage({
           cfg,
           event,
@@ -75,7 +71,7 @@ async function monitorSingleAccount(params: {
           runtime,
           chatHistories,
           accountId,
-          credentials,
+          enableStreaming: Boolean(account.appId && account.appSecret),
         });
       } catch (err) {
         error(`feishu[${accountId}]: error handling message: ${String(err)}`);

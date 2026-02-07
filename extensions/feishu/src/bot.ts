@@ -534,12 +534,6 @@ export function parseFeishuMessageEvent(
   return ctx;
 }
 
-export type FeishuStreamingCredentials = {
-  appId: string;
-  appSecret: string;
-  domain?: string;
-};
-
 export async function handleFeishuMessage(params: {
   cfg: ClawdbotConfig;
   event: FeishuMessageEvent;
@@ -547,7 +541,7 @@ export async function handleFeishuMessage(params: {
   runtime?: RuntimeEnv;
   chatHistories?: Map<string, HistoryEntry[]>;
   accountId?: string;
-  credentials?: FeishuStreamingCredentials;
+  enableStreaming?: boolean;
 }): Promise<void> {
   const { cfg, event, botOpenId, runtime, chatHistories, accountId } = params;
 
@@ -885,12 +879,9 @@ export async function handleFeishuMessage(params: {
       ...mediaPayload,
     });
 
-    const streamingEnabled = Boolean(params.credentials);
+    const streamingEnabled = Boolean(params.enableStreaming);
     const client = streamingEnabled ? createFeishuClient(account) : null;
-    const streamingSession =
-      streamingEnabled && params.credentials && client
-        ? new FeishuStreamingSession(client, params.credentials)
-        : null;
+    const streamingSession = streamingEnabled && client ? new FeishuStreamingSession(client) : null;
     let streamingStarted = false;
     const threadId = ctx.rootId ?? ctx.parentId;
     const replyToId = isGroup ? (threadId ?? ctx.messageId) : undefined;
