@@ -22,6 +22,7 @@ export type HierarchyEventType =
   | "end"
   | "error"
   | "usage-update"
+  | "progress-update"
   | "full-refresh"
   | "delegation-created"
   | "delegation-reviewed"
@@ -53,6 +54,12 @@ export type HierarchyNode = {
   usage?: SubagentUsage;
   interactionCount?: number;
   delegations?: DelegationMetrics;
+  progress?: {
+    percent: number;
+    status: string;
+    detail?: string;
+    lastUpdate: number;
+  };
 };
 
 export type CollaborationEdge = {
@@ -127,6 +134,16 @@ function computeAgentDisplayLabel(cfg: ReturnType<typeof loadConfig>, agentId: s
   return configName || `Agent: ${agentId}`;
 }
 
+/** Recursively collect all agentIds present in a hierarchy tree. */
+function collectAgentIds(node: HierarchyNode, out: Set<string>) {
+  if (node.agentId) {
+    out.add(node.agentId);
+  }
+  for (const child of node.children) {
+    collectAgentIds(child, out);
+  }
+}
+
 function buildHierarchySnapshot(): HierarchySnapshot {
   const runs = listAllSubagentRuns();
   const cfg = loadConfig();
@@ -166,6 +183,7 @@ function buildHierarchySnapshot(): HierarchySnapshot {
       usage: run.usage,
       interactionCount,
       delegations: delegMetrics,
+      progress: run.progress,
     };
 
     nodeBySession.set(run.childSessionKey, node);
@@ -220,7 +238,6 @@ function buildHierarchySnapshot(): HierarchySnapshot {
   const defaultSessionKey = `agent:${defaultAgentId}:main`;
   if (!rootSessionKeysUsed.has(defaultSessionKey)) {
     const defaultRole = resolveAgentRole(cfg, defaultAgentId);
-    const defaultName = resolveAgentConfig(cfg, defaultAgentId)?.name;
     roots.unshift({
       sessionKey: defaultSessionKey,
       agentId: defaultAgentId,
@@ -310,6 +327,40 @@ function buildHierarchySnapshot(): HierarchySnapshot {
     }
   } catch {
     // Delegation data is optional
+  }
+
+  // Ensure agents referenced in collaboration/delegation edges have nodes.
+  // This makes agents appear in the graph as communication happens.
+  const allNodeAgentIds = new Set<string>();
+  for (const root of roots) {
+    collectAgentIds(root, allNodeAgentIds);
+  }
+  const referencedAgentIds = new Set<string>();
+  for (const edge of collaborationEdges) {
+    referencedAgentIds.add(edge.source);
+    referencedAgentIds.add(edge.target);
+  }
+  for (const agentId of referencedAgentIds) {
+    if (allNodeAgentIds.has(agentId)) {
+      continue;
+    }
+    const sessionKey = `agent:${agentId}:main`;
+    if (rootSessionKeysUsed.has(sessionKey)) {
+      continue;
+    }
+    const role = resolveAgentRole(cfg, agentId);
+    const delegMetrics = getAgentDelegationMetrics(agentId);
+    roots.push({
+      sessionKey,
+      agentId,
+      agentRole: role,
+      label: computeAgentDisplayLabel(cfg, agentId),
+      status: "running",
+      children: [],
+      delegations: delegMetrics,
+    });
+    rootSessionKeysUsed.add(sessionKey);
+    allNodeAgentIds.add(agentId);
   }
 
   return {
@@ -412,6 +463,17 @@ export function initHierarchyEventBroadcaster(broadcast: HierarchyBroadcast) {
     if (phase === "usage-update") {
       broadcastHierarchyEvent({
         type: "usage-update",
+        timestamp: Date.now(),
+        runId,
+        sessionKey: evt.sessionKey,
+        status: "running",
+      });
+      return;
+    }
+
+    if (phase === "progress-update") {
+      broadcastHierarchyEvent({
+        type: "progress-update",
         timestamp: Date.now(),
         runId,
         sessionKey: evt.sessionKey,
