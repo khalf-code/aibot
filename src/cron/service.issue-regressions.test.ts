@@ -343,4 +343,70 @@ describe("Cron issue regressions", () => {
 
     await store.cleanup();
   });
+
+  it("issue #10934: recomputeNextRuns preserves future nextRunAtMs for every schedules", async () => {
+    const store = await makeStorePath();
+    const runIsolatedAgentJob = vi.fn().mockResolvedValue({ status: "ok", summary: "ok" });
+
+    const cron = new CronService({
+      cronEnabled: true,
+      storePath: store.storePath,
+      log: noopLogger,
+      enqueueSystemEvent: vi.fn(),
+      requestHeartbeatNow: vi.fn(),
+      runIsolatedAgentJob,
+    });
+    await cron.start();
+
+    // Use interval > 60s so timer wakes at 60s intervals (capped)
+    const job = await cron.add({
+      name: "every-2min",
+      enabled: true,
+      schedule: { kind: "every", everyMs: 120_000 },
+      sessionTarget: "isolated",
+      wakeMode: "next-heartbeat",
+      payload: { kind: "agentTurn", message: "tick" },
+    });
+
+    const initialNextRun = job.state.nextRunAtMs;
+    const testStartTime = Date.now();
+    expect(initialNextRun).toBeTypeOf("number");
+    expect(initialNextRun).toBeGreaterThan(testStartTime);
+
+    // Advance 60s: triggers intermediate timer (job not yet due)
+    vi.advanceTimersByTime(60_000);
+    await vi.runOnlyPendingTimersAsync();
+
+    // Check nextRunAtMs wasn't pushed forward by recomputeNextRuns()
+    const jobs1 = await cron.list({ includeDisabled: true });
+    const job1 = jobs1.find((j) => j.id === job.id);
+    expect(job1?.state.nextRunAtMs).toBe(initialNextRun);
+
+    // Advance to just past the original scheduled time
+    const timeUntilRun = initialNextRun! - testStartTime - 60_000;
+    vi.advanceTimersByTime(timeUntilRun + 100);
+    await vi.runOnlyPendingTimersAsync();
+
+    // Wait for job completion
+    let completedJob;
+    for (let i = 0; i < 30; i++) {
+      const jobs = await cron.list({ includeDisabled: true });
+      completedJob = jobs.find((j) => j.id === job.id);
+      if (completedJob?.state.lastStatus === "ok") {
+        break;
+      }
+      await vi.runOnlyPendingTimersAsync();
+    }
+
+    expect(runIsolatedAgentJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        job: expect.any(Object),
+        message: "tick",
+      }),
+    );
+    expect(completedJob?.state.lastStatus).toBe("ok");
+
+    cron.stop();
+    await store.cleanup();
+  });
 });
