@@ -444,6 +444,6 @@ interface OpenClawConfig {
 
 ## 另请参阅
 
-- [多智能体配置](/multi-agent-sandbox-tools)
-- [路由配置](/concepts/channel-routing)
+- [多智能体配置](/tools/multi-agent-sandbox-tools)
+- [路由配置](/channels/channel-routing)
 - [会话管理](/concepts/sessions)
