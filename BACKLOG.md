@@ -89,8 +89,8 @@ Reference: `dgarson/IMPROVEMENT-IDEAS.md` (198 incomplete items across 14 catego
 - [~] Add command history and recents (persisted to localStorage) — PR #21
 - [~] Add favorites system — PR #26
 - [x] Add context-aware commands based on current view — PR #24 + expanded with domain-specific commands for all tabs (skills, debug, instances, overview, agents, logs)
-- [ ] Add nested/sub-command menus
-- [~] Add category filtering in search
+- [x] Add nested/sub-command menus — PR #211
+- [x] Add category filtering in search — PR #211
 - [x] Add system commands (Keyboard Shortcuts, Open Documentation, Copy Gateway URL)
 - [ ] See `dgarson/COMMAND-PALETTE.md` for full design doc
 
