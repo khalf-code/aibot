@@ -99,22 +99,26 @@ export async function isChromeRunning(): Promise<boolean> {
       });
       return result.includes("chrome.exe");
     } else if (platformKey === "darwin") {
-      // macOS: check ps
+      // macOS: check pgrep (more reliable than grep)
       const { execSync } = await import("node:child_process");
-      const result = execSync('ps aux | grep -i "Google Chrome" | grep -v grep', {
-        encoding: "utf8",
-      });
-      return result.trim().length > 0;
+      try {
+        execSync('pgrep -i "Google Chrome"', { encoding: "utf8" });
+        return true; // pgrep found process
+      } catch {
+        return false; // pgrep found nothing (exit code 1)
+      }
     } else {
-      // Linux: check ps
+      // Linux: check pgrep (more reliable than grep)
       const { execSync } = await import("node:child_process");
-      const result = execSync("ps aux | grep chrome | grep -v grep", {
-        encoding: "utf8",
-      });
-      return result.trim().length > 0;
+      try {
+        execSync("pgrep chrome", { encoding: "utf8" });
+        return true; // pgrep found process
+      } catch {
+        return false; // pgrep found nothing (exit code 1)
+      }
     }
   } catch {
-    // If command fails, assume Chrome is not running
+    // If command fails unexpectedly, assume Chrome is not running
     return false;
   }
 }

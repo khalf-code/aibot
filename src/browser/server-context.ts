@@ -282,7 +282,6 @@ function createProfileContext(
       return { targetId: createdViaCdp, title: "", url, type: "page" };
     }
 
-    const encoded = encodeURIComponent(url);
     type CdpTarget = {
       id?: string;
       title?: string;
@@ -292,12 +291,10 @@ function createProfileContext(
     };
 
     const endpointUrl = new URL(appendCdpPath(profile.cdpUrl, "/json/new"));
-    const endpoint = endpointUrl.search
-      ? (() => {
-          endpointUrl.searchParams.set("url", url);
-          return endpointUrl.toString();
-        })()
-      : `${endpointUrl.toString()}?${encoded}`;
+    // CDP /json/new accepts either /json/new?<url> or /json/new?url=<url>
+    // We use the latter for consistency and proper encoding
+    endpointUrl.searchParams.set("url", url);
+    const endpoint = endpointUrl.toString();
     const created = await fetchJson<CdpTarget>(endpoint, 1500, {
       method: "PUT",
     }).catch(async (err) => {

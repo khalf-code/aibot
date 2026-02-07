@@ -463,7 +463,7 @@ async function tryAutoConnect() {
     }
   } catch (err) {
     // Relay server not running yet, that's OK
-    console.log('[OpenClaw] Relay server not available on startup:', err.message)
+    console.log('[OpenClaw] Relay server not available on startup:', err instanceof Error ? err.message : String(err))
   }
 }
 
