@@ -24,6 +24,8 @@ import {
 } from "./frontmatter.js";
 import { resolvePluginSkillDirs } from "./plugin-skills.js";
 import { serializeByKey } from "./serialize.js";
+import { createFilteredSkillDir } from "./filter-skill-dirs.js";
+import os from "node:os";
 
 const fsp = fs.promises;
 const skillsLogger = createSubsystemLogger("skills");
@@ -150,10 +152,32 @@ function loadSkillEntries(
     dir: managedSkillsDir,
     source: "openclaw-managed",
   });
-  const workspaceSkills = loadSkills({
-    dir: workspaceSkillsDir,
-    source: "openclaw-workspace",
-  });
+  let workspaceSkills: Skill[] = [];
+  const tempDir = path.join(os.tmpdir(), `openclaw-skills-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+  try {
+    createFilteredSkillDir(workspaceSkillsDir, tempDir);
+    workspaceSkills = loadSkills({
+      dir: tempDir,
+      source: "openclaw-workspace",
+    });
+    // Remap paths from temp dir back to the original workspace skills dir
+    // so that filePath/baseDir survive temp-dir cleanup
+    for (const skill of workspaceSkills) {
+      if (skill.filePath.startsWith(tempDir)) {
+        skill.filePath = path.join(workspaceSkillsDir, path.relative(tempDir, skill.filePath));
+      }
+      if (skill.baseDir.startsWith(tempDir)) {
+        skill.baseDir = path.join(workspaceSkillsDir, path.relative(tempDir, skill.baseDir));
+      }
+    }
+  } finally {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore cleanup failures
+    }
+  }
 
   const merged = new Map<string, Skill>();
   // Precedence: extra < bundled < managed < workspace
