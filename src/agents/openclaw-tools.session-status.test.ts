@@ -290,7 +290,9 @@ describe("session_status tool", () => {
     const tool = createOpenClawTools({ agentSessionKey: "main" }).find(
       (candidate) => candidate.name === "session_status",
     );
-    if (!tool) throw new Error("missing session_status tool");
+    if (!tool) {
+      throw new Error("missing session_status tool");
+    }
 
     const result = await tool.execute("call-think", {});
     const details = result.details as { statusText?: string };
@@ -307,7 +309,9 @@ describe("session_status tool", () => {
     const tool = createOpenClawTools({ agentSessionKey: "main" }).find(
       (candidate) => candidate.name === "session_status",
     );
-    if (!tool) throw new Error("missing session_status tool");
+    if (!tool) {
+      throw new Error("missing session_status tool");
+    }
 
     const result = await tool.execute("call-default", {});
     const details = result.details as { statusText?: string };
