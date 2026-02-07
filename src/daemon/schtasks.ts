@@ -318,7 +318,10 @@ export async function installScheduledTask({
     });
 
   // Create PowerShell script for hidden execution
-  const ps1ScriptPath = scriptPath.replace(/\.cmd$/i, ".ps1");
+  // Replace .cmd extension with .ps1 using path utilities for reliability
+  const scriptDir = path.dirname(scriptPath);
+  const scriptBasename = path.basename(scriptPath, ".cmd");
+  const ps1ScriptPath = path.join(scriptDir, `${scriptBasename}.ps1`);
   const ps1Script = buildPowerShellWrapper({
     description: taskDescription,
     programArguments,
@@ -327,7 +330,8 @@ export async function installScheduledTask({
   });
   await fs.writeFile(ps1ScriptPath, ps1Script, "utf8");
 
-  // Also keep CMD script for backward compatibility
+  // Keep CMD script for backward compatibility with existing installations
+  // New installations will use PowerShell script, but CMD remains for manual fallback
   const script = buildTaskScript({
     description: taskDescription,
     programArguments,
@@ -387,14 +391,18 @@ export async function uninstallScheduledTask({
   await execSchtasks(["/Delete", "/F", "/TN", taskName]);
 
   const scriptPath = resolveTaskScriptPath(env);
-  const ps1ScriptPath = scriptPath.replace(/\.cmd$/i, ".ps1");
+  // Use path utilities to reliably change extension from .cmd to .ps1
+  const scriptDir = path.dirname(scriptPath);
+  const scriptBasename = path.basename(scriptPath, ".cmd");
+  const ps1ScriptPath = path.join(scriptDir, `${scriptBasename}.ps1`);
 
   // Remove both CMD and PowerShell scripts
+  // Both may exist since CMD is kept for backward compatibility and manual fallback
   try {
     await fs.unlink(scriptPath);
     stdout.write(`${formatLine("Removed task script", scriptPath)}\n`);
   } catch {
-    // CMD script might not exist if using newer PowerShell-only installation
+    // CMD script might not exist (silent failure is acceptable)
   }
 
   try {
