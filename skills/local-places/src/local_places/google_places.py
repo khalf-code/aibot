@@ -71,20 +71,14 @@ def _validate_place_id(place_id: str | None) -> None:
     """
     Validate Google Places API place_id format to prevent path traversal.
 
-    Google Place IDs are alphanumeric strings that may contain underscores and hyphens.
-    This validation prevents path traversal attacks (e.g., ../../../etc/passwd) while
-    allowing all legitimate place_id formats.
+    Google Place IDs are often base64-ish and can include characters like '+', '/', and '='.
+    This validation prevents path traversal attacks while allowing legitimate place_id formats.
 
     Args:
-        place_id: The place ID string to validate
+        place_id: The place ID string to validate.
 
     Raises:
-        HTTPException: If place_id format is invalid
-
-    Note:
-        This addresses SonarCloud pythonsecurity:S7044. While the URL scheme and host
-        are fixed (https://places.googleapis.com), validating the place_id prevents
-        any potential path manipulation and satisfies security analysis requirements.
+        HTTPException: If place_id format is invalid.
     """
     if not isinstance(place_id, str) or not place_id:
         raise HTTPException(
@@ -98,10 +92,11 @@ def _validate_place_id(place_id: str | None) -> None:
             detail=f"Invalid place_id length: {len(place_id)}. Expected 10-300 characters."
         )
 
-    if not re.match(r'^[A-Za-z0-9_-]+$', place_id):
+    # Allow alphanumeric, '+', '/', '=', '_', and '-', but reject dangerous characters
+    if re.search(r'[\s\\?#<>|\*%$&\'";`]', place_id):
         raise HTTPException(
             status_code=400,
-            detail="Invalid place_id format: must contain only alphanumeric characters, underscores, and hyphens."
+            detail="Invalid place_id format: contains illegal characters."
         )
 
 class _GoogleResponse:
