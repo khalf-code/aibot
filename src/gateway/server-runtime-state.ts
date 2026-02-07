@@ -15,7 +15,11 @@ import { CANVAS_HOST_PATH } from "../canvas-host/a2ui.js";
 import { type CanvasHostHandler, createCanvasHostHandler } from "../canvas-host/server.js";
 import { resolveGatewayListenHosts } from "./net.js";
 import { createGatewayBroadcaster } from "./server-broadcast.js";
-import { type ChatRunEntry, createChatRunState } from "./server-chat.js";
+import {
+  type ChatRunEntry,
+  createChatRunState,
+  createToolEventRecipientRegistry,
+} from "./server-chat.js";
 import { MAX_PAYLOAD_BYTES } from "./server-constants.js";
 import { attachGatewayUpgradeHandler, createGatewayHttpServer } from "./server-http.js";
 import { createRateLimiter } from "./rate-limiter.js";
@@ -60,6 +64,15 @@ export async function createGatewayRuntimeState(params: {
       stateVersion?: { presence?: number; health?: number };
     },
   ) => void;
+  broadcastToConnIds: (
+    event: string,
+    payload: unknown,
+    connIds: ReadonlySet<string>,
+    opts?: {
+      dropIfSlow?: boolean;
+      stateVersion?: { presence?: number; health?: number };
+    },
+  ) => void;
   agentRunSeq: Map<string, number>;
   dedupe: Map<string, DedupeEntry>;
   chatRunState: ReturnType<typeof createChatRunState>;
@@ -72,6 +85,7 @@ export async function createGatewayRuntimeState(params: {
     sessionKey?: string,
   ) => ChatRunEntry | undefined;
   chatAbortControllers: Map<string, ChatAbortControllerEntry>;
+  toolEventRecipients: ReturnType<typeof createToolEventRecipientRegistry>;
 }> {
   let canvasHost: CanvasHostHandler | null = null;
   if (params.canvasHostEnabled) {
@@ -93,6 +107,9 @@ export async function createGatewayRuntimeState(params: {
       params.logCanvas.warn(`canvas host failed to start: ${String(err)}`);
     }
   }
+
+  const clients = new Set<GatewayWsClient>();
+  const { broadcast, broadcastToConnIds } = createGatewayBroadcaster({ clients });
 
   const handleHooksRequest = createGatewayHooksRequestHandler({
     deps: params.deps,
@@ -117,6 +134,7 @@ export async function createGatewayRuntimeState(params: {
   for (const host of bindHosts) {
     const httpServer = createGatewayHttpServer({
       canvasHost,
+      clients,
       controlUiEnabled: params.controlUiEnabled,
       controlUiBasePath: params.controlUiBasePath,
       controlUiRoot: params.controlUiRoot,
@@ -156,11 +174,15 @@ export async function createGatewayRuntimeState(params: {
     maxPayload: MAX_PAYLOAD_BYTES,
   });
   for (const server of httpServers) {
-    attachGatewayUpgradeHandler({ httpServer: server, wss, canvasHost });
+    attachGatewayUpgradeHandler({
+      httpServer: server,
+      wss,
+      canvasHost,
+      clients,
+      resolvedAuth: params.resolvedAuth,
+    });
   }
 
-  const clients = new Set<GatewayWsClient>();
-  const { broadcast } = createGatewayBroadcaster({ clients });
   const agentRunSeq = new Map<string, number>();
   const dedupe = new Map<string, DedupeEntry>();
   const chatRunState = createChatRunState();
@@ -170,6 +192,7 @@ export async function createGatewayRuntimeState(params: {
   const addChatRun = chatRunRegistry.add;
   const removeChatRun = chatRunRegistry.remove;
   const chatAbortControllers = new Map<string, ChatAbortControllerEntry>();
+  const toolEventRecipients = createToolEventRecipientRegistry();
 
   return {
     canvasHost,
@@ -179,6 +202,7 @@ export async function createGatewayRuntimeState(params: {
     wss,
     clients,
     broadcast,
+    broadcastToConnIds,
     agentRunSeq,
     dedupe,
     chatRunState,
@@ -187,5 +211,6 @@ export async function createGatewayRuntimeState(params: {
     addChatRun,
     removeChatRun,
     chatAbortControllers,
+    toolEventRecipients,
   };
 }

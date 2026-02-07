@@ -10,10 +10,17 @@ import {
 import { createServer as createHttpsServer } from "node:https";
 import type { CanvasHostHandler } from "../canvas-host/server.js";
 import type { createSubsystemLogger } from "../logging/subsystem.js";
+import type { GatewayWsClient } from "./server/ws-types.js";
 import { resolveAgentAvatar } from "../agents/identity-avatar.js";
-import { handleA2uiHttpRequest } from "../canvas-host/a2ui.js";
+import {
+  A2UI_PATH,
+  CANVAS_HOST_PATH,
+  CANVAS_WS_PATH,
+  handleA2uiHttpRequest,
+} from "../canvas-host/a2ui.js";
 import { loadConfig } from "../config/config.js";
 import { handleSlackHttpRequest } from "../slack/http/index.js";
+import { authorizeGatewayConnect, isLocalDirectRequest, type ResolvedGatewayAuth } from "./auth.js";
 import {
   handleControlUiAvatarRequest,
   handleControlUiHttpRequest,
@@ -32,6 +39,9 @@ import {
   resolveHookChannel,
   resolveHookDeliver,
 } from "./hooks.js";
+import { sendUnauthorized } from "./http-common.js";
+import { getBearerToken, getHeader } from "./http-utils.js";
+import { resolveGatewayClientIp } from "./net.js";
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
@@ -69,22 +79,14 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
 
 /**
  * Extract client IP address, considering trusted proxies and X-Forwarded-For header
- *
- * @param req - Incoming HTTP request
- * @param trustedProxies - List of trusted proxy IPs
- * @returns Client IP address
  */
 function getClientIp(req: IncomingMessage, trustedProxies: string[]): string {
-  // If trusted proxies are configured, check X-Forwarded-For header
   if (trustedProxies.length > 0) {
     const forwardedFor = req.headers["x-forwarded-for"];
     if (forwardedFor) {
-      // X-Forwarded-For can be a comma-separated list
       const ips = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor)
         .split(",")
         .map((ip) => ip.trim());
-
-      // Return the first IP that's not a trusted proxy
       for (const ip of ips) {
         if (!trustedProxies.includes(ip)) {
           return ip;
@@ -92,8 +94,6 @@ function getClientIp(req: IncomingMessage, trustedProxies: string[]): string {
       }
     }
   }
-
-  // Fall back to socket remote address
   return req.socket.remoteAddress ?? "unknown";
 }
 
@@ -120,22 +120,11 @@ function setSecurityHeaders(res: ServerResponse): void {
   const nonce = generateNonce();
   responseNonces.set(res, nonce);
 
-  // Prevent MIME type sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
-
-  // Prevent clickjacking
   res.setHeader("X-Frame-Options", "DENY");
-
-  // Enable browser XSS protection
   res.setHeader("X-XSS-Protection", "1; mode=block");
-
-  // Control referrer information
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-
-  // Restrict browser features
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-
-  // Content Security Policy — nonce-based (S2)
   res.setHeader(
     "Content-Security-Policy",
     `default-src 'self'; ` +
@@ -151,25 +140,75 @@ function setSecurityHeaders(res: ServerResponse): void {
  */
 function handleCors(req: IncomingMessage, res: ServerResponse): boolean {
   const origin = req.headers.origin;
-
-  // No Origin header = same-origin or non-browser request — allow
   if (!origin) {
     return false;
   }
-
-  // Block cross-origin by default: do NOT set Access-Control-Allow-Origin
-  // (browsers will reject the response)
-
   if (req.method === "OPTIONS") {
-    // Respond to preflight with 204 but without ACAO — browser will block
     res.statusCode = 204;
     res.setHeader("Content-Length", "0");
     res.end();
     return true;
   }
-
   return false;
 }
+
+// ── Canvas host authorization (upstream) ───────────────────────────────
+
+function isCanvasPath(pathname: string): boolean {
+  return (
+    pathname === A2UI_PATH ||
+    pathname.startsWith(`${A2UI_PATH}/`) ||
+    pathname === CANVAS_HOST_PATH ||
+    pathname.startsWith(`${CANVAS_HOST_PATH}/`) ||
+    pathname === CANVAS_WS_PATH
+  );
+}
+
+function hasAuthorizedWsClientForIp(clients: Set<GatewayWsClient>, clientIp: string): boolean {
+  for (const client of clients) {
+    if (client.clientIp && client.clientIp === clientIp) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function authorizeCanvasRequest(params: {
+  req: IncomingMessage;
+  auth: ResolvedGatewayAuth;
+  trustedProxies: string[];
+  clients: Set<GatewayWsClient>;
+}): Promise<boolean> {
+  const { req, auth, trustedProxies, clients } = params;
+  if (isLocalDirectRequest(req, trustedProxies)) {
+    return true;
+  }
+
+  const token = getBearerToken(req);
+  if (token) {
+    const authResult = await authorizeGatewayConnect({
+      auth: { ...auth, allowTailscale: false },
+      connectAuth: { token, password: token },
+      req,
+      trustedProxies,
+    });
+    if (authResult.ok) {
+      return true;
+    }
+  }
+
+  const clientIp = resolveGatewayClientIp({
+    remoteAddr: req.socket?.remoteAddress ?? "",
+    forwardedFor: getHeader(req, "x-forwarded-for"),
+    realIp: getHeader(req, "x-real-ip"),
+    trustedProxies,
+  });
+  if (!clientIp) {
+    return false;
+  }
+  return hasAuthorizedWsClientForIp(clients, clientIp);
+}
+
 
 export type HooksRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
 
@@ -193,7 +232,16 @@ export function createHooksRequestHandler(
       return false;
     }
 
-    const { token, fromQuery } = extractHookToken(req, url);
+    if (url.searchParams.has("token")) {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.end(
+        "Hook token must be provided via Authorization: Bearer <token> or X-OpenClaw-Token header (query parameters are not allowed).",
+      );
+      return true;
+    }
+
+    const token = extractHookToken(req);
     const expected = hooksConfig.token;
     if (!token || token.length !== expected.length || !timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
       getAuditLog()?.log("hook_auth_failure", `path=${url.pathname}`, {
@@ -203,13 +251,6 @@ export function createHooksRequestHandler(
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.end("Unauthorized");
       return true;
-    }
-    if (fromQuery) {
-      logHooks.warn(
-        "Hook token provided via query parameter is deprecated for security reasons. " +
-          "Tokens in URLs appear in logs, browser history, and referrer headers. " +
-          "Use Authorization: Bearer <token> or X-OpenClaw-Token header instead.",
-      );
     }
 
     if (req.method !== "POST") {
@@ -323,6 +364,7 @@ export function createHooksRequestHandler(
 
 export function createGatewayHttpServer(opts: {
   canvasHost: CanvasHostHandler | null;
+  clients: Set<GatewayWsClient>;
   controlUiEnabled: boolean;
   controlUiBasePath: string;
   controlUiRoot?: ControlUiRootState;
@@ -331,12 +373,13 @@ export function createGatewayHttpServer(opts: {
   openResponsesConfig?: import("../config/types.gateway.js").GatewayHttpResponsesConfig;
   handleHooksRequest: HooksRequestHandler;
   handlePluginRequest?: HooksRequestHandler;
-  resolvedAuth: import("./auth.js").ResolvedGatewayAuth;
+  resolvedAuth: ResolvedGatewayAuth;
   tlsOptions?: TlsOptions;
   rateLimiter?: RateLimiter | null; // OPTIONAL: Rate limiter instance (disabled if null/undefined)
 }): HttpServer {
   const {
     canvasHost,
+    clients,
     controlUiEnabled,
     controlUiBasePath,
     controlUiRoot,
@@ -428,6 +471,19 @@ export function createGatewayHttpServer(opts: {
         }
       }
       if (canvasHost) {
+        const url = new URL(req.url ?? "/", "http://localhost");
+        if (isCanvasPath(url.pathname)) {
+          const ok = await authorizeCanvasRequest({
+            req,
+            auth: resolvedAuth,
+            trustedProxies,
+            clients,
+          });
+          if (!ok) {
+            sendUnauthorized(res);
+            return;
+          }
+        }
         if (await handleA2uiHttpRequest(req, res)) {
           return;
         }
@@ -472,14 +528,38 @@ export function attachGatewayUpgradeHandler(opts: {
   httpServer: HttpServer;
   wss: WebSocketServer;
   canvasHost: CanvasHostHandler | null;
+  clients: Set<GatewayWsClient>;
+  resolvedAuth: ResolvedGatewayAuth;
 }) {
-  const { httpServer, wss, canvasHost } = opts;
+  const { httpServer, wss, canvasHost, clients, resolvedAuth } = opts;
   httpServer.on("upgrade", (req, socket, head) => {
-    if (canvasHost?.handleUpgrade(req, socket, head)) {
-      return;
-    }
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit("connection", ws, req);
+    void (async () => {
+      if (canvasHost) {
+        const url = new URL(req.url ?? "/", "http://localhost");
+        if (url.pathname === CANVAS_WS_PATH) {
+          const configSnapshot = loadConfig();
+          const trustedProxies = configSnapshot.gateway?.trustedProxies ?? [];
+          const ok = await authorizeCanvasRequest({
+            req,
+            auth: resolvedAuth,
+            trustedProxies,
+            clients,
+          });
+          if (!ok) {
+            socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+            socket.destroy();
+            return;
+          }
+        }
+        if (canvasHost.handleUpgrade(req, socket, head)) {
+          return;
+        }
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req);
+      });
+    })().catch(() => {
+      socket.destroy();
     });
   });
 }
