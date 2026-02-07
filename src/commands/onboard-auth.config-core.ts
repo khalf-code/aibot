@@ -403,7 +403,7 @@ export function applySyntheticProviderConfig(cfg: OpenClawConfig): OpenClawConfi
   providers.synthetic = {
     ...existingProviderRest,
     baseUrl: SYNTHETIC_BASE_URL,
-    api: "anthropic-messages",
+    api: "openai-completions",
     ...(normalizedApiKey ? { apiKey: normalizedApiKey } : {}),
     models: mergedModels.length > 0 ? mergedModels : syntheticModels,
   };
