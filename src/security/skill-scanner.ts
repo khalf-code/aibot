@@ -106,10 +106,10 @@ const LINE_RULES: LineRule[] = [
     pattern: /stratum\+tcp|stratum\+ssl|coinhive|cryptonight|xmrig/i,
   },
   {
-    ruleId: "dynamic-code-execution",
+    ruleId: "dynamic-code-execution-vm",
     severity: "critical",
     message: "Node.js vm module code execution detected",
-    pattern: /\bvm\.(runInNewContext|runInThisContext|compileFunction|Script)\s*\(/,
+    pattern: /\bvm\.(runInNewContext|runInThisContext|compileFunction)\s*\(|\bnew\s+vm\.Script\b/,
     requiresContext: /["'](?:node:)?vm["']/,
   },
   {

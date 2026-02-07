@@ -118,7 +118,7 @@ const result = vm.runInNewContext("1+1", {});
 `;
     const findings = scanSource(source, "plugin.ts");
     expect(
-      findings.some((f) => f.ruleId === "dynamic-code-execution" && f.severity === "critical"),
+      findings.some((f) => f.ruleId === "dynamic-code-execution-vm" && f.severity === "critical"),
     ).toBe(true);
   });
 
@@ -129,7 +129,18 @@ const fn = vm.compileFunction("return 42");
 `;
     const findings = scanSource(source, "plugin.ts");
     expect(
-      findings.some((f) => f.ruleId === "dynamic-code-execution" && f.severity === "critical"),
+      findings.some((f) => f.ruleId === "dynamic-code-execution-vm" && f.severity === "critical"),
+    ).toBe(true);
+  });
+
+  it("detects new vm.Script constructor", () => {
+    const source = `
+import vm from "node:vm";
+const script = new vm.Script("console.log('hi')");
+`;
+    const findings = scanSource(source, "plugin.ts");
+    expect(
+      findings.some((f) => f.ruleId === "dynamic-code-execution-vm" && f.severity === "critical"),
     ).toBe(true);
   });
 
