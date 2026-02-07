@@ -1,4 +1,5 @@
 import { Type } from "@sinclair/typebox";
+import { optionalStringEnum } from "../../../agents/schema/typebox.js";
 import { NonEmptyString, SessionLabelString } from "./primitives.js";
 
 export const SessionsListParamsSchema = Type.Object(
@@ -112,12 +113,15 @@ export const SessionsSpawnParamsSchema = Type.Object(
     runTimeoutSeconds: Type.Optional(Type.Number({ minimum: 0 })),
     // Back-compat alias. Prefer runTimeoutSeconds.
     timeoutSeconds: Type.Optional(Type.Number({ minimum: 0 })),
-    cleanup: Type.Optional(Type.Union([Type.Literal("delete"), Type.Literal("keep")])),
+    cleanup: optionalStringEnum(["delete", "keep"] as const),
     // Gateway caller context (used for subagent announcement routing).
     channel: Type.Optional(Type.String()),
     accountId: Type.Optional(Type.String()),
     to: Type.Optional(Type.String()),
-    threadId: Type.Optional(Type.Union([Type.String(), Type.Number()])),
+    threadId: Type.Optional(Type.String()),
+    groupId: Type.Optional(Type.String()),
+    groupChannel: Type.Optional(Type.String()),
+    groupSpace: Type.Optional(Type.String()),
     requesterSessionKey: Type.Optional(NonEmptyString),
   },
   { additionalProperties: false },

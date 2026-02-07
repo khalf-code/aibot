@@ -17,7 +17,15 @@ import {
   type SessionEntry,
   updateSessionStore,
 } from "../../config/sessions.js";
-import { isSubagentSessionKey, normalizeAgentId, parseAgentSessionKey } from "../../routing/session-key.js";
+import {
+  resolveInternalSessionKey,
+  resolveMainSessionAlias,
+} from "../../agents/tools/sessions-helpers.js";
+import {
+  isSubagentSessionKey,
+  normalizeAgentId,
+  parseAgentSessionKey,
+} from "../../routing/session-key.js";
 import { normalizeDeliveryContext } from "../../utils/delivery-context.js";
 import { callGateway } from "../call.js";
 import {
@@ -553,16 +561,15 @@ export const sessionsHandlers: GatewayRequestHandlers = {
 
     const requesterSessionKeyRaw =
       typeof p.requesterSessionKey === "string" ? p.requesterSessionKey.trim() : "";
-    const mainKey = resolveMainSessionKey(cfg);
-    const requesterSessionKey = (() => {
-      if (!requesterSessionKeyRaw) {
-        return mainKey;
-      }
-      if (requesterSessionKeyRaw === "main") {
-        return mainKey;
-      }
-      return requesterSessionKeyRaw;
-    })();
+
+    const { mainKey, alias } = resolveMainSessionAlias(cfg);
+    const requesterSessionKey = requesterSessionKeyRaw
+      ? resolveInternalSessionKey({
+          key: requesterSessionKeyRaw,
+          alias,
+          mainKey,
+        })
+      : alias;
 
     if (isSubagentSessionKey(requesterSessionKey)) {
       respond(
@@ -718,6 +725,9 @@ export const sessionsHandlers: GatewayRequestHandlers = {
           timeout: runTimeoutSeconds > 0 ? runTimeoutSeconds : undefined,
           label: label || undefined,
           spawnedBy: requesterSessionKey,
+          groupId: typeof p.groupId === "string" ? p.groupId : undefined,
+          groupChannel: typeof p.groupChannel === "string" ? p.groupChannel : undefined,
+          groupSpace: typeof p.groupSpace === "string" ? p.groupSpace : undefined,
         },
         timeoutMs: 10_000,
       });
