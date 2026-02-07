@@ -107,14 +107,20 @@ export async function startTelegramWebhook(opts: {
   }
 
   const server = createServer((req, res) => {
+    let responded = false;
+    const safeRespond = (status: number, body?: string) => {
+      if (responded || res.headersSent || res.writableEnded) return;
+      responded = true;
+      res.writeHead(status);
+      res.end(body);
+    };
+
     if (req.url === healthPath) {
-      res.writeHead(200);
-      res.end("ok");
+      safeRespond(200, "ok");
       return;
     }
     if (req.url !== path || req.method !== "POST") {
-      res.writeHead(404);
-      res.end();
+      safeRespond(404);
       return;
     }
 
@@ -129,16 +135,14 @@ export async function startTelegramWebhook(opts: {
           const header = req.headers["x-telegram-bot-api-secret-token"];
           const provided = Array.isArray(header) ? header[0] : header;
           if (!provided || provided !== opts.secret) {
-            res.writeHead(401);
-            res.end();
+            safeRespond(401);
             return;
           }
         }
 
         const raw = await readRequestBody(req);
         // ACK asap after parsing the request body, before any tool/model work.
-        res.writeHead(200);
-        res.end("ok");
+        safeRespond(200, "ok");
 
         const update = JSON.parse(raw.toString("utf8"));
 
@@ -176,10 +180,7 @@ export async function startTelegramWebhook(opts: {
           });
         }
         runtime.log?.(`webhook handler failed: ${errMsg}`);
-        if (!res.headersSent) {
-          res.writeHead(500);
-          res.end();
-        }
+        safeRespond(500);
       }
     })();
   });
