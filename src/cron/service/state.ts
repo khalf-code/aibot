@@ -2,14 +2,15 @@ import type { HeartbeatRunResult } from "../../infra/heartbeat-wake.js";
 import type { CronJob, CronJobCreate, CronJobPatch, CronStoreFile } from "../types.js";
 
 export type CronEvent = {
-  jobId: string;
-  action: "added" | "updated" | "removed" | "started" | "finished";
+  jobId?: string;
+  action: "added" | "updated" | "removed" | "started" | "finished" | "unhealthy" | "healthy";
   runAtMs?: number;
   durationMs?: number;
   status?: "ok" | "error" | "skipped";
   error?: string;
   summary?: string;
   nextRunAtMs?: number;
+  consecutiveFailures?: number;
 };
 
 export type Logger = {
@@ -56,6 +57,10 @@ export type CronServiceState = {
   _lastTimerRun?: Promise<void>;
   storeLoadedAtMs: number | null;
   storeFileMtimeMs: number | null;
+  /** Set when `loadCronStore` returns a load error (corrupt file, etc.) */
+  storeLoadError?: string;
+  /** Number of consecutive load failures (for health probing). */
+  consecutiveLoadFailures: number;
 };
 
 export function createCronServiceState(deps: CronServiceDeps): CronServiceState {
@@ -70,6 +75,7 @@ export function createCronServiceState(deps: CronServiceDeps): CronServiceState 
     warnedDisabled: false,
     storeLoadedAtMs: null,
     storeFileMtimeMs: null,
+    consecutiveLoadFailures: 0,
   };
 }
 
