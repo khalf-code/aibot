@@ -213,6 +213,87 @@ describe("handleCommands hooks", () => {
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ type: "command", action: "new" }));
     spy.mockRestore();
   });
+
+  it("triggers session:end before command:new when previous session exists", async () => {
+    const cfg = {
+      commands: { text: true },
+      channels: { whatsapp: { allowFrom: ["*"] } },
+    } as OpenClawConfig;
+    const params = buildParams("/new", cfg);
+    // Add previous session entry
+    params.previousSessionEntry = {
+      sessionId: "prev-session-id",
+      sessionFile: "/tmp/prev-session.json",
+      channel: "whatsapp",
+      updatedAt: Date.now(),
+    };
+    params.sessionEntry = {
+      sessionId: "new-session-id",
+      sessionFile: "/tmp/new-session.json",
+      channel: "whatsapp",
+      updatedAt: Date.now(),
+    };
+    const spy = vi.spyOn(internalHooks, "triggerInternalHook").mockResolvedValue();
+
+    await handleCommands(params);
+
+    // Should trigger session:end, command:new, and session:start in order
+    expect(spy).toHaveBeenCalledTimes(3);
+    expect(spy.mock.calls[0][0]).toMatchObject({ type: "session", action: "end" });
+    expect(spy.mock.calls[1][0]).toMatchObject({ type: "command", action: "new" });
+    expect(spy.mock.calls[2][0]).toMatchObject({ type: "session", action: "start" });
+    spy.mockRestore();
+  });
+
+  it("triggers session:start with isReset context", async () => {
+    const cfg = {
+      commands: { text: true },
+      channels: { whatsapp: { allowFrom: ["*"] } },
+    } as OpenClawConfig;
+    const params = buildParams("/reset", cfg);
+    params.sessionEntry = {
+      sessionId: "new-session-id",
+      sessionFile: "/tmp/new-session.json",
+      channel: "whatsapp",
+      updatedAt: Date.now(),
+    };
+    const spy = vi.spyOn(internalHooks, "triggerInternalHook").mockResolvedValue();
+
+    await handleCommands(params);
+
+    // Find the session:start call
+    const sessionStartCall = spy.mock.calls.find(
+      (call) => call[0].type === "session" && call[0].action === "start",
+    );
+    expect(sessionStartCall).toBeDefined();
+    expect(sessionStartCall?.[0].context).toMatchObject({ isReset: true });
+    spy.mockRestore();
+  });
+
+  it("does not trigger session:end when no previous session exists", async () => {
+    const cfg = {
+      commands: { text: true },
+      channels: { whatsapp: { allowFrom: ["*"] } },
+    } as OpenClawConfig;
+    const params = buildParams("/new", cfg);
+    // No previousSessionEntry
+    params.sessionEntry = {
+      sessionId: "new-session-id",
+      sessionFile: "/tmp/new-session.json",
+      channel: "whatsapp",
+      updatedAt: Date.now(),
+    };
+    const spy = vi.spyOn(internalHooks, "triggerInternalHook").mockResolvedValue();
+
+    await handleCommands(params);
+
+    // Should trigger command:new and session:start, but not session:end
+    const sessionEndCall = spy.mock.calls.find(
+      (call) => call[0].type === "session" && call[0].action === "end",
+    );
+    expect(sessionEndCall).toBeUndefined();
+    spy.mockRestore();
+  });
 });
 
 describe("handleCommands context", () => {
