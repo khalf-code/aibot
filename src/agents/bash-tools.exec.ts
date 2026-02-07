@@ -438,6 +438,8 @@ async function runExecProcess(opts: {
 
   const config = getShellConfig();
   const rewrittenCommand = opts.command.replace(/(\s*)2>\s*nul\s*$/gi, `$12>${config.nullDevice}`);
+  const finalCommand =
+    process.platform === "win32" ? rewrittenCommand.replace(/\$null/g, "`$null") : rewrittenCommand;
 
   const sessionId = createSessionSlug();
   let child: ChildProcessWithoutNullStreams | null = null;
@@ -450,7 +452,7 @@ async function runExecProcess(opts: {
         "docker",
         ...buildDockerExecArgs({
           containerName: opts.sandbox.containerName,
-          command: rewrittenCommand,
+          command: finalCommand,
           workdir: opts.containerWorkdir ?? opts.sandbox.containerWorkdir,
           env: opts.env,
           tty: opts.usePty,
@@ -489,7 +491,7 @@ async function runExecProcess(opts: {
       if (!spawnPty) {
         throw new Error("PTY support is unavailable (node-pty spawn not found).");
       }
-      pty = spawnPty(shell, [...shellArgs, rewrittenCommand], {
+      pty = spawnPty(shell, [...shellArgs, finalCommand], {
         cwd: opts.workdir,
         env: opts.env,
         name: process.env.TERM ?? "xterm-256color",
@@ -521,7 +523,7 @@ async function runExecProcess(opts: {
       logWarn(`exec: PTY spawn failed (${errText}); retrying without PTY for "${opts.command}".`);
       opts.warnings.push(warning);
       const { child: spawned } = await spawnWithFallback({
-        argv: [shell, ...shellArgs, rewrittenCommand],
+        argv: [shell, ...shellArgs, finalCommand],
         options: {
           cwd: opts.workdir,
           env: opts.env,
@@ -548,7 +550,7 @@ async function runExecProcess(opts: {
   } else {
     const { shell, args: shellArgs } = config;
     const { child: spawned } = await spawnWithFallback({
-      argv: [shell, ...shellArgs, rewrittenCommand],
+      argv: [shell, ...shellArgs, finalCommand],
       options: {
         cwd: opts.workdir,
         env: opts.env,
