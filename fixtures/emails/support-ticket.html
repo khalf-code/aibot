@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Support Ticket #4821 — Webhook Delivery Failures</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f4f4f4;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="background-color: #f4f4f4"
+    >
+      <tr>
+        <td align="center" style="padding: 20px 0">
+          <table
+            role="presentation"
+            width="600"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="background-color: #ffffff; border-radius: 8px; overflow: hidden"
+          >
+            <!-- Header -->
+            <tr>
+              <td style="background-color: #1a1a2e; padding: 24px 32px">
+                <h1 style="margin: 0; color: #ffffff; font-size: 18px">Support Ticket #4821</h1>
+                <p style="margin: 4px 0 0; color: #a0a0c0; font-size: 13px">
+                  Priority: High | Status: Open | Created: 2026-01-20T14:05:33Z
+                </p>
+              </td>
+            </tr>
+
+            <!-- Ticket metadata -->
+            <tr>
+              <td style="padding: 24px 32px 0">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="padding-bottom: 12px">
+                      <strong style="color: #555">From:</strong>
+                      <span style="color: #333"
+                        >Bob Smith &lt;bob.smith@widgetworks.example.com&gt;</span
+                      >
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom: 12px">
+                      <strong style="color: #555">Account:</strong>
+                      <span style="color: #333"
+                        >Widget Works Inc. (Enterprise Plan, ID: ACC-00291)</span
+                      >
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom: 12px">
+                      <strong style="color: #555">Category:</strong>
+                      <span style="color: #333">Integration / Webhooks</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom: 12px">
+                      <strong style="color: #555">Subject:</strong>
+                      <span style="color: #333"
+                        >Webhook delivery failures since Jan 18 upgrade</span
+                      >
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Ticket body -->
+            <tr>
+              <td style="padding: 16px 32px 24px">
+                <div
+                  style="
+                    border-top: 1px solid #e0e0e0;
+                    padding-top: 16px;
+                    color: #333;
+                    font-size: 14px;
+                    line-height: 1.6;
+                  "
+                >
+                  <p>Hi Support Team,</p>
+
+                  <p>
+                    Since the platform upgrade on January 18, we've been experiencing intermittent
+                    webhook delivery failures to our endpoint at
+                    <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px"
+                      >https://api.widgetworks.example.com/hooks/openclaw</code
+                    >.
+                  </p>
+
+                  <p>Here's what we're seeing:</p>
+                  <ul>
+                    <li>Approximately 15-20% of webhook events are returning HTTP 502 errors.</li>
+                    <li>The failures appear to cluster around 09:00-11:00 UTC daily.</li>
+                    <li>Retry attempts also fail with the same status code.</li>
+                    <li>Our endpoint health checks show 100% uptime on our side.</li>
+                  </ul>
+
+                  <p>Affected webhook event types:</p>
+                  <ul>
+                    <li>
+                      <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px"
+                        >message.received</code
+                      >
+                    </li>
+                    <li>
+                      <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px"
+                        >lead.status_changed</code
+                      >
+                    </li>
+                    <li>
+                      <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px"
+                        >conversation.closed</code
+                      >
+                    </li>
+                  </ul>
+
+                  <p>Sample failed delivery IDs for investigation:</p>
+                  <ul>
+                    <li>WH-20260118-A7F3B2</li>
+                    <li>WH-20260119-C9D4E1</li>
+                    <li>WH-20260120-B1A8F5</li>
+                  </ul>
+
+                  <p>
+                    This is impacting our CRM sync pipeline. Could you please investigate and let us
+                    know if there were any infrastructure changes that might be related?
+                  </p>
+
+                  <p>
+                    Thanks,<br />
+                    Bob Smith<br />
+                    Senior Engineer, Widget Works Inc.<br />
+                    bob.smith@widgetworks.example.com
+                  </p>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td
+                style="background-color: #f8f8f8; padding: 16px 32px; border-top: 1px solid #e0e0e0"
+              >
+                <p style="margin: 0; color: #999; font-size: 12px">
+                  Ticket #4821 | Ref: SUP-2026-04821 | Do not modify the subject line when replying.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

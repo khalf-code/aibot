@@ -1,0 +1,89 @@
+// Dev container configuration for OpenClaw
+// https://containers.dev/implementors/json_reference/
+{
+  "name": "OpenClaw Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  // Run as the non-root "node" user shipped in the base image.
+  "remoteUser": "node",
+
+  // ---- Features (Docker-in-Docker for docker-compose inside the container) ----
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2.12.0": {
+      "version": "27",
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1.0.13": {
+      "installDirectlyFromGitHubRelease": true,
+      "version": "latest"
+    }
+  },
+
+  // ---- Forwarded ports ----
+  // 3000  - dashboard / web UI
+  // 5678  - n8n workflow automation
+  // 8080  - nginx reverse proxy
+  // 18789 - openclaw gateway (default)
+  "forwardPorts": [3000, 5678, 8080, 18789],
+  "portsAttributes": {
+    "3000": { "label": "Dashboard", "onAutoForward": "notify" },
+    "5678": { "label": "n8n", "onAutoForward": "notify" },
+    "8080": { "label": "Nginx Proxy", "onAutoForward": "notify" },
+    "18789": { "label": "OpenClaw Gateway", "onAutoForward": "notify" }
+  },
+
+  // ---- VS Code customizations ----
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "explicit"
+        },
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "files.eol": "\n"
+      },
+      "extensions": [
+        // Linting and formatting
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "oxc.oxc-vscode",
+
+        // TypeScript / JS
+        "ms-vscode.vscode-typescript-next",
+
+        // Docker and containers
+        "ms-azuretools.vscode-docker",
+
+        // Git
+        "eamodio.gitlens",
+        "mhutchie.git-graph",
+
+        // Testing
+        "vitest.explorer",
+
+        // Editor utilities
+        "EditorConfig.EditorConfig",
+        "christian-kohler.path-intellisense",
+        "streetsidesoftware.code-spell-checker",
+
+        // YAML / JSON / Markdown
+        "redhat.vscode-yaml",
+        "DavidAnson.vscode-markdownlint"
+      ]
+    }
+  },
+
+  // ---- Lifecycle commands ----
+  // Install dependencies after the container is created.
+  "postCreateCommand": "pnpm install",
+
+  // ---- Mount the workspace ----
+  "workspaceFolder": "/workspaces/openclaw",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/openclaw,type=bind,consistency=cached"
+}

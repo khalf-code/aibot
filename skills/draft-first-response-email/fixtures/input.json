@@ -1,0 +1,13 @@
+{
+  "leadName": "Jane Doe",
+  "leadEmail": "jane.doe@acmecorp.com",
+  "company": "Acme Corp",
+  "intent": "demo request",
+  "intentSignals": [
+    "interested in scheduling a demo of your platform",
+    "looking for a solution to streamline our outbound sales pipeline"
+  ],
+  "senderName": "Alex Rivera",
+  "senderTitle": "Account Executive, OpenClaw",
+  "tone": "friendly"
+}

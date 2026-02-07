@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "sentiment": "neutral",
+  "sentimentScore": 0,
+  "toneScores": {
+    "empathy": 0.3333333333333333,
+    "formality": 0.5,
+    "clarity": 0.7,
+    "urgency": 0.2,
+    "frustration": 0.6
+  },
+  "flags": [
+    {
+      "phrase": "per our policy",
+      "reason": "Overly formal/bureaucratic; may feel impersonal.",
+      "aspect": "formality",
+      "severity": "info",
+      "suggestion": "Consider explaining the reasoning behind the policy."
+    }
+  ],
+  "recommendedAction": "send",
+  "summary": "Sentiment: neutral (0.00). Found 1 tone flag(s): formality. Recommendation: send."
+}

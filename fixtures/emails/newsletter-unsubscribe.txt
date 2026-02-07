@@ -1,0 +1,42 @@
+From: noreply@newsletters.globexcorp.example.com
+To: carol.johnson@acmecorp.example.com
+Date: Wed, 22 Jan 2026 08:00:00 +0000
+Subject: Your Monthly Industry Digest - January 2026
+Message-ID: <newsletter-202601-CJ4492@newsletters.globexcorp.example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+List-Unsubscribe: <https://newsletters.globexcorp.example.com/unsubscribe?id=CJ4492>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+
+Hi Carol,
+
+Here's your monthly digest from Globex Corp Industry Insights.
+
+TOP STORIES THIS MONTH
+-----------------------
+
+1. Automation Trends in Manufacturing for 2026
+   Analysts predict a 34% increase in messaging-based workflow
+   automation across the manufacturing sector.
+
+2. New Compliance Requirements for Data Retention
+   Updated regulations take effect March 1, 2026. Ensure your
+   messaging archives meet the 7-year retention requirement.
+
+3. Case Study: How Initech Reduced Response Times by 60%
+   Using multi-channel routing, Initech cut their average customer
+   response time from 4.2 hours to 1.7 hours.
+
+UPCOMING EVENTS
+---------------
+
+- Feb 10-12: MessagingCon 2026 (Virtual)
+- Mar 05: Webinar — "AI-Powered Lead Scoring Best Practices"
+- Apr 22-24: Enterprise Integration Summit (Chicago, IL)
+
+---
+
+You are receiving this email because you subscribed at globexcorp.example.com.
+To unsubscribe, visit: https://newsletters.globexcorp.example.com/unsubscribe?id=CJ4492
+
+Globex Corp | 742 Evergreen Terrace, Suite 200 | Springfield, IL 62704

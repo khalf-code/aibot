@@ -1,0 +1,91 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Automated dependency updates for RF-010 (#11). Alternative to Dependabot.",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":separateMajorReleases",
+    "security:openssf-scorecard"
+  ],
+  "labels": ["dependencies", "automated"],
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 4,
+  "schedule": ["before 7am on Monday"],
+  "timezone": "Etc/UTC",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["dependencies", "automated", "security", "priority:high"]
+  },
+  "packageRules": [
+    {
+      "description": "Group minor and patch updates for production npm dependencies",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm production dependencies (minor/patch)",
+      "groupSlug": "npm-prod-minor-patch"
+    },
+    {
+      "description": "Group minor and patch updates for dev npm dependencies",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm dev dependencies (minor/patch)",
+      "groupSlug": "npm-dev-minor-patch"
+    },
+    {
+      "description": "Auto-merge patch updates for dev dependencies",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Group GitHub Actions minor and patch updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "GitHub Actions (minor/patch)",
+      "groupSlug": "github-actions-minor-patch",
+      "schedule": ["before 7am on the first day of the month"]
+    },
+    {
+      "description": "Group Docker minor and patch updates",
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Docker images (minor/patch)",
+      "groupSlug": "docker-minor-patch",
+      "schedule": ["before 7am on the first day of the month"]
+    },
+    {
+      "description": "Group Swift minor and patch updates",
+      "matchManagers": ["swift"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Swift dependencies (minor/patch)",
+      "groupSlug": "swift-minor-patch"
+    },
+    {
+      "description": "Group Gradle/Android minor and patch updates",
+      "matchManagers": ["gradle"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Android/Gradle dependencies (minor/patch)",
+      "groupSlug": "gradle-minor-patch"
+    },
+    {
+      "description": "Flag security patches as high priority",
+      "matchUpdateTypes": ["patch", "minor", "major"],
+      "isVulnerabilityAlert": true,
+      "labels": ["dependencies", "automated", "security", "priority:high"],
+      "prPriority": 10
+    },
+    {
+      "description": "Do not update patched dependencies automatically (requires explicit approval per CLAUDE.md)",
+      "matchCurrentVersion": "!/^[~^]/",
+      "enabled": false,
+      "matchManagers": ["npm"]
+    }
+  ],
+  "ignoreDeps": [],
+  "enabledManagers": ["npm", "github-actions", "dockerfile", "swift", "gradle"]
+}

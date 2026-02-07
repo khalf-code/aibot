@@ -1,0 +1,11 @@
+# BIZ-025 to BIZ-028 (#117-#120): triage-support-email
+name: triage-support-email
+version: 0.1.0
+description: "Triage an inbound support email by classifying category, priority, sentiment, and suggested routing."
+permissions:
+  tools:
+    - email-runner
+  secrets: []
+  domains: []
+approval_required: false
+timeout_ms: 10000

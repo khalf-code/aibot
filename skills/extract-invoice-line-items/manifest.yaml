@@ -1,0 +1,22 @@
+# Skill Manifest (v1)
+#
+# BIZ-045 (#137) — Skeleton for extract-invoice-line-items skill.
+# Parse an invoice document and extract structured line items
+# with descriptions, quantities, unit prices, and totals.
+
+# ── Identity ──────────────────────────────────────────────────────
+name: extract-invoice-line-items
+version: 1.0.0
+description: "Parse invoice documents and extract structured line items with amounts and tax details."
+
+# ── Permissions ───────────────────────────────────────────────────
+permissions:
+  tools: []
+  secrets:
+    - OCR_API_KEY
+  domains:
+    - "api.ocr.example.com"
+
+# ── Behavior ──────────────────────────────────────────────────────
+approval_required: false
+timeout_ms: 20000

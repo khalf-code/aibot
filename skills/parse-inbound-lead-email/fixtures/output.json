@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "senderName": "Jane Doe",
+  "senderEmail": "jane.doe@acmecorp.com",
+  "company": "acmecorp",
+  "intent": "demo request",
+  "urgency": "low",
+  "intentSignals": [
+    "I'm the VP of Sales at Acme Corp and I'm interested in scheduling a demo of your platform",
+    "We're looking for a solution to streamline our outbound sales pipeline",
+    "Our budget is around $50k/year and we'd like to evaluate within the next two weeks",
+    "Could you send over some pricing information and set up a call"
+  ],
+  "parsedAt": "2026-02-07T12:00:00.000Z"
+}

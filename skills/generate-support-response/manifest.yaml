@@ -1,0 +1,11 @@
+# BIZ-029 to BIZ-032 (#121-#124): generate-support-response
+name: generate-support-response
+version: 0.1.0
+description: "Generate a draft support response based on triage classification and knowledge base context."
+permissions:
+  tools:
+    - email-runner
+  secrets: []
+  domains: []
+approval_required: true
+timeout_ms: 15000

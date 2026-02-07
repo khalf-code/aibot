@@ -1,0 +1,10 @@
+{
+  "ticketId": "TKT-90421",
+  "priority": "high",
+  "createdAt": "2026-02-06T08:00:00.000Z",
+  "firstResponseAt": null,
+  "lastUpdateAt": "2026-02-06T08:15:00.000Z",
+  "resolved": false,
+  "resolvedAt": null,
+  "assignee": "agent-harper"
+}

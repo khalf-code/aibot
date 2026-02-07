@@ -1,0 +1,8 @@
+{
+  "summary": "Intro call with Jane Doe, VP Sales at Acme Corp. Discussed their outbound pipeline challenges. Jane requested a pricing proposal and a demo of the enrichment features. She also asked for API documentation for their CRM integration. Need to follow up with engineering team internally about custom connector feasibility.",
+  "ownerName": "Alex Rivera",
+  "leadName": "Jane Doe",
+  "company": "Acme Corp",
+  "dealStage": "discovery",
+  "baseDate": "2026-02-07T00:00:00.000Z"
+}

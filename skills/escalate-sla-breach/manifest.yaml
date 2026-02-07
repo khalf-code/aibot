@@ -1,0 +1,23 @@
+# Skill Manifest (v1)
+#
+# BIZ-033 (#125) — Skeleton for escalate-sla-breach skill.
+# Detects SLA breaches and escalates tickets to the appropriate
+# support tier or manager based on configurable thresholds.
+
+# ── Identity ──────────────────────────────────────────────────────
+name: escalate-sla-breach
+version: 1.0.0
+description: "Detect SLA breaches on support tickets and auto-escalate to the appropriate tier or manager."
+
+# ── Permissions ───────────────────────────────────────────────────
+permissions:
+  tools:
+    - cli-runner
+  secrets:
+    - TICKETING_API_KEY
+  domains:
+    - "api.ticketing.example.com"
+
+# ── Behavior ──────────────────────────────────────────────────────
+approval_required: true
+timeout_ms: 15000

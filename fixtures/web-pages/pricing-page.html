@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pricing | Acme Corp Automation Suite</title>
+    <meta
+      name="description"
+      content="Simple, transparent pricing for Acme Corp's automation suite. Plans for teams of every size."
+    />
+    <meta property="og:title" content="Pricing | Acme Corp Automation Suite" />
+    <meta property="og:url" content="https://www.acmecorp.example.com/pricing" />
+    <link rel="canonical" href="https://www.acmecorp.example.com/pricing" />
+  </head>
+  <body>
+    <header>
+      <nav aria-label="Main navigation">
+        <a href="/" class="logo">Acme Corp</a>
+        <ul>
+          <li><a href="/products">Products</a></li>
+          <li><a href="/pricing" aria-current="page">Pricing</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section class="pricing-hero">
+        <h1>Plans &amp; Pricing</h1>
+        <p>Choose the plan that fits your team. All plans include a 14-day free trial.</p>
+      </section>
+
+      <section class="pricing-toggle">
+        <span>Monthly</span>
+        <label class="toggle" for="billing-toggle">
+          <input type="checkbox" id="billing-toggle" aria-label="Toggle annual billing" />
+          <span class="slider"></span>
+        </label>
+        <span>Annual <em>(Save 20%)</em></span>
+      </section>
+
+      <section class="pricing-plans" id="plans">
+        <div class="plan" data-plan="starter">
+          <h2>Starter</h2>
+          <p class="price"><span class="amount">$29</span>/user/month</p>
+          <p class="price-annual"><span class="amount">$23</span>/user/month (billed annually)</p>
+          <p class="plan-description">For small teams getting started with automation.</p>
+          <ul class="features">
+            <li>Up to 5 users</li>
+            <li>2 messaging channels</li>
+            <li>1,000 automated messages/month</li>
+            <li>Basic analytics dashboard</li>
+            <li>Email support (48hr response)</li>
+            <li>Community forum access</li>
+          </ul>
+          <a href="/signup?plan=starter" class="cta-button">Start Free Trial</a>
+        </div>
+
+        <div class="plan featured" data-plan="professional">
+          <span class="badge">Most Popular</span>
+          <h2>Professional</h2>
+          <p class="price"><span class="amount">$79</span>/user/month</p>
+          <p class="price-annual"><span class="amount">$63</span>/user/month (billed annually)</p>
+          <p class="plan-description">For growing teams that need advanced features.</p>
+          <ul class="features">
+            <li>Up to 25 users</li>
+            <li>Unlimited messaging channels</li>
+            <li>25,000 automated messages/month</li>
+            <li>Advanced analytics &amp; reporting</li>
+            <li>CRM integrations (Salesforce, HubSpot)</li>
+            <li>Webhook support</li>
+            <li>Priority email support (24hr response)</li>
+            <li>API access</li>
+            <li>Custom routing rules</li>
+          </ul>
+          <a href="/signup?plan=professional" class="cta-button">Start Free Trial</a>
+        </div>
+
+        <div class="plan" data-plan="enterprise">
+          <h2>Enterprise</h2>
+          <p class="price"><span class="amount">Custom</span></p>
+          <p class="plan-description">For large organizations with advanced requirements.</p>
+          <ul class="features">
+            <li>Unlimited users</li>
+            <li>Unlimited messaging channels</li>
+            <li>Unlimited automated messages</li>
+            <li>Advanced analytics with custom dashboards</li>
+            <li>All integrations + custom connectors</li>
+            <li>Dedicated account manager</li>
+            <li>24/7 phone &amp; email support</li>
+            <li>SLA guarantee (99.95% uptime)</li>
+            <li>SSO / SAML authentication</li>
+            <li>Custom data retention policies</li>
+            <li>On-premise deployment option</li>
+            <li>Security audit &amp; compliance reports</li>
+          </ul>
+          <a href="/contact-sales" class="cta-button">Contact Sales</a>
+        </div>
+      </section>
+
+      <section class="faq" id="faq">
+        <h2>Frequently Asked Questions</h2>
+
+        <details>
+          <summary>Can I change plans at any time?</summary>
+          <p>
+            Yes. You can upgrade or downgrade your plan at any time. When upgrading, the new rate
+            takes effect immediately and you'll receive a prorated credit for the remainder of your
+            current billing period. Downgrades take effect at the start of your next billing cycle.
+          </p>
+        </details>
+
+        <details>
+          <summary>What happens after the free trial?</summary>
+          <p>
+            After your 14-day trial ends, you'll be prompted to enter payment information. If you
+            choose not to continue, your account will be downgraded to a read-only state. Your data
+            is retained for 30 days, giving you time to export or reactivate.
+          </p>
+        </details>
+
+        <details>
+          <summary>Do you offer discounts for nonprofits?</summary>
+          <p>
+            Yes. Registered nonprofit organizations receive a 30% discount on all plans. Contact our
+            sales team with your organization's documentation to get started.
+          </p>
+        </details>
+
+        <details>
+          <summary>What payment methods do you accept?</summary>
+          <p>
+            We accept all major credit cards (Visa, Mastercard, American Express), ACH bank
+            transfers, and wire transfers for annual Enterprise contracts.
+          </p>
+        </details>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2026 Acme Corp. All rights reserved.</p>
+      <nav aria-label="Footer navigation">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </nav>
+    </footer>
+  </body>
+</html>

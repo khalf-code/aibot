@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "activityId": "HS-ACT-STUB0001",
+  "contactId": "CRM-CONTACT-00042",
+  "dealId": "CRM-DEAL-00017",
+  "formattedNote": "## Call Notes\n**Date:** 2026-02-07T14:00:00.000Z\n**Duration:** 30 minutes\n**Participants:** Alex Rivera, Jane Doe\n**Sentiment:** positive\n\n### Summary\nIntro call with Jane Doe, VP Sales at Acme Corp. Discussed their current outbound pipeline challenges and how OpenClaw can help automate lead enrichment and follow-up. Jane expressed strong interest in a pilot program. Budget approved for Q1. Decision expected within two weeks.\n\n### Action Items\n- [ ] Send pricing proposal with pilot terms -- Owner: Alex Rivera (due: 2026-02-10)\n- [ ] Share API documentation for CRM integration -- Owner: Alex Rivera (due: 2026-02-10)\n- [ ] Introduce engineering lead for technical deep-dive -- Owner: Jane Doe (due: 2026-02-12)\n\n### Next Step\nFollow-up call scheduled for Feb 14 to review proposal",
+  "actionItemCount": 3,
+  "loggedAt": "2026-02-07T12:00:00.000Z"
+}

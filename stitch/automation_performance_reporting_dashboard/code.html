@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Automation Performance Reporting Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#3B82F6", // Blue for technical/SaaS feel
+              "background-light": "#F3F4F6",
+              "background-dark": "#111827",
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#1F2937",
+              "accent-purple": "#8B5CF6",
+              "accent-emerald": "#10B981",
+              "accent-amber": "#F59E0B",
+              "accent-rose": "#F43F5E",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              mono: ["Fira Code", "monospace"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .font-mono {
+        font-family: "Fira Code", monospace;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 antialiased min-h-screen flex flex-col transition-colors duration-200"
+  >
+    <nav
+      class="bg-surface-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between sticky top-0 z-50"
+    >
+      <div class="flex items-center space-x-6">
+        <div class="flex items-center space-x-2">
+          <div
+            class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-lg"
+          >
+            C
+          </div>
+          <span class="text-xl font-bold tracking-tight text-gray-900 dark:text-white"
+            >ClawnBot</span
+          >
+        </div>
+        <div class="hidden md:flex space-x-1">
+          <a
+            class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors"
+            href="#"
+            >Workflows</a
+          >
+          <a
+            class="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white border-b-2 border-primary"
+            href="#"
+            >Analytics</a
+          >
+          <a
+            class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors"
+            href="#"
+            >Logs</a
+          >
+          <a
+            class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors"
+            href="#"
+            >Settings</a
+          >
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div class="relative hidden sm:block">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+            <span class="material-icons text-gray-400 text-lg">search</span>
+          </span>
+          <input
+            class="w-64 bg-gray-100 dark:bg-gray-800 border-none rounded-md py-1.5 pl-10 pr-4 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary placeholder-gray-500"
+            placeholder="Search metrics..."
+            type="text"
+          />
+        </div>
+        <button class="p-2 text-gray-500 hover:text-primary transition-colors relative">
+          <span class="material-icons">notifications</span>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-rose rounded-full"></span>
+        </button>
+        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-accent-purple to-primary p-[2px]">
+          <img
+            alt="User Profile"
+            class="rounded-full w-full h-full object-cover"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuALlsfHp_PAtmFgRY6OdU9Ab78sbNZJObi9HjxM4RKvXmCEf8T_Y0xllATV1c7T0MXH8eEXB5raYk2kouzQqhCmeEUKiRbyT4iROqwNobdJACeHRpldMqrQAkX1Vltiy7QTM2A4lQyC6JHFBgAn216nH45m6_olUxyAXMXtG6hBDSuS1RUITRIXGLC4U-cXwguR_h03PlRRy4so-sW-GSRfzb4id7hBH8PjdibDj-p3vwFz-glw7wDp_5wAj7CJPjuaVkonr4gEmjaL"
+          />
+        </div>
+      </div>
+    </nav>
+    <div class="flex flex-1 overflow-hidden">
+      <aside
+        class="w-64 bg-surface-light dark:bg-surface-dark border-r border-gray-200 dark:border-gray-700 hidden lg:flex flex-col flex-shrink-0"
+      >
+        <div class="p-4 space-y-6 overflow-y-auto">
+          <div>
+            <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Dashboards
+            </h3>
+            <nav class="space-y-1">
+              <a
+                class="flex items-center px-3 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-800 text-primary rounded-md"
+                href="#"
+              >
+                <span class="material-icons text-lg mr-3">dashboard</span>
+                Overview
+              </a>
+              <a
+                class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                href="#"
+              >
+                <span class="material-icons text-lg mr-3">bar_chart</span>
+                Performance
+              </a>
+              <a
+                class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                href="#"
+              >
+                <span class="material-icons text-lg mr-3">error_outline</span>
+                Error Tracking
+              </a>
+            </nav>
+          </div>
+          <div>
+            <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Automation
+            </h3>
+            <nav class="space-y-1">
+              <a
+                class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                href="#"
+              >
+                <span class="material-icons text-lg mr-3">precision_manufacturing</span>
+                Active Bots
+                <span
+                  class="ml-auto bg-accent-emerald/20 text-accent-emerald py-0.5 px-2 rounded-full text-xs"
+                  >12</span
+                >
+              </a>
+              <a
+                class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                href="#"
+              >
+                <span class="material-icons text-lg mr-3">schedule</span>
+                Scheduled Jobs
+              </a>
+              <a
+                class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                href="#"
+              >
+                <span class="material-icons text-lg mr-3">integration_instructions</span>
+                Integrations
+              </a>
+            </nav>
+          </div>
+          <div
+            class="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-semibold text-gray-500 uppercase">System Status</span>
+              <span class="w-2 h-2 rounded-full bg-accent-emerald animate-pulse"></span>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-gray-600 dark:text-gray-400">CPU Usage</span>
+                  <span class="text-gray-900 dark:text-white font-mono">42%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                  <div class="bg-primary h-1.5 rounded-full" style="width: 42%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-gray-600 dark:text-gray-400">Memory</span>
+                  <span class="text-gray-900 dark:text-white font-mono">68%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                  <div class="bg-accent-purple h-1.5 rounded-full" style="width: 68%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
+          <button
+            class="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+          >
+            <span class="material-icons text-lg mr-3">logout</span>
+            Sign Out
+          </button>
+        </div>
+      </aside>
+      <main class="flex-1 overflow-y-auto p-4 md:p-8 relative">
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+              Reporting &amp; Analytics
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Real-time insights into automation workflow performance.
+            </p>
+          </div>
+          <div class="flex items-center space-x-3 mt-4 md:mt-0">
+            <span class="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+              <span class="w-2 h-2 bg-accent-emerald rounded-full mr-2"></span>
+              Live Updates
+            </span>
+            <select
+              class="bg-surface-light dark:bg-surface-dark border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-md focus:ring-primary focus:border-primary block p-2"
+            >
+              <option>Last 24 Hours</option>
+              <option>Last 7 Days</option>
+              <option>Last 30 Days</option>
+            </select>
+            <button
+              class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium shadow-lg shadow-blue-500/30 transition-all flex items-center"
+            >
+              <span class="material-icons text-sm mr-2">file_download</span>
+              Export
+            </button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div
+            class="bg-surface-light dark:bg-surface-dark rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden group"
+          >
+            <div
+              class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+            >
+              <span class="material-icons text-6xl text-accent-amber">speed</span>
+            </div>
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-accent-amber/10 rounded-lg text-accent-amber">
+                  <span class="material-icons">bolt</span>
+                </div>
+                <h3
+                  class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"
+                >
+                  Total Throughput
+                </h3>
+              </div>
+              <span
+                class="text-xs font-mono text-accent-emerald bg-accent-emerald/10 px-2 py-1 rounded"
+                >+12.5%</span
+              >
+            </div>
+            <div class="flex items-baseline mb-2">
+              <span class="text-3xl font-bold text-gray-900 dark:text-white">2.42M</span>
+              <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">requests</span>
+            </div>
+            <div class="h-10 w-full flex items-end space-x-1 mt-4">
+              <div class="w-1/12 bg-accent-amber/20 h-[40%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/30 h-[60%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/40 h-[50%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/30 h-[70%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/50 h-[80%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/60 h-[65%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/40 h-[75%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/70 h-[90%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/80 h-[85%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/60 h-[60%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber/90 h-[95%] rounded-t"></div>
+              <div class="w-1/12 bg-accent-amber h-[100%] rounded-t"></div>
+            </div>
+          </div>
+          <div
+            class="bg-surface-light dark:bg-surface-dark rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden group"
+          >
+            <div
+              class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+            >
+              <span class="material-icons text-6xl text-primary">savings</span>
+            </div>
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                  <span class="material-icons">attach_money</span>
+                </div>
+                <h3
+                  class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"
+                >
+                  Avg Cost / Exec
+                </h3>
+              </div>
+              <span
+                class="text-xs font-mono text-accent-emerald bg-accent-emerald/10 px-2 py-1 rounded"
+                >-4.2%</span
+              >
+            </div>
+            <div class="flex items-baseline mb-2">
+              <span class="text-3xl font-bold text-gray-900 dark:text-white">€1.56</span>
+              <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">avg</span>
+            </div>
+            <div class="mt-4">
+              <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div class="bg-primary h-2 rounded-full" style="width: 35%"></div>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">35% of monthly budget utilized</p>
+            </div>
+          </div>
+          <div
+            class="bg-surface-light dark:bg-surface-dark rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm relative overflow-hidden group"
+          >
+            <div
+              class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+            >
+              <span class="material-icons text-6xl text-accent-emerald">verified</span>
+            </div>
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-accent-emerald/10 rounded-lg text-accent-emerald">
+                  <span class="material-icons">check_circle</span>
+                </div>
+                <h3
+                  class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"
+                >
+                  Success Rate
+                </h3>
+              </div>
+              <span
+                class="text-xs font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded"
+                >--</span
+              >
+            </div>
+            <div class="flex items-baseline mb-2">
+              <span class="text-3xl font-bold text-gray-900 dark:text-white">99.82%</span>
+              <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">uptime</span>
+            </div>
+            <div class="flex items-center mt-4 space-x-4">
+              <div
+                class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex"
+              >
+                <div class="h-full bg-accent-emerald w-[92%]"></div>
+                <div class="h-full bg-accent-rose w-[8%]"></div>
+              </div>
+              <span class="text-xs text-accent-rose font-medium">8 errors</span>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div
+            class="lg:col-span-2 bg-surface-light dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6"
+          >
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <span class="material-icons mr-2 text-gray-400">timeline</span>
+                Execution History
+              </h2>
+              <div class="flex space-x-2">
+                <button
+                  class="px-3 py-1 text-xs font-medium bg-primary text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Requests
+                </button>
+                <button
+                  class="px-3 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Latency
+                </button>
+                <button
+                  class="px-3 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Errors
+                </button>
+              </div>
+            </div>
+            <div
+              class="relative h-64 w-full bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 flex flex-col justify-end p-4 overflow-hidden"
+            >
+              <div
+                class="absolute inset-0 flex items-end justify-between px-4 pb-0 pointer-events-none opacity-50"
+              >
+                <div class="w-2 bg-primary/20 h-1/4 rounded-t"></div>
+                <div class="w-2 bg-primary/30 h-1/3 rounded-t"></div>
+                <div class="w-2 bg-primary/40 h-1/2 rounded-t"></div>
+                <div class="w-2 bg-primary/20 h-2/5 rounded-t"></div>
+                <div class="w-2 bg-primary/50 h-3/5 rounded-t"></div>
+                <div class="w-2 bg-primary/30 h-1/2 rounded-t"></div>
+                <div class="w-2 bg-primary/60 h-3/4 rounded-t"></div>
+                <div class="w-2 bg-primary/40 h-2/3 rounded-t"></div>
+                <div class="w-2 bg-primary/70 h-4/5 rounded-t"></div>
+                <div class="w-2 bg-primary/50 h-3/5 rounded-t"></div>
+                <div class="w-2 bg-primary/30 h-1/2 rounded-t"></div>
+                <div class="w-2 bg-primary/20 h-1/3 rounded-t"></div>
+                <div class="w-2 bg-primary/40 h-2/5 rounded-t"></div>
+                <div class="w-2 bg-primary/60 h-3/5 rounded-t"></div>
+                <div class="w-2 bg-primary/80 h-5/6 rounded-t"></div>
+                <div class="w-2 bg-primary/50 h-2/3 rounded-t"></div>
+                <div class="w-2 bg-primary/30 h-1/2 rounded-t"></div>
+                <div class="w-2 bg-primary/20 h-1/4 rounded-t"></div>
+              </div>
+              <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="gradient" x1="0%" x2="0%" y1="0%" y2="100%">
+                    <stop offset="0%" style="stop-color: #3b82f6; stop-opacity: 0.3"></stop>
+                    <stop offset="100%" style="stop-color: #3b82f6; stop-opacity: 0"></stop>
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M0 200 Q 50 150, 100 180 T 200 120 T 300 160 T 400 80 T 500 110 T 600 50 T 700 90 T 800 150 V 256 H 0 Z"
+                  fill="url(#gradient)"
+                ></path>
+                <path
+                  d="M0 200 Q 50 150, 100 180 T 200 120 T 300 160 T 400 80 T 500 110 T 600 50 T 700 90 T 800 150"
+                  fill="none"
+                  stroke="#3B82F6"
+                  stroke-width="3"
+                ></path>
+              </svg>
+              <div
+                class="absolute top-1/3 left-1/2 transform -translate-x-1/2 bg-surface-dark text-white text-xs rounded p-2 shadow-lg z-10 border border-gray-600"
+              >
+                <div class="font-bold">14:00 PM</div>
+                <div>Requests: 1,240</div>
+                <div>Latency: 45ms</div>
+              </div>
+              <div
+                class="absolute top-0 bottom-0 left-1/2 w-px bg-white/20 border-r border-dashed border-gray-400"
+              ></div>
+            </div>
+          </div>
+          <div
+            class="bg-surface-light dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 flex flex-col"
+          >
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Alerts</h2>
+            <div class="space-y-4 overflow-y-auto pr-2 max-h-[300px]">
+              <div
+                class="flex items-start p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/20"
+              >
+                <span class="material-icons text-accent-rose mt-0.5 mr-3 text-sm">error</span>
+                <div>
+                  <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+                    API Rate Limit Exceeded
+                  </h4>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Stripe Connector • 2 mins ago
+                  </p>
+                </div>
+              </div>
+              <div
+                class="flex items-start p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-100 dark:border-yellow-900/20"
+              >
+                <span class="material-icons text-accent-amber mt-0.5 mr-3 text-sm">warning</span>
+                <div>
+                  <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+                    High Latency Detected
+                  </h4>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Data Sync Job • 15 mins ago
+                  </p>
+                </div>
+              </div>
+              <div
+                class="flex items-start p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20"
+              >
+                <span class="material-icons text-primary mt-0.5 mr-3 text-sm">info</span>
+                <div>
+                  <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+                    Workflow Deployed
+                  </h4>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    User Onboarding v2 • 1 hr ago
+                  </p>
+                </div>
+              </div>
+              <div
+                class="flex items-start p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700"
+              >
+                <span class="material-icons text-gray-400 mt-0.5 mr-3 text-sm">check_circle</span>
+                <div>
+                  <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+                    Maintenance Completed
+                  </h4>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">System • 3 hrs ago</p>
+                </div>
+              </div>
+            </div>
+            <button
+              class="mt-auto w-full py-2 text-sm text-primary hover:text-blue-600 font-medium border-t border-gray-100 dark:border-gray-700 pt-4"
+            >
+              View All Alerts
+            </button>
+          </div>
+        </div>
+        <div
+          class="bg-surface-light dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"
+        >
+          <div
+            class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4"
+          >
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Workflow Performance
+              </h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                Breakdown by automation script.
+              </p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="relative">
+                <input
+                  class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block w-full pl-3 p-2"
+                  placeholder="Filter workflows..."
+                  type="text"
+                />
+              </div>
+              <button class="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <span class="material-icons">filter_list</span>
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+              <thead
+                class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-800 dark:text-gray-400"
+              >
+                <tr>
+                  <th class="px-6 py-3" scope="col">Workflow Name</th>
+                  <th class="px-6 py-3" scope="col">Status</th>
+                  <th class="px-6 py-3" scope="col">Throughput (24h)</th>
+                  <th class="px-6 py-3" scope="col">Error Rate</th>
+                  <th class="px-6 py-3 text-right" scope="col">Last Run</th>
+                  <th class="px-6 py-3 text-center" scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  class="bg-surface-light dark:bg-surface-dark border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <td
+                    class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap flex items-center"
+                  >
+                    <div
+                      class="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded mr-3 text-indigo-600 dark:text-indigo-400"
+                    >
+                      <span class="material-icons text-sm">hub</span>
+                    </div>
+                    Data Synchronization - EU
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300 flex w-fit items-center"
+                    >
+                      <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>
+                      Active
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center">
+                      <span class="mr-2 font-mono text-gray-900 dark:text-white">12,405</span>
+                      <div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                        <div class="bg-indigo-500 h-1.5 rounded-full" style="width: 70%"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-gray-900 dark:text-white font-mono">0.01%</span>
+                  </td>
+                  <td class="px-6 py-4 text-right">2 mins ago</td>
+                  <td class="px-6 py-4 text-center">
+                    <button class="text-gray-500 hover:text-primary transition-colors">
+                      <span class="material-icons text-base">more_horiz</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr
+                  class="bg-surface-light dark:bg-surface-dark border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <td
+                    class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap flex items-center"
+                  >
+                    <div
+                      class="p-2 bg-pink-100 dark:bg-pink-900/30 rounded mr-3 text-pink-600 dark:text-pink-400"
+                    >
+                      <span class="material-icons text-sm">mail</span>
+                    </div>
+                    Email Campaign Trigger
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-yellow-900 dark:text-yellow-300 flex w-fit items-center"
+                    >
+                      <span class="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1.5"></span>
+                      Degraded
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center">
+                      <span class="mr-2 font-mono text-gray-900 dark:text-white">8,200</span>
+                      <div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                        <div class="bg-pink-500 h-1.5 rounded-full" style="width: 45%"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-accent-amber font-bold font-mono">2.4%</span>
+                  </td>
+                  <td class="px-6 py-4 text-right">15 mins ago</td>
+                  <td class="px-6 py-4 text-center">
+                    <button class="text-gray-500 hover:text-primary transition-colors">
+                      <span class="material-icons text-base">more_horiz</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr
+                  class="bg-surface-light dark:bg-surface-dark border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <td
+                    class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap flex items-center"
+                  >
+                    <div
+                      class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded mr-3 text-blue-600 dark:text-blue-400"
+                    >
+                      <span class="material-icons text-sm">payment</span>
+                    </div>
+                    Invoice Generator
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300 flex w-fit items-center"
+                    >
+                      <span class="w-1.5 h-1.5 bg-gray-500 rounded-full mr-1.5"></span>
+                      Paused
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center">
+                      <span class="mr-2 font-mono text-gray-900 dark:text-white">0</span>
+                      <div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                        <div class="bg-gray-400 h-1.5 rounded-full" style="width: 0%"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-gray-400 font-mono">-</span>
+                  </td>
+                  <td class="px-6 py-4 text-right">2 days ago</td>
+                  <td class="px-6 py-4 text-center">
+                    <button class="text-gray-500 hover:text-primary transition-colors">
+                      <span class="material-icons text-base">more_horiz</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr
+                  class="bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <td
+                    class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap flex items-center"
+                  >
+                    <div
+                      class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded mr-3 text-purple-600 dark:text-purple-400"
+                    >
+                      <span class="material-icons text-sm">group_add</span>
+                    </div>
+                    Lead Enrichment
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300 flex w-fit items-center"
+                    >
+                      <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>
+                      Active
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center">
+                      <span class="mr-2 font-mono text-gray-900 dark:text-white">450</span>
+                      <div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                        <div class="bg-purple-500 h-1.5 rounded-full" style="width: 15%"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-gray-900 dark:text-white font-mono">0.00%</span>
+                  </td>
+                  <td class="px-6 py-4 text-right">58 secs ago</td>
+                  <td class="px-6 py-4 text-center">
+                    <button class="text-gray-500 hover:text-primary transition-colors">
+                      <span class="material-icons text-base">more_horiz</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div
+            class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center"
+          >
+            <span class="text-xs text-gray-500 dark:text-gray-400"
+              >Showing <span class="font-medium text-gray-900 dark:text-white">1-4</span> of
+              <span class="font-medium text-gray-900 dark:text-white">12</span> workflows</span
+            >
+            <div class="flex space-x-1">
+              <button
+                class="px-3 py-1 text-xs font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                class="px-3 py-1 text-xs font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+        <footer class="mt-8 text-center pb-6">
+          <p class="text-xs text-gray-400 dark:text-gray-600">
+            © 2023 ClawnBot Automation Inc. All rights reserved.
+          </p>
+        </footer>
+      </main>
+    </div>
+    <div class="fixed bottom-6 right-6 hidden xl:block w-72">
+      <div
+        class="bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-4 transform transition-transform hover:-translate-y-1 duration-300"
+      >
+        <div class="flex justify-between items-center mb-3">
+          <h4 class="text-sm font-semibold text-gray-900 dark:text-white">Resource Usage</h4>
+          <span class="material-icons text-gray-400 text-sm cursor-pointer">close</span>
+        </div>
+        <div class="space-y-4">
+          <div class="relative h-24 rounded-lg overflow-hidden group">
+            <img
+              alt="Server Heatmap Pattern"
+              class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfyhXkuj3rc6fj1jn_Vrql3drCPMQFsl7af6qS4ZJMWNgkMrM5tmulDW9iUfr_f3_hbXWu4180nrmiCBxPTQgJSU3M3JfBdwTvJ_pPS2SIY1PQIRI4nWUSupe9zKvZ5x3P23Rj5nZfBp7dANGs4XpAuF3bBQYelOzs00bh2q-3sCp53_ewLvG-rAfmqpkLYC-lI8Qvc_G0v3hEFTWJXaJc5Kd8KwYlgxq_NBMadmS4KGsGI_WhkvmQeAsNCXwO_XqvJ71bTBbl79qp"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-2"
+            >
+              <span class="text-xs text-white font-medium">Cluster Alpha Node Map</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded text-center">
+              <span class="block text-xs text-gray-500">Pods</span>
+              <span class="block font-bold text-gray-900 dark:text-white">42/50</span>
+            </div>
+            <div class="bg-gray-100 dark:bg-gray-800 p-2 rounded text-center">
+              <span class="block text-xs text-gray-500">Queue</span>
+              <span class="block font-bold text-gray-900 dark:text-white">128</span>
+            </div>
+          </div>
+          <button
+            class="w-full py-1.5 bg-primary/10 text-primary text-xs font-medium rounded hover:bg-primary/20 transition-colors"
+          >
+            Optimize Resources
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

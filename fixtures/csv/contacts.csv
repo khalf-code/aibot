@@ -1,0 +1,11 @@
+id,first_name,last_name,email,phone,company,title,industry,lead_source,status,created_at,last_contacted
+CON-001,Jane,Doe,jane.doe@acmecorp.example.com,+1-555-867-5309,Acme Corp,VP of Operations,Manufacturing,Website,qualified,2025-11-02T14:30:00Z,2026-01-15T09:32:00Z
+CON-002,Bob,Smith,bob.smith@widgetworks.example.com,+1-555-234-5678,Widget Works Inc.,Senior Engineer,Technology,Referral,active,2025-08-14T10:15:00Z,2026-01-20T14:05:00Z
+CON-003,Carol,Johnson,carol.johnson@acmecorp.example.com,+1-555-345-6789,Acme Corp,IT Manager,Manufacturing,Website,qualified,2025-11-02T14:35:00Z,2026-01-15T09:32:00Z
+CON-004,Dave,Williams,dave.williams@globexcorp.example.com,+1-555-456-7890,Globex Corp,Director of Engineering,Energy,Trade Show,new,2026-01-10T16:20:00Z,
+CON-005,Eve,Martinez,eve.martinez@initech.example.com,+1-555-567-8901,Initech,Head of Procurement,Technology,Cold Outreach,contacted,2025-12-01T11:00:00Z,2026-01-08T15:45:00Z
+CON-006,Frank,Brown,frank.brown@umbrellallc.example.com,+1-555-678-9012,Umbrella LLC,Operations Manager,Pharmaceuticals,Webinar,qualified,2025-10-20T09:00:00Z,2026-01-12T10:30:00Z
+CON-007,Grace,Lee,grace.lee@wayneenterprises.example.com,+1-555-789-0123,Wayne Enterprises,CTO,Defense,Partner Referral,active,2025-06-15T13:45:00Z,2026-01-18T11:00:00Z
+CON-008,Hank,Davis,hank.davis@starkind.example.com,+1-555-890-1234,Stark Industries,VP of Manufacturing,Aerospace,Conference,new,2026-01-05T08:30:00Z,
+CON-009,Ivy,Chen,ivy.chen@oscorp.example.com,+1-555-901-2345,Oscorp,Supply Chain Director,Biotech,Website,contacted,2025-12-15T14:20:00Z,2026-01-06T09:15:00Z
+CON-010,Jack,Wilson,jack.wilson@cyberdyne.example.com,+1-555-012-3456,Cyberdyne Systems,Plant Manager,Robotics,Trade Show,qualified,2025-09-22T10:00:00Z,2026-01-14T16:00:00Z

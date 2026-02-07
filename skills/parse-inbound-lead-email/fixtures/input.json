@@ -1,0 +1,6 @@
+{
+  "from": "Jane Doe <jane.doe@acmecorp.com>",
+  "subject": "Interested in a demo of OpenClaw",
+  "body": "Hi there,\n\nI'm the VP of Sales at Acme Corp and I'm interested in scheduling a demo of your platform. We're looking for a solution to streamline our outbound sales pipeline.\n\nOur budget is around $50k/year and we'd like to evaluate within the next two weeks. Could you send over some pricing information and set up a call?\n\nBest regards,\nJane Doe\nVP Sales, Acme Corp",
+  "receivedAt": "2026-02-07T09:15:00.000Z"
+}

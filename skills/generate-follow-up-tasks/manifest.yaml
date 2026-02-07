@@ -1,0 +1,10 @@
+# BIZ-021 to BIZ-024 (#113-#116): generate-follow-up-tasks
+name: generate-follow-up-tasks
+version: 0.1.0
+description: "Generate structured follow-up tasks from a sales call summary or email thread to keep deals moving forward."
+permissions:
+  tools: []
+  secrets: []
+  domains: []
+approval_required: false
+timeout_ms: 10000

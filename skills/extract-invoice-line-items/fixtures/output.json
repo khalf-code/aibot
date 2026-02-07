@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "lineItems": [
+    {
+      "lineNumber": 1,
+      "description": "Cloud Platform License (Annual)",
+      "quantity": 3,
+      "unitOfMeasure": "each",
+      "unitPrice": 12000,
+      "taxAmount": 0,
+      "lineTotal": 36000,
+      "confidence": 0.75
+    },
+    {
+      "lineNumber": 2,
+      "description": "Premium Support Seats",
+      "quantity": 10,
+      "unitOfMeasure": "each",
+      "unitPrice": 200,
+      "taxAmount": 0,
+      "lineTotal": 2000,
+      "confidence": 0.75
+    },
+    {
+      "lineNumber": 3,
+      "description": "Data Migration Service",
+      "quantity": 1,
+      "unitOfMeasure": "each",
+      "unitPrice": 5500,
+      "taxAmount": 0,
+      "lineTotal": 5500,
+      "confidence": 0.75
+    },
+    {
+      "lineNumber": 4,
+      "description": "Training Workshop (half-day)",
+      "quantity": 2,
+      "unitOfMeasure": "each",
+      "unitPrice": 1500,
+      "taxAmount": 0,
+      "lineTotal": 3000,
+      "confidence": 0.75
+    }
+  ],
+  "metadata": {
+    "vendorName": "Acme Corp Solutions",
+    "invoiceNumber": "INV-2026-0847",
+    "invoiceDate": "02/01/2026",
+    "dueDate": "03/03/2026",
+    "paymentTerms": "Net 30",
+    "currency": "USD",
+    "poNumber": "PO-5521"
+  },
+  "subtotal": 46500,
+  "totalTax": 0,
+  "grandTotal": 46500,
+  "lineCount": 4,
+  "averageConfidence": 0.75
+}

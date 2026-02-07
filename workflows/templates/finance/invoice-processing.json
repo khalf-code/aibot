@@ -1,0 +1,164 @@
+{
+  "name": "Invoice Processing",
+  "description": "Receives invoices via email or webhook, extracts line items using a Clawdbot skill, matches against purchase orders, flags discrepancies for approval, and posts to the accounting system.",
+  "area": "finance",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "invoice-trigger",
+      "name": "Invoice Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invoice-processing",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "extract-line-items",
+      "name": "Extract Line Items",
+      "type": "n8n-nodes-clawdbot.clawdbotSkill",
+      "position": [450, 300],
+      "parameters": {
+        "skillName": "invoice-parser",
+        "input": "={{ JSON.stringify({ document_url: $json.document_url, vendor: $json.vendor, invoice_number: $json.invoice_number }) }}"
+      }
+    },
+    {
+      "id": "store-artifact",
+      "name": "Store Invoice Artifact",
+      "type": "n8n-nodes-clawdbot.clawdbotArtifact",
+      "position": [650, 400],
+      "parameters": {
+        "artifactType": "document",
+        "label": "={{ 'invoice-' + $json.invoice_number }}"
+      }
+    },
+    {
+      "id": "match-po",
+      "name": "Match Purchase Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://erp.example.com/api/purchase-orders/match",
+        "queryParameters": {
+          "parameters": [
+            { "name": "vendor", "value": "={{ $json.vendor }}" },
+            { "name": "amount", "value": "={{ $json.total_amount }}" },
+            { "name": "date_range", "value": "30d" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "discrepancy-check",
+      "name": "Discrepancy Check",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.match_found }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "auto-approve",
+      "name": "Auto-Approve (Matched)",
+      "type": "n8n-nodes-base.set",
+      "position": [1100, 200],
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "approval_status", "value": "auto_approved" },
+            { "name": "matched_po", "value": "={{ $json.po_number }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "manual-review",
+      "name": "Finance Review",
+      "type": "n8n-nodes-clawdbot.clawdbotApprovalGate",
+      "position": [1100, 400],
+      "parameters": {
+        "approverRole": "finance-lead",
+        "timeoutMinutes": 2880,
+        "includeSnapshot": true,
+        "onRejection": "error",
+        "onTimeout": "stop"
+      }
+    },
+    {
+      "id": "post-to-accounting",
+      "name": "Post to Accounting",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1350, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://erp.example.com/api/invoices",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "invoice_number", "value": "={{ $json.invoice_number }}" },
+            { "name": "vendor", "value": "={{ $json.vendor }}" },
+            { "name": "total_amount", "value": "={{ $json.total_amount }}" },
+            { "name": "line_items", "value": "={{ JSON.stringify($json.line_items) }}" },
+            { "name": "po_number", "value": "={{ $json.matched_po || 'manual' }}" },
+            { "name": "approval_status", "value": "={{ $json.approval_status }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "notify-finance",
+      "name": "Notify Finance Team",
+      "type": "n8n-nodes-base.slack",
+      "position": [1550, 300],
+      "parameters": {
+        "channel": "#finance-ops",
+        "text": "Invoice {{ $json.invoice_number }} from {{ $json.vendor }} (${{ $json.total_amount }}) processed. Status: {{ $json.approval_status }}."
+      }
+    }
+  ],
+  "connections": {
+    "invoice-trigger": {
+      "main": [[{ "node": "extract-line-items", "type": "main", "index": 0 }]]
+    },
+    "extract-line-items": {
+      "main": [
+        [
+          { "node": "match-po", "type": "main", "index": 0 },
+          { "node": "store-artifact", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "match-po": {
+      "main": [[{ "node": "discrepancy-check", "type": "main", "index": 0 }]]
+    },
+    "discrepancy-check": {
+      "main": [
+        [{ "node": "auto-approve", "type": "main", "index": 0 }],
+        [{ "node": "manual-review", "type": "main", "index": 0 }]
+      ]
+    },
+    "auto-approve": {
+      "main": [[{ "node": "post-to-accounting", "type": "main", "index": 0 }]]
+    },
+    "manual-review": {
+      "main": [[{ "node": "post-to-accounting", "type": "main", "index": 0 }]]
+    },
+    "post-to-accounting": {
+      "main": [[{ "node": "notify-finance", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

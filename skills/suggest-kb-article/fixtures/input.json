@@ -1,0 +1,5 @@
+{
+  "subject": "Cannot login after password reset",
+  "body": "I reset my password yesterday using the email link but now I keep getting an authentication error when I try to login. I also have 2FA enabled on my account. Please help.",
+  "maxResults": 3
+}

@@ -1,0 +1,20 @@
+# Skill Manifest (v1)
+#
+# BIZ-041 (#133) — Skeleton for sentiment-check-reply skill.
+# Analyze the sentiment of a drafted support reply to ensure
+# tone is appropriate before sending to the customer.
+
+# ── Identity ──────────────────────────────────────────────────────
+name: sentiment-check-reply
+version: 1.0.0
+description: "Check the sentiment and tone of a drafted support reply before sending."
+
+# ── Permissions ───────────────────────────────────────────────────
+permissions:
+  tools: []
+  secrets: []
+  domains: []
+
+# ── Behavior ──────────────────────────────────────────────────────
+approval_required: false
+timeout_ms: 5000

@@ -1,0 +1,132 @@
+{
+  "id": "enr_4c5d6e7f-8a9b-4c0d-1e2f-3a4b5c6d7e8f",
+  "object": "enrichment",
+  "status": "completed",
+  "created_at": "2026-01-15T09:33:02Z",
+  "completed_at": "2026-01-15T09:33:08Z",
+  "processing_time_ms": 6142,
+  "input": {
+    "email": "jane.doe@acmecorp.example.com",
+    "domain": "acmecorp.example.com"
+  },
+  "person": {
+    "confidence": 0.94,
+    "full_name": "Jane Doe",
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "email": "jane.doe@acmecorp.example.com",
+    "email_verified": true,
+    "title": "VP of Operations",
+    "seniority": "vp",
+    "department": "operations",
+    "phone": "+1-555-867-5309",
+    "phone_type": "direct",
+    "linkedin_url": "https://www.linkedin.com/in/janedoe-example",
+    "twitter_handle": null,
+    "location": {
+      "city": "Springfield",
+      "state": "Illinois",
+      "country": "United States",
+      "country_code": "US",
+      "timezone": "America/Chicago"
+    },
+    "employment_history": [
+      {
+        "company": "Acme Corp",
+        "title": "VP of Operations",
+        "start_date": "2019-03",
+        "end_date": null,
+        "is_current": true
+      },
+      {
+        "company": "Acme Corp",
+        "title": "Director of Operations",
+        "start_date": "2015-06",
+        "end_date": "2019-02",
+        "is_current": false
+      },
+      {
+        "company": "Globex Corp",
+        "title": "Operations Manager",
+        "start_date": "2011-01",
+        "end_date": "2015-05",
+        "is_current": false
+      }
+    ],
+    "education": [
+      {
+        "institution": "State University",
+        "degree": "MBA",
+        "field": "Operations Management",
+        "year": 2010
+      },
+      {
+        "institution": "Springfield College",
+        "degree": "B.S.",
+        "field": "Industrial Engineering",
+        "year": 2006
+      }
+    ]
+  },
+  "company": {
+    "confidence": 0.97,
+    "name": "Acme Corp",
+    "legal_name": "Acme Corporation",
+    "domain": "acmecorp.example.com",
+    "logo_url": "https://logo.clearbit.example.com/acmecorp.example.com",
+    "description": "Global leader in industrial widgets and automation solutions for the manufacturing sector.",
+    "founded_year": 1985,
+    "industry": "Manufacturing",
+    "sub_industry": "Industrial Automation",
+    "sic_code": "3559",
+    "naics_code": "333249",
+    "type": "private",
+    "employee_count": 350,
+    "employee_range": "201-500",
+    "annual_revenue_usd": 120000000,
+    "revenue_range": "$100M-$250M",
+    "funding_total_usd": null,
+    "tech_stack": ["Salesforce", "Microsoft 365", "SAP ERP", "Slack", "Jira", "AWS", "Snowflake"],
+    "social_profiles": {
+      "linkedin_url": "https://www.linkedin.com/company/acmecorp-example",
+      "twitter_url": "https://twitter.com/acmecorp_example",
+      "facebook_url": null
+    },
+    "address": {
+      "street": "100 Innovation Drive",
+      "city": "Springfield",
+      "state": "IL",
+      "postal_code": "62704",
+      "country": "US"
+    },
+    "phone": "+1-555-100-2000",
+    "tags": ["manufacturing", "industrial-automation", "b2b", "mid-market"]
+  },
+  "signals": {
+    "hiring": true,
+    "hiring_roles": ["Manufacturing Engineer", "Software Developer", "Sales Rep"],
+    "recent_funding": false,
+    "recent_news": [
+      {
+        "title": "Acme Corp Expands Austin R&D Center",
+        "date": "2025-12-10",
+        "source": "Springfield Business Journal"
+      }
+    ],
+    "technology_changes": [
+      {
+        "technology": "Snowflake",
+        "action": "added",
+        "detected_date": "2025-11-15"
+      }
+    ],
+    "intent_topics": ["automation software", "workflow management", "CRM integration"],
+    "intent_score": 78
+  },
+  "metadata": {
+    "api_version": "2026-01-01",
+    "request_id": "req_9b0c1d2e3f4a",
+    "credits_used": 1,
+    "credits_remaining": 4872
+  }
+}

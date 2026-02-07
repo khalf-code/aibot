@@ -1,0 +1,13 @@
+# BIZ-005 to BIZ-008 (#97-#100): enrich-lead-website
+name: enrich-lead-website
+version: 1.0.0
+description: Scrape a lead's website and extract key info
+permissions:
+  tools:
+    - browser-runner
+  secrets:
+    - none
+  domains:
+    - "*" # needs web access
+approval_required: false
+timeout_ms: 30000

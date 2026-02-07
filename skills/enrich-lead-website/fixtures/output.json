@@ -1,0 +1,11 @@
+{
+  "url": "https://example.com",
+  "name": "Example Corp",
+  "description": "A sample company for demonstration purposes",
+  "industry": "Technology",
+  "socialLinks": ["https://twitter.com/example", "https://linkedin.com/company/example"],
+  "emails": ["contact@example.com"],
+  "techSignals": ["React", "Node.js", "Cloudflare"],
+  "excerpt": "Example Corp builds tools that help teams collaborate more effectively. Founded in 2020, we serve over 10,000 customers worldwide.",
+  "enrichedAt": "2026-02-07T12:00:00.000Z"
+}

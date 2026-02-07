@@ -1,0 +1,11 @@
+# BIZ-009 to BIZ-012 (#101-#104): draft-first-response-email
+name: draft-first-response-email
+version: 0.1.0
+description: "Draft a personalized first-response email to an inbound sales lead based on their inquiry details."
+permissions:
+  tools:
+    - email-runner
+  secrets: []
+  domains: []
+approval_required: true
+timeout_ms: 15000

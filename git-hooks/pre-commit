@@ -1,6 +1,23 @@
 #!/bin/sh
+
+# OpenClaw pre-commit hook
+# Runs secret scanning and code formatting checks
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Run secret scanning first
+echo "Running secret scanning..."
+if ! bash "$REPO_ROOT/scripts/check-secrets.sh"; then
+    echo "Pre-commit hook failed: Secrets detected"
+    exit 1
+fi
+
+# Then run formatting
 FILES=$(git diff --cached --name-only --diff-filter=ACMR | sed 's| |\\ |g')
 [ -z "$FILES" ] && exit 0
+
+echo "Running code formatting..."
 echo "$FILES" | xargs pnpm format:fix --no-error-on-unmatched-pattern
 echo "$FILES" | xargs git add
 

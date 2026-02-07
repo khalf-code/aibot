@@ -1,0 +1,162 @@
+{
+  "name": "Ticket Triage",
+  "description": "Receives support tickets via webhook, classifies urgency and category using a Clawdbot skill, routes to the appropriate team queue, and escalates SLA-breaching tickets.",
+  "area": "support",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "ticket-webhook",
+      "name": "Ticket Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ticket-triage",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "classify-ticket",
+      "name": "Classify Ticket",
+      "type": "n8n-nodes-clawdbot.clawdbotSkill",
+      "position": [450, 300],
+      "parameters": {
+        "skillName": "ticket-classifier",
+        "input": "={{ JSON.stringify({ subject: $json.subject, body: $json.body, customer_tier: $json.customer_tier }) }}"
+      }
+    },
+    {
+      "id": "priority-switch",
+      "name": "Priority Router",
+      "type": "n8n-nodes-base.switch",
+      "position": [700, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.priority }}",
+        "rules": {
+          "rules": [
+            { "value2": "critical", "output": 0 },
+            { "value2": "high", "output": 1 },
+            { "value2": "medium", "output": 2 },
+            { "value2": "low", "output": 3 }
+          ]
+        }
+      }
+    },
+    {
+      "id": "sla-escalation",
+      "name": "SLA Escalation",
+      "type": "n8n-nodes-clawdbot.clawdbotApprovalGate",
+      "position": [950, 150],
+      "parameters": {
+        "approverRole": "support-lead",
+        "timeoutMinutes": 30,
+        "includeSnapshot": true,
+        "onRejection": "continue",
+        "onTimeout": "approve"
+      }
+    },
+    {
+      "id": "assign-critical",
+      "name": "Assign to On-Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1200, 150],
+      "parameters": {
+        "method": "POST",
+        "url": "https://helpdesk.example.com/api/tickets/assign",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "ticket_id", "value": "={{ $json.ticket_id }}" },
+            { "name": "queue", "value": "on-call" },
+            { "name": "priority", "value": "critical" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assign-high",
+      "name": "Assign to Senior Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [950, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://helpdesk.example.com/api/tickets/assign",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "ticket_id", "value": "={{ $json.ticket_id }}" },
+            { "name": "queue", "value": "senior" },
+            { "name": "priority", "value": "high" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assign-medium",
+      "name": "Assign to General Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [950, 450],
+      "parameters": {
+        "method": "POST",
+        "url": "https://helpdesk.example.com/api/tickets/assign",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "ticket_id", "value": "={{ $json.ticket_id }}" },
+            { "name": "queue", "value": "general" },
+            { "name": "priority", "value": "medium" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "auto-respond-low",
+      "name": "Auto-Respond (Low Priority)",
+      "type": "n8n-nodes-clawdbot.clawdbotSkill",
+      "position": [950, 600],
+      "parameters": {
+        "skillName": "auto-response-drafter",
+        "input": "={{ JSON.stringify({ ticket_id: $json.ticket_id, subject: $json.subject, body: $json.body, category: $json.category }) }}"
+      }
+    },
+    {
+      "id": "notify-slack",
+      "name": "Notify Ops Channel",
+      "type": "n8n-nodes-base.slack",
+      "position": [1200, 300],
+      "parameters": {
+        "channel": "#support-ops",
+        "text": "Ticket {{ $json.ticket_id }} triaged as {{ $json.priority }} / {{ $json.category }}. Assigned to {{ $json.queue }} queue."
+      }
+    }
+  ],
+  "connections": {
+    "ticket-webhook": {
+      "main": [[{ "node": "classify-ticket", "type": "main", "index": 0 }]]
+    },
+    "classify-ticket": {
+      "main": [[{ "node": "priority-switch", "type": "main", "index": 0 }]]
+    },
+    "priority-switch": {
+      "main": [
+        [{ "node": "sla-escalation", "type": "main", "index": 0 }],
+        [{ "node": "assign-high", "type": "main", "index": 0 }],
+        [{ "node": "assign-medium", "type": "main", "index": 0 }],
+        [{ "node": "auto-respond-low", "type": "main", "index": 0 }]
+      ]
+    },
+    "sla-escalation": {
+      "main": [[{ "node": "assign-critical", "type": "main", "index": 0 }]]
+    },
+    "assign-critical": {
+      "main": [[{ "node": "notify-slack", "type": "main", "index": 0 }]]
+    },
+    "assign-high": {
+      "main": [[{ "node": "notify-slack", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

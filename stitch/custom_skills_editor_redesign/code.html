@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Clawdbot - Custom Skills Editor</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#3b82f6", // Bright blue primary
+              secondary: "#10b981", // Green for success/actions
+              "background-light": "#f3f4f6",
+              "background-dark": "#0f172a", // Slate 900
+              "surface-light": "#ffffff",
+              "surface-dark": "#1e293b", // Slate 800
+              "border-light": "#e5e7eb",
+              "border-dark": "#334155", // Slate 700
+              "text-main-light": "#111827",
+              "text-main-dark": "#f8fafc",
+              "text-sub-light": "#6b7280",
+              "text-sub-dark": "#94a3b8",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              body: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark min-h-screen flex flex-col font-body transition-colors duration-200"
+  >
+    <header
+      class="h-16 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-6 z-10 shrink-0"
+    >
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 text-primary font-bold text-xl tracking-tight">
+          <span class="material-icons text-3xl">smart_toy</span>
+          Clawdbot
+        </div>
+        <div class="h-6 w-px bg-border-light dark:bg-border-dark mx-2"></div>
+        <nav
+          class="hidden md:flex items-center text-sm font-medium text-text-sub-light dark:text-text-sub-dark"
+        >
+          <a class="hover:text-primary transition-colors px-2" href="#">Dashboard</a>
+          <span class="material-icons text-xs">chevron_right</span>
+          <a class="text-text-main-light dark:text-text-main-dark px-2" href="#">Custom Skills</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <button
+          class="p-2 rounded-lg text-text-sub-light dark:text-text-sub-dark hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        >
+          <span class="material-icons">notifications</span>
+        </button>
+        <button
+          class="p-2 rounded-lg text-text-sub-light dark:text-text-sub-dark hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        >
+          <span class="material-icons">settings</span>
+        </button>
+        <div
+          class="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs"
+        >
+          JD
+        </div>
+        <button
+          class="ml-2 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-text-sub-light dark:text-text-sub-dark hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          onclick="document.documentElement.classList.toggle('dark')"
+          title="Toggle Theme"
+        >
+          <span class="material-icons text-sm">brightness_4</span>
+        </button>
+      </div>
+    </header>
+    <div class="flex flex-1 overflow-hidden">
+      <aside
+        class="w-80 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark flex flex-col shrink-0 overflow-y-auto"
+      >
+        <div
+          class="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between"
+        >
+          <h2 class="font-semibold text-lg">Custom Skills</h2>
+          <button
+            class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-text-sub-light dark:text-text-sub-dark"
+          >
+            <span class="material-icons">add</span>
+          </button>
+        </div>
+        <div class="p-3 space-y-2">
+          <div
+            class="group flex items-start gap-3 p-3 rounded-lg bg-blue-50 dark:bg-slate-700/50 border border-blue-200 dark:border-slate-600 cursor-pointer hover:border-primary transition-all"
+          >
+            <div
+              class="mt-1 p-2 rounded-md bg-blue-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400"
+            >
+              <span class="material-icons text-xl">language</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center mb-1">
+                <h3
+                  class="font-medium text-sm text-text-main-light dark:text-text-main-dark truncate"
+                >
+                  Web Scraper Tool
+                </h3>
+                <span class="h-2 w-2 rounded-full bg-green-500"></span>
+              </div>
+              <p class="text-xs text-text-sub-light dark:text-text-sub-dark truncate">
+                Extract data from target URLs
+              </p>
+            </div>
+          </div>
+          <div
+            class="group flex items-start gap-3 p-3 rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-slate-800/50 border border-transparent hover:border-border-light dark:hover:border-border-dark cursor-pointer transition-all"
+          >
+            <div
+              class="mt-1 p-2 rounded-md bg-purple-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400"
+            >
+              <span class="material-icons text-xl">sync</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center mb-1">
+                <h3
+                  class="font-medium text-sm text-text-main-light dark:text-text-main-dark truncate"
+                >
+                  CRM Data Sync
+                </h3>
+                <span class="h-2 w-2 rounded-full bg-gray-400"></span>
+              </div>
+              <p class="text-xs text-text-sub-light dark:text-text-sub-dark truncate">
+                Sync leads every 24h
+              </p>
+            </div>
+          </div>
+          <div
+            class="group flex items-start gap-3 p-3 rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-slate-800/50 border border-transparent hover:border-border-light dark:hover:border-border-dark cursor-pointer transition-all"
+          >
+            <div
+              class="mt-1 p-2 rounded-md bg-green-100 dark:bg-slate-800 text-green-600 dark:text-green-400"
+            >
+              <span class="material-icons text-xl">table_chart</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center mb-1">
+                <h3
+                  class="font-medium text-sm text-text-main-light dark:text-text-main-dark truncate"
+                >
+                  Excel Report Generator
+                </h3>
+                <span class="h-2 w-2 rounded-full bg-green-500"></span>
+              </div>
+              <p class="text-xs text-text-sub-light dark:text-text-sub-dark truncate">
+                Monthly sales compilation
+              </p>
+            </div>
+          </div>
+          <div
+            class="group flex items-start gap-3 p-3 rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-slate-800/50 border border-transparent hover:border-border-light dark:hover:border-border-dark cursor-pointer transition-all"
+          >
+            <div
+              class="mt-1 p-2 rounded-md bg-orange-100 dark:bg-slate-800 text-orange-600 dark:text-orange-400"
+            >
+              <span class="material-icons text-xl">phone_in_talk</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center mb-1">
+                <h3
+                  class="font-medium text-sm text-text-main-light dark:text-text-main-dark truncate"
+                >
+                  Voice Call Assistant
+                </h3>
+                <span class="h-2 w-2 rounded-full bg-gray-400"></span>
+              </div>
+              <p class="text-xs text-text-sub-light dark:text-text-sub-dark truncate">
+                AI screening bot
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="mt-auto p-4 border-t border-border-light dark:border-border-dark">
+          <div class="p-3 bg-gradient-to-br from-indigo-500 to-primary rounded-lg text-white">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="material-icons text-sm">bolt</span>
+              <span class="text-xs font-bold uppercase tracking-wide">Usage Limit</span>
+            </div>
+            <div class="w-full bg-white/20 rounded-full h-1.5 mb-2">
+              <div class="bg-white h-1.5 rounded-full" style="width: 75%"></div>
+            </div>
+            <p class="text-[10px] opacity-80">750/1000 executions used this month.</p>
+          </div>
+        </div>
+      </aside>
+      <main
+        class="flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-background-dark relative"
+      >
+        <div class="absolute inset-0 z-0 pointer-events-none opacity-5 dark:opacity-20">
+          <img
+            alt="Abstract network background"
+            class="w-full h-full object-cover grayscale mix-blend-overlay"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcpSOuwiDRFus4t8g4TWt18Y2Tz7IsTCtqNiJp1qUpeIghlhPFgIh7QyO1ur1YtLtjEKet3z3Dz4bzQN_05lATZ02dHkBLzYdaprVPbhvyfyJO_lsK8l2NMd2TeZNaFAGVA9cuNnVlPs7PoaUd9RX6C8WpuDSUjD7-z4KRtQByc1fH0KSaWMzoxHLb0Pbw_9bHN3O-fsn0aY5gjsvxsPxyAfaCl0ORGrL_pLwGA-19O5uGPSmTRCYH_XoTL7i9QAONNgMasOoFjQQt"
+          />
+        </div>
+        <div class="z-10 p-6 pb-2">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+              <div
+                class="p-2 rounded-lg bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-sm"
+              >
+                <span class="material-icons text-primary">language</span>
+              </div>
+              <div>
+                <h1 class="text-2xl font-bold text-text-main-light dark:text-text-main-dark">
+                  Web Scraper Tool
+                </h1>
+                <p class="text-sm text-text-sub-light dark:text-text-sub-dark">
+                  Version 2.4 • Last edited 2 hours ago
+                </p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <button
+                class="flex items-center gap-2 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-text-main-light dark:text-text-main-dark text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <span class="material-icons text-sm">history</span>
+                History
+              </button>
+              <button
+                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-medium"
+              >
+                <span class="material-icons text-sm">play_circle</span>
+                Test Run
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="z-10 flex-1 overflow-y-auto p-6 pt-2">
+          <div class="max-w-4xl mx-auto space-y-6">
+            <div
+              class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden"
+            >
+              <div
+                class="px-6 py-4 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-gray-50/50 dark:bg-slate-800/50"
+              >
+                <h3
+                  class="font-semibold text-text-main-light dark:text-text-main-dark flex items-center gap-2"
+                >
+                  <span class="material-icons text-sm text-text-sub-light dark:text-text-sub-dark"
+                    >tune</span
+                  >
+                  Configuration
+                </h3>
+                <span
+                  class="px-2 py-1 rounded text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium"
+                  >Active</span
+                >
+              </div>
+              <div class="p-6 space-y-6">
+                <div class="grid gap-2">
+                  <label
+                    class="text-sm font-medium text-text-main-light dark:text-text-main-dark"
+                    for="target_url"
+                    >Target URL</label
+                  >
+                  <div class="relative">
+                    <span
+                      class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-sub-light dark:text-text-sub-dark"
+                    >
+                      <span class="material-icons text-sm">link</span>
+                    </span>
+                    <input
+                      class="pl-9 w-full rounded-lg bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                      id="target_url"
+                      placeholder="https://example.com/data"
+                      type="text"
+                    />
+                  </div>
+                  <p class="text-xs text-text-sub-light dark:text-text-sub-dark">
+                    Enter the URL of the webpage you wish to scrape data from.
+                  </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="grid gap-2">
+                    <label class="text-sm font-medium text-text-main-light dark:text-text-main-dark"
+                      >Selector Strategy</label
+                    >
+                    <select
+                      class="w-full rounded-lg bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                    >
+                      <option>CSS Selector</option>
+                      <option>XPath</option>
+                      <option>Text Match</option>
+                    </select>
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="text-sm font-medium text-text-main-light dark:text-text-main-dark"
+                      >Output Format</label
+                    >
+                    <select
+                      class="w-full rounded-lg bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                    >
+                      <option>JSON</option>
+                      <option>CSV</option>
+                      <option>XML</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid gap-2">
+                  <label
+                    class="text-sm font-medium text-text-main-light dark:text-text-main-dark"
+                    for="css_selector"
+                    >CSS Selector</label
+                  >
+                  <div class="relative">
+                    <span
+                      class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-sub-light dark:text-text-sub-dark"
+                    >
+                      <span class="material-icons text-sm">code</span>
+                    </span>
+                    <input
+                      class="pl-9 w-full font-mono rounded-lg bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                      id="css_selector"
+                      placeholder=".product-item &gt; .price"
+                      type="text"
+                    />
+                  </div>
+                </div>
+                <div class="pt-2">
+                  <button
+                    class="flex items-center gap-2 text-sm text-primary hover:text-blue-400 transition-colors font-medium"
+                  >
+                    Advanced Settings
+                    <span class="material-icons text-sm transform transition-transform"
+                      >expand_more</span
+                    >
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden flex flex-col"
+            >
+              <div
+                class="px-6 py-4 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-gray-50/50 dark:bg-slate-800/50"
+              >
+                <h3
+                  class="font-semibold text-text-main-light dark:text-text-main-dark flex items-center gap-2"
+                >
+                  <span class="material-icons text-sm text-text-sub-light dark:text-text-sub-dark"
+                    >integration_instructions</span
+                  >
+                  Post-Processing Script
+                </h3>
+                <div class="flex gap-2">
+                  <span
+                    class="text-xs text-text-sub-light dark:text-text-sub-dark font-mono px-2 py-1 bg-background-light dark:bg-background-dark rounded border border-border-light dark:border-border-dark"
+                    >Javascript (Node.js)</span
+                  >
+                </div>
+              </div>
+              <div class="flex-1 bg-[#1e1e1e] p-4 font-mono text-sm overflow-x-auto">
+                <div class="text-gray-400">
+                  <span class="text-purple-400">const</span>
+                  <span class="text-blue-400">processData</span> = (<span class="text-orange-400"
+                    >data</span
+                  >) =&gt; {<br />
+                    <span class="text-gray-500">// Clean raw data before saving</span><br />
+                    <span class="text-purple-400">if</span> (!data || !data.length)
+                  <span class="text-purple-400">return</span> [];<br />
+                    <br />
+                    <span class="text-purple-400">return</span> data.<span class="text-blue-400"
+                    >map</span
+                  >(item =&gt; ({<br />
+                      ...item,<br />
+                      <span class="text-green-400">scrapedAt</span>:
+                  <span class="text-purple-400">new</span>
+                  <span class="text-yellow-400">Date</span>().<span class="text-blue-400"
+                    >toISOString</span
+                  >()<br />
+                    }));<br />
+                  };
+                </div>
+              </div>
+              <div
+                class="px-4 py-2 bg-gray-50 dark:bg-slate-800 border-t border-border-light dark:border-border-dark flex justify-end"
+              >
+                <button
+                  class="text-xs text-text-sub-light dark:text-text-sub-dark hover:text-primary flex items-center gap-1"
+                >
+                  <span class="material-icons text-[14px]">fullscreen</span> Expand Editor
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="z-20 p-6 border-t border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark flex items-center justify-between"
+        >
+          <div class="flex items-center gap-2 text-sm text-text-sub-light dark:text-text-sub-dark">
+            <span class="flex h-2 w-2 relative">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
+              ></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            System Online
+          </div>
+          <div class="flex gap-4">
+            <button
+              class="px-6 py-2.5 rounded-lg border border-border-light dark:border-border-dark text-text-main-light dark:text-text-main-dark hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium text-sm flex items-center gap-2"
+            >
+              Discard Changes
+            </button>
+            <button
+              class="px-6 py-2.5 rounded-lg bg-primary text-white hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 font-medium text-sm flex items-center gap-2"
+            >
+              <span class="material-icons text-sm">save</span>
+              Save Skill
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
+      // Check for saved user preference, if any, on load of the website
+      if (
+        localStorage.theme === "dark" ||
+        (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)
+      ) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    </script>
+  </body>
+</html>

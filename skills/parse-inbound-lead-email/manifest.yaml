@@ -1,0 +1,11 @@
+# BIZ-001 to BIZ-004 (#93-#96): parse-inbound-lead-email
+name: parse-inbound-lead-email
+version: 0.1.0
+description: "Parse an inbound lead email and extract sender details, company info, intent signals, and urgency."
+permissions:
+  tools:
+    - email-runner
+  secrets: []
+  domains: []
+approval_required: false
+timeout_ms: 10000

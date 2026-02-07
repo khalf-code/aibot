@@ -1,0 +1,10 @@
+{
+  "leadName": "Jane Doe",
+  "leadEmail": "jane.doe@acmecorp.com",
+  "hostEmail": "alex.rivera@openclaw.ai",
+  "hostName": "Alex Rivera",
+  "durationMinutes": 30,
+  "leadTimezone": "America/New_York",
+  "preferredAfter": "2026-02-10T09:00:00.000Z",
+  "preferredBefore": "2026-02-14T17:00:00.000Z"
+}

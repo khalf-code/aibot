@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "ticketId": "TKT-90421",
+  "breaches": [
+    {
+      "type": "first_response",
+      "thresholdMinutes": 60,
+      "overshootMinutes": 900
+    },
+    {
+      "type": "resolution",
+      "thresholdMinutes": 480,
+      "overshootMinutes": 480
+    },
+    {
+      "type": "update_cadence",
+      "thresholdMinutes": 60,
+      "overshootMinutes": 900
+    }
+  ],
+  "escalation": {
+    "newTier": "tier-3",
+    "notifyManager": true,
+    "tags": ["sla-breach", "breach:first_response", "breach:resolution", "breach:update_cadence"],
+    "summary": "Ticket TKT-90421 breached SLA on: first_response, resolution, update_cadence. Escalating to tier-3."
+  }
+}

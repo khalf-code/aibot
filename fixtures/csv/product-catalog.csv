@@ -1,0 +1,11 @@
+product_id,sku,name,category,price_usd,currency,unit,stock_quantity,reorder_threshold,status,weight_kg,description
+PROD-001,AW-3000-v2,AutoWidget 3000,hardware,4500.00,USD,each,42,10,active,145.0,High-precision automated widget assembler with 99.7% accuracy rating
+PROD-002,FC-SUITE-ENT,FlowControl Suite,software,12000.00,USD,year,0,0,active,0.0,End-to-end manufacturing workflow management software
+PROD-003,PG-MX-100,Precision Gauge MX,hardware,890.00,USD,each,12,25,active,0.35,Industrial-grade measurement gauge with digital readout
+PROD-004,SVC-CONSULT,Automation Consulting,service,250.00,USD,hour,0,0,active,0.0,Expert consulting services for manufacturing automation
+PROD-005,AW-2000-v3,AutoWidget 2000,hardware,2800.00,USD,each,87,20,active,98.0,Mid-range automated assembler for small to medium production runs
+PROD-006,SP-AW3K-BELT,Conveyor Belt (AW-3000),spare_part,185.00,USD,each,156,50,active,2.1,Replacement conveyor belt for AutoWidget 3000 series
+PROD-007,SP-AW3K-SENSOR,Inspection Sensor (AW-3000),spare_part,340.00,USD,each,63,20,active,0.12,Replacement quality inspection sensor module
+PROD-008,FC-SUITE-PRO,FlowControl Suite Pro,software,6000.00,USD,year,0,0,active,0.0,Professional workflow management for teams up to 25 users
+PROD-009,TRN-ONSITE,On-Site Training,service,1500.00,USD,day,0,0,active,0.0,Full-day on-site training for equipment and software
+PROD-010,AW-1000,AutoWidget 1000,hardware,1200.00,USD,each,0,15,discontinued,52.0,Entry-level automated assembler (replaced by AW-2000-v3)

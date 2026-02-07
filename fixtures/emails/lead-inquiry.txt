@@ -1,0 +1,42 @@
+From: jane.doe@acmecorp.example.com
+To: sales@openclaw.example.com
+Date: Mon, 15 Jan 2026 09:32:17 -0500
+Subject: Interested in OpenClaw Enterprise Plan
+Message-ID: <20260115093217.ABC123@mail.acmecorp.example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Hi there,
+
+My name is Jane Doe, and I'm the VP of Operations at Acme Corp. We're a
+mid-sized manufacturing company with about 350 employees, headquartered
+in Springfield, IL.
+
+We've been evaluating messaging automation platforms and came across
+OpenClaw. We're particularly interested in the following capabilities:
+
+  - Multi-channel messaging (Slack, Teams, and email)
+  - CRM integration with our existing Salesforce instance
+  - Automated lead routing and follow-up sequences
+  - Analytics and reporting dashboards
+
+Our current contract with our existing provider expires at the end of Q1,
+so we're looking to make a decision within the next 4-6 weeks.
+
+Could you set up a demo call for our team? The best times are
+Tuesday/Thursday afternoons (CST). The attendees would be:
+
+  - Jane Doe (myself) — VP of Operations
+  - Bob Smith — Director of Sales
+  - Carol Johnson — IT Manager
+
+Our estimated budget for this initiative is in the $25,000-$40,000/year
+range. We'd also want to discuss volume pricing for additional seats.
+
+Looking forward to hearing from you.
+
+Best regards,
+Jane Doe
+VP of Operations, Acme Corp
+jane.doe@acmecorp.example.com
++1 (555) 867-5309

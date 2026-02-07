@@ -1,0 +1,14 @@
+# BIZ-013 to BIZ-016 (#105-#108): schedule-intro-call
+name: schedule-intro-call
+version: 0.1.0
+description: "Schedule an introductory call with a sales lead by checking calendar availability and creating an event."
+permissions:
+  tools:
+    - cli-runner
+  secrets:
+    - CALENDAR_API_KEY
+  domains:
+    - "www.googleapis.com"
+    - "graph.microsoft.com"
+approval_required: true
+timeout_ms: 15000

@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "extractedKeywords": [
+    "cannot",
+    "login",
+    "password",
+    "reset",
+    "yesterday",
+    "using",
+    "email",
+    "link",
+    "keep",
+    "getting",
+    "authentication",
+    "error",
+    "try",
+    "also",
+    "2fa",
+    "enabled",
+    "account",
+    "please",
+    "help"
+  ],
+  "suggestions": [
+    {
+      "articleId": "KB-001",
+      "title": "How to reset your password",
+      "url": "https://kb.example.com/articles/KB-001",
+      "excerpt": "Step-by-step instructions for resetting your account password via email or SMS verification.",
+      "tags": ["password", "authentication", "account", "login"],
+      "relevanceScore": 0.26315789473684215
+    },
+    {
+      "articleId": "KB-003",
+      "title": "Setting up two-factor authentication",
+      "url": "https://kb.example.com/articles/KB-003",
+      "excerpt": "Enable 2FA on your account using an authenticator app or hardware security key.",
+      "tags": ["2fa", "security", "authentication", "mfa"],
+      "relevanceScore": 0.15789473684210525
+    }
+  ],
+  "articlesSearched": 8
+}

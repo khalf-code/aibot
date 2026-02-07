@@ -1,0 +1,9 @@
+invoice_id,customer_id,customer_name,issue_date,due_date,status,currency,subtotal,tax_rate,tax_amount,total,line_items,payment_method,paid_date,notes
+INV-2026-001,ACC-00142,Acme Corp,2026-01-05,2026-02-04,paid,USD,15000.00,0.08,1200.00,16200.00,"AutoWidget 3000 x2 ($9000.00); FlowControl Suite License ($6000.00)",wire_transfer,2026-01-28,Annual contract renewal
+INV-2026-002,ACC-00291,Widget Works Inc.,2026-01-10,2026-02-09,paid,USD,12000.00,0.08,960.00,12960.00,"FlowControl Suite Enterprise ($12000.00)",credit_card,2026-01-10,Paid at checkout
+INV-2026-003,ACC-00087,Globex Corp,2026-01-12,2026-02-11,overdue,USD,8900.00,0.08,712.00,9612.00,"Precision Gauge MX x10 ($8900.00)",wire_transfer,,30-day net terms
+INV-2026-004,ACC-00315,Initech,2026-01-15,2026-02-14,sent,USD,5000.00,0.00,0.00,5000.00,"Automation Consulting - 20hr block ($5000.00)",ach_transfer,,Tax-exempt organization
+INV-2026-005,ACC-00142,Acme Corp,2026-01-18,2026-02-17,sent,USD,2250.00,0.08,180.00,2430.00,"Precision Gauge MX x2 ($1780.00); Calibration Service ($470.00)",wire_transfer,,Additional hardware order
+INV-2026-006,ACC-00401,Umbrella LLC,2026-01-20,2026-03-21,draft,USD,37500.00,0.06,2250.00,39750.00,"AutoWidget 3000 x5 ($22500.00); FlowControl Suite Enterprise ($12000.00); Installation Service ($3000.00)",wire_transfer,,60-day net terms; pending PO approval
+INV-2026-007,ACC-00523,Wayne Enterprises,2026-01-22,2026-02-21,paid,USD,62500.00,0.08,5000.00,67500.00,"Automation Consulting - 250hr annual retainer ($62500.00)",wire_transfer,2026-01-22,Prepaid annual retainer
+INV-2026-008,ACC-00610,Stark Industries,2026-01-25,2026-02-24,sent,USD,4500.00,0.08,360.00,4860.00,"AutoWidget 3000 x1 ($4500.00)",credit_card,,Standard delivery (5-7 business days)

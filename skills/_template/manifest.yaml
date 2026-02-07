@@ -1,0 +1,76 @@
+# Skill Manifest (v1)
+#
+# This file declares metadata and permissions for your skill.
+# The Clawdbot runtime reads this manifest to enforce sandboxing,
+# tool access, and approval gates.
+#
+# Copy this template, then replace every value below.
+# Delete comments once you understand each field.
+
+# ── Identity ──────────────────────────────────────────────────────
+# name:
+#   Must match the skill directory name exactly.
+#   Use lowercase letters, digits, and hyphens only.
+#   Examples: enrich-lead-website, format-invoice, check-dns
+name: my-skill
+
+# version:
+#   Semantic version. Start at 1.0.0.
+#   Bump the minor version for new features, patch for fixes.
+version: 1.0.0
+
+# description:
+#   One clear sentence explaining what this skill does.
+#   Be specific -- this is used for skill discovery and triggering.
+#   Good:  "Scrape a lead's website and extract company name, tagline, and key pages."
+#   Bad:   "Does website stuff."
+description: "TODO: Describe what this skill does in one sentence."
+
+# ── Permissions ───────────────────────────────────────────────────
+# Permissions are enforced by the runtime. Declare only what your
+# skill actually needs. Less is better.
+
+permissions:
+  # tools:
+  #   Which tool runners this skill can use.
+  #   Common values:
+  #     - cli-runner        # Execute allowlisted shell commands
+  #     - browser-runner    # Playwright-based web automation
+  #     - email-runner      # Send or read emails
+  #   Leave empty ([]) if your skill only does in-process computation.
+  tools: []
+
+  # secrets:
+  #   Secret names your skill reads from the vault at runtime.
+  #   Examples: OPENAI_API_KEY, STRIPE_SECRET_KEY
+  #   Leave empty ([]) if no external API keys are needed.
+  secrets: []
+
+  # domains:
+  #   Which internet domains the skill can access.
+  #   Use "*" for unrestricted access (avoid when possible).
+  #   Use specific domains for tighter security:
+  #     - "api.example.com"
+  #     - "*.github.com"
+  #   Leave empty ([]) if the skill does not make network requests.
+  domains: []
+
+# ── Behavior ──────────────────────────────────────────────────────
+
+# approval_required:
+#   Set to true if this skill performs "commit-step" actions:
+#   sending emails, submitting forms, making payments, calling
+#   external services with side effects, or deleting data.
+#   When true, the runtime pauses for human approval before execution.
+#   Read-only or computation-only skills should use false.
+approval_required: false
+
+# timeout_ms:
+#   Maximum execution time in milliseconds.
+#   The runtime kills the skill if it exceeds this limit.
+#   Recommended ranges:
+#     - Simple computation: 5000-10000   (5-10 seconds)
+#     - API calls:          15000-30000  (15-30 seconds)
+#     - Browser automation: 30000-60000  (30-60 seconds)
+#   Default: 30000
+timeout_ms: 30000

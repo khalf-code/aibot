@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "subject": "Re: Urgent: API integration not working after update [TKT-20260207-001]",
+  "body": "Hi John Smith,\n\nI completely understand your frustration, and I sincerely apologize for the inconvenience. This is not the experience we want for our customers.\n\nI've flagged this as a critical issue and our engineering team has been notified. We're actively investigating and will provide updates as we learn more.\n\nYou might also find these resources helpful:\n- API Integration Guide: https://docs.openclaw.ai/api/integration-guide\n- Webhook Configuration: https://docs.openclaw.ai/api/webhooks\n\nPlease don't hesitate to reach out if you have any other questions.\n\nBest regards,\nSarah Chen\nSupport Team",
+  "internalNote": "ESCALATION RECOMMENDED: This ticket should be escalated to a senior agent or team lead.\nCategory: technical | Priority: critical | Sentiment: angry\nNote: Customer is expressing strong frustration. Use extra care in communication.\nNote: Critical priority. Aim for response within 1 hour.",
+  "suggestedArticles": [
+    {
+      "title": "API Integration Guide",
+      "url": "https://docs.openclaw.ai/api/integration-guide"
+    },
+    {
+      "title": "Webhook Configuration",
+      "url": "https://docs.openclaw.ai/api/webhooks"
+    }
+  ],
+  "shouldEscalate": true,
+  "generatedAt": "2026-02-07T12:00:00.000Z"
+}

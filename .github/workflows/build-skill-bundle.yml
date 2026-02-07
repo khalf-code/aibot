@@ -1,0 +1,92 @@
+name: Build Skill Bundles
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+  pull_request:
+    paths:
+      - "skills/**"
+
+concurrency:
+  group: skill-bundle-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Discover changed skills
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      skills: ${{ steps.changed.outputs.skills }}
+      has_skills: ${{ steps.changed.outputs.has_skills }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find changed skills
+        id: changed
+        run: |
+          set -euo pipefail
+
+          BASE_SHA="${{ github.event.before || github.event.pull_request.base.sha || 'HEAD~1' }}"
+
+          # Get unique skill directory names that changed
+          CHANGED_SKILLS=$(
+            git diff --name-only "$BASE_SHA" HEAD -- 'skills/' \
+            | cut -d/ -f2 \
+            | sort -u \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))'
+          )
+
+          echo "Changed skills: $CHANGED_SKILLS"
+
+          if [[ "$CHANGED_SKILLS" == "[]" || -z "$CHANGED_SKILLS" ]]; then
+            echo "has_skills=false" >> "$GITHUB_OUTPUT"
+            echo "skills=[]" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_skills=true" >> "$GITHUB_OUTPUT"
+            echo "skills=$CHANGED_SKILLS" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: "Bundle: ${{ matrix.skill }}"
+    needs: discover
+    if: needs.discover.outputs.has_skills == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        skill: ${{ fromJson(needs.discover.outputs.skills) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build skill bundle
+        run: |
+          chmod +x scripts/build-skill-bundle.sh
+          ./scripts/build-skill-bundle.sh "${{ matrix.skill }}"
+
+      - name: Verify skill bundle
+        run: |
+          chmod +x scripts/verify-skill-bundle.sh
+          # Find the bundle that was just built
+          BUNDLE=$(ls dist/skills/${{ matrix.skill }}-*.tar.gz 2>/dev/null | head -1)
+          if [[ -n "$BUNDLE" ]]; then
+            ./scripts/verify-skill-bundle.sh "$BUNDLE"
+          else
+            echo "No bundle found to verify"
+            exit 1
+          fi
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-bundle-${{ matrix.skill }}
+          path: |
+            dist/skills/${{ matrix.skill }}-*.tar.gz
+            dist/skills/${{ matrix.skill }}-*.bundle-metadata.json
+          retention-days: 30
+          if-no-files-found: error

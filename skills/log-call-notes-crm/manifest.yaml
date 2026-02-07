@@ -1,0 +1,14 @@
+# BIZ-017 to BIZ-020 (#109-#112): log-call-notes-crm
+name: log-call-notes-crm
+version: 0.1.0
+description: "Log structured call notes to a CRM system after a sales or intro call."
+permissions:
+  tools:
+    - cli-runner
+  secrets:
+    - CRM_API_KEY
+  domains:
+    - "api.hubspot.com"
+    - "api.salesforce.com"
+approval_required: true
+timeout_ms: 15000

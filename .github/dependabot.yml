@@ -1,5 +1,11 @@
 # Dependabot configuration
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Automated dependency updates for RF-010 (#11)
+# - npm/pnpm: weekly, grouped minor/patch
+# - GitHub Actions: monthly, grouped
+# - Docker: monthly, grouped
+# - Security patches flagged high priority
 
 version: 2
 
@@ -10,20 +16,22 @@ registries:
     replaces-base: true
 
 updates:
-  # npm dependencies (root)
+  # ─── npm dependencies (root) ───────────────────────────────────────────
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    cooldown:
-      default-days: 7
+      day: monday
+    labels:
+      - dependencies
+      - automated
     groups:
-      production:
+      production-minor-patch:
         dependency-type: production
         update-types:
           - minor
           - patch
-      development:
+      development-minor-patch:
         dependency-type: development
         update-types:
           - minor
@@ -32,29 +40,48 @@ updates:
     registries:
       - npm-npmjs
 
-  # GitHub Actions
+  # ─── GitHub Actions ────────────────────────────────────────────────────
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
+      interval: monthly
+    labels:
+      - dependencies
+      - automated
     groups:
-      actions:
+      actions-minor-patch:
         patterns:
           - "*"
         update-types:
           - minor
           - patch
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
 
-  # Swift Package Manager - macOS app
+  # ─── Docker ────────────────────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - automated
+    groups:
+      docker-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    open-pull-requests-limit: 10
+
+  # ─── Swift Package Manager - macOS app ─────────────────────────────────
   - package-ecosystem: swift
     directory: /apps/macos
     schedule:
       interval: weekly
-    cooldown:
-      default-days: 7
+    labels:
+      - dependencies
+      - automated
     groups:
       swift-deps:
         patterns:
@@ -64,13 +91,14 @@ updates:
           - patch
     open-pull-requests-limit: 5
 
-  # Swift Package Manager - shared MoltbotKit
+  # ─── Swift Package Manager - shared MoltbotKit ─────────────────────────
   - package-ecosystem: swift
     directory: /apps/shared/MoltbotKit
     schedule:
       interval: weekly
-    cooldown:
-      default-days: 7
+    labels:
+      - dependencies
+      - automated
     groups:
       swift-deps:
         patterns:
@@ -80,13 +108,14 @@ updates:
           - patch
     open-pull-requests-limit: 5
 
-  # Swift Package Manager - Swabble
+  # ─── Swift Package Manager - Swabble ───────────────────────────────────
   - package-ecosystem: swift
     directory: /Swabble
     schedule:
       interval: weekly
-    cooldown:
-      default-days: 7
+    labels:
+      - dependencies
+      - automated
     groups:
       swift-deps:
         patterns:
@@ -96,13 +125,14 @@ updates:
           - patch
     open-pull-requests-limit: 5
 
-  # Gradle - Android app
+  # ─── Gradle - Android app ─────────────────────────────────────────────
   - package-ecosystem: gradle
     directory: /apps/android
     schedule:
       interval: weekly
-    cooldown:
-      default-days: 7
+    labels:
+      - dependencies
+      - automated
     groups:
       android-deps:
         patterns:

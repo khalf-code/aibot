@@ -1,0 +1,13 @@
+{
+  "customerName": "John Smith",
+  "customerEmail": "john.smith@acmecorp.com",
+  "originalSubject": "Urgent: API integration not working after update",
+  "originalBody": "Hi Support,\n\nI'm frustrated because our API integration stopped working after your latest update. We're getting 500 errors on all webhook callbacks since yesterday morning. This is blocking our entire sales pipeline.\n\nWe're on the Enterprise plan and this is unacceptable for a production system. Can someone look into this immediately?\n\nOur API key is configured correctly and was working fine before the update.\n\nThanks,\nJohn Smith\nCTO, Acme Corp",
+  "category": "technical",
+  "subCategory": "integration",
+  "priority": "critical",
+  "sentiment": "angry",
+  "agentName": "Sarah Chen",
+  "tone": "empathetic",
+  "ticketId": "TKT-20260207-001"
+}

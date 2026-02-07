@@ -1,0 +1,164 @@
+================================================================================
+  SECRET SCANNING SETUP - OPENCLAW REPOSITORY
+================================================================================
+
+COMPONENTS INSTALLED:
+
+1. Configuration File: .secretscanrc
+   - Defines 15+ secret patterns (AWS, GitHub, Discord, Slack, etc.)
+   - JSON format for easy updates
+   - Severity levels: critical, high
+   - Excludes lock files, binary files, docs
+
+2. Scanning Script: scripts/check-secrets.sh
+   - Bash script that checks staged files
+   - Runs regex patterns from .secretscanrc
+   - Blocks commits if secrets detected
+   - Provides clear error messages
+   - Auto-executable with proper permissions
+
+3. Pre-Commit Hook: git-hooks/pre-commit
+   - Automatically runs on `git commit`
+   - Executes check-secrets.sh first
+   - Then runs code formatting
+   - Blocks commit if secrets found
+
+4. Documentation: docs/security/secret-scanning.md
+   - Full usage guide
+   - Pattern descriptions
+   - Troubleshooting steps
+   - Best practices
+
+5. Existing Detection: .secrets.baseline
+   - Detect-secrets library configuration
+   - Entropy-based detection
+   - CI/CD integration
+
+================================================================================
+  QUICK START
+================================================================================
+
+Install hooks (automatic via pnpm):
+  $ pnpm install
+
+Test the scanner manually:
+  $ bash scripts/check-secrets.sh
+
+View configuration:
+  $ cat .secretscanrc
+
+Read documentation:
+  $ cat docs/security/secret-scanning.md
+
+================================================================================
+  HOW IT WORKS
+================================================================================
+
+Normal commit (no secrets):
+  $ git add myfile.ts
+  $ git commit -m "feat: add feature"
+  ✓ Hook runs → passes → commit succeeds
+
+Commit with detected secret:
+  $ git add config.ts  # accidentally contains API key
+  $ git commit -m "fix: config"
+  ✗ Hook blocks → error message → commit fails
+  
+  To fix:
+  1. git reset HEAD config.ts
+  2. [edit file to remove secret]
+  3. git add config.ts
+  4. git commit -m "fix: message"
+
+================================================================================
+  DETECTED SECRET TYPES
+================================================================================
+
+CRITICAL:
+  • AWS Access Keys (AKIA...)
+  • AWS Secret Access Keys
+  • Private Keys (RSA/DSA/EC)
+  • GitHub Tokens (ghp_*, github_pat_*)
+  • Discord Bot Tokens
+  • Slack Tokens
+  • Database Connection Strings
+  • Stripe API Keys
+  • Azure Connection Strings
+
+HIGH:
+  • Generic API Keys
+  • Passwords (any assignment)
+  • OAuth Tokens
+  • JWT Tokens
+  • Telegram Bot Tokens
+  • Google API Keys
+
+================================================================================
+  MAINTENANCE
+================================================================================
+
+Add new secret pattern:
+  1. Edit .secretscanrc (add to patterns array)
+  2. Edit scripts/check-secrets.sh (add to PATTERNS array)
+  3. Test: bash scripts/check-secrets.sh
+  4. Commit: git commit -m "security: add pattern for X"
+
+Handle false positives:
+  • Edit .secretscanrc
+  • Add keyword to "allowed_patterns" array
+  • Commit update
+
+Check hook configuration:
+  $ git config core.hooksPath
+  (should output: git-hooks)
+
+Verify hook is executable:
+  $ ls -la git-hooks/pre-commit
+  (should show: -rwxr-xr-x)
+
+================================================================================
+  EMERGENCY: BYPASS HOOK
+================================================================================
+
+ONLY if absolutely necessary (not recommended):
+  $ git commit --no-verify
+
+Then immediately:
+  1. Notify team of committed secret
+  2. Rotate the credential
+  3. Use git filter-branch or GitHub secret scanning to remove it
+
+================================================================================
+  FILES CREATED/MODIFIED
+================================================================================
+
+Created:
+  ✓ .secretscanrc                    (2.7 KB) - Secret pattern definitions
+  ✓ scripts/check-secrets.sh         (3.7 KB) - Scanning script
+  ✓ docs/security/secret-scanning.md (5.5 KB) - Full documentation
+
+Modified:
+  ✓ git-hooks/pre-commit (added secret scanning step)
+
+Already Existing:
+  ✓ .secrets.baseline                (71 KB) - Detect-secrets config
+
+================================================================================
+  VERIFICATION
+================================================================================
+
+All components in place:
+  $ ls -lh .secretscanrc
+  $ ls -lh scripts/check-secrets.sh
+  $ ls -lh git-hooks/pre-commit
+  $ ls -lh docs/security/secret-scanning.md
+
+Hook properly configured:
+  $ git config core.hooksPath
+  Output: git-hooks
+
+Test the script:
+  $ bash scripts/check-secrets.sh
+  Output: "No staged files to check." (or lists any secrets found)
+
+================================================================================

@@ -1,0 +1,22 @@
+# Skill Manifest (v1)
+#
+# BIZ-037 (#129) — Skeleton for suggest-kb-article skill.
+# Analyzes a support ticket and suggests the most relevant
+# knowledge base articles to help resolve the issue.
+
+# ── Identity ──────────────────────────────────────────────────────
+name: suggest-kb-article
+version: 1.0.0
+description: "Analyze a support ticket and suggest the most relevant knowledge base articles."
+
+# ── Permissions ───────────────────────────────────────────────────
+permissions:
+  tools: []
+  secrets:
+    - KB_API_KEY
+  domains:
+    - "api.kb.example.com"
+
+# ── Behavior ──────────────────────────────────────────────────────
+approval_required: false
+timeout_ms: 10000

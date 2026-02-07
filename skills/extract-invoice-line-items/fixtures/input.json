@@ -1,0 +1,5 @@
+{
+  "invoiceText": "Acme Corp Solutions\n123 Business Park Drive, Suite 400\nSan Francisco, CA 94105\n\nInvoice #: INV-2026-0847\nDate: 02/01/2026\nDue Date: 03/03/2026\nP.O. #: PO-5521\nTerms: Net 30\n\nBill To:\nGlobex Industries\n456 Commerce St\nNew York, NY 10001\n\nDescription                          Qty    Unit Price    Total\n---------------------------------------------------------------\n3  Cloud Platform License (Annual)   $12,000.00  $36,000.00\n10  Premium Support Seats            $200.00     $2,000.00\n1  Data Migration Service            $5,500.00   $5,500.00\n2  Training Workshop (half-day)      $1,500.00   $3,000.00\n\nSubtotal:    $46,500.00\nTax (8.5%):   $3,952.50\nTotal Due:   $50,452.50",
+  "currencyHint": "USD",
+  "extractMetadata": true
+}

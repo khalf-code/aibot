@@ -1,0 +1,21 @@
+# Clawdbot CODEOWNERS
+# These owners will be requested for review when PRs touch these paths.
+
+# Default: repo owner
+* @Shaglees
+
+# Workflow orchestration (n8n integration)
+/workflows/ @Shaglees
+/docker/ @Shaglees
+
+# Dashboard
+/apps/dashboard/ @Shaglees
+
+# Skills framework
+/skills/ @Shaglees
+
+# Core runtime
+/core/ @Shaglees
+
+# Documentation
+/docs/ @Shaglees

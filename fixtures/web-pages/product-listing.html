@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Products | Acme Corp</title>
+    <meta
+      name="description"
+      content="Browse Acme Corp's full product catalog of industrial widgets and automation solutions."
+    />
+    <link rel="canonical" href="https://www.acmecorp.example.com/products" />
+  </head>
+  <body>
+    <header>
+      <nav aria-label="Main navigation">
+        <a href="/" class="logo">Acme Corp</a>
+        <ul>
+          <li><a href="/products" aria-current="page">Products</a></li>
+          <li><a href="/pricing">Pricing</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-header">
+        <h1>Our Products</h1>
+        <p>Enterprise-grade automation solutions for modern manufacturing.</p>
+      </section>
+
+      <section class="product-grid" id="products">
+        <article class="product-card" data-product-id="PROD-001" data-category="hardware">
+          <h2>AutoWidget 3000</h2>
+          <p class="sku">SKU: AW-3000-v2</p>
+          <p class="price">$4,500.00</p>
+          <p class="description">
+            High-precision automated widget assembler with 99.7% accuracy rating. Processes up to
+            150 units per hour. Includes built-in quality inspection sensors and a 3-year warranty.
+          </p>
+          <ul class="specs">
+            <li>Dimensions: 120cm x 80cm x 95cm</li>
+            <li>Weight: 145 kg</li>
+            <li>Power: 220V / 50-60Hz</li>
+            <li>Throughput: 150 units/hr</li>
+          </ul>
+          <span class="availability in-stock">In Stock</span>
+          <a href="/products/autowidget-3000" class="cta-button">View Details</a>
+        </article>
+
+        <article class="product-card" data-product-id="PROD-002" data-category="software">
+          <h2>FlowControl Suite</h2>
+          <p class="sku">SKU: FC-SUITE-ENT</p>
+          <p class="price">$12,000.00/year</p>
+          <p class="description">
+            End-to-end manufacturing workflow management software. Real-time monitoring, predictive
+            maintenance alerts, and production optimization. Integrates with all AutoWidget hardware
+            models.
+          </p>
+          <ul class="specs">
+            <li>Deployment: Cloud or On-Premise</li>
+            <li>Users: Unlimited</li>
+            <li>API: REST + GraphQL</li>
+            <li>Uptime SLA: 99.95%</li>
+          </ul>
+          <span class="availability in-stock">Available</span>
+          <a href="/products/flowcontrol-suite" class="cta-button">View Details</a>
+        </article>
+
+        <article class="product-card" data-product-id="PROD-003" data-category="hardware">
+          <h2>Precision Gauge MX</h2>
+          <p class="sku">SKU: PG-MX-100</p>
+          <p class="price">$890.00</p>
+          <p class="description">
+            Industrial-grade measurement gauge with digital readout and wireless data transmission.
+            Accuracy to 0.001mm. IP67 rated for harsh factory environments.
+          </p>
+          <ul class="specs">
+            <li>Range: 0-100mm</li>
+            <li>Resolution: 0.001mm</li>
+            <li>Battery: Rechargeable Li-Ion (40hr)</li>
+            <li>Connectivity: Bluetooth 5.2 + USB-C</li>
+          </ul>
+          <span class="availability low-stock">Low Stock (12 remaining)</span>
+          <a href="/products/precision-gauge-mx" class="cta-button">View Details</a>
+        </article>
+
+        <article class="product-card" data-product-id="PROD-004" data-category="service">
+          <h2>Automation Consulting</h2>
+          <p class="sku">SKU: SVC-CONSULT</p>
+          <p class="price">$250.00/hour</p>
+          <p class="description">
+            Expert consulting services for manufacturing automation strategy. Our certified
+            engineers assess your facility, design custom automation workflows, and provide
+            implementation support.
+          </p>
+          <ul class="specs">
+            <li>Minimum engagement: 20 hours</li>
+            <li>Remote or on-site available</li>
+            <li>Industries: Manufacturing, Logistics, Pharma</li>
+          </ul>
+          <span class="availability in-stock">Available</span>
+          <a href="/contact-sales?service=consulting" class="cta-button">Request Quote</a>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2026 Acme Corp. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

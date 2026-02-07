@@ -1,0 +1,55 @@
+{
+  "success": true,
+  "tasks": [
+    {
+      "title": "Send proposal to Jane Doe",
+      "description": "Prepare and send the pricing proposal to Jane Doe at Acme Corp based on the discussed requirements.",
+      "owner": "Alex Rivera",
+      "priority": "high",
+      "dueDate": "2026-02-09",
+      "category": "document"
+    },
+    {
+      "title": "Schedule demo for Acme Corp",
+      "description": "Set up a personalized demo session for Jane Doe covering the features discussed.",
+      "owner": "Alex Rivera",
+      "priority": "high",
+      "dueDate": "2026-02-10",
+      "category": "meeting"
+    },
+    {
+      "title": "Follow-up call with Jane Doe",
+      "description": "Reach out to Jane Doe to continue the conversation and address any remaining questions.",
+      "owner": "Alex Rivera",
+      "priority": "medium",
+      "dueDate": "2026-02-10",
+      "category": "call"
+    },
+    {
+      "title": "Share technical documentation with Jane Doe",
+      "description": "Send relevant technical docs, API references, or integration guides to Jane Doe at Acme Corp.",
+      "owner": "Alex Rivera",
+      "priority": "medium",
+      "dueDate": "2026-02-09",
+      "category": "document"
+    },
+    {
+      "title": "Internal sync on Acme Corp deal",
+      "description": "Align with internal team (engineering/product) on Acme Corp requirements and feasibility.",
+      "owner": "Alex Rivera",
+      "priority": "medium",
+      "dueDate": "2026-02-08",
+      "category": "internal"
+    },
+    {
+      "title": "Send recap email to Jane Doe",
+      "description": "Send a thank-you and recap email to Jane Doe summarizing key points and agreed next steps.",
+      "owner": "Alex Rivera",
+      "priority": "high",
+      "dueDate": "2026-02-08",
+      "category": "email"
+    }
+  ],
+  "taskCount": 6,
+  "generatedAt": "2026-02-07T12:00:00.000Z"
+}

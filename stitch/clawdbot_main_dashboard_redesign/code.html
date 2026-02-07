@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Clawdbot Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#3B82F6", // Blue accent
+              "background-light": "#F3F4F6",
+              "background-dark": "#0F172A", // Deep navy
+              "surface-dark": "#1E293B", // Charcoal/Lighter navy
+              "surface-darker": "#111827", // Almost black
+              "accent-green": "#10B981",
+              "accent-orange": "#F97316",
+              "accent-purple": "#8B5CF6",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              sans: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1e293b;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 min-h-screen flex antialiased"
+  >
+    <aside
+      class="w-64 flex-shrink-0 bg-white dark:bg-surface-darker border-r border-gray-200 dark:border-gray-800 flex flex-col transition-colors duration-300"
+    >
+      <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
+        <div class="flex items-center gap-2 text-primary">
+          <span class="material-icons-round text-3xl">smart_toy</span>
+          <span class="text-xl font-bold tracking-tight text-gray-900 dark:text-white"
+            >Clawdbot</span
+          >
+        </div>
+      </div>
+      <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <a
+          class="flex items-center gap-3 px-3 py-2.5 bg-primary/10 text-primary rounded-lg group transition-colors"
+          href="#"
+        >
+          <span class="material-icons-round">dashboard</span>
+          <span class="font-medium">Dashboard</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg group transition-colors"
+          href="#"
+        >
+          <span class="material-icons-round">bolt</span>
+          <span class="font-medium">Runs</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg group transition-colors"
+          href="#"
+        >
+          <span class="material-icons-round">account_tree</span>
+          <span class="font-medium">Workflows</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg group transition-colors"
+          href="#"
+        >
+          <span class="material-icons-round">extension</span>
+          <span class="font-medium">Skills</span>
+        </a>
+        <a
+          class="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg group transition-colors"
+          href="#"
+        >
+          <span class="material-icons-round">rule</span>
+          <span class="font-medium">Approvals</span>
+          <span
+            class="ml-auto bg-accent-orange text-white text-xs font-bold px-2 py-0.5 rounded-full"
+            >3</span
+          >
+        </a>
+        <a
+          class="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg group transition-colors"
+          href="#"
+        >
+          <span class="material-icons-round">build</span>
+          <span class="font-medium">Tools</span>
+        </a>
+      </nav>
+      <div class="p-4 border-t border-gray-200 dark:border-gray-800">
+        <a
+          class="flex items-center gap-3 px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg group transition-colors mb-2"
+          href="#"
+        >
+          <span class="material-icons-round">settings</span>
+          <span class="font-medium">Settings</span>
+        </a>
+        <div
+          class="flex items-center gap-3 px-3 py-3 mt-2 rounded-lg bg-gray-100 dark:bg-gray-800/50"
+        >
+          <img
+            alt="User Avatar"
+            class="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaj_rnCBJc-EkIRuCN0M46g6ZIY_HTYGtArm9Obz0id1oaTN8fp1Zt2A3UvoUPH1OVwYDTzBiSV0iKwrqWXiZbIcQxveXhtDNIRAXI5vVslE5fYDtK4t9iXqGr_CK3kRJiHSQM49b8v0fgAA555i1a6an57kDWhVNk9q5ddgU50SQFapgX0Ncpg6x7exhkj4jwm8-QcY6zotoetSL36k_4csYcCIwnBUesID72uLpvVjp_9pgWcfACb3IDL0Ie9dWVxm5vfQNbHGv8"
+          />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">Alex Morgan</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Pro Plan</p>
+          </div>
+          <button class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+            <span class="material-icons-round text-sm">logout</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <header
+        class="h-16 bg-white dark:bg-surface-dark border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 z-10"
+      >
+        <div class="flex items-center gap-4">
+          <button
+            class="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"
+          >
+            <span class="material-icons-round">menu</span>
+          </button>
+          <h1 class="text-xl font-semibold text-gray-900 dark:text-white hidden sm:block">
+            Dashboard Overview
+          </h1>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="relative hidden md:block">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span class="material-icons-round text-gray-400 text-lg">search</span>
+            </span>
+            <input
+              class="w-64 bg-gray-100 dark:bg-surface-darker border-none rounded-lg py-2 pl-10 pr-4 text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary placeholder-gray-500 dark:placeholder-gray-500"
+              placeholder="Search workflows, logs..."
+              type="text"
+            />
+          </div>
+          <button
+            class="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-full relative"
+          >
+            <span class="material-icons-round">notifications</span>
+            <span
+              class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-surface-dark"
+            ></span>
+          </button>
+          <button
+            class="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-full"
+          >
+            <span class="material-icons-round">help_outline</span>
+          </button>
+        </div>
+      </header>
+      <div class="flex-1 overflow-auto p-6 space-y-6">
+        <div class="grid grid-cols-12 gap-6">
+          <div class="col-span-12 lg:col-span-8 space-y-6">
+            <div
+              class="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm"
+            >
+              <div
+                class="p-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center"
+              >
+                <h2
+                  class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2"
+                >
+                  <span class="w-2 h-6 bg-primary rounded-full"></span>
+                  Active Runs
+                </h2>
+                <button
+                  class="text-xs font-medium text-primary hover:text-blue-600 dark:hover:text-blue-400"
+                >
+                  View All
+                </button>
+              </div>
+              <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                <div
+                  class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center"
+                    >
+                      <span class="material-icons-round">person_search</span>
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        Lead Follow-Up Sequence
+                      </h3>
+                      <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs text-gray-500 dark:text-gray-400"
+                          >Running for 2m 30s</span
+                        >
+                        <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">ID: #9382</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end"
+                  >
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                    >
+                      Processing
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">pause</span>
+                      </button>
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">more_vert</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center"
+                    >
+                      <span class="material-icons-round">analytics</span>
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        Data Report Generation
+                      </h3>
+                      <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs text-gray-500 dark:text-gray-400"
+                          >Started just now</span
+                        >
+                        <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">ID: #9383</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end"
+                  >
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                    >
+                      Initializing
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">pause</span>
+                      </button>
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">more_vert</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center"
+                    >
+                      <span class="material-icons-round">receipt_long</span>
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        Invoice Processing
+                      </h3>
+                      <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs text-gray-500 dark:text-gray-400"
+                          >Waiting for API</span
+                        >
+                        <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">ID: #9380</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end"
+                  >
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                    >
+                      Waiting
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">play_arrow</span>
+                      </button>
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">more_vert</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 flex items-center justify-center"
+                    >
+                      <span class="material-icons-round">storage</span>
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        DB Maintenance
+                      </h3>
+                      <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs text-gray-500 dark:text-gray-400"
+                          >Scheduled: 2:00 AM</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end"
+                  >
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    >
+                      Scheduled
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">edit_calendar</span>
+                      </button>
+                      <button
+                        class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <span class="material-icons-round text-lg">more_vert</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm"
+            >
+              <div class="p-5 border-b border-gray-200 dark:border-gray-800">
+                <h2
+                  class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2"
+                >
+                  <span class="material-icons-round text-accent-orange text-xl">warning</span>
+                  Approvals Needed
+                </h2>
+              </div>
+              <div class="p-4 space-y-4">
+                <div
+                  class="flex flex-col md:flex-row gap-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30"
+                >
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="material-icons-round text-red-500 text-sm">email</span>
+                      <h4 class="font-semibold text-gray-900 dark:text-white text-sm">
+                        Email Draft Approval
+                      </h4>
+                    </div>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      Subject: "Q3 Project Update" - Review recipient list and content.
+                    </p>
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="text-xs px-2 py-0.5 rounded bg-white dark:bg-surface-darker border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"
+                        >High Priority</span
+                      >
+                      <span class="text-xs text-gray-400">Waiting 2h</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 self-start md:self-center">
+                    <button
+                      class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded shadow-sm transition-colors"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      class="px-3 py-1.5 bg-white dark:bg-surface-darker border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium rounded shadow-sm transition-colors"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+                <div
+                  class="flex flex-col md:flex-row gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-700"
+                >
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="material-icons-round text-blue-500 text-sm">payment</span>
+                      <h4 class="font-semibold text-gray-900 dark:text-white text-sm">
+                        Payment Authorization
+                      </h4>
+                    </div>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      Authorize vendor payment #88392 for $1,200.00
+                    </p>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-gray-400">Waiting 15m</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 self-start md:self-center">
+                    <button
+                      class="px-3 py-1.5 bg-primary hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm transition-colors"
+                    >
+                      Authorize
+                    </button>
+                    <button
+                      class="px-3 py-1.5 bg-white dark:bg-surface-darker border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium rounded shadow-sm transition-colors"
+                    >
+                      Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-span-12 lg:col-span-4 space-y-6">
+            <div
+              class="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden"
+            >
+              <div class="p-5 border-b border-gray-200 dark:border-gray-800">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
+              </div>
+              <div class="p-4">
+                <div class="relative pb-6 last:pb-0">
+                  <div class="flex items-start gap-3">
+                    <div
+                      class="relative z-10 flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 border-2 border-white dark:border-surface-dark"
+                    >
+                      <span class="material-icons-round text-blue-600 dark:text-blue-400 text-xs"
+                        >image</span
+                      >
+                    </div>
+                    <div
+                      class="absolute top-8 left-4 w-px h-full bg-gray-200 dark:bg-gray-700 -ml-px"
+                    ></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">
+                        Screenshot Captured
+                      </p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Workflow: Web Scraper Tool
+                      </p>
+                      <div
+                        class="mt-2 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+                      >
+                        <img
+                          alt="Activity Thumbnail"
+                          class="w-full h-24 object-cover"
+                          src="https://lh3.googleusercontent.com/aida-public/AB6AXuCY4Xvw_PmRimIVntDYjwFdwAh4UT_qgSSHoG79HC7uj3eM-ROd2VgiuEjHrgexeDY2I5E563mTc0SXE9-OqPvKLZfvCAm-AMh4fldm0krMuo1HN0UN42nweOAPpRXTxdqNO27KcJR6EiVwK889-lm8VgJl9yqkNmr6biI1bl10z47NcHWMxjT-e_sRCiuvWhWbQXJ6-vkLm_4zAVVMRJ6f_md15WIOHiExt6Pq8MIjoElOkDF2CrT48UZqnCgjjPTCbAC8Gbvkkzsp"
+                        />
+                      </div>
+                      <span class="block mt-2 text-xs text-gray-400">2 mins ago</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="relative pb-6 last:pb-0 pt-2">
+                  <div class="flex items-start gap-3">
+                    <div
+                      class="relative z-10 flex items-center justify-center w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/50 border-2 border-white dark:border-surface-dark"
+                    >
+                      <span class="material-icons-round text-green-600 dark:text-green-400 text-xs"
+                        >check</span
+                      >
+                    </div>
+                    <div
+                      class="absolute top-8 left-4 w-px h-full bg-gray-200 dark:bg-gray-700 -ml-px"
+                    ></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">
+                        Lead Added to CRM
+                      </p>
+                      <div class="mt-1 flex items-center gap-2">
+                        <span
+                          class="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300"
+                          >john.doe@example.com</span
+                        >
+                      </div>
+                      <span class="block mt-2 text-xs text-gray-400">15 mins ago</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="relative pt-2">
+                  <div class="flex items-start gap-3">
+                    <div
+                      class="relative z-10 flex items-center justify-center w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/50 border-2 border-white dark:border-surface-dark"
+                    >
+                      <span class="material-icons-round text-red-600 dark:text-red-400 text-xs"
+                        >error</span
+                      >
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">
+                        API Connection Failed
+                      </p>
+                      <p class="text-xs text-red-500 dark:text-red-400 mt-0.5">
+                        Stripe Integration
+                      </p>
+                      <span class="block mt-2 text-xs text-gray-400">45 mins ago</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-surface-darker dark:bg-gray-900 rounded-xl border border-gray-800 dark:border-black p-5 text-white shadow-md relative overflow-hidden group"
+            >
+              <div
+                class="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all duration-700"
+              ></div>
+              <div class="flex justify-between items-start mb-6 relative z-10">
+                <h2 class="text-lg font-semibold text-gray-100">Resource Usage</h2>
+                <button class="text-gray-400 hover:text-white">
+                  <span class="material-icons-round text-sm">refresh</span>
+                </button>
+              </div>
+              <div class="flex justify-around items-center mb-6 relative z-10">
+                <div class="flex flex-col items-center gap-2">
+                  <div class="relative w-16 h-16">
+                    <svg class="w-full h-full transform -rotate-90">
+                      <circle
+                        class="text-gray-700"
+                        cx="32"
+                        cy="32"
+                        fill="transparent"
+                        r="28"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <circle
+                        class="text-primary"
+                        cx="32"
+                        cy="32"
+                        fill="transparent"
+                        r="28"
+                        stroke="currentColor"
+                        stroke-dasharray="175.9"
+                        stroke-dashoffset="110"
+                        stroke-width="4"
+                      ></circle>
+                    </svg>
+                    <span
+                      class="absolute inset-0 flex items-center justify-center text-xs font-bold"
+                      >36%</span
+                    >
+                  </div>
+                  <span class="text-xs text-gray-400 font-medium uppercase tracking-wider"
+                    >CPU</span
+                  >
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                  <div class="relative w-16 h-16">
+                    <svg class="w-full h-full transform -rotate-90">
+                      <circle
+                        class="text-gray-700"
+                        cx="32"
+                        cy="32"
+                        fill="transparent"
+                        r="28"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <circle
+                        class="text-accent-purple"
+                        cx="32"
+                        cy="32"
+                        fill="transparent"
+                        r="28"
+                        stroke="currentColor"
+                        stroke-dasharray="175.9"
+                        stroke-dashoffset="60"
+                        stroke-width="4"
+                      ></circle>
+                    </svg>
+                    <span
+                      class="absolute inset-0 flex items-center justify-center text-xs font-bold"
+                      >64%</span
+                    >
+                  </div>
+                  <span class="text-xs text-gray-400 font-medium uppercase tracking-wider"
+                    >Mem</span
+                  >
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                  <div class="relative w-16 h-16">
+                    <svg class="w-full h-full transform -rotate-90">
+                      <circle
+                        class="text-gray-700"
+                        cx="32"
+                        cy="32"
+                        fill="transparent"
+                        r="28"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <circle
+                        class="text-accent-green"
+                        cx="32"
+                        cy="32"
+                        fill="transparent"
+                        r="28"
+                        stroke="currentColor"
+                        stroke-dasharray="175.9"
+                        stroke-dashoffset="150"
+                        stroke-width="4"
+                      ></circle>
+                    </svg>
+                    <span
+                      class="absolute inset-0 flex items-center justify-center text-xs font-bold"
+                      >14%</span
+                    >
+                  </div>
+                  <span class="text-xs text-gray-400 font-medium uppercase tracking-wider"
+                    >Stor</span
+                  >
+                </div>
+              </div>
+              <div class="space-y-2 relative z-10">
+                <div class="flex justify-between items-center text-xs text-gray-400">
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    Plan Limits
+                  </span>
+                  <span>Standard Tier</span>
+                </div>
+                <div class="w-full bg-gray-800 rounded-full h-1.5">
+                  <div class="bg-primary h-1.5 rounded-full" style="width: 45%"></div>
+                </div>
+                <div class="flex justify-between items-center text-xs mt-1">
+                  <span class="text-gray-500">Run Credits</span>
+                  <span class="text-gray-300">4,500 / 10,000</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      // Simple script to toggle dark mode for demonstration
+      // In a real app, this would be handled by user preference or system settings
+      if (
+        localStorage.theme === "dark" ||
+        (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)
+      ) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.add("dark"); // Defaulting to dark for this demo based on prompt
+      }
+    </script>
+  </body>
+</html>

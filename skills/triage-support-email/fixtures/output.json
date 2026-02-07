@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "category": "technical",
+  "subCategory": "integration",
+  "priority": "critical",
+  "sentiment": "angry",
+  "suggestedRoute": "integrations-team",
+  "isReply": false,
+  "topics": ["error", "api", "integration", "webhook"],
+  "churnRisk": false,
+  "triagedAt": "2026-02-07T12:00:00.000Z"
+}

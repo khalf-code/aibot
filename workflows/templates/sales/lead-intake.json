@@ -1,0 +1,151 @@
+{
+  "name": "Lead Intake Automation",
+  "description": "Captures new leads from a webhook, enriches them via the Clawdbot Skill node, routes high-value leads to a human approval gate, and pushes qualified leads to the CRM.",
+  "area": "sales",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-intake",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "validate-lead",
+      "name": "Validate Lead Data",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.email }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "enrich-lead",
+      "name": "Enrich Lead",
+      "type": "n8n-nodes-clawdbot.clawdbotSkill",
+      "position": [650, 250],
+      "parameters": {
+        "skillName": "lead-enrichment",
+        "input": "={{ JSON.stringify($json) }}"
+      }
+    },
+    {
+      "id": "score-check",
+      "name": "High Value?",
+      "type": "n8n-nodes-base.if",
+      "position": [850, 250],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.score }}",
+              "operation": "largerEqual",
+              "value2": 80
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "approval-gate",
+      "name": "Manager Approval",
+      "type": "n8n-nodes-clawdbot.clawdbotApprovalGate",
+      "position": [1050, 200],
+      "parameters": {
+        "approverRole": "sales-manager",
+        "timeoutMinutes": 480,
+        "includeSnapshot": true,
+        "onRejection": "stop",
+        "onTimeout": "stop"
+      }
+    },
+    {
+      "id": "push-to-crm",
+      "name": "Push to CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1250, 250],
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.example.com/api/leads",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "email", "value": "={{ $json.email }}" },
+            { "name": "name", "value": "={{ $json.name }}" },
+            { "name": "score", "value": "={{ $json.score }}" },
+            { "name": "source", "value": "clawdbot-lead-intake" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "add-to-nurture",
+      "name": "Add to Nurture Sequence",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1050, 350],
+      "parameters": {
+        "method": "POST",
+        "url": "https://email.example.com/api/sequences/nurture",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "email", "value": "={{ $json.email }}" },
+            { "name": "name", "value": "={{ $json.name }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "reject-invalid",
+      "name": "Log Invalid Lead",
+      "type": "n8n-nodes-base.set",
+      "position": [650, 400],
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "status", "value": "rejected_invalid" },
+            { "name": "reason", "value": "Missing required email field" }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{ "node": "validate-lead", "type": "main", "index": 0 }]]
+    },
+    "validate-lead": {
+      "main": [
+        [{ "node": "enrich-lead", "type": "main", "index": 0 }],
+        [{ "node": "reject-invalid", "type": "main", "index": 0 }]
+      ]
+    },
+    "enrich-lead": {
+      "main": [[{ "node": "score-check", "type": "main", "index": 0 }]]
+    },
+    "score-check": {
+      "main": [
+        [{ "node": "approval-gate", "type": "main", "index": 0 }],
+        [{ "node": "add-to-nurture", "type": "main", "index": 0 }]
+      ]
+    },
+    "approval-gate": {
+      "main": [[{ "node": "push-to-crm", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
