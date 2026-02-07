@@ -87,18 +87,26 @@ export function computeJobNextRunAtMs(job: CronJob, nowMs: number): number | und
   return computeNextRunAtMs(job.schedule, nowMs);
 }
 
-export function recomputeNextRuns(state: CronServiceState) {
+export function recomputeNextRuns(state: CronServiceState): boolean {
   if (!state.store) {
-    return;
+    return false;
   }
+  let changed = false;
   const now = state.deps.nowMs();
   for (const job of state.store.jobs) {
     if (!job.state) {
       job.state = {};
+      changed = true;
     }
     if (!job.enabled) {
-      job.state.nextRunAtMs = undefined;
-      job.state.runningAtMs = undefined;
+      if (job.state.nextRunAtMs !== undefined) {
+        job.state.nextRunAtMs = undefined;
+        changed = true;
+      }
+      if (job.state.runningAtMs !== undefined) {
+        job.state.runningAtMs = undefined;
+        changed = true;
+      }
       continue;
     }
     const runningAt = job.state.runningAtMs;
@@ -108,9 +116,15 @@ export function recomputeNextRuns(state: CronServiceState) {
         "cron: clearing stuck running marker",
       );
       job.state.runningAtMs = undefined;
+      changed = true;
     }
-    job.state.nextRunAtMs = computeJobNextRunAtMs(job, now);
+    const newNext = computeJobNextRunAtMs(job, now);
+    if (job.state.nextRunAtMs !== newNext) {
+      job.state.nextRunAtMs = newNext;
+      changed = true;
+    }
   }
+  return changed;
 }
 
 export function nextWakeAtMs(state: CronServiceState) {

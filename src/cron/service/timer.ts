@@ -49,8 +49,10 @@ export async function onTimer(state: CronServiceState) {
       const due = findDueJobs(state);
 
       if (due.length === 0) {
-        recomputeNextRuns(state);
-        await persist(state);
+        const changed = recomputeNextRuns(state);
+        if (changed) {
+          await persist(state);
+        }
         return [];
       }
 
