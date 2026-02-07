@@ -101,6 +101,7 @@ type HookCtx = {
   config?: unknown;
   projectRoot?: string;
   sigConfig?: SigConfig | null;
+  senderIsOwner?: boolean;
 };
 
 /**

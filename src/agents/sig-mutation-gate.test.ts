@@ -142,6 +142,12 @@ describe("sig-mutation-gate", () => {
     expect(result.blocked).toBe(true);
   });
 
+  it("handles file param alias", () => {
+    const config = makeConfig();
+    const result = checkMutationGate("write", { file: "soul.md" }, PROJECT_ROOT, config);
+    expect(result.blocked).toBe(true);
+  });
+
   it("passes when sigConfig is null", () => {
     const result = checkMutationGate("write", { path: "soul.md" }, PROJECT_ROOT, null);
     expect(result.blocked).toBe(false);

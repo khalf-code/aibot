@@ -104,6 +104,21 @@ describe("sig-verification-gate", () => {
     expect(result.blocked).toBe(false);
   });
 
+  it("blocks gated tools for non-owner senders when enforcement is enabled", () => {
+    const config = makeConfig(true);
+    const result = checkVerificationGate("exec", SESSION, TURN, config, false);
+    expect(result).toEqual({
+      blocked: true,
+      reason: "Sensitive tools require an owner-authenticated session.",
+    });
+  });
+
+  it("respects custom gatedTools for non-owner checks", () => {
+    const config = makeConfig(true, ["read"]);
+    expect(checkVerificationGate("exec", SESSION, TURN, config, false).blocked).toBe(false);
+    expect(checkVerificationGate("read", SESSION, TURN, config, false).blocked).toBe(true);
+  });
+
   it("blocks when sessionKey is missing", () => {
     const config = makeConfig(true);
     const result = checkVerificationGate("exec", undefined, TURN, config);
