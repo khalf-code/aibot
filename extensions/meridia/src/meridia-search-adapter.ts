@@ -53,7 +53,7 @@ export class MeridiaSearchAdapter {
     query: string,
     opts?: { maxResults?: number; minScore?: number; sessionKey?: string },
   ): Promise<MemorySearchResult[]> {
-    const results = this.backend.searchRecords(query, {
+    const results = await this.backend.searchRecords(query, {
       limit: opts?.maxResults ?? 6,
       minScore: opts?.minScore,
     });
@@ -95,8 +95,8 @@ export class MeridiaSearchAdapter {
     return { text: "", path: "" };
   }
 
-  status(): MemoryProviderStatus {
-    const stats = this.backend.getStats();
+  async status(): Promise<MemoryProviderStatus> {
+    const stats = await this.backend.getStats();
     return {
       backend: "builtin",
       provider: "meridia",
