@@ -14,6 +14,7 @@ import {
   isFailoverError,
   isTimeoutError,
 } from "./failover-error.js";
+import { HealthManager } from "./health-manager.js";
 import {
   buildConfiguredAllowlistKeys,
   buildModelAliasIndex,
@@ -51,6 +52,143 @@ function isAbortError(err: unknown): boolean {
 
 function shouldRethrowAbort(err: unknown): boolean {
   return isAbortError(err) && !isTimeoutError(err);
+}
+
+/**
+ * Races multiple candidates (PHARS logic).
+ * Currently implements a smart serial fallback sorted by health,
+ * but structured to allow parallel racing in future if needed.
+ */
+async function raceCandidates<T>(
+  candidates: ModelCandidate[],
+  params: {
+    cfg: OpenClawConfig | undefined;
+    agentDir?: string;
+    run: (provider: string, model: string, profileId?: string) => Promise<T>;
+    onError?: (attempt: {
+      provider: string;
+      model: string;
+      error: unknown;
+      attempt: number;
+      total: number;
+    }) => void | Promise<void>;
+  },
+): Promise<{
+  result: T;
+  provider: string;
+  model: string;
+  attempts: FallbackAttempt[];
+}> {
+  const healthMgr = HealthManager.getInstance();
+  const sortedCandidates = healthMgr.sortCandidates(candidates);
+
+  const authStore = params.cfg
+    ? ensureAuthProfileStore(params.agentDir, { allowKeychainPrompt: false })
+    : null;
+  const attempts: FallbackAttempt[] = [];
+  let lastError: unknown;
+
+  for (let i = 0; i < sortedCandidates.length; i += 1) {
+    const candidate = sortedCandidates[i];
+    let profileIds: string[] = [];
+
+    if (authStore) {
+      const allProfileIds = resolveAuthProfileOrder({
+        cfg: params.cfg,
+        store: authStore,
+        provider: candidate.provider,
+      });
+      // Filter out those in cooldown.
+      profileIds = allProfileIds.filter((id) => !isProfileInCooldown(authStore, id));
+
+      if (allProfileIds.length > 0 && profileIds.length === 0) {
+        // All profiles for this provider are in cooldown; skip without attempting
+        attempts.push({
+          provider: candidate.provider,
+          model: candidate.model,
+          error: `Provider ${candidate.provider} is in cooldown (all profiles unavailable)`,
+          reason: "rate_limit",
+        });
+        continue;
+      }
+    }
+
+    // If we have specific profiles to try, loop through them.
+    // Otherwise, try once with undefined profileId (default behavior).
+    const attemptsForCandidate = profileIds.length > 0 ? profileIds : [undefined];
+
+    for (const profileId of attemptsForCandidate) {
+      const start = Date.now();
+      try {
+        const result = await params.run(candidate.provider, candidate.model, profileId);
+        healthMgr.recordSuccess(candidate.provider, candidate.model, Date.now() - start);
+        return {
+          result,
+          provider: candidate.provider,
+          model: candidate.model,
+          attempts,
+        };
+      } catch (err) {
+        if (shouldRethrowAbort(err)) {
+          throw err;
+        }
+
+        healthMgr.recordFailure(candidate.provider, candidate.model);
+
+        const normalized =
+          coerceToFailoverError(err, {
+            provider: candidate.provider,
+            model: candidate.model,
+          }) ?? err;
+
+        if (!isFailoverError(normalized)) {
+          throw err;
+        }
+
+        // If it's a rate limit and we have a profileId, mark it in cooldown.
+        if (authStore && profileId && normalized.reason === "rate_limit") {
+          await markAuthProfileCooldown({ store: authStore, profileId });
+          saveAuthProfileStore(authStore);
+        }
+
+        lastError = normalized;
+        const described = describeFailoverError(normalized);
+        attempts.push({
+          provider: candidate.provider,
+          model: candidate.model,
+          error: described.message,
+          reason: described.reason,
+          status: described.status,
+          code: described.code,
+        });
+        await params.onError?.({
+          provider: candidate.provider,
+          model: candidate.model,
+          error: normalized,
+          attempt: i + 1,
+          total: sortedCandidates.length,
+        });
+      }
+    }
+  }
+
+  if (attempts.length <= 1 && lastError) {
+    throw lastError;
+  }
+  const summary =
+    attempts.length > 0
+      ? attempts
+          .map(
+            (attempt) =>
+              `${attempt.provider}/${attempt.model}: ${attempt.error}${
+                attempt.reason ? ` (${attempt.reason})` : ""
+              }`,
+          )
+          .join(" | ")
+      : "unknown";
+  throw new Error(`All models failed (${attempts.length || candidates.length}): ${summary}`, {
+    cause: lastError instanceof Error ? lastError : undefined,
+  });
 }
 
 function resolveImageFallbackCandidates(params: {
@@ -233,119 +371,8 @@ export async function runWithModelFallback<T>(params: {
     model: params.model,
     fallbacksOverride: params.fallbacksOverride,
   });
-  const authStore = params.cfg
-    ? ensureAuthProfileStore(params.agentDir, { allowKeychainPrompt: false })
-    : null;
-  const attempts: FallbackAttempt[] = [];
-  let lastError: unknown;
 
-  for (let i = 0; i < candidates.length; i += 1) {
-    const candidate = candidates[i];
-    let profileIds: string[] = [];
-
-    if (authStore) {
-      const allProfileIds = resolveAuthProfileOrder({
-        cfg: params.cfg,
-        store: authStore,
-        provider: candidate.provider,
-      });
-      // Filter out those in cooldown.
-      profileIds = allProfileIds.filter((id) => !isProfileInCooldown(authStore, id));
-
-      if (allProfileIds.length > 0 && profileIds.length === 0) {
-        // All profiles for this provider are in cooldown; skip without attempting
-        attempts.push({
-          provider: candidate.provider,
-          model: candidate.model,
-          error: `Provider ${candidate.provider} is in cooldown (all profiles unavailable)`,
-          reason: "rate_limit",
-        });
-        continue;
-      }
-    }
-
-    // If we have specific profiles to try, loop through them.
-    // Otherwise, try once with undefined profileId (default behavior).
-    const attemptsForCandidate = profileIds.length > 0 ? profileIds : [undefined];
-
-    for (const profileId of attemptsForCandidate) {
-      try {
-        const result = await params.run(candidate.provider, candidate.model, profileId);
-        return {
-          result,
-          provider: candidate.provider,
-          model: candidate.model,
-          attempts,
-        };
-      } catch (err) {
-        if (shouldRethrowAbort(err)) {
-          throw err;
-        }
-        const normalized =
-          coerceToFailoverError(err, {
-            provider: candidate.provider,
-            model: candidate.model,
-          }) ?? err;
-
-        if (!isFailoverError(normalized)) {
-          throw err;
-        }
-
-        // If it's a rate limit and we have a profileId, mark it in cooldown.
-        if (authStore && profileId && normalized.reason === "rate_limit") {
-          await markAuthProfileCooldown({ store: authStore, profileId });
-          // Save the store state if needed, but markAuthProfileCooldown might be in-memory or persisted?
-          // ensureAuthProfileStore loads it. Persisting might require explicit save.
-          // markAuthProfileCooldown just updates the in-memory store object.
-          // We should probably save it to disk so other processes know.
-          // But saveAuthProfileStore requires the store object.
-          // We can try to save it here if we want persistence.
-          saveAuthProfileStore(authStore);
-        }
-
-        lastError = normalized;
-        const described = describeFailoverError(normalized);
-        attempts.push({
-          provider: candidate.provider,
-          model: candidate.model,
-          error: described.message,
-          reason: described.reason,
-          status: described.status,
-          code: described.code,
-        });
-        await params.onError?.({
-          provider: candidate.provider,
-          model: candidate.model,
-          error: normalized,
-          attempt: i + 1, // This attempt count is a bit loose now with profile rotation
-          total: candidates.length,
-        });
-
-        // If it was a rate limit on a specific profile, we loop to the next profile.
-        // If it wasn't a rate limit, maybe we should still try next profile?
-        // Usually 500s might be provider-wide, but 429/quota are profile-specific.
-        // For now, we continue to the next profile in the loop.
-      }
-    }
-  }
-
-  if (attempts.length <= 1 && lastError) {
-    throw lastError;
-  }
-  const summary =
-    attempts.length > 0
-      ? attempts
-          .map(
-            (attempt) =>
-              `${attempt.provider}/${attempt.model}: ${attempt.error}${
-                attempt.reason ? ` (${attempt.reason})` : ""
-              }`,
-          )
-          .join(" | ")
-      : "unknown";
-  throw new Error(`All models failed (${attempts.length || candidates.length}): ${summary}`, {
-    cause: lastError instanceof Error ? lastError : undefined,
-  });
+  return raceCandidates(candidates, params);
 }
 
 export async function runWithImageModelFallback<T>(params: {

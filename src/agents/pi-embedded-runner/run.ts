@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { ThinkLevel } from "../../auto-reply/thinking.js";
 import type { RunEmbeddedPiAgentParams } from "./run/params.js";
 import type { EmbeddedPiAgentMeta, EmbeddedPiRunResult } from "./types.js";
@@ -61,6 +62,24 @@ type ApiKeyInfo = ResolvedProviderAuth;
 // Avoid Anthropic's refusal test token poisoning session transcripts.
 const ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL = "ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL";
 const ANTHROPIC_MAGIC_STRING_REPLACEMENT = "ANTHROPIC MAGIC STRING TRIGGER REFUSAL (redacted)";
+
+async function checkAutoMemory(prompt: string, workspaceDir: string) {
+  // Simple capture for "Remember:" or "Memo:" at start of prompt
+  const match = prompt.match(/^(?:Remember|Memo):\s*(.+)$/im);
+  if (match) {
+    const content = match[1].trim();
+    if (content) {
+      const memoryFile = path.join(workspaceDir, "MEMORY.md");
+      const entry = `- [${new Date().toISOString()}] ${content}\n`;
+      try {
+        await fs.appendFile(memoryFile, entry, "utf-8");
+        log.info(`[auto-memory] Captured: ${content}`);
+      } catch (e) {
+        log.warn(`[auto-memory] Failed to write: ${String(e)}`);
+      }
+    }
+  }
+}
 
 const SUB_AGENT_PROTOCOL = `
 ## Sub-Agent Communication Protocol
@@ -335,6 +354,8 @@ export async function runEmbeddedPiAgent(
         while (true) {
           attemptedThinking.add(thinkLevel);
           await fs.mkdir(resolvedWorkspace, { recursive: true });
+
+          await checkAutoMemory(params.prompt, resolvedWorkspace);
 
           const prompt =
             provider === "anthropic" ? scrubAnthropicRefusalMagic(params.prompt) : params.prompt;
