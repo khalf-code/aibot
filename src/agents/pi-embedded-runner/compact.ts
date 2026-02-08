@@ -106,6 +106,7 @@ export type CompactEmbeddedPiSessionParams = {
   enqueue?: typeof enqueueCommand;
   extraSystemPrompt?: string;
   ownerNumbers?: string[];
+  skipSkillEnvOverrides?: boolean;
 };
 
 /**
@@ -116,7 +117,6 @@ export async function compactEmbeddedPiSessionDirect(
   params: CompactEmbeddedPiSessionParams,
 ): Promise<EmbeddedPiCompactResult> {
   const resolvedWorkspace = resolveUserPath(params.workspaceDir);
-  const prevCwd = process.cwd();
 
   const provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
   const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
@@ -185,22 +185,24 @@ export async function compactEmbeddedPiSessionDirect(
     cwd: effectiveWorkspace,
   });
 
+  const shouldApplySkillEnvOverrides = !params.skipSkillEnvOverrides;
   let restoreSkillEnv: (() => void) | undefined;
-  process.chdir(effectiveWorkspace);
   try {
     const shouldLoadSkillEntries = !params.skillsSnapshot || !params.skillsSnapshot.resolvedSkills;
     const skillEntries = shouldLoadSkillEntries
       ? loadWorkspaceSkillEntries(effectiveWorkspace)
       : [];
-    restoreSkillEnv = params.skillsSnapshot
-      ? applySkillEnvOverridesFromSnapshot({
-          snapshot: params.skillsSnapshot,
-          config: params.config,
-        })
-      : applySkillEnvOverrides({
-          skills: skillEntries ?? [],
-          config: params.config,
-        });
+    if (shouldApplySkillEnvOverrides) {
+      restoreSkillEnv = params.skillsSnapshot
+        ? applySkillEnvOverridesFromSnapshot({
+            snapshot: params.skillsSnapshot,
+            config: params.config,
+          })
+        : applySkillEnvOverrides({
+            skills: skillEntries ?? [],
+            config: params.config,
+          });
+    }
     const skillsPrompt = resolveSkillsPromptForRun({
       skillsSnapshot: params.skillsSnapshot,
       entries: shouldLoadSkillEntries ? skillEntries : undefined,
@@ -328,7 +330,7 @@ export async function compactEmbeddedPiSessionDirect(
     const docsPath = await resolveOpenClawDocsPath({
       workspaceDir: effectiveWorkspace,
       argv1: process.argv[1],
-      cwd: process.cwd(),
+      cwd: effectiveWorkspace,
       moduleUrl: import.meta.url,
     });
     const ttsHint = params.config ? buildTtsSystemPromptHint(params.config) : undefined;
@@ -478,7 +480,6 @@ export async function compactEmbeddedPiSessionDirect(
     };
   } finally {
     restoreSkillEnv?.();
-    process.chdir(prevCwd);
   }
 }
 
