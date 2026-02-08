@@ -113,6 +113,9 @@ export function createReplyDispatcher(options: ReplyDispatcherOptions): ReplyDis
   };
 
   const enqueue = (kind: ReplyDispatchKind, payload: ReplyPayload) => {
+    console.log(
+      `[DIAG] reply-dispatcher.enqueue: CALLED - kind=${kind}, text="${(payload.text ?? "").slice(0, 100)}...", pending=${pending}`,
+    );
     logVerbose(
       `reply-dispatcher: enqueue called with kind=${kind}, text=${(payload.text ?? "").slice(0, 100)}...`,
     );
@@ -122,14 +125,19 @@ export function createReplyDispatcher(options: ReplyDispatcherOptions): ReplyDis
       responsePrefixContextProvider: options.responsePrefixContextProvider,
       onHeartbeatStrip: options.onHeartbeatStrip,
       onSkip: (reason) => {
+        console.log(`[DIAG] reply-dispatcher.enqueue: SKIPPED - kind=${kind}, reason=${reason}`);
         logVerbose(`reply-dispatcher: payload skipped, kind=${kind}, reason=${reason}`);
         options.onSkip?.(payload, { kind, reason });
       },
     });
     if (!normalized) {
+      console.log(`[DIAG] reply-dispatcher.enqueue: normalized is null, returning false`);
       logVerbose(`reply-dispatcher: normalized payload is null for kind=${kind}, skipping`);
       return false;
     }
+    console.log(
+      `[DIAG] reply-dispatcher.enqueue: QUEUED - kind=${kind}, pending will be ${pending + 1}`,
+    );
     logVerbose(
       `reply-dispatcher: queuing delivery for kind=${kind}, pending will be ${pending + 1}`,
     );

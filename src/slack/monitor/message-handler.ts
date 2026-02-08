@@ -54,9 +54,11 @@ export function createSlackMessageHandler(params: {
       return !hasControlCommand(text, ctx.cfg);
     },
     onFlush: async (entries) => {
+      console.log(`[DIAG] slack message-handler: onFlush called with ${entries.length} entries`);
       logVerbose(`slack message-handler: onFlush called with ${entries.length} entries`);
       const last = entries.at(-1);
       if (!last) {
+        console.log(`[DIAG] slack message-handler: onFlush - no entries, returning`);
         logVerbose(`slack message-handler: onFlush - no entries, returning`);
         return;
       }
@@ -72,6 +74,9 @@ export function createSlackMessageHandler(params: {
         ...last.message,
         text: combinedText,
       };
+      console.log(
+        `[DIAG] slack message-handler: preparing message, channel=${syntheticMessage.channel}, text="${combinedText.slice(0, 50)}..."`,
+      );
       logVerbose(
         `slack message-handler: preparing message, channel=${syntheticMessage.channel}, text="${combinedText.slice(0, 50)}..."`,
       );
@@ -85,9 +90,13 @@ export function createSlackMessageHandler(params: {
         },
       });
       if (!prepared) {
+        console.log(`[DIAG] slack message-handler: prepareSlackMessage returned null, skipping`);
         logVerbose(`slack message-handler: prepareSlackMessage returned null, skipping`);
         return;
       }
+      console.log(
+        `[DIAG] slack message-handler: message prepared, replyTarget=${prepared.replyTarget}, sessionKey=${prepared.ctxPayload.SessionKey}`,
+      );
       if (entries.length > 1) {
         const ids = entries.map((entry) => entry.message.ts).filter(Boolean) as string[];
         if (ids.length > 0) {
@@ -96,8 +105,10 @@ export function createSlackMessageHandler(params: {
           prepared.ctxPayload.MessageSidLast = ids[ids.length - 1];
         }
       }
+      console.log(`[DIAG] slack message-handler: calling dispatchPreparedSlackMessage...`);
       logVerbose(`slack message-handler: calling dispatchPreparedSlackMessage...`);
       await dispatchPreparedSlackMessage(prepared);
+      console.log(`[DIAG] slack message-handler: dispatchPreparedSlackMessage completed`);
       logVerbose(`slack message-handler: dispatchPreparedSlackMessage completed`);
     },
     onError: (err) => {

@@ -144,6 +144,7 @@ export async function dispatchReplyFromConfig(params: {
   };
 
   if (shouldSkipDuplicateInbound(ctx)) {
+    console.log(`[DIAG] dispatchReplyFromConfig: SKIPPED - duplicate inbound`);
     recordProcessed("skipped", { reason: "duplicate" });
     return { queuedFinal: false, counts: dispatcher.getQueuedCounts() };
   }
@@ -253,7 +254,9 @@ export async function dispatchReplyFromConfig(params: {
 
   try {
     const fastAbort = await tryFastAbortFromMessage({ ctx, cfg });
+    console.log(`[DIAG] dispatchReplyFromConfig: fastAbort.handled=${fastAbort.handled}`);
     if (fastAbort.handled) {
+      console.log(`[DIAG] dispatchReplyFromConfig: handling fast abort, returning early`);
       const payload = {
         text: formatAbortReplyText(fastAbort.stoppedSubagents),
       } satisfies ReplyPayload;
@@ -374,7 +377,11 @@ export async function dispatchReplyFromConfig(params: {
 
     let queuedFinal = false;
     let routedFinalCount = 0;
-    for (const reply of replies) {
+    for (let i = 0; i < replies.length; i++) {
+      const reply = replies[i];
+      console.log(
+        `[DIAG] dispatchReplyFromConfig: processing final reply ${i + 1}/${replies.length}, text="${(reply.text ?? "").slice(0, 100)}..."`,
+      );
       logVerbose(
         `dispatch-from-config: processing reply, text=${(reply.text ?? "").slice(0, 100)}...`,
       );
@@ -410,10 +417,16 @@ export async function dispatchReplyFromConfig(params: {
           routedFinalCount += 1;
         }
       } else {
+        console.log(
+          `[DIAG] dispatchReplyFromConfig: calling dispatcher.sendFinalReply, text="${(ttsReply.text ?? "").slice(0, 100)}..."`,
+        );
         logVerbose(
           `dispatch-from-config: sending final reply via dispatcher, text=${(ttsReply.text ?? "").slice(0, 100)}...`,
         );
         const didQueue = dispatcher.sendFinalReply(ttsReply);
+        console.log(
+          `[DIAG] dispatchReplyFromConfig: dispatcher.sendFinalReply returned ${didQueue}`,
+        );
         logVerbose(`dispatch-from-config: dispatcher.sendFinalReply returned ${didQueue}`);
         queuedFinal = didQueue || queuedFinal;
       }
@@ -476,14 +489,19 @@ export async function dispatchReplyFromConfig(params: {
       }
     }
 
+    console.log(`[DIAG] dispatchReplyFromConfig: waiting for dispatcher idle...`);
     await dispatcher.waitForIdle();
 
     const counts = dispatcher.getQueuedCounts();
     counts.final += routedFinalCount;
+    console.log(
+      `[DIAG] dispatchReplyFromConfig: COMPLETED - queuedFinal=${queuedFinal}, counts=${JSON.stringify(counts)}, blockCount=${blockCount}`,
+    );
     recordProcessed("completed");
     markIdle("message_completed");
     return { queuedFinal, counts };
   } catch (err) {
+    console.log(`[DIAG] dispatchReplyFromConfig: ERROR - ${String(err)}`);
     recordProcessed("error", { error: String(err) });
     markIdle("message_error");
     throw err;
