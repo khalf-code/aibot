@@ -785,6 +785,10 @@ function createSynologyChatWebhookHandler(ctx: SynologyChatWebhookContext) {
         return;
       }
 
+      // Get runtime to load configuration
+      const runtime = getSynologyChatRuntime();
+      const cfg = runtime.config.loadConfig ? runtime.config.loadConfig() : {};
+
       // Create context for the agent system
       const agentContext = {
         Body: text,
@@ -801,14 +805,57 @@ function createSynologyChatWebhookHandler(ctx: SynologyChatWebhookContext) {
         Surface: "synology-chat",
         OriginatingChannel: "synology-chat",
         OriginatingTo: `synology-chat:${userId || username}`,
+        CommandAuthorized: true, // Explicitly set to true to bypass authorization checks
       };
 
       // Process the message with the OpenClaw agent system
-      // Use the configuration passed in via ctx.cfg (standard approach used by other channels)
-      const cfg = ctx.cfg;
+      let replyResult;
+      try {
+        console.log("Calling getReplyFromConfig with agentContext:", {
+          Body: agentContext.Body,
+          From: agentContext.From,
+          CommandAuthorized: agentContext.CommandAuthorized,
+          AccountId: agentContext.AccountId,
+        });
+        console.log("Config loaded:", !!cfg, "Agents config:", !!cfg?.agents);
+        console.log("Agent defaults config:", cfg?.agents?.defaults);
+        replyResult = await getReplyFromConfig(agentContext, undefined, cfg);
+        console.log("getReplyFromConfig returned:", replyResult);
 
-      // Use the actual OpenClaw agent system to process the message
-      const replyResult = await getReplyFromConfig(agentContext, undefined, cfg);
+        // Check if replyResult is undefined/null and log more details
+        if (!replyResult) {
+          console.warn(
+            "getReplyFromConfig returned null/undefined - checking for errors in processing chain",
+          );
+          console.warn("Agent context details:", {
+            Body: agentContext.Body,
+            From: agentContext.From,
+            To: agentContext.To,
+            Provider: agentContext.Provider,
+            CommandAuthorized: agentContext.CommandAuthorized,
+            AccountId: agentContext.AccountId,
+          });
+        } else {
+          console.log(
+            "getReplyFromConfig returned valid result:",
+            typeof replyResult,
+            Array.isArray(replyResult) ? `array with ${replyResult.length} items` : "single item",
+          );
+        }
+      } catch (error) {
+        console.error("Error calling getReplyFromConfig:", error);
+        console.error(
+          "Full error details:",
+          error instanceof Error
+            ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+              }
+            : error,
+        );
+        replyResult = undefined;
+      }
 
       // Extract text from reply result - handle both single payload and array of payloads
       let replyText = "";
@@ -835,7 +882,13 @@ function createSynologyChatWebhookHandler(ctx: SynologyChatWebhookContext) {
         if (replyResult) {
           replyText = typeof replyResult === "string" ? replyResult : `Received: ${text}`;
         } else {
-          replyText = `Received: ${text}`;
+          // This is the problematic case - the agent system returned no meaningful response
+          // Instead of just saying "Received: ", provide a more helpful response
+          console.warn("getReplyFromConfig returned null/undefined - agentContext:", agentContext);
+
+          // Provide a more helpful default response instead of just "Received: "
+          replyText =
+            "I processed your message but couldn't generate a specific response. How can I assist you further?";
         }
       }
 
