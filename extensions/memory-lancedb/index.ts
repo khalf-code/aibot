@@ -23,6 +23,22 @@ import {
 // Types
 // ============================================================================
 
+<<<<<<< HEAD
+=======
+let lancedbImportPromise: Promise<typeof import("@lancedb/lancedb")> | null = null;
+const loadLanceDB = async (): Promise<typeof import("@lancedb/lancedb")> => {
+  if (!lancedbImportPromise) {
+    lancedbImportPromise = import("@lancedb/lancedb");
+  }
+  try {
+    return await lancedbImportPromise;
+  } catch (err) {
+    // Common on macOS today: upstream package may not ship darwin native bindings.
+    throw new Error(`memory-lancedb: failed to load LanceDB. ${String(err)}`, { cause: err });
+  }
+};
+
+>>>>>>> 980f78873 (feat(gateway): add agents.create/update/delete methods (#11045))
 type MemoryEntry = {
   id: string;
   text: string;
