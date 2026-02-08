@@ -19,6 +19,7 @@ import {
 } from "../utils/delivery-context.js";
 import { isEmbeddedPiRunActive, queueEmbeddedPiMessage } from "./pi-embedded.js";
 import { type AnnounceQueueItem, enqueueAnnounce } from "./subagent-announce-queue.js";
+import { buildBriefSummary } from "./subagent-progress-stream.js";
 import { readLatestAssistantReply } from "./tools/agent-step.js";
 
 function formatDurationShort(valueMs?: number) {
@@ -294,6 +295,7 @@ export function buildSubagentSystemPrompt(params: {
   childSessionKey: string;
   label?: string;
   task?: string;
+  context?: string;
 }) {
   const taskText =
     typeof params.task === "string" && params.task.trim()
@@ -336,6 +338,7 @@ export function buildSubagentSystemPrompt(params: {
       : undefined,
     `- Your session: ${params.childSessionKey}.`,
     "",
+    ...(params.context ? ["## Background Context", "", params.context, ""] : []),
   ].filter((line): line is string => line !== undefined);
   return lines.join("\n");
 }
@@ -360,6 +363,7 @@ export async function runSubagentAnnounceFlow(params: {
   endedAt?: number;
   label?: string;
   outcome?: SubagentRunOutcome;
+  progressThreadId?: string;
 }): Promise<boolean> {
   let didAnnounce = false;
   try {
@@ -415,13 +419,6 @@ export async function runSubagentAnnounceFlow(params: {
       outcome = { status: "unknown" };
     }
 
-    // Build stats
-    const statsLine = await buildSubagentStatsLine({
-      sessionKey: params.childSessionKey,
-      startedAt: params.startedAt,
-      endedAt: params.endedAt,
-    });
-
     // Build status label
     const statusLabel =
       outcome.status === "ok"
@@ -432,62 +429,127 @@ export async function runSubagentAnnounceFlow(params: {
             ? `failed: ${outcome.error || "unknown error"}`
             : "finished with unknown status";
 
-    // Build instructional message for main agent
     const taskLabel = params.label || params.task || "background task";
+    const hasProgressThread = Boolean(params.progressThreadId);
+
+    // Use brief summary (300 chars) instead of full output to prevent context overflow
+    const briefSummary = buildBriefSummary(reply, 300);
+
+    // Build stats (still include for internal tracking, but won't dump to parent)
+    const statsLine = await buildSubagentStatsLine({
+      sessionKey: params.childSessionKey,
+      startedAt: params.startedAt,
+      endedAt: params.endedAt,
+    });
+
+    // Build instructional message for main agent - much more concise now
     const triggerMessage = [
       `A background task "${taskLabel}" just ${statusLabel}.`,
       "",
-      "Findings:",
-      reply || "(no output)",
+      "Brief summary:",
+      briefSummary,
+      hasProgressThread ? "\n(Full progress details were streamed to a dedicated thread.)" : "",
       "",
       statsLine,
       "",
       "Summarize this naturally for the user. Keep it brief (1-2 sentences). Flow it into the conversation naturally.",
       "Do not mention technical details like tokens, stats, or that this was a background task.",
       "You can respond with NO_REPLY if no announcement is needed (e.g., internal task with no user-facing result).",
-    ].join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-    const queued = await maybeQueueSubagentAnnounce({
-      requesterSessionKey: params.requesterSessionKey,
-      triggerMessage,
-      summaryLine: taskLabel,
-      requesterOrigin,
-    });
-    if (queued === "steered") {
-      didAnnounce = true;
-      return true;
-    }
-    if (queued === "queued") {
-      didAnnounce = true;
-      return true;
+    const MAX_ANNOUNCE_ATTEMPTS = 3;
+    const ANNOUNCE_RETRY_DELAY_MS = 2000;
+
+    for (let attempt = 0; attempt < MAX_ANNOUNCE_ATTEMPTS; attempt++) {
+      try {
+        const queued = await maybeQueueSubagentAnnounce({
+          requesterSessionKey: params.requesterSessionKey,
+          triggerMessage,
+          summaryLine: taskLabel,
+          requesterOrigin,
+        });
+        if (queued === "steered") {
+          didAnnounce = true;
+          return true;
+        }
+        if (queued === "queued") {
+          didAnnounce = true;
+          return true;
+        }
+
+        // Send to main agent - it will respond in its own voice
+        let directOrigin = requesterOrigin;
+        if (!directOrigin) {
+          const { entry } = loadRequesterSessionEntry(params.requesterSessionKey);
+          directOrigin = deliveryContextFromSession(entry);
+        }
+        await callGateway({
+          method: "agent",
+          params: {
+            sessionKey: params.requesterSessionKey,
+            message: triggerMessage,
+            deliver: true,
+            channel: directOrigin?.channel,
+            accountId: directOrigin?.accountId,
+            to: directOrigin?.to,
+            threadId:
+              directOrigin?.threadId != null && directOrigin.threadId !== ""
+                ? String(directOrigin.threadId)
+                : undefined,
+            idempotencyKey: crypto.randomUUID(),
+          },
+          expectFinal: true,
+          timeoutMs: 60_000,
+        });
+
+        didAnnounce = true;
+        break;
+      } catch (attemptErr) {
+        defaultRuntime.error?.(
+          `Subagent announce attempt ${attempt + 1}/${MAX_ANNOUNCE_ATTEMPTS} failed: ${String(attemptErr)}`,
+        );
+        if (attempt < MAX_ANNOUNCE_ATTEMPTS - 1) {
+          await new Promise((resolve) => setTimeout(resolve, ANNOUNCE_RETRY_DELAY_MS));
+        }
+      }
     }
 
-    // Send to main agent - it will respond in its own voice
-    let directOrigin = requesterOrigin;
-    if (!directOrigin) {
-      const { entry } = loadRequesterSessionEntry(params.requesterSessionKey);
-      directOrigin = deliveryContextFromSession(entry);
+    // If all announce attempts failed, send a brief fallback notification
+    if (!didAnnounce) {
+      try {
+        let fallbackOrigin = requesterOrigin;
+        if (!fallbackOrigin) {
+          const { entry } = loadRequesterSessionEntry(params.requesterSessionKey);
+          fallbackOrigin = deliveryContextFromSession(entry);
+        }
+        await callGateway({
+          method: "agent",
+          params: {
+            sessionKey: params.requesterSessionKey,
+            message: `A background task "${taskLabel}" completed but results could not be delivered. Check the subagent session for details.`,
+            deliver: true,
+            channel: fallbackOrigin?.channel,
+            accountId: fallbackOrigin?.accountId,
+            to: fallbackOrigin?.to,
+            threadId:
+              fallbackOrigin?.threadId != null && fallbackOrigin.threadId !== ""
+                ? String(fallbackOrigin.threadId)
+                : undefined,
+            idempotencyKey: crypto.randomUUID(),
+          },
+          expectFinal: true,
+          timeoutMs: 30_000,
+        });
+        didAnnounce = true;
+      } catch (fallbackErr) {
+        defaultRuntime.error?.(
+          `Subagent announce fallback notification also failed: ${String(fallbackErr)}`,
+        );
+        // "retry on wake" in finalizeSubagentCleanup still applies as last resort
+      }
     }
-    await callGateway({
-      method: "agent",
-      params: {
-        sessionKey: params.requesterSessionKey,
-        message: triggerMessage,
-        deliver: true,
-        channel: directOrigin?.channel,
-        accountId: directOrigin?.accountId,
-        to: directOrigin?.to,
-        threadId:
-          directOrigin?.threadId != null && directOrigin.threadId !== ""
-            ? String(directOrigin.threadId)
-            : undefined,
-        idempotencyKey: crypto.randomUUID(),
-      },
-      expectFinal: true,
-      timeoutMs: 60_000,
-    });
-
-    didAnnounce = true;
   } catch (err) {
     defaultRuntime.error?.(`Subagent announce failed: ${String(err)}`);
     // Best-effort follow-ups; ignore failures to avoid breaking the caller response.

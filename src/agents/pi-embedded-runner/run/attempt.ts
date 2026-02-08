@@ -839,6 +839,16 @@ export async function runEmbeddedAttempt(
           }
         }
 
+        if (subscription.isCompactionRetryExhausted?.()) {
+          if (!promptError) {
+            const err = new Error(
+              "Context overflow: compaction retries exhausted. The conversation is too large to continue.",
+            );
+            err.name = "CompactionRetryExhaustedError";
+            promptError = err;
+          }
+        }
+
         messagesSnapshot = activeSession.messages.slice();
         sessionIdUsed = activeSession.sessionId;
         cacheTrace?.recordStage("session:after", {
