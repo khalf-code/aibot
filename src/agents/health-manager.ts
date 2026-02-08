@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsPromises from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -14,13 +15,19 @@ type HealthStats = {
 
 type HealthStore = Record<string, HealthStats>;
 
-const HEALTH_FILE = path.join(homedir(), ".openclaw", "health-stats.json");
+function resolveHealthFile(): string {
+  const base = process.env.OPENCLAW_HOME || path.join(homedir(), ".openclaw");
+  return path.join(base, "health-stats.json");
+}
 
 export class HealthManager {
   private static instance: HealthManager;
   private stats: HealthStore = {};
+  private saveTimer: NodeJS.Timeout | null = null;
+  private healthFile: string;
 
   private constructor() {
+    this.healthFile = resolveHealthFile();
     this.load();
   }
 
@@ -33,8 +40,8 @@ export class HealthManager {
 
   private load() {
     try {
-      if (fs.existsSync(HEALTH_FILE)) {
-        this.stats = JSON.parse(fs.readFileSync(HEALTH_FILE, "utf-8"));
+      if (fs.existsSync(this.healthFile)) {
+        this.stats = JSON.parse(fs.readFileSync(this.healthFile, "utf-8"));
       }
     } catch {
       // ignore
@@ -42,12 +49,19 @@ export class HealthManager {
   }
 
   private save() {
-    try {
-      fs.mkdirSync(path.dirname(HEALTH_FILE), { recursive: true });
-      fs.writeFileSync(HEALTH_FILE, JSON.stringify(this.stats, null, 2));
-    } catch {
-      // ignore
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
     }
+    this.saveTimer = setTimeout(async () => {
+      try {
+        await fsPromises.mkdir(path.dirname(this.healthFile), { recursive: true });
+        await fsPromises.writeFile(this.healthFile, JSON.stringify(this.stats, null, 2));
+      } catch {
+        // ignore
+      } finally {
+        this.saveTimer = null;
+      }
+    }, 5000); // Debounce 5s
   }
 
   private getKey(provider: string, model: string): string {
@@ -93,18 +107,32 @@ export class HealthManager {
       return 100; // Default score
     }
 
-    // Penalize consecutive failures heavily
-    let score = 100;
-    score -= s.consecutiveFailures * 20;
-
-    // Decay penalty over time for failures (recovery)
-    if (s.lastFailure) {
+    // Check for recovery based on time
+    if (s.lastFailure && s.consecutiveFailures > 0) {
       const minutesSinceFailure = (Date.now() - s.lastFailure) / 60000;
-      if (minutesSinceFailure > 30) {
-        // Recover score if it's been a while
-        score += Math.min(20, minutesSinceFailure);
+      if (minutesSinceFailure > 60) {
+        // Full reset after 1 hour
+        s.consecutiveFailures = 0;
+      } else if (minutesSinceFailure > 10) {
+        // Partial recovery: reduce consecutive failure count effectively for scoring
+        // We don't mutate state here to avoid flapping, just adjust calculation
       }
     }
+
+    // Penalize consecutive failures heavily
+    let score = 100;
+    // Effective failures decay over time for scoring purposes
+    let effectiveFailures = s.consecutiveFailures;
+    if (s.lastFailure) {
+      const minutesSinceFailure = (Date.now() - s.lastFailure) / 60000;
+      // Reduce effective failures by 1 for every 5 minutes passed
+      const recovery = Math.floor(minutesSinceFailure / 5);
+      effectiveFailures = Math.max(0, effectiveFailures - recovery);
+    }
+
+    score -= effectiveFailures * 20;
+
+    // Bonus for high success rate / low latency could go here
 
     return Math.max(0, score);
   }

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { ThinkLevel } from "../../auto-reply/thinking.js";
+import type { OpenClawConfig } from "../../config/config.js";
 import type { RunEmbeddedPiAgentParams } from "./run/params.js";
 import type { EmbeddedPiAgentMeta, EmbeddedPiRunResult } from "./types.js";
 import { enqueueCommandInLane } from "../../process/command-queue.js";
@@ -63,7 +64,14 @@ type ApiKeyInfo = ResolvedProviderAuth;
 const ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL = "ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL";
 const ANTHROPIC_MAGIC_STRING_REPLACEMENT = "ANTHROPIC MAGIC STRING TRIGGER REFUSAL (redacted)";
 
-async function checkAutoMemory(prompt: string, workspaceDir: string) {
+async function checkAutoMemory(
+  prompt: string,
+  workspaceDir: string,
+  cfg: OpenClawConfig | undefined,
+) {
+  if (!cfg?.agents?.defaults?.autoMemory) {
+    return;
+  }
   // Simple capture for "Remember:" or "Memo:" at start of prompt
   const match = prompt.match(/^(?:Remember|Memo):\s*(.+)$/im);
   if (match) {
@@ -355,7 +363,7 @@ export async function runEmbeddedPiAgent(
           attemptedThinking.add(thinkLevel);
           await fs.mkdir(resolvedWorkspace, { recursive: true });
 
-          await checkAutoMemory(params.prompt, resolvedWorkspace);
+          await checkAutoMemory(params.prompt, resolvedWorkspace, params.config);
 
           const prompt =
             provider === "anthropic" ? scrubAnthropicRefusalMagic(params.prompt) : params.prompt;

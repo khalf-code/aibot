@@ -147,8 +147,8 @@ async function raceCandidates<T>(
 
         // If it's a rate limit and we have a profileId, mark it in cooldown.
         if (authStore && profileId && normalized.reason === "rate_limit") {
-          await markAuthProfileCooldown({ store: authStore, profileId });
-          saveAuthProfileStore(authStore);
+          await markAuthProfileCooldown({ store: authStore, profileId, agentDir: params.agentDir });
+          saveAuthProfileStore(authStore, params.agentDir);
         }
 
         lastError = normalized;
