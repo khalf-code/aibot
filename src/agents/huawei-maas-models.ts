@@ -1,4 +1,4 @@
-import type { ModelDefinitionConfig } from "../config/types.js";
+import type { ModelDefinitionConfig } from "../config/types.models.js";
 
 // HuaweiCloud MAAS base URL and constants
 export const HUAWEI_MAAS_API_BASE_URL = "https://api.modelarts-maas.com";
