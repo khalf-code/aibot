@@ -6,23 +6,23 @@
     "ai",
     "assistant",
     "chatbot",
-    "whatsapp",
-    "telegram",
-    "slack",
     "discord",
     "imessage",
+    "personal-assistant",
     "self-hosted",
-    "personal-assistant"
+    "slack",
+    "telegram",
+    "whatsapp"
   ],
+  "homepage": "https://openclaw.ai",
+  "bugs": {
+    "url": "https://github.com/openclaw/openclaw/issues"
+  },
   "license": "MIT",
   "author": "Peter Steinberger",
-  "homepage": "https://openclaw.ai",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/openclaw/openclaw.git"
-  },
-  "bugs": {
-    "url": "https://github.com/openclaw/openclaw/issues"
   },
   "bin": {
     "openclaw": "openclaw.mjs"
