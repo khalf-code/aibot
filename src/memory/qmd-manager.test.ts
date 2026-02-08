@@ -152,4 +152,91 @@ describe("QmdMemoryManager", () => {
 
     await manager.close();
   });
+
+  it("resolves results via qmd:// file path when docid lookup fails", async () => {
+    // Override cfg with scope that allows all (no session key check)
+    const testCfg = {
+      ...cfg,
+      memory: {
+        backend: "qmd",
+        qmd: {
+          includeDefaultMemory: false,
+          update: { interval: "0s", debounceMs: 60_000, onBoot: false },
+          paths: [{ path: workspaceDir, pattern: "**/*.md", name: "workspace" }],
+          scope: { default: "allow" },
+        },
+      },
+    } as OpenClawConfig;
+
+    // Mock qmd to return appropriate responses based on command
+    const mockQueryResult = JSON.stringify([
+      {
+        docid: "#invalid",
+        score: 0.95,
+        file: "qmd://workspace/test.md",
+        snippet: "test snippet",
+      },
+    ]);
+    spawnMock.mockImplementation((_cmd: string, args: string[]) => {
+      const stdout = new EventEmitter();
+      const stderr = new EventEmitter();
+      const child = new EventEmitter() as {
+        stdout: EventEmitter;
+        stderr: EventEmitter;
+        kill: () => void;
+      };
+      child.stdout = stdout;
+      child.stderr = stderr;
+      child.kill = () => {};
+
+      // Check if this is a query command (search)
+      const isQuery = args.includes("query");
+      const output = isQuery ? mockQueryResult : "";
+
+      setImmediate(() => {
+        stdout.emit("data", output);
+        child.emit("close", 0);
+      });
+      return child;
+    });
+
+    const resolved = resolveMemoryBackendConfig({ cfg: testCfg, agentId });
+
+    const manager = await QmdMemoryManager.create({ cfg: testCfg, agentId, resolved });
+    expect(manager).toBeTruthy();
+    if (!manager) {
+      throw new Error("manager missing");
+    }
+
+    // search() should resolve the file path even with invalid docid
+    const results = await manager.search("test query");
+    expect(results.length).toBe(1);
+    expect(results[0]?.snippet).toBe("test snippet");
+    expect(results[0]?.score).toBe(0.95);
+
+    await manager.close();
+
+    // Restore default mock for other tests
+    spawnMock.mockImplementation((_cmd: string, _args: string[]) => {
+      const stdout = new EventEmitter();
+      const stderr = new EventEmitter();
+      const child = new EventEmitter() as {
+        stdout: EventEmitter;
+        stderr: EventEmitter;
+        kill: () => void;
+        emit: (event: string, code: number) => boolean;
+      };
+      child.stdout = stdout;
+      child.stderr = stderr;
+      child.kill = () => {
+        child.emit("close", 0);
+      };
+      setImmediate(() => {
+        stdout.emit("data", "");
+        stderr.emit("data", "");
+        child.emit("close", 0);
+      });
+      return child;
+    });
+  });
 });
