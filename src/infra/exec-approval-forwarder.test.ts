@@ -134,7 +134,7 @@ describe("exec approval forwarder", () => {
       },
     });
 
-    expect(getFirstDeliveryText(deliver)).toContain("Command: ```\necho `uname`\necho done\n```");
+    expect(getFirstDeliveryText(deliver)).toContain("Command:\n```\necho `uname`\necho done\n```");
   });
 
   it("uses a longer fence when command already contains triple backticks", async () => {
@@ -165,6 +165,6 @@ describe("exec approval forwarder", () => {
       },
     });
 
-    expect(getFirstDeliveryText(deliver)).toContain("Command: ````\necho ```danger```\n````");
+    expect(getFirstDeliveryText(deliver)).toContain("Command:\n````\necho ```danger```\n````");
   });
 });
