@@ -28,6 +28,7 @@ import { makeBootstrapWarn, resolveBootstrapContextForRun } from "../bootstrap-f
 import { listChannelSupportedActions, resolveChannelMessageToolHints } from "../channel-tools.js";
 import { formatUserTime, resolveUserTimeFormat, resolveUserTimezone } from "../date-time.js";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "../defaults.js";
+import { resolveConfiguredModelRef } from "../model-selection.js";
 import { resolveOpenClawDocsPath } from "../docs-path.js";
 import { getApiKeyForModel, resolveModelAuthMode } from "../model-auth.js";
 import { ensureOpenClawModelsJson } from "../models-config.js";
@@ -117,8 +118,21 @@ export async function compactEmbeddedPiSessionDirect(
   const resolvedWorkspace = resolveUserPath(params.workspaceDir);
   const prevCwd = process.cwd();
 
-  const provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
-  const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+  // Resolve provider and model from config, falling back to defaults if not specified
+  let provider: string;
+  let modelId: string;
+  if (params.provider && params.model) {
+    provider = params.provider.trim();
+    modelId = params.model.trim();
+  } else {
+    const configuredRef = resolveConfiguredModelRef({
+      cfg: params.config,
+      defaultProvider: DEFAULT_PROVIDER,
+      defaultModel: DEFAULT_MODEL,
+    });
+    provider = configuredRef.provider;
+    modelId = configuredRef.model;
+  }
   const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
   await ensureOpenClawModelsJson(params.config, agentDir);
   const { model, error, authStorage, modelRegistry } = resolveModel(

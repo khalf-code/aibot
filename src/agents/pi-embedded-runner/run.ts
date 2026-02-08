@@ -25,7 +25,7 @@ import {
   resolveAuthProfileOrder,
   type ResolvedProviderAuth,
 } from "../model-auth.js";
-import { normalizeProviderId } from "../model-selection.js";
+import { normalizeProviderId, resolveConfiguredModelRef } from "../model-selection.js";
 import { ensureOpenClawModelsJson } from "../models-config.js";
 import {
   BILLING_ERROR_USER_MESSAGE,
@@ -109,8 +109,21 @@ export async function runEmbeddedPiAgent(
       }
       const prevCwd = process.cwd();
 
-      const provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
-      const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+      // Resolve provider and model from config, falling back to defaults if not specified
+      let provider: string;
+      let modelId: string;
+      if (params.provider && params.model) {
+        provider = params.provider.trim();
+        modelId = params.model.trim();
+      } else {
+        const configuredRef = resolveConfiguredModelRef({
+          cfg: params.config,
+          defaultProvider: DEFAULT_PROVIDER,
+          defaultModel: DEFAULT_MODEL,
+        });
+        provider = configuredRef.provider;
+        modelId = configuredRef.model;
+      }
       const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
       const fallbackConfigured =
         (params.config?.agents?.defaults?.model?.fallbacks?.length ?? 0) > 0;
