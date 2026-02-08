@@ -15,6 +15,30 @@ echo "== Peekaboo permissions =="
 perm_out="$(peekaboo permissions 2>&1 || true)"
 echo "$perm_out"
 
+print_report_stub() {
+  # Keep this pasteable in chat surfaces: no fenced blocks.
+  cat <<'EOF'
+
+== Report stub (Mermaid + timeline) ==
+Mermaid (flowchart):
+flowchart TD
+  A[Start: need OpenClaw UI visibility] --> B{Peekaboo installed?}
+  B -- No --> C[Install Peekaboo]
+  B -- Yes --> D{Screen Recording granted?}
+  D -- No --> E[Grant Screen Recording + restart Terminal/iTerm]
+  D -- Yes --> F{Accessibility granted?}
+  F -- No --> G[Grant Accessibility + restart Terminal/iTerm]
+  F -- Yes --> H[Capture frontmost + UI map]
+  H --> I[Save bundle under /tmp + share path]
+
+Timeline (example):
+- T+0m: Checked peekaboo permissions
+- T+2m: Granted missing macOS privacy permissions + restarted Terminal/iTerm
+- T+4m: Captured frontmost.png + ui-map.png
+- T+5m: Shared bundle path
+EOF
+}
+
 if echo "$perm_out" | grep -Fq "Screen Recording (Required): Not Granted"; then
   cat <<'EOF'
 
@@ -22,7 +46,7 @@ if echo "$perm_out" | grep -Fq "Screen Recording (Required): Not Granted"; then
 1) Open System Settings
 2) Privacy & Security → Screen Recording
 3) Enable:
-   - Your terminal app (Terminal or iTerm)
+   - The terminal app you ran this from (Terminal or iTerm)
    - Peekaboo (and/or Peekaboo Bridge), if it appears
 4) Quit & reopen the terminal app (permission is per running instance)
 5) If Peekaboo Bridge is running, quit & relaunch it too
@@ -33,6 +57,7 @@ Once Screen Recording is enabled, Peekaboo can:
 - Generate annotated UI maps with element IDs (peekaboo see --annotate)
 - Inspect window/app state visually (list windows + see snapshot IDs)
 EOF
+  print_report_stub
   exit 2
 fi
 
@@ -43,7 +68,7 @@ if echo "$perm_out" | grep -Fq "Accessibility (Required): Not Granted"; then
 1) Open System Settings
 2) Privacy & Security → Accessibility
 3) Enable:
-   - Your terminal app (Terminal or iTerm)
+   - The terminal app you ran this from (Terminal or iTerm)
    - Peekaboo (and/or Peekaboo Bridge), if it appears
 4) Quit & reopen the terminal app
 5) If Peekaboo Bridge is running, quit & relaunch it too
@@ -54,6 +79,7 @@ Once Accessibility is enabled, Peekaboo can:
 - Drive menus/menubar and focus windows (menu/menubar/window)
 - Interact with specific UI elements by ID (from the annotated UI map)
 EOF
+  print_report_stub
   exit 3
 fi
 
