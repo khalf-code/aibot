@@ -62,8 +62,15 @@ function drainLane(lane: string) {
       state.active += 1;
       void (async () => {
         const startTime = Date.now();
+        const TASK_TIMEOUT_MS = 300_000; // 5 minute hard timeout to prevent lane wedging
+        let timeoutId: NodeJS.Timeout | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error(`Lane task timed out after ${TASK_TIMEOUT_MS}ms`));
+          }, TASK_TIMEOUT_MS);
+        });
         try {
-          const result = await entry.task();
+          const result = await Promise.race([entry.task(), timeoutPromise]);
           state.active -= 1;
           diag.debug(
             `lane task done: lane=${lane} durationMs=${Date.now() - startTime} active=${state.active} queued=${state.queue.length}`,
@@ -80,6 +87,10 @@ function drainLane(lane: string) {
           }
           pump();
           entry.reject(err);
+        } finally {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
         }
       })();
     }
