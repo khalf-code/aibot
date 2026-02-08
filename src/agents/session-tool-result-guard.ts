@@ -3,6 +3,19 @@ import type { SessionManager } from "@mariozechner/pi-coding-agent";
 import { emitSessionTranscriptUpdate } from "../sessions/transcript-events.js";
 import { makeMissingToolResult, sanitizeToolCallInputs } from "./session-transcript-repair.js";
 
+/**
+ * Maximum characters preserved in a single tool result's text content.
+ *
+ * Tool results exceeding this limit are truncated before persistence to
+ * prevent session file bloat (see #2254).  Large tool outputs — such as
+ * the gateway `config.schema` action returning 396 KB+ of JSON — are the
+ * primary driver of runaway session growth that leads to context overflow
+ * and compaction failures (#3479).
+ *
+ * ~32 000 chars ≈ 8 000 tokens — well within summarisation chunk budgets.
+ */
+export const MAX_TOOL_RESULT_CONTENT_CHARS = 32_000;
+
 type ToolCall = { id: string; name?: string };
 
 function extractAssistantToolCalls(msg: Extract<AgentMessage, { role: "assistant" }>): ToolCall[] {
@@ -42,6 +55,99 @@ function extractToolResultId(msg: Extract<AgentMessage, { role: "toolResult" }>)
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Tool-result size guard (#2254)
+// ---------------------------------------------------------------------------
+
+type ContentBlock = { type?: unknown; text?: unknown; [key: string]: unknown };
+
+function measureTextContent(content: unknown): number {
+  if (typeof content === "string") {
+    return content.length;
+  }
+  if (!Array.isArray(content)) {
+    return 0;
+  }
+  let total = 0;
+  for (const block of content) {
+    if (!block || typeof block !== "object") {
+      continue;
+    }
+    const rec = block as ContentBlock;
+    if (rec.type === "text" && typeof rec.text === "string") {
+      total += rec.text.length;
+    }
+  }
+  return total;
+}
+
+/**
+ * Truncate oversized tool-result content so the session transcript does not
+ * grow beyond practical limits.  Only `role === "toolResult"` messages whose
+ * total text content exceeds `maxChars` are affected.
+ *
+ * The function preserves the leading portion of each text block (up to the
+ * remaining character budget) and appends a human-readable truncation note.
+ */
+export function truncateToolResultContent(message: AgentMessage, maxChars: number): AgentMessage {
+  const role = (message as { role?: unknown }).role;
+  if (role !== "toolResult") {
+    return message;
+  }
+
+  const content = (message as { content?: unknown }).content;
+
+  // Handle plain-string content (uncommon but possible).
+  if (typeof content === "string") {
+    if (content.length <= maxChars) {
+      return message;
+    }
+    const note =
+      `\n\n[Truncated: original output was ${content.length.toLocaleString()} chars. ` +
+      `Only the first ${maxChars.toLocaleString()} chars were preserved to prevent session bloat.]`;
+    return { ...message, content: content.slice(0, maxChars) + note } as AgentMessage;
+  }
+
+  if (!Array.isArray(content)) {
+    return message;
+  }
+
+  const totalChars = measureTextContent(content);
+  if (totalChars <= maxChars) {
+    return message;
+  }
+
+  // Distribute the character budget across text blocks in order.
+  let budget = maxChars;
+  const truncated = content.map((block: unknown) => {
+    if (!block || typeof block !== "object") {
+      return block;
+    }
+    const rec = block as ContentBlock;
+    if (rec.type !== "text" || typeof rec.text !== "string") {
+      return block;
+    }
+    if (rec.text.length <= budget) {
+      budget -= rec.text.length;
+      return block;
+    }
+    const kept = Math.max(0, budget);
+    budget = 0;
+    if (kept === 0) {
+      return {
+        ...rec,
+        text: `[Content omitted — tool output exceeded ${maxChars.toLocaleString()} char session limit]`,
+      };
+    }
+    const note =
+      `\n\n[Truncated: original block was ${rec.text.length.toLocaleString()} chars. ` +
+      `Only the first ${kept.toLocaleString()} chars were preserved to prevent session bloat.]`;
+    return { ...rec, text: rec.text.slice(0, kept) + note };
+  });
+
+  return { ...message, content: truncated } as AgentMessage;
+}
+
 export function installSessionToolResultGuard(
   sessionManager: SessionManager,
   opts?: {
@@ -58,6 +164,12 @@ export function installSessionToolResultGuard(
      * Defaults to true.
      */
     allowSyntheticToolResults?: boolean;
+    /**
+     * Maximum characters to preserve in tool-result text content.
+     * Tool results exceeding this limit are truncated with a note.
+     * Defaults to {@link MAX_TOOL_RESULT_CONTENT_CHARS} (32 000).
+     */
+    maxToolResultContentChars?: number;
   },
 ): {
   flushPendingToolResults: () => void;
@@ -65,6 +177,7 @@ export function installSessionToolResultGuard(
 } {
   const originalAppend = sessionManager.appendMessage.bind(sessionManager);
   const pending = new Map<string, string | undefined>();
+  const maxToolResultChars = opts?.maxToolResultContentChars ?? MAX_TOOL_RESULT_CONTENT_CHARS;
 
   const persistToolResult = (
     message: AgentMessage,
@@ -116,13 +229,17 @@ export function installSessionToolResultGuard(
       if (id) {
         pending.delete(id);
       }
-      return originalAppend(
-        persistToolResult(nextMessage, {
-          toolCallId: id ?? undefined,
-          toolName,
-          isSynthetic: false,
-        }) as never,
-      );
+      const persisted = persistToolResult(nextMessage, {
+        toolCallId: id ?? undefined,
+        toolName,
+        isSynthetic: false,
+      });
+      // Truncate oversized tool results before writing to the session
+      // transcript.  This prevents pathological session growth (#2254)
+      // caused by tools that return very large payloads (e.g. gateway
+      // config.schema returning 396 KB+ of JSON).
+      const safeSized = truncateToolResultContent(persisted, maxToolResultChars);
+      return originalAppend(safeSized as never);
     }
 
     const toolCalls =
