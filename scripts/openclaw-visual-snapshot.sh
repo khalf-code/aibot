@@ -1,46 +1,42 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# OpenClaw visual snapshot helper
-#
-# Purpose:
-# - Quick, repeatable capture of a high-signal screenshot + annotated UI map.
-# - Intended for debugging “what state is the OpenClaw UI in?”
-#
-# Outputs (default):
-# - /tmp/openclaw-frontmost.png
-# - /tmp/openclaw-ui-map.png
-#
-# Requirements:
-# - macOS Screen Recording permission for Terminal (or iTerm) AND Peekaboo.
-# - macOS Accessibility permission for Terminal (or iTerm) AND Peekaboo.
+# OpenClaw visual snapshot helper (Peekaboo)
 #
 # Usage:
-#   bash scripts/openclaw-visual-snapshot.sh
+#   bash scripts/openclaw-visual-snapshot.sh ["OpenClaw"]
+#
+# Output:
+#   /tmp/openclaw-visual-snapshot-<timestamp>/
+#     permissions.txt
+#     menubar.json
+#     windows.json
+#     frontmost.png
+#     ui-map.png
 
-OUT_FRONTMOST="${OUT_FRONTMOST:-/tmp/openclaw-frontmost.png}"
-OUT_UI_MAP="${OUT_UI_MAP:-/tmp/openclaw-ui-map.png}"
+APP_NAME="${1:-OpenClaw}"
+TS="$(date +"%Y%m%d-%H%M%S")"
+OUT_DIR="/tmp/openclaw-visual-snapshot-${TS}"
 
-if ! command -v peekaboo >/dev/null 2>&1; then
-  cat <<'EOF'
-peekaboo not found on PATH.
+mkdir -p "${OUT_DIR}"
 
-Install (Homebrew):
-  brew install steipete/tap/peekaboo
+echo "[1/6] Checking Peekaboo permissions…"
+peekaboo permissions > "${OUT_DIR}/permissions.txt" || true
 
-Then re-run:
-  bash scripts/openclaw-visual-snapshot.sh
-EOF
-  exit 1
-fi
+echo "[2/6] Capturing menubar list…"
+peekaboo menubar list --json > "${OUT_DIR}/menubar.json" || true
 
-# Permissions check (non-fatal here; Peekaboo will print actionable errors).
-peekaboo permissions || true
+echo "[3/6] Capturing windows list…"
+peekaboo list windows --json > "${OUT_DIR}/windows.json" || true
 
-echo "Capturing frontmost window -> ${OUT_FRONTMOST}"
-peekaboo image --mode frontmost --retina --path "${OUT_FRONTMOST}"
+echo "[4/6] Trying to focus ${APP_NAME} (best-effort)…"
+peekaboo window focus --app "${APP_NAME}" 2>/dev/null || true
+sleep 0.3
 
-echo "Capturing annotated UI map (screen 0) -> ${OUT_UI_MAP}"
-peekaboo see --mode screen --screen-index 0 --annotate --path "${OUT_UI_MAP}"
+echo "[5/6] Capturing frontmost window screenshot…"
+peekaboo image --mode frontmost --retina --path "${OUT_DIR}/frontmost.png" || true
 
-echo "Done."
+echo "[6/6] Capturing annotated UI map (screen 0)…"
+peekaboo see --mode screen --screen-index 0 --annotate --path "${OUT_DIR}/ui-map.png" || true
+
+echo "Done. Artifacts in: ${OUT_DIR}"
