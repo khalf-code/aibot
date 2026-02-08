@@ -577,6 +577,11 @@ export async function runCronIsolatedAgentTurn(params: {
         }
         logWarn(`[cron:${params.job.id}] ${String(err)}`);
       }
+    } catch (err) {
+      if (!deliveryBestEffort) {
+        return withRunSession({ status: "error", summary, outputText, error: String(err) });
+      }
+      logWarn(`[cron:${params.job.id}] ${String(err)}`);
     }
   }
 
