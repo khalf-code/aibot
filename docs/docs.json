@@ -1796,6 +1796,28 @@
             ]
           }
         ]
+      },
+      {
+        "language": "ko",
+        "tabs": [
+          {
+            "tab": "시작하기",
+            "groups": [
+              {
+                "group": "홈",
+                "pages": ["ko/index"]
+              },
+              {
+                "group": "첫 단계",
+                "pages": ["ko/start/getting-started"]
+              },
+              {
+                "group": "문서 안내",
+                "pages": ["ko/start/hubs"]
+              }
+            ]
+          }
+        ]
       }
     ]
   }
