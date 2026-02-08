@@ -150,10 +150,6 @@ export const nostrPlugin: ChannelPlugin<ResolvedNostrAccount> = {
       await bus.sendDm(normalizedTo, message);
       return { channel: "nostr", to: normalizedTo };
     },
-    sendMedia: async ({ to, media, accountId }) => {
-      // Media not supported for Nostr DMs (NIP-04 only supports text)
-      throw new Error("Media not supported for Nostr DMs; text-only channel");
-    },
   },
 
   status: {
