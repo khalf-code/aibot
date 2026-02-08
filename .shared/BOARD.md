@@ -77,3 +77,14 @@
 - 상태: 텔레그램 봇 정상 동작 확인 (사용자 검증)
 - 수정 사항: 페르소나 정의(Hana 정식화), A2A Loop/Target Guard 적용됨
 - 세션: 정상 유지 중
+
+
+---
+[하윤] Phase 2 (Delivery Context) 수정 완료
+- Requester Priority 로직 적용 (Sticking 해결)
+- 테스트 통과 (Web<->Telegram)
+
+[🚨 긴급 이슈 접수]
+1. Persona Confusion: 소율 호출 -> 세나 응답
+2. Loop/Duplicate: 세나 반복 응답
+-> 즉시 분석 착수

@@ -1,0 +1,85 @@
+[START] Task verify_files at 20260208_152715
+Command: ls -l share/ scripts/
+scripts/:
+total 696
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2881  2월  3 09:58 auth-monitor.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   2402  2월  8 11:35 bench-failover.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   2988  2월  8 11:35 bench-memory.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   3865  2월  8 09:03 bench-model.ts
+-rw-r--r--@  1 jeon-yeongjin  staff  11760  2월  8 11:35 bench-providers.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   2176  2월  8 11:35 bench-skill-loading.ts
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2019  2월  3 09:58 build_icon.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff    533  2월  3 09:58 build-and-run-mac.sh
+-rw-r--r--@  1 jeon-yeongjin  staff    790  2월  8 09:03 build-docs-list.mjs
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2316  2월  3 09:58 bundle-a2ui.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   1436  2월  8 09:03 canvas-a2ui-copy.ts
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2534  2월  3 09:58 changelog-to-html.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   2110  2월  8 09:03 check-ts-max-loc.ts
+-rwxr-xr-x@  1 jeon-yeongjin  staff   8632  2월  3 09:58 claude-auth-status.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff  10244  2월  3 09:58 clawlog.sh
+-rw-r--r--@  1 jeon-yeongjin  staff    916  2월  8 09:03 clawtributors-map.json
+-rwxr-xr-x@  1 jeon-yeongjin  staff   9303  2월  3 09:58 codesign-mac-app.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2561  2월  3 09:58 committer
+-rw-r--r--@  1 jeon-yeongjin  staff   1555  2월  8 09:03 copy-hook-metadata.ts
+-rwxr-xr-x@  1 jeon-yeongjin  staff   5922  2월  3 09:58 create-dmg.sh
+-rw-r--r--@  1 jeon-yeongjin  staff  11980  2월  8 09:03 debug-claude-usage.ts
+drwxr-xr-x@  6 jeon-yeongjin  staff    192  2월  3 09:58 docker
+drwxr-xr-x@ 17 jeon-yeongjin  staff    544  2월  8 09:03 docs-i18n
+-rwxr-xr-x@  1 jeon-yeongjin  staff   4658  2월  8 09:03 docs-list.js
+drwxr-xr-x@  9 jeon-yeongjin  staff    288  2월  8 09:03 e2e
+-rwxr-xr-x@  1 jeon-yeongjin  staff    540  2월  8 15:19 env_check.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   3953  2월  8 09:03 firecrawl-compare.ts
+-rwxr-xr-x@  1 jeon-yeongjin  staff    484  2월  3 09:58 ios-team-id.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2079  2월  3 09:58 make_appcast.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2267  2월  3 09:58 mobile-reauth.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   1879  2월  3 09:58 notarize-mac-artifact.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff  10229  2월  8 09:03 package-mac-app.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2953  2월  8 09:03 package-mac-dist.sh
+drwxr-xr-x@  3 jeon-yeongjin  staff     96  2월  3 09:58 pre-commit
+-rw-r--r--@  1 jeon-yeongjin  staff   6704  2월  8 09:03 protocol-gen-swift.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   1621  2월  3 09:58 protocol-gen.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   1725  2월  8 09:03 readability-basic-compare.ts
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2955  2월  8 09:03 release-check.ts
+drwxr-xr-x@  3 jeon-yeongjin  staff     96  2월  3 09:58 repro
+-rwxr-xr-x@  1 jeon-yeongjin  staff   9316  2월  8 09:03 restart-mac.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff    573  2월  8 15:19 run_task.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   3769  2월  8 09:03 run-node.mjs
+-rwxr-xr-x@  1 jeon-yeongjin  staff   1865  2월  3 09:58 sandbox-browser-entrypoint.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff    183  2월  3 09:58 sandbox-browser-setup.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2848  2월  3 09:58 sandbox-common-setup.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff    167  2월  3 09:58 sandbox-setup.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   3742  2월  3 09:58 setup-auth-system.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   1002  2월  8 09:03 sqlite-vec-smoke.mjs
+-rwxr-xr-x@  1 jeon-yeongjin  staff   1101  2월  8 09:03 sync-global.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   2652  2월  8 09:03 sync-labels.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   3968  2월  8 09:03 sync-moonshot-docs.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   2218  2월  8 09:03 sync-plugin-versions.ts
+drwxr-xr-x@  4 jeon-yeongjin  staff    128  2월  3 09:58 systemd
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2888  2월  3 09:58 termux-auth-widget.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff    978  2월  3 09:58 termux-quick-auth.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff    797  2월  3 09:58 termux-sync-widget.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff    421  2월  3 09:58 test-cleanup-docker.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   1575  2월  8 09:03 test-force.ts
+-rwxr-xr-x@  1 jeon-yeongjin  staff   2798  2월  3 09:58 test-install-sh-docker.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   1290  2월  3 09:58 test-install-sh-e2e-docker.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   1504  2월  3 09:58 test-live-gateway-models-docker.sh
+-rwxr-xr-x@  1 jeon-yeongjin  staff   1547  2월  3 09:58 test-live-models-docker.sh
+-rw-r--r--@  1 jeon-yeongjin  staff   3913  2월  8 09:03 test-parallel.mjs
+-rw-r--r--@  1 jeon-yeongjin  staff   7506  2월  8 09:03 test-shell-completion.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   3349  2월  8 09:03 ui.js
+-rw-r--r--@  1 jeon-yeongjin  staff  13591  2월  8 09:03 update-clawtributors.ts
+-rw-r--r--@  1 jeon-yeongjin  staff    609  2월  3 09:58 update-clawtributors.types.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   1136  2월  8 09:03 watch-node.mjs
+-rw-r--r--@  1 jeon-yeongjin  staff   1197  2월  8 09:03 write-build-info.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   1277  2월  8 09:03 write-cli-compat.ts
+-rw-r--r--@  1 jeon-yeongjin  staff   4921  2월  8 09:03 zai-fallback-repro.ts
+
+share/:
+total 8
+drwxr-xr-x@ 2 jeon-yeongjin  staff   64  2월  8 15:19 artifacts
+drwxr-xr-x@ 2 jeon-yeongjin  staff   64  2월  8 15:19 inbox
+drwxr-xr-x@ 3 jeon-yeongjin  staff   96  2월  8 15:27 logs
+drwxr-xr-x@ 2 jeon-yeongjin  staff   64  2월  8 15:19 outbox
+-rw-r--r--@ 1 jeon-yeongjin  staff  651  2월  8 15:19 README.md
+drwxr-xr-x@ 2 jeon-yeongjin  staff   64  2월  8 15:19 templates
+[END] Task verify_files - Exit Code: 0

@@ -75,3 +75,10 @@ USER.md
 memory/
 .agent/*.json
 !.agent/workflows/
+
+# Team Share
+share/logs/
+share/inbox/
+share/outbox/
+share/artifacts/
+
