@@ -967,15 +967,16 @@ Use this checklist to verify complete DJ setup:
 - [ ] **Model Configuration**: `anthropic/claude-opus-4-5` (primary) with `codex-cli/gpt-5-codex` (fallback)
 - [ ] **Gateway Restart**: Restarted with all environment variables
 
-**Working openclaw.json reference (dual-model + Telegram):**
+**Working openclaw.json reference (CLI-primary + Telegram):**
 ```json
 {
   "agents": {
     "defaults": {
       "model": {
-        "primary": "anthropic/claude-opus-4-5",
-        "fallbacks": ["codex-cli/gpt-5-codex"]
+        "primary": "claude-cli/opus",
+        "fallbacks": ["codex-cli/gpt-5-codex", "anthropic/claude-opus-4-5"]
       },
+      "timeoutSeconds": 120,
       "cliBackends": {
         "claude-cli": {
           "command": "claude",
@@ -984,7 +985,8 @@ Use this checklist to verify complete DJ setup:
           "input": "arg",
           "modelArg": "--model",
           "sessionMode": "always",
-          "sessionArg": "--session-id"
+          "sessionArg": "--session-id",
+          "timeoutMs": 25000
         },
         "codex-cli": {
           "command": "codex",
@@ -993,10 +995,16 @@ Use this checklist to verify complete DJ setup:
           "input": "arg",
           "modelArg": "--model",
           "sessionMode": "existing",
-          "serialize": true
+          "serialize": true,
+          "timeoutMs": 25000
         }
       }
     }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
   },
   "channels": {
     "telegram": {
@@ -1011,12 +1019,24 @@ Use this checklist to verify complete DJ setup:
 }
 ```
 
-**Dual-model usage in Telegram:**
-- Default messages use Opus via direct Anthropic API (no CLI subprocess)
-- `/model codex` switches session to GPT-5-Codex via Codex CLI
-- `/model opus` switches back to Claude Opus
-- If Opus rate-limits or fails, auto-fallback to Codex
-- `claude-cli/*` backend hangs when an interactive Claude Code session is running (per-user concurrency limit) — use `anthropic/*` as primary to avoid this
+**CLI-primary model with seamless fallback:**
+
+The gateway uses CLI backends as primary to save API credits (CLI uses subscriptions, not API tokens). Fallback chain:
+1. `claude-cli/opus` — Claude Code subscription (primary, free)
+2. `codex-cli/gpt-5-codex` — Codex/OpenAI subscription (fallback, free)
+3. `anthropic/claude-opus-4-5` — Direct API (last resort, paid)
+
+**Per-backend timeout**: CLI backends have `timeoutMs: 25000` (25s) for fast fallback when `claude -p` hangs due to concurrency. The global `timeoutSeconds: 120` applies to the API fallback, giving complex prompts enough time.
+
+**How fallback works**: When a CLI backend times out (SIGKILL after 25s), it throws `FailoverError(reason: "timeout")`. The fallback chain in `runWithModelFallback()` catches this and tries the next candidate. Billing errors (402, "credit balance too low") also trigger fallback via `FailoverError(reason: "billing")`.
+
+**Telegram usage:**
+- Default messages use Claude CLI (subscription)
+- If CLI hangs (concurrent interactive session), auto-fallback to Codex within 25s
+- If Codex fails, auto-fallback to Anthropic API
+- `/model codex` manually switches to Codex
+- `/model opus` manually switches to Claude Opus (API)
+- To switch back to API-primary: change `model.primary` to `anthropic/claude-opus-4-5` in openclaw.json
 
 **Gateway startup (WSL2):**
 ```bash

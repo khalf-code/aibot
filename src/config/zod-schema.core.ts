@@ -265,6 +265,7 @@ export const CliBackendSchema = z
     imageArg: z.string().optional(),
     imageMode: z.union([z.literal("repeat"), z.literal("list")]).optional(),
     serialize: z.boolean().optional(),
+    timeoutMs: z.number().int().min(1000).max(600000).optional(),
   })
   .strict();
 

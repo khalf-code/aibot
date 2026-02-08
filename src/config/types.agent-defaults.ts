@@ -89,6 +89,8 @@ export type CliBackendConfig = {
   imageMode?: "repeat" | "list";
   /** Serialize runs for this CLI. */
   serialize?: boolean;
+  /** Per-backend timeout in ms (overrides agents.defaults.timeoutSeconds). */
+  timeoutMs?: number;
 };
 
 export type AgentDefaultsConfig = {

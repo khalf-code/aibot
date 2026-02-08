@@ -220,8 +220,9 @@ export async function runCliAgent(params: {
         await cleanupResumeProcesses(backend, cliSessionIdToSend);
       }
 
+      const effectiveTimeout = backend.timeoutMs ?? params.timeoutMs;
       const result = await runCommandWithTimeout([backend.command, ...args], {
-        timeoutMs: params.timeoutMs,
+        timeoutMs: effectiveTimeout,
         cwd: workspaceDir,
         env,
         input: stdinPayload,
@@ -244,6 +245,13 @@ export async function runCliAgent(params: {
         if (stderr) {
           log.debug(`cli stderr:\n${stderr}`);
         }
+      }
+
+      if (result.killed || result.signal === "SIGKILL") {
+        throw new FailoverError(
+          `CLI backend timed out after ${effectiveTimeout}ms (${params.provider}/${normalizedModel})`,
+          { reason: "timeout", provider: params.provider, model: modelId, status: 408 },
+        );
       }
 
       if (result.code !== 0) {
