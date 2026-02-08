@@ -8,8 +8,10 @@ if (!proofRoot) {
   throw new Error("PROOF_DIR is required");
 }
 
-const ts = new Date().toISOString().replace(/[:.]/g, "");
-const proofDir = join(proofRoot, `phase3_proof_${ts}`);
+const ts = new Date().toISOString().replace(/[-:.]/g, "");
+const proofDir = proofRoot.includes("phase3_perfect_knowledge_")
+  ? proofRoot
+  : join(proofRoot, `phase3_perfect_knowledge_${ts}`);
 await mkdir(proofDir, { recursive: true });
 
 const gatewayPort = process.env.OPENCLAW_GATEWAY_PORT || "18789";
@@ -234,30 +236,40 @@ for (const candidate of lowRiskGroups) {
     safe_probe: true,
   });
   results.actions[candidate.semantic] = action;
-  const verificationOk = Boolean(action?.parsed?.verification?.ok);
+  const verification = action?.parsed?.verification ?? {};
+  const verificationOk = Boolean(verification?.ok);
+  const verificationLevel = verification?.level ?? "none";
+  const stateVerified = verificationOk && verificationLevel === "state";
+  const eventVerified = verificationOk && verificationLevel === "ha_event";
   const restoreOk = Boolean(action?.parsed?.probe?.restore_verification?.ok);
   const timeoutReason = action?.parsed?.verification?.reason;
   const timeoutOk = ["deadline_exceeded", "probe_skipped_due_to_latency"].includes(timeoutReason);
-  const status = verificationOk
+  const status = stateVerified
     ? "PASS"
-    : timeoutOk
-      ? "PASS_READONLY"
-      : action?.parsed?.error === "confirm_required"
-        ? "NEEDS_CONFIRM"
-        : "FAIL";
+    : eventVerified
+      ? "PASS_EVENT"
+      : timeoutOk
+        ? "PASS_READONLY"
+        : action?.parsed?.error === "confirm_required"
+          ? "NEEDS_CONFIRM"
+          : "FAIL";
   if (status === "NEEDS_CONFIRM") {
     needsConfirm.push({ entity_id: entityId, reason: "confirm_required" });
   }
   semanticResults[candidate.semantic] = {
     status,
-    reason: verificationOk ? "verified" : action?.parsed?.verification?.reason ?? action?.parsed?.error ?? "unverified",
+    reason: stateVerified
+      ? "verified_state"
+      : eventVerified
+        ? "verified_event"
+        : action?.parsed?.verification?.reason ?? action?.parsed?.error ?? "unverified",
   };
   reportRows.push({
     domain: candidate.semantic,
     result: status,
     sample: entityId,
     action: "reversible_probe",
-    verified: verificationOk ? "yes" : "no",
+    verified: stateVerified ? "state" : eventVerified ? "ha_event" : "no",
     restore: restoreOk ? "yes" : "no",
   });
 }
@@ -330,6 +342,7 @@ const reportLines = [
   "",
   "## PASS Rule",
   "- OVERALL PASS if no FAIL and no NEEDS_OVERRIDE/NEEDS_CONFIRM for low-risk domains with candidates.",
+  "- PASS_EVENT means HA call_service evidence was seen but state did not confirm within deadline.",
   "- High-risk domains may be PASS_READONLY unless approvals exist.",
 ];
 

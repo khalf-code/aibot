@@ -1,7 +1,7 @@
 import type { OpenClawPluginApi, OpenClawPluginToolContext } from "openclaw/plugin-sdk";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { appendFile, copyFile, mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
@@ -89,6 +89,7 @@ type InventoryEntity = {
   device_name: string;
   manufacturer: string;
   model: string;
+  device_fingerprint?: string;
   integration: string;
   platform: string;
   state?: string;
@@ -103,6 +104,22 @@ type InventoryEntity = {
   attributes: Record<string, unknown>;
   capabilities_hints?: Record<string, unknown>;
   services: string[];
+};
+
+type DeviceGraphEntry = {
+  device_id: string;
+  device_name: string;
+  area_id: string;
+  area_name: string;
+  manufacturer: string;
+  model: string;
+  identifiers: string[][];
+  via_device_id: string;
+  entity_ids: string[];
+  entity_unique_ids: string[];
+  entity_domains: string[];
+  integration_domains: string[];
+  device_fingerprint: string;
 };
 
 type SemanticResult = {
@@ -130,6 +147,7 @@ type SemanticResolution = {
   control_model: string;
   confidence: number;
   reasons: string[];
+  missing_signals: string[];
   recommended_primary: string;
   recommended_fallbacks: string[];
   smoke_test_safe: boolean;
@@ -160,7 +178,7 @@ const SEMANTIC_STATS_PATH = `${SEMANTIC_DATA_DIR}/semantic_stats.json`;
 const SEMANTIC_LEARNED_PATH = `${SEMANTIC_DATA_DIR}/semantic_learned.json`;
 const RELIABILITY_STATS_PATH = `${SEMANTIC_DATA_DIR}/reliability_stats.json`;
 const RISK_APPROVALS_PATH = `${SEMANTIC_DATA_DIR}/risk_approvals.json`;
-const LEARNED_SUCCESS_THRESHOLD = 3;
+const DEFAULT_LEARNED_SUCCESS_THRESHOLD = 3;
 const SENSITIVE_KEYS = ["token", "authorization", "secret", "password", "apikey", "bearer", "key"];
 const DEFAULT_HELPER_DOMAINS = [
   "input_boolean",
@@ -380,6 +398,24 @@ const requireEnv = (key: string): string => {
   if (!value) throw new Error(`Missing ${key}. Set ${key} in env.`);
   return value;
 };
+
+const getOptionalEnvNumber = (key: string, fallback: number, input?: { min?: number; max?: number }) => {
+  const raw = process.env[key];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  const min = input?.min;
+  const max = input?.max;
+  if (min !== undefined && parsed < min) return min;
+  if (max !== undefined && parsed > max) return max;
+  return parsed;
+};
+
+const LEARNED_SUCCESS_THRESHOLD = getOptionalEnvNumber(
+  "OPENCLAW_HA_LEARNED_THRESHOLD",
+  DEFAULT_LEARNED_SUCCESS_THRESHOLD,
+  { min: 1, max: 10 },
+);
 
 const normalizeBaseUrl = (value: string) => value.replace(/\/$/, "");
 
@@ -884,6 +920,34 @@ const buildEntityEvidenceMap = (entityIds: string[], states: Array<HaState | nul
   return evidence;
 };
 
+const buildEventStateEvidence = (event: Record<string, unknown> | null) => {
+  if (!event) return { entityId: "", before: null, after: null };
+  const data = (event["data"] ?? {}) as Record<string, unknown>;
+  const entityId = safeString(data["entity_id"]);
+  const oldState = (data["old_state"] ?? null) as HaState | null;
+  const newState = (data["new_state"] ?? null) as HaState | null;
+  return {
+    entityId,
+    before: oldState && entityId ? { [entityId]: buildStateEvidence(oldState) } : null,
+    after: newState && entityId ? { [entityId]: buildStateEvidence(newState) } : null,
+  };
+};
+
+const pickStateChangeEvent = (
+  events: Array<Record<string, unknown>> | undefined,
+  entityIds: string[],
+) => {
+  if (!events || events.length === 0) return null;
+  return (
+    events.find((entry) => {
+      if (safeString(entry["event_type"]) !== "state_changed") return false;
+      const data = (entry["data"] ?? {}) as Record<string, unknown>;
+      const entityId = safeString(data["entity_id"]);
+      return entityIds.includes(entityId);
+    }) ?? null
+  );
+};
+
 const resolveExpectedState = (domain: string, service: string, payload: Record<string, unknown>) => {
   const normalizedDomain = domain.toLowerCase();
   const normalizedService = service.toLowerCase();
@@ -907,6 +971,25 @@ const resolveExpectedNumber = (domain: string, service: string, payload: Record<
   }
   return null;
 };
+
+const LOW_RISK_VERIFICATION_SEMANTICS = new Set(["light", "fan", "outlet", "generic_switch"]);
+const LOW_RISK_VERIFICATION_DOMAINS = new Set(["light", "fan", "switch"]);
+
+const isLowRiskVerificationTarget = (semanticType: string, domain: string) => {
+  const normalizedSemantic = normalizeName(semanticType);
+  return LOW_RISK_VERIFICATION_SEMANTICS.has(normalizedSemantic) || LOW_RISK_VERIFICATION_DOMAINS.has(domain);
+};
+
+const getLowRiskVerifyTimeoutMs = (semanticType: string, domain: string) => {
+  const normalizedSemantic = normalizeName(semanticType);
+  if (normalizedSemantic === "light" || domain === "light") return 45000;
+  if (normalizedSemantic === "fan" || domain === "fan") return 45000;
+  if (normalizedSemantic === "outlet" || normalizedSemantic === "generic_switch" || domain === "switch") return 30000;
+  return null;
+};
+
+const clampTimeout = (value: number, minMs: number, maxMs: number) =>
+  Math.max(minMs, Math.min(maxMs, value));
 
 const hasStateChanged = (before: HaState | null, after: HaState | null) => {
   if (!before && after) return true;
@@ -1281,6 +1364,7 @@ const executeServiceCallWithVerification = async (input: {
   normalizationFallback?: Record<string, unknown> | null;
   verifyTimeoutMs?: number;
   wsTimeoutMs?: number;
+  allowEventVerification?: boolean;
 }) => {
   let verification: VerificationResult = buildEmptyVerification("not_verifiable", input.entityIds);
   let res: { ok: boolean; status?: number; data?: unknown; bytes: number };
@@ -1345,6 +1429,11 @@ const executeServiceCallWithVerification = async (input: {
     data: input.payload,
     durationMs: input.wsTimeoutMs ?? 8000,
   });
+  const callEvent = trace.call_event as Record<string, unknown> | null;
+  const stateEvent = input.allowEventVerification
+    ? pickStateChangeEvent(trace.states_during, input.entityIds)
+    : null;
+  const stateEventEvidence = stateEvent ? buildEventStateEvidence(stateEvent) : null;
   res = {
     ok: trace.ok,
     status: trace.ok ? 200 : undefined,
@@ -1352,7 +1441,40 @@ const executeServiceCallWithVerification = async (input: {
     bytes: Buffer.byteLength(JSON.stringify(trace.service_result ?? {}), "utf8"),
   };
   if (res.ok && input.entityIds.length > 0) {
-    if (input.domain === "media_player") {
+    if (stateEvent && stateEventEvidence) {
+      verification = {
+        attempted: true,
+        ok: true,
+        level: "state",
+        method: "ws_event",
+        reason: "verified_state_event",
+        targets: input.entityIds,
+        before: stateEventEvidence.before,
+        after: stateEventEvidence.after,
+        evidence: {
+          ws_state_event: stateEvent,
+          ws_call_service: callEvent ?? null,
+          ws_state_events: trace.states_during ?? [],
+          applied_fallbacks: buildAppliedFallbacks([], input.normalizationFallback ?? null),
+        },
+      };
+    } else if (input.allowEventVerification && callEvent) {
+      verification = {
+        attempted: true,
+        ok: true,
+        level: "ha_event",
+        method: "ws_event",
+        reason: "verified_call_event",
+        targets: input.entityIds,
+        before: null,
+        after: null,
+        evidence: {
+          ws_call_service: callEvent ?? null,
+          ws_state_events: trace.states_during ?? [],
+          applied_fallbacks: buildAppliedFallbacks([], input.normalizationFallback ?? null),
+        },
+      };
+    } else if (input.domain === "media_player") {
       verification = await verifyMediaPlayerChange({
         service: input.service,
         payload: input.payload,
@@ -1392,10 +1514,34 @@ const executeServiceCallWithVerification = async (input: {
     }
   }
   if (verification.attempted) {
-    const callEvent = trace.call_event as Record<string, unknown> | null;
+    if (!verification.ok && input.allowEventVerification && callEvent) {
+      verification = {
+        attempted: true,
+        ok: true,
+        level: "ha_event",
+        method: "ws_event",
+        reason: "verified_call_event",
+        targets: input.entityIds,
+        before: verification.before,
+        after: verification.after,
+        evidence: {
+          ...(verification.evidence ?? {}),
+          ws_call_service: callEvent ?? null,
+          ws_state_events: trace.states_during ?? [],
+        },
+      };
+    }
+    const resolvedLevel =
+      verification.level && verification.level !== "none"
+        ? verification.level
+        : verification.ok
+          ? "state"
+          : callEvent
+            ? "ha_event"
+            : "none";
     verification = {
       ...verification,
-      level: verification.ok ? "state" : callEvent ? "ha_event" : "none",
+      level: resolvedLevel,
       evidence: {
         ...(verification.evidence ?? {}),
         ws_call_service: callEvent ?? null,
@@ -2899,8 +3045,9 @@ const buildSemanticAssessment = async (entityIds: string[]) => {
       entity,
       deviceEntities,
       overrides,
-      learnedMap: learnedStore.entities,
+      learnedStore,
       servicesByDomain: snapshot?.services_by_domain ?? {},
+      deviceGraph: snapshot?.device_graph ?? {},
     });
     const semantic: SemanticResult = {
       semantic_type: resolution.semantic_type,
@@ -2933,6 +3080,7 @@ const SEMANTIC_TYPE_KEYWORDS: Record<string, string[]> = {
   boiler: ["boiler", "bojler", "water heater"],
   tv: ["tv", "television", "televizor"],
   speaker: ["speaker", "sonos", "audio", "sound", "music", "zvucnik", "zvučnik"],
+  media_player: ["media", "player", "mediaplayer"],
   climate: ["climate", "thermostat", "klima", "ac", "air", "heat", "cool", "heizung"],
   cover: ["cover", "blind", "shade", "curtain", "shutter", "roleta", "rolete", "zavjesa"],
   lock: ["lock", "brava", "zakljucaj", "zaključaj"],
@@ -3043,19 +3191,77 @@ const recommendActions = (input: {
   return { primary, fallbacks };
 };
 
+const addSemanticScore = (
+  scores: Record<string, { score: number; reasons: string[]; strong: number; weak: number }>,
+  semanticType: string,
+  amount: number,
+  reason: string,
+  strength: "strong" | "weak",
+) => {
+  if (!scores[semanticType]) {
+    scores[semanticType] = { score: 0, reasons: [], strong: 0, weak: 0 };
+  }
+  scores[semanticType].score += amount;
+  scores[semanticType].reasons.push(reason);
+  if (strength === "strong") {
+    scores[semanticType].strong += 1;
+  } else {
+    scores[semanticType].weak += 1;
+  }
+};
+
+const applyKeywordScores = (
+  scores: Record<string, { score: number; reasons: string[]; strong: number; weak: number }>,
+  text: string,
+  weight: number,
+  reasonPrefix: string,
+  strength: "strong" | "weak",
+) => {
+  const normalized = normalizeName(text);
+  if (!normalized) return;
+  for (const [type, tokens] of Object.entries(SEMANTIC_TYPE_KEYWORDS)) {
+    for (const token of tokens) {
+      if (normalized.includes(normalizeName(token))) {
+        addSemanticScore(scores, type, weight, `${reasonPrefix}:${token}`, strength);
+      }
+    }
+  }
+};
+
+const mapDomainSemantic = (domain: string) => {
+  if (domain === "alarm_control_panel") return "alarm";
+  if (domain === "water_heater") return "boiler";
+  if (domain === "switch") return "generic_switch";
+  return domain;
+};
+
+const pickSafeSemanticFallback = (entity: InventoryEntity, scores: Record<string, { score: number }>) => {
+  if (entity.domain === "switch") {
+    const outletScore = scores["outlet"]?.score ?? 0;
+    const switchScore = scores["generic_switch"]?.score ?? 0;
+    if (outletScore >= switchScore + 6) return "outlet";
+    return "generic_switch";
+  }
+  const mapped = mapDomainSemantic(entity.domain);
+  return mapped || "generic_switch";
+};
+
 const buildSemanticResolution = (input: {
   entity: InventoryEntity;
   deviceEntities: InventoryEntity[];
   overrides: SemanticOverrideStore;
-  learnedMap: Record<string, LearnedSemanticEntry>;
+  learnedStore: LearnedSemanticStore;
   servicesByDomain: Record<string, string[]>;
+  deviceGraph: Record<string, DeviceGraphEntry>;
 }): SemanticResolution => {
   const deviceOverride = input.entity.device_id
     ? input.overrides.device_overrides[input.entity.device_id]
     : undefined;
   const entityOverride = input.overrides.entity_overrides[input.entity.entity_id];
   const override = entityOverride ?? deviceOverride;
-  const learned = input.learnedMap[input.entity.entity_id];
+  const learned = input.learnedStore.entities[input.entity.entity_id];
+  const fingerprintKey = input.entity.device_fingerprint ?? "";
+  const learnedFingerprint = fingerprintKey ? input.learnedStore.fingerprints[fingerprintKey] : undefined;
   if (!override?.semantic_type && learned && learned.success_count >= LEARNED_SUCCESS_THRESHOLD) {
     const semanticType = learned.semantic_type || input.entity.domain;
     const controlModel = learned.control_model || deriveControlModel(input.entity);
@@ -3065,11 +3271,44 @@ const buildSemanticResolution = (input: {
       domain: input.entity.domain,
       servicesByDomain: input.servicesByDomain,
     });
+    const confidence = Math.min(0.98, 0.8 + learned.success_count * 0.05);
     return {
       semantic_type: semanticType,
       control_model: controlModel,
-      confidence: 0.85,
-      reasons: [`learned:${learned.success_count}`, learned.last_intent ?? ""].filter(Boolean),
+      confidence,
+      reasons: [
+        `learned:${learned.success_count}/${LEARNED_SUCCESS_THRESHOLD}`,
+        learned.last_intent ?? "",
+      ].filter(Boolean),
+      missing_signals: [],
+      recommended_primary: primary,
+      recommended_fallbacks: fallbacks,
+      smoke_test_safe: false,
+      preferred_control_entity: input.entity.entity_id,
+      entity_fingerprint: buildEntityFingerprint(input.entity),
+      source: "inferred",
+      ambiguity: { ok: true },
+    };
+  }
+  if (!override?.semantic_type && learnedFingerprint && learnedFingerprint.success_count >= LEARNED_SUCCESS_THRESHOLD) {
+    const semanticType = learnedFingerprint.semantic_type || input.entity.domain;
+    const controlModel = learnedFingerprint.control_model || deriveControlModel(input.entity);
+    const { primary, fallbacks } = recommendActions({
+      semanticType,
+      controlModel,
+      domain: input.entity.domain,
+      servicesByDomain: input.servicesByDomain,
+    });
+    const confidence = Math.min(0.95, 0.75 + learnedFingerprint.success_count * 0.04);
+    return {
+      semantic_type: semanticType,
+      control_model: controlModel,
+      confidence,
+      reasons: [
+        `learned_fingerprint:${learnedFingerprint.success_count}/${LEARNED_SUCCESS_THRESHOLD}`,
+        learnedFingerprint.last_intent ?? "",
+      ].filter(Boolean),
+      missing_signals: [],
       recommended_primary: primary,
       recommended_fallbacks: fallbacks,
       smoke_test_safe: false,
@@ -3097,6 +3336,7 @@ const buildSemanticResolution = (input: {
         override.notes ?? "",
         override === deviceOverride ? "scope:device" : "scope:entity",
       ].filter(Boolean),
+      missing_signals: [],
       recommended_primary: primary,
       recommended_fallbacks: fallbacks,
       smoke_test_safe: Boolean(override.smoke_test_safe ?? false),
@@ -3107,63 +3347,136 @@ const buildSemanticResolution = (input: {
     };
   }
 
-  const scores = buildSemanticScores({
-    entity: input.entity,
-    areaName: input.entity.area_name,
-    deviceName: input.entity.device_name,
-  });
-  const entityText = normalizeName(
-    `${input.entity.entity_id} ${input.entity.friendly_name} ${input.entity.original_name} ${input.entity.state ?? ""}`,
+  const scores: Record<string, { score: number; reasons: string[]; strong: number; weak: number }> = {};
+  const missingSignals = new Set<string>();
+  if (!input.entity.device_id) missingSignals.add("missing:device_id");
+  if (!input.entity.unique_id) missingSignals.add("missing:entity_unique_id");
+  if (!input.entity.area_name) missingSignals.add("missing:area_name");
+  if (!input.entity.device_name && !input.entity.manufacturer && !input.entity.model) {
+    missingSignals.add("missing:device_identity");
+  }
+  if (!input.entity.device_class && !input.entity.original_device_class) {
+    missingSignals.add("missing:device_class");
+  }
+  if (!input.entity.capabilities_hints || Object.keys(input.entity.capabilities_hints).length === 0) {
+    missingSignals.add("missing:capabilities");
+  }
+  if (!input.entity.friendly_name && !input.entity.original_name && input.entity.aliases.length === 0) {
+    missingSignals.add("missing:names");
+  }
+
+  const domainSemantic = mapDomainSemantic(input.entity.domain);
+  if (domainSemantic) {
+    addSemanticScore(scores, domainSemantic, 16, `domain:${input.entity.domain}`, "strong");
+  }
+
+  const deviceClass = normalizeName(
+    safeString(input.entity.device_class ?? "") || safeString(input.entity.original_device_class ?? ""),
   );
-  const deviceText = normalizeName(
-    `${input.entity.device_name} ${input.entity.manufacturer} ${input.entity.model} ${input.entity.integration}`,
-  );
-  const areaText = normalizeName(input.entity.area_name ?? "");
-  const tokenBag = new Set([
-    ...tokenizeText(entityText),
-    ...tokenizeText(deviceText),
-    ...tokenizeText(areaText),
-    ...tokenizeText(String(input.entity.device_class ?? "")),
-    ...tokenizeText(String(input.entity.original_device_class ?? "")),
-  ]);
-  for (const [type, tokens] of Object.entries(SEMANTIC_TYPE_KEYWORDS)) {
-    for (const token of tokens) {
-      if (tokenBag.has(normalizeName(token)) || entityText.includes(token)) {
-        scores[type] = scores[type] ?? { score: 0, reasons: [] };
-        scores[type].score += 6;
-        scores[type].reasons.push(`name:${token}`);
-      }
-      if (deviceText.includes(token) || areaText.includes(token)) {
-        scores[type] = scores[type] ?? { score: 0, reasons: [] };
-        scores[type].score += 4;
-        scores[type].reasons.push(`device:${token}`);
-      }
+  if (deviceClass) {
+    if (deviceClass.includes("outlet") || deviceClass.includes("plug")) {
+      addSemanticScore(scores, "outlet", 12, `device_class:${deviceClass}`, "strong");
+    } else if (deviceClass.includes("fan")) {
+      addSemanticScore(scores, "fan", 12, `device_class:${deviceClass}`, "strong");
+    } else if (deviceClass.includes("pump")) {
+      addSemanticScore(scores, "pump", 10, `device_class:${deviceClass}`, "strong");
+    } else if (deviceClass.includes("heater") || deviceClass.includes("heat")) {
+      addSemanticScore(scores, "heater", 10, `device_class:${deviceClass}`, "strong");
+    } else if (deviceClass.includes("garage")) {
+      addSemanticScore(scores, "garage_door", 10, `device_class:${deviceClass}`, "strong");
+    } else if (deviceClass.includes("door")) {
+      addSemanticScore(scores, "door", 10, `device_class:${deviceClass}`, "strong");
+    } else if (deviceClass.includes("lock")) {
+      addSemanticScore(scores, "lock", 12, `device_class:${deviceClass}`, "strong");
     }
   }
+
+  const hints = input.entity.capabilities_hints ?? {};
+  if (input.entity.domain === "light") {
+    if (Array.isArray(hints.supported_color_modes) && hints.supported_color_modes.length > 0) {
+      addSemanticScore(scores, "light", 12, "capability:color_modes", "strong");
+    }
+    if (hints.brightness !== null && hints.brightness !== undefined) {
+      addSemanticScore(scores, "light", 10, "capability:brightness", "strong");
+    }
+  }
+  if (input.entity.domain === "fan") {
+    if (hints.percentage !== null && hints.percentage !== undefined) {
+      addSemanticScore(scores, "fan", 10, "capability:percentage", "strong");
+    }
+    if (Array.isArray(hints.preset_modes) && hints.preset_modes.length > 0) {
+      addSemanticScore(scores, "fan", 8, "capability:preset_modes", "strong");
+    }
+  }
+  if (input.entity.domain === "climate") {
+    if (Array.isArray(hints.hvac_modes) && hints.hvac_modes.length > 0) {
+      addSemanticScore(scores, "climate", 12, "capability:hvac_modes", "strong");
+    }
+    if (hints.min_temp !== null && hints.min_temp !== undefined) {
+      addSemanticScore(scores, "climate", 8, "capability:temperature", "strong");
+    }
+  }
+  if (input.entity.domain === "cover") {
+    if (hints.current_position !== null && hints.current_position !== undefined) {
+      addSemanticScore(scores, "cover", 10, "capability:position", "strong");
+    }
+  }
+  if (input.entity.domain === "media_player") {
+    if (hints.volume_level !== null && hints.volume_level !== undefined) {
+      addSemanticScore(scores, "media_player", 10, "capability:volume", "strong");
+    }
+    if (Array.isArray(hints.source_list) && hints.source_list.length > 0) {
+      addSemanticScore(scores, "media_player", 8, "capability:sources", "strong");
+    }
+  }
+
+  const entityText = `${input.entity.entity_id} ${input.entity.friendly_name} ${input.entity.original_name} ${input.entity.state ?? ""}`;
+  const deviceText = `${input.entity.device_name} ${input.entity.manufacturer} ${input.entity.model}`;
+  const integrationText = `${input.entity.integration} ${input.entity.platform}`;
+  const areaText = input.entity.area_name ?? "";
+
+  applyKeywordScores(scores, entityText, 4, "name", "weak");
+  applyKeywordScores(scores, deviceText, 3, "device", "weak");
+  applyKeywordScores(scores, integrationText, 2, "integration", "weak");
+  applyKeywordScores(scores, areaText, 1, "area", "weak");
+
   for (const [type, tokens] of Object.entries(NEGATIVE_SEMANTIC_TOKENS)) {
     for (const token of tokens) {
-      if (tokenBag.has(normalizeName(token)) || entityText.includes(token)) {
-        scores[type] = scores[type] ?? { score: 0, reasons: [] };
-        scores[type].score -= 4;
-        scores[type].reasons.push(`negative:${token}`);
+      if (normalizeName(entityText).includes(normalizeName(token)) || normalizeName(deviceText).includes(normalizeName(token))) {
+        addSemanticScore(scores, type, -4, `negative:${token}`, "weak");
       }
     }
   }
-  if (["fan", "climate", "light", "vacuum", "cover", "media_player"].includes(input.entity.domain)) {
-    scores[input.entity.domain] = scores[input.entity.domain] ?? { score: 0, reasons: [] };
-    scores[input.entity.domain].score += 12;
-    scores[input.entity.domain].reasons.push("domain_prior");
+
+  const deviceGraphKey = deviceGraphKeyForEntity(input.entity);
+  const graphEntry = input.deviceGraph[deviceGraphKey];
+  const deviceDomains = new Set(
+    graphEntry?.entity_domains?.length ? graphEntry.entity_domains : input.deviceEntities.map((entry) => entry.domain),
+  );
+  if (!graphEntry) {
+    missingSignals.add("missing:device_graph");
   }
-  const colocatedDomains = new Set(input.deviceEntities.map((entry) => entry.domain));
-  if (input.entity.domain === "switch" && (colocatedDomains.has("fan") || entityText.includes("fan"))) {
-    scores["fan"] = scores["fan"] ?? { score: 0, reasons: [] };
-    scores["fan"].score += 5;
-    scores["fan"].reasons.push("colocated:fan");
+  if (input.entity.domain === "switch") {
+    if (deviceDomains.has("climate") || deviceDomains.has("water_heater")) {
+      addSemanticScore(scores, "outlet", -8, "cluster:climate_or_water_heater", "strong");
+      addSemanticScore(scores, "heater", 6, "cluster:climate_or_water_heater", "strong");
+      addSemanticScore(scores, "boiler", 6, "cluster:climate_or_water_heater", "strong");
+    }
+    if (deviceDomains.has("fan")) {
+      addSemanticScore(scores, "fan", 5, "cluster:fan", "strong");
+    }
+    if (deviceDomains.has("light")) {
+      addSemanticScore(scores, "light", 3, "cluster:light", "weak");
+    }
   }
-  if (input.entity.domain === "switch" && entityText.includes("outlet")) {
-    scores["outlet"] = scores["outlet"] ?? { score: 0, reasons: [] };
-    scores["outlet"].score += 5;
-    scores["outlet"].reasons.push("name:outlet");
+  if (graphEntry?.via_device_id && input.deviceGraph[graphEntry.via_device_id]) {
+    const via = input.deviceGraph[graphEntry.via_device_id];
+    const viaText = `${via.device_name} ${via.manufacturer} ${via.model}`;
+    applyKeywordScores(scores, viaText, 2, "via_device", "weak");
+  }
+
+  if (input.entity.unique_id && domainSemantic) {
+    addSemanticScore(scores, domainSemantic, 2, "unique_id", "weak");
   }
 
   const sorted = Object.entries(scores).sort((a, b) => b[1].score - a[1].score);
@@ -3171,13 +3484,27 @@ const buildSemanticResolution = (input: {
   const second = sorted[1];
   const topScore = top?.[1].score ?? 0;
   const secondScore = second?.[1].score ?? 0;
-  const confidence = topScore === 0 ? 0 : topScore / Math.max(topScore + secondScore, topScore);
-  let semanticType = top?.[0] ?? input.entity.domain;
+  let confidence = topScore === 0 ? 0 : topScore / Math.max(topScore + secondScore, topScore);
+  let semanticType = top?.[0] ?? domainSemantic ?? input.entity.domain;
   if (input.entity.domain === "switch" && semanticType === "switch") {
     semanticType = "generic_switch";
   }
   if (semanticType === "ventilation") {
     semanticType = "fan";
+  }
+  const hasStrongSignals = (top?.[1].strong ?? 0) > 0;
+  const ambiguous = confidence < 0.55 || !hasStrongSignals;
+  const riskLevel = getRiskLevel(semanticType, input.entity.domain);
+  const reasons = top?.[1].reasons?.length ? [...top[1].reasons] : [`domain:${input.entity.domain}`];
+  if (ambiguous && riskLevel !== "high") {
+    const safeType = pickSafeSemanticFallback(input.entity, scores);
+    if (safeType !== semanticType) {
+      semanticType = safeType;
+      reasons.push(`safe_default:${safeType}`);
+    } else {
+      reasons.push("safe_default");
+    }
+    confidence = Math.max(confidence, 0.4);
   }
   const controlModel = deriveControlModel(input.entity);
   const { primary, fallbacks } = recommendActions({
@@ -3186,21 +3513,23 @@ const buildSemanticResolution = (input: {
     domain: input.entity.domain,
     servicesByDomain: input.servicesByDomain,
   });
-  const ambiguous = confidence < 0.55;
+  const ambiguity =
+    ambiguous && riskLevel === "high"
+      ? { ok: false, reason: "low_confidence", needs_override: true }
+      : { ok: true, reason: ambiguous ? "safe_default" : undefined };
   return {
     semantic_type: semanticType,
     control_model: controlModel,
     confidence,
-    reasons: top?.[1].reasons ?? [`domain:${input.entity.domain}`],
+    reasons,
+    missing_signals: [...missingSignals],
     recommended_primary: primary,
     recommended_fallbacks: fallbacks,
     smoke_test_safe: false,
     preferred_control_entity: input.entity.entity_id,
     entity_fingerprint: buildEntityFingerprint(input.entity),
     source: "inferred",
-    ambiguity: ambiguous
-      ? { ok: false, reason: "low_confidence", needs_override: true }
-      : { ok: true },
+    ambiguity,
   };
 };
 
@@ -3219,6 +3548,7 @@ const buildEntityFingerprint = (entity: InventoryEntity) => ({
   unique_id: entity.unique_id ?? null,
   disabled_by: entity.disabled_by ?? null,
   device_id: entity.device_id ?? null,
+  device_fingerprint: entity.device_fingerprint ?? null,
   device_name: entity.device_name ?? null,
   manufacturer: entity.manufacturer ?? null,
   model: entity.model ?? null,
@@ -3260,8 +3590,9 @@ const buildSemanticMapFromSnapshot = async (snapshot: Awaited<ReturnType<typeof 
       entity,
       deviceEntities,
       overrides,
-      learnedMap: learnedStore.entities,
+      learnedStore,
       servicesByDomain: snapshot.services_by_domain ?? {},
+      deviceGraph: snapshot.device_graph ?? {},
     });
     byEntity[entity.entity_id] = resolution;
     if (!resolution.ambiguity.ok && resolution.ambiguity.needs_override && SEMANTIC_RISKY_TYPES.has(resolution.semantic_type)) {
@@ -3330,6 +3661,8 @@ type LearnedSemanticEntry = {
   last_success_ts?: string;
   last_failure_ts?: string;
   last_intent?: string;
+  promotion_threshold?: number;
+  device_fingerprint?: string;
 };
 
 type LearnedAliasEntry = {
@@ -3346,6 +3679,8 @@ type LearnedAliasEntry = {
 type LearnedSemanticStore = {
   entities: Record<string, LearnedSemanticEntry>;
   aliases: Record<string, LearnedAliasEntry>;
+  fingerprints: Record<string, LearnedSemanticEntry>;
+  meta?: { promotion_threshold?: number; updated_at?: string };
 };
 
 type ReliabilityStatsEntry = {
@@ -3403,7 +3738,7 @@ const updateSemanticStats = async (key: string, ok: boolean, reason: string) => 
 };
 
 const normalizeLearnedStore = (parsed: unknown): LearnedSemanticStore => {
-  const empty: LearnedSemanticStore = { entities: {}, aliases: {} };
+  const empty: LearnedSemanticStore = { entities: {}, aliases: {}, fingerprints: {} };
   if (!parsed || typeof parsed !== "object") return empty;
   const record = parsed as Record<string, unknown>;
   if (record.entities && typeof record.entities === "object") {
@@ -3412,9 +3747,14 @@ const normalizeLearnedStore = (parsed: unknown): LearnedSemanticStore => {
       record.aliases && typeof record.aliases === "object"
         ? (record.aliases as Record<string, LearnedAliasEntry>)
         : {};
-    return { entities, aliases };
+    const fingerprints =
+      record.fingerprints && typeof record.fingerprints === "object"
+        ? (record.fingerprints as Record<string, LearnedSemanticEntry>)
+        : {};
+    const meta = record.meta && typeof record.meta === "object" ? (record.meta as LearnedSemanticStore["meta"]) : undefined;
+    return { entities, aliases, fingerprints, meta };
   }
-  return { entities: record as Record<string, LearnedSemanticEntry>, aliases: {} };
+  return { entities: record as Record<string, LearnedSemanticEntry>, aliases: {}, fingerprints: {} };
 };
 
 const loadLearnedSemanticMap = async (): Promise<LearnedSemanticStore> => {
@@ -3425,7 +3765,7 @@ const loadLearnedSemanticMap = async (): Promise<LearnedSemanticStore> => {
   } catch {
     // ignore
   }
-  return { entities: {}, aliases: {} };
+  return { entities: {}, aliases: {}, fingerprints: {} };
 };
 
 const saveLearnedSemanticMap = async (store: LearnedSemanticStore) => {
@@ -3439,8 +3779,13 @@ const updateLearnedSemanticMap = async (input: {
   controlModel: string;
   intentLabel: string;
   ok: boolean;
+  deviceFingerprint?: string;
 }) => {
   const store = await loadLearnedSemanticMap();
+  store.meta = {
+    promotion_threshold: LEARNED_SUCCESS_THRESHOLD,
+    updated_at: new Date().toISOString(),
+  };
   const entry = store.entities[input.entityId] ?? {
     semantic_type: input.semanticType,
     control_model: input.controlModel,
@@ -3456,9 +3801,31 @@ const updateLearnedSemanticMap = async (input: {
     entry.last_failure_ts = new Date().toISOString();
     entry.last_intent = input.intentLabel;
   }
+  entry.promotion_threshold = LEARNED_SUCCESS_THRESHOLD;
   store.entities[input.entityId] = entry;
+  let fingerprintEntry: LearnedSemanticEntry | null = null;
+  if (input.deviceFingerprint) {
+    fingerprintEntry = store.fingerprints[input.deviceFingerprint] ?? {
+      semantic_type: input.semanticType,
+      control_model: input.controlModel,
+      success_count: 0,
+    };
+    if (input.ok) {
+      fingerprintEntry.semantic_type = input.semanticType;
+      fingerprintEntry.control_model = input.controlModel;
+      fingerprintEntry.success_count += 1;
+      fingerprintEntry.last_success_ts = new Date().toISOString();
+      fingerprintEntry.last_intent = input.intentLabel;
+    } else {
+      fingerprintEntry.last_failure_ts = new Date().toISOString();
+      fingerprintEntry.last_intent = input.intentLabel;
+    }
+    fingerprintEntry.promotion_threshold = LEARNED_SUCCESS_THRESHOLD;
+    fingerprintEntry.device_fingerprint = input.deviceFingerprint;
+    store.fingerprints[input.deviceFingerprint] = fingerprintEntry;
+  }
   await saveLearnedSemanticMap(store);
-  return entry;
+  return { entity: entry, fingerprint: fingerprintEntry, promotion_threshold: LEARNED_SUCCESS_THRESHOLD };
 };
 
 const normalizeAliasKey = (value: string) => normalizeName(value);
@@ -3763,8 +4130,10 @@ const buildUniversalPlan = (input: {
 };
 
 const isSafeSwitchProbe = (entity: InventoryEntity, resolution: SemanticResolution) => {
-  if (resolution.confidence < 0.75) return false;
-  if (["outlet", "generic_switch"].includes(resolution.semantic_type)) return true;
+  if (["outlet", "generic_switch"].includes(resolution.semantic_type)) {
+    if (resolution.ambiguity.ok) return true;
+    return resolution.confidence >= 0.6;
+  }
   const name = normalizeName(`${entity.friendly_name} ${entity.original_name} ${entity.device_name}`);
   return ["outlet", "plug", "utičnica", "uticnica"].some((token) => name.includes(token));
 };
@@ -3829,6 +4198,7 @@ const runReversibleProbe = async (
       reason: "probe_not_safe",
     };
   }
+  const allowEventVerification = isLowRiskVerificationTarget(resolution.semantic_type, entity.domain);
   const actionPayload = buildServicePayload({ entity_id: [entity.entity_id] }, plan.action.payload);
   const actionResult = await executeServiceCallWithVerification({
     domain: plan.action.domain,
@@ -3837,6 +4207,7 @@ const runReversibleProbe = async (
     entityIds: [entity.entity_id],
     verifyTimeoutMs,
     wsTimeoutMs: verifyTimeoutMs,
+    allowEventVerification,
   });
   await sleep(250);
   const restorePayload = buildServicePayload({ entity_id: [entity.entity_id] }, plan.restore.payload);
@@ -3847,17 +4218,20 @@ const runReversibleProbe = async (
     entityIds: [entity.entity_id],
     verifyTimeoutMs,
     wsTimeoutMs: verifyTimeoutMs,
+    allowEventVerification,
   });
   const afterState = await fetchEntityState(entity.entity_id);
   const ok = actionResult.verification.ok && restoreResult.verification.ok;
+  const restoreReason =
+    ok && restoreResult.verification.level === "ha_event" ? "verified_restore_event" : ok ? "verified_restore" : "restore_failed";
   return {
     ok,
     verification: {
       attempted: true,
       ok,
       level: restoreResult.verification.level,
-      method: "state_poll",
-      reason: ok ? "verified_restore" : "restore_failed",
+      method: restoreResult.verification.method,
+      reason: restoreReason,
       targets: [entity.entity_id],
       before: beforeState ? { [entity.entity_id]: beforeState } : null,
       after: afterState ? { [entity.entity_id]: afterState } : null,
@@ -4075,6 +4449,101 @@ const buildIndexes = (
   };
 };
 
+const normalizeIdentifiers = (identifiers: string[][] | undefined) =>
+  (identifiers ?? [])
+    .filter((pair) => Array.isArray(pair) && pair.length >= 2)
+    .map((pair) => `${safeString(pair[0])}:${safeString(pair[1])}`)
+    .filter(Boolean)
+    .sort();
+
+const buildDeviceFingerprint = (input: {
+  manufacturer: string;
+  model: string;
+  identifiers: string[][];
+  entityUniqueIds: string[];
+  entityIds: string[];
+}) => {
+  const uniqueIds = input.entityUniqueIds.filter(Boolean);
+  const entityIds = uniqueIds.length > 0 ? uniqueIds : input.entityIds.filter(Boolean);
+  const payload = {
+    manufacturer: safeString(input.manufacturer),
+    model: safeString(input.model),
+    identifiers: normalizeIdentifiers(input.identifiers),
+    entity_unique_ids: [...new Set(entityIds)].sort(),
+  };
+  const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  return `sha256:${hash.slice(0, 24)}`;
+};
+
+const deviceGraphKeyForEntity = (entity: { device_id?: string; entity_id: string }) =>
+  entity.device_id ? entity.device_id : `unknown:${entity.entity_id}`;
+
+const buildDeviceGraph = (input: {
+  areas: RegistryArea[];
+  devices: RegistryDevice[];
+  entities: RegistryEntity[];
+}) => {
+  const areasById = buildAreasById(input.areas);
+  const devicesById = buildDevicesById(input.devices);
+  const graph: Record<string, DeviceGraphEntry> = {};
+
+  const ensureEntry = (deviceId: string, seed?: RegistryDevice) => {
+    if (!graph[deviceId]) {
+      const device = seed ?? devicesById.get(deviceId);
+      const areaId = safeString(device?.area_id);
+      graph[deviceId] = {
+        device_id: deviceId,
+        device_name: safeString(device?.name ?? ""),
+        area_id: areaId,
+        area_name: areaId ? safeString(areasById.get(areaId)?.name ?? "") : "",
+        manufacturer: safeString(device?.manufacturer ?? ""),
+        model: safeString(device?.model ?? ""),
+        identifiers: device?.identifiers ?? [],
+        via_device_id: safeString(device?.via_device_id ?? ""),
+        entity_ids: [],
+        entity_unique_ids: [],
+        entity_domains: [],
+        integration_domains: [],
+        device_fingerprint: "",
+      };
+    }
+    return graph[deviceId];
+  };
+
+  for (const device of input.devices) {
+    ensureEntry(device.id, device);
+  }
+
+  for (const entity of input.entities) {
+    const key = deviceGraphKeyForEntity(entity);
+    const entry = ensureEntry(key);
+    entry.entity_ids.push(entity.entity_id);
+    if (entity.unique_id) entry.entity_unique_ids.push(entity.unique_id);
+    const domain = entity.entity_id.split(".")[0] ?? "";
+    if (domain) entry.entity_domains.push(domain);
+    if (entity.platform) entry.integration_domains.push(entity.platform);
+    if (!entry.area_id && entity.area_id) {
+      entry.area_id = entity.area_id;
+      entry.area_name = safeString(areasById.get(entity.area_id)?.name ?? "");
+    }
+  }
+
+  for (const entry of Object.values(graph)) {
+    entry.entity_ids = [...new Set(entry.entity_ids)].sort();
+    entry.entity_unique_ids = [...new Set(entry.entity_unique_ids)].sort();
+    entry.entity_domains = [...new Set(entry.entity_domains)].sort();
+    entry.integration_domains = [...new Set(entry.integration_domains)].sort();
+    entry.device_fingerprint = buildDeviceFingerprint({
+      manufacturer: entry.manufacturer,
+      model: entry.model,
+      identifiers: entry.identifiers,
+      entityUniqueIds: entry.entity_unique_ids,
+      entityIds: entry.entity_ids,
+    });
+  }
+  return graph;
+};
+
 const buildRegistrySnapshot = async () => {
   const [areasRes, devicesRes, entitiesRes, servicesRes, statesRes] = await Promise.all([
     wsCall("config/area_registry/list"),
@@ -4219,6 +4688,7 @@ const fetchInventorySnapshot = async () => {
   const services = normalizeServicesFromRest(servicesRes.data) ?? {};
   const areasById = buildAreasById(areas);
   const devicesById = buildDevicesById(devices);
+  const deviceGraph = buildDeviceGraph({ areas, devices, entities });
 
   const entitiesById: Record<string, InventoryEntity> = {};
   for (const entity of entities) {
@@ -4232,6 +4702,8 @@ const fetchInventorySnapshot = async () => {
       ? aliasesRaw.map((entry) => safeString(entry)).filter(Boolean)
       : [];
     const domain = entity.entity_id.split(".")[0] ?? "";
+    const graphKey = deviceGraphKeyForEntity(entity);
+    const graphEntry = deviceGraph[graphKey];
     entitiesById[entity.entity_id] = {
       domain,
       entity_id: entity.entity_id,
@@ -4244,6 +4716,7 @@ const fetchInventorySnapshot = async () => {
       device_name: device?.name ?? "",
       manufacturer: device?.manufacturer ?? "",
       model: device?.model ?? "",
+      device_fingerprint: graphEntry?.device_fingerprint ?? "",
       integration: entity.platform ?? "",
       platform: entity.platform ?? "",
       state: state?.state ?? undefined,
@@ -4264,6 +4737,12 @@ const fetchInventorySnapshot = async () => {
   return {
     generated_at: new Date().toISOString(),
     notes,
+    registry: {
+      areas,
+      devices,
+      entities,
+    },
+    device_graph: deviceGraph,
     entities: entitiesById,
     services_by_domain: Object.fromEntries(
       Object.entries(services).map(([domain, definition]) => [domain, Object.keys(definition ?? {})]),
@@ -4963,8 +5442,9 @@ const buildDeviceBrainResult = async (input: {
           (entry) => entry.device_id && entry.device_id === entity.device_id,
         ),
         overrides,
-        learnedMap: input.learnedStore.entities,
+        learnedStore: input.learnedStore,
         servicesByDomain: input.snapshot.services_by_domain ?? {},
+        deviceGraph: input.snapshot.device_graph ?? {},
       });
 
     const state: HaState = {
@@ -7578,6 +8058,94 @@ const registerTools = (api: OpenClawPluginApi) => {
 
   registerTool(
     {
+      name: "ha_semantic_explain",
+      description: "Explain semantic classification for an entity or query.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          entity_id: { type: "string" },
+          query: { type: "string" },
+          area: { type: "string" },
+          domain: { type: "string" },
+          device_id: { type: "string" },
+        },
+      },
+      async execute(
+        _id: string,
+        params: { entity_id?: string; query?: string; area?: string; domain?: string; device_id?: string },
+      ) {
+        const started = Date.now();
+        try {
+          const snapshot = await fetchInventorySnapshot();
+          const semanticMap = await buildSemanticMapFromSnapshot(snapshot);
+          const learnedStore = await loadLearnedSemanticMap();
+          const brain = await buildDeviceBrainResult({
+            snapshot,
+            learnedStore,
+            semanticMap: semanticMap.by_entity,
+            target: {
+              entity_id: params.entity_id,
+              name: params.query,
+              area: params.area,
+              device_id: params.device_id,
+              domain: params.domain,
+            },
+          });
+          const target = brain.best ? snapshot.entities[brain.best.entity_id] : null;
+          if (!target) {
+            return textResult(
+              JSON.stringify(
+                { ok: false, reason: "not_found", candidates: brain.candidates.slice(0, 5) },
+                null,
+                2,
+              ),
+            );
+          }
+          const resolution = semanticMap.by_entity[target.entity_id];
+          const graphKey = deviceGraphKeyForEntity(target);
+          const deviceGraph = snapshot.device_graph?.[graphKey] ?? null;
+          await traceToolCall({
+            tool: "ha_semantic_explain",
+            params,
+            durationMs: Date.now() - started,
+            ok: true,
+            endpoint: "semantic_explain",
+            resultBytes: Buffer.byteLength(JSON.stringify(resolution ?? {}), "utf8"),
+          });
+          return textResult(
+            JSON.stringify(
+              {
+                ok: true,
+                entity_id: target.entity_id,
+                semantic: resolution,
+                device_graph: deviceGraph,
+                missing_signals: resolution?.missing_signals ?? [],
+                reasons: resolution?.reasons ?? [],
+                candidates: brain.candidates.slice(0, 5),
+              },
+              null,
+              2,
+            ),
+          );
+        } catch (err) {
+          await traceToolCall({
+            tool: "ha_semantic_explain",
+            params,
+            durationMs: Date.now() - started,
+            ok: false,
+            endpoint: "semantic_explain",
+            error: err,
+          });
+          return textResult(`HA semantic_explain error: ${String(err)}`);
+        }
+      },
+    },
+    { optional: true },
+  );
+
+  registerTool(
+    {
       name: "ha_inventory_report",
       description: "Generate a compact inventory report + semantic map.",
       parameters: {
@@ -7608,6 +8176,7 @@ const registerTools = (api: OpenClawPluginApi) => {
               semantic_type: entry.semantic_type,
               confidence: entry.confidence,
               reasons: entry.reasons,
+              missing_signals: entry.missing_signals,
               ambiguity: entry.ambiguity,
             }));
           const needsOverrideLines = semanticMap.needs_override
@@ -7709,9 +8278,17 @@ const registerTools = (api: OpenClawPluginApi) => {
       ) {
         const started = Date.now();
         const stage = { value: "start" };
-        const deadlineMs = params.deadline_ms ?? (params.safe_probe ? 6000 : 12000);
-        const verifyTimeoutMs = params.verify_timeout_ms ?? (params.safe_probe ? 4000 : 8000);
-        const haTimeoutMs = params.ha_timeout_ms ?? (params.safe_probe ? 4000 : 8000);
+        const requestedDeadlineMs = params.deadline_ms ?? (params.safe_probe ? 20000 : 60000);
+        const deadlineMs = clampTimeout(requestedDeadlineMs, 6000, 60000);
+        const baseVerifyTimeoutMs = params.verify_timeout_ms ?? (params.safe_probe ? 8000 : 15000);
+        const baseHaTimeoutMs = params.ha_timeout_ms ?? (params.safe_probe ? 4000 : 8000);
+        const timing: { deadline_ms: number; verify_timeout_ms: number; ha_timeout_ms: number; ha_latency_ms: number | null } =
+          {
+            deadline_ms: deadlineMs,
+            verify_timeout_ms: baseVerifyTimeoutMs,
+            ha_timeout_ms: baseHaTimeoutMs,
+            ha_latency_ms: null,
+          };
         const retryDelays = [250, 750];
         try {
           return await withDeadline({
@@ -7720,14 +8297,23 @@ const registerTools = (api: OpenClawPluginApi) => {
             getStage: () => stage.value,
             fn: async () => {
               stage.value = "ping";
+              const pingStarted = Date.now();
+              const pingTimeoutMs = clampTimeout(baseHaTimeoutMs, 2000, Math.min(15000, deadlineMs - 1000));
               const ping = await requestJsonWithRetry(
                 {
                   method: "GET",
                   url: `${getHaBaseUrl()}/api/config`,
                   token: getHaToken(),
-                  timeoutMs: haTimeoutMs,
+                  timeoutMs: pingTimeoutMs,
                 },
                 retryDelays,
+              );
+              const haLatencyMs = Date.now() - pingStarted;
+              timing.ha_latency_ms = haLatencyMs;
+              timing.ha_timeout_ms = clampTimeout(
+                Math.max(baseHaTimeoutMs, Math.round(haLatencyMs * 1.5)),
+                2000,
+                Math.min(20000, deadlineMs - 1000),
               );
               if (!ping.res.ok) {
                 return textResult(
@@ -7787,9 +8373,18 @@ const registerTools = (api: OpenClawPluginApi) => {
                 entity: target,
                 deviceEntities,
                 overrides,
-                learnedMap: learnedStore.entities,
+                learnedStore,
                 servicesByDomain: snapshot.services_by_domain ?? {},
+                deviceGraph: snapshot.device_graph ?? {},
               });
+              const maxVerifyTimeoutMs = Math.max(2000, deadlineMs - 1000);
+              const lowRiskBase = getLowRiskVerifyTimeoutMs(resolution.semantic_type, target.domain);
+              const latencyBoost = Math.min((timing.ha_latency_ms ?? 0) * 2, params.safe_probe ? 5000 : 15000);
+              const desiredVerifyTimeoutMs = lowRiskBase
+                ? Math.max(baseVerifyTimeoutMs, lowRiskBase + latencyBoost)
+                : Math.max(baseVerifyTimeoutMs, Math.min((timing.ha_latency_ms ?? 0) * 2, 8000));
+              const verifyTimeoutMs = clampTimeout(desiredVerifyTimeoutMs, 2000, maxVerifyTimeoutMs);
+              timing.verify_timeout_ms = verifyTimeoutMs;
               const riskLevel = getRiskLevel(resolution.semantic_type, target.domain);
               if (params.safe_probe) {
                 if (riskLevel === "high") {
@@ -7812,7 +8407,7 @@ const registerTools = (api: OpenClawPluginApi) => {
                           after: beforeState ? { [target.entity_id]: beforeState } : null,
                         },
                         risk_level: riskLevel,
-                        timing: { deadline_ms: deadlineMs, verify_timeout_ms: verifyTimeoutMs, ha_timeout_ms: haTimeoutMs },
+                        timing,
                       },
                       null,
                       2,
@@ -7830,7 +8425,7 @@ const registerTools = (api: OpenClawPluginApi) => {
                       probe,
                       verification: probe.verification,
                       risk_level: riskLevel,
-                      timing: { deadline_ms: deadlineMs, verify_timeout_ms: verifyTimeoutMs, ha_timeout_ms: haTimeoutMs },
+                      timing,
                     },
                     null,
                     2,
@@ -7964,6 +8559,7 @@ const registerTools = (api: OpenClawPluginApi) => {
                 normalizationFallback: primary.normalization_fallback,
                 verifyTimeoutMs,
                 wsTimeoutMs: verifyTimeoutMs,
+                allowEventVerification: isLowRiskVerificationTarget(resolution.semantic_type, primary.domain),
               });
           attempts.push({
             kind: "primary",
@@ -7987,6 +8583,7 @@ const registerTools = (api: OpenClawPluginApi) => {
                   entityIds: [target.entity_id],
                   verifyTimeoutMs,
                   wsTimeoutMs: verifyTimeoutMs,
+                  allowEventVerification: isLowRiskVerificationTarget(resolution.semantic_type, fallback.domain),
                 });
             attempts.push({
               kind: "fallback",
@@ -8038,6 +8635,7 @@ const registerTools = (api: OpenClawPluginApi) => {
                 controlModel: resolution.control_model,
                 intentLabel,
                 ok: result.verification.ok,
+                deviceFingerprint: target.device_fingerprint,
               });
               const learnedAlias = params.target.name
                 ? await updateLearnedAliasMap({
@@ -8107,7 +8705,7 @@ const registerTools = (api: OpenClawPluginApi) => {
                     capability_mismatch: capabilityMismatch,
                     learned,
                     learned_alias: learnedAlias,
-                    timing: { deadline_ms: deadlineMs, verify_timeout_ms: verifyTimeoutMs, ha_timeout_ms: haTimeoutMs },
+                    timing,
                   },
                   null,
                   2,
@@ -8124,6 +8722,8 @@ const registerTools = (api: OpenClawPluginApi) => {
                   ok: false,
                   error: "deadline_exceeded",
                   reason,
+                  retryable: true,
+                  timing,
                   verification: {
                     attempted: true,
                     ok: false,
@@ -8159,6 +8759,8 @@ const registerTools = (api: OpenClawPluginApi) => {
                 ok: false,
                 error: "gateway_internal_error",
                 reason: String(err),
+                retryable: isTransientError(err),
+                timing,
                 verification: {
                   attempted: true,
                   ok: false,

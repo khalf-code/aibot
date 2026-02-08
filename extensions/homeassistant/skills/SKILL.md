@@ -17,6 +17,7 @@ metadata: { "openclaw": { "emoji": "🏠" } }
    - If `verification.ok` is false, you must say the command was sent but not confirmed.
    - If a fallback was applied, explain the fallback and do not claim full success.
    - Respect `verification.level`: `state` means state/attributes changed, `ha_event` means only the service event was seen.
+   - `ha_event` is a weak confirmation: say “HA accepted the command, state did not confirm.”
 
 3) **Prefer universal control**
    - Use `ha_universal_control` for user-facing control.
