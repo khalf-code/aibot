@@ -37,6 +37,7 @@ vi.mock("../../config/config.js", () => ({
 
 vi.mock("../../agents/agent-scope.js", () => ({
   listAgentIds: () => ["main"],
+  resolveAgentNodeRouting: () => undefined,
 }));
 
 vi.mock("../../infra/agent-events.js", () => ({
