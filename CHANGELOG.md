@@ -160,6 +160,7 @@ Docs: https://docs.openclaw.ai
 - fix(ui): refresh agent files after external edits.
 - Docs: finish renaming the QMD memory docs to reference the OpenClaw state dir.
 - Tests: stub SSRF DNS pinning in web auto-reply + Gemini video coverage. (#6619) Thanks @joshp123.
+- Tools: downgrade tool execution failure logs. (#9893) Thanks @ai-fanatic.
 
 ## 2026.2.1
 
