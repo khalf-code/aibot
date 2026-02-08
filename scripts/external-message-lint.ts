@@ -82,6 +82,9 @@ const INTERNAL_JARGON = [
   "subagent",
 ];
 
+// Footguns: these can mass-notify channels on some platforms.
+const MENTION_FOOTGUNS = ["@everyone", "@here", "<!channel>", "<!here>", "<!everyone>"];
+
 const args = parseArgs(process.argv.slice(2));
 if (args.help) {
   console.log(usage());
@@ -124,6 +127,39 @@ if (text.includes("```")) {
     "error",
     "code-fence",
     "Message contains ``` fenced code blocks. Use plain text; keep commands short.",
+  );
+}
+
+// Markdown tables wrap badly in chat apps.
+const pipeLines = lines
+  .map((line, idx) => ({ line, lineNo: idx + 1, pipes: countMatches(line, /\|/g) }))
+  .filter((x) => x.line.trim().length > 0)
+  .filter((x) => x.pipes >= 2);
+
+const looksLikeTableSeparator = lines.some((l) => /^\s*\|?\s*[-:]{3,}\s*\|/.test(l));
+
+if (pipeLines.length >= 2 || looksLikeTableSeparator) {
+  const sample = pipeLines
+    .slice(0, 5)
+    .map((x) => String(x.lineNo))
+    .join(", ");
+
+  add(
+    "warn",
+    "markdown-table",
+    "Message looks like it contains a Markdown table (pipes '|'). Tables wrap badly in external chat. " +
+      (sample ? `Examples on line(s): ${sample}. ` : "") +
+      "Prefer short bullets instead.",
+  );
+}
+
+const mentionHits = MENTION_FOOTGUNS.filter((m) => text.includes(m));
+if (mentionHits.length > 0) {
+  add(
+    "warn",
+    "mass-mention",
+    `Message contains potential mass-mention token(s): ${mentionHits.join(", ")}. ` +
+      "Consider removing to avoid notifying large groups.",
   );
 }
 
