@@ -931,12 +931,24 @@ export const pt = {
       diagnostics: {
         enabled: { title: "Diagnósticos Ativados" },
         flags: { title: "Sinalizadores de Diagnóstico", description: 'Ex: ["telegram.http"].' },
+        otel: {
+          enabled: { title: "OpenTelemetry Habilitado" },
+          endpoint: { title: "Endpoint OpenTelemetry" },
+          protocol: { title: "Protocolo OpenTelemetry" },
+          headers: { title: "Cabeçalhos OpenTelemetry" },
+          serviceName: { title: "Nome do Serviço OpenTelemetry" },
+          traces: { title: "Rastreamento OpenTelemetry Habilitado" },
+          metrics: { title: "Métricas OpenTelemetry Habilitadas" },
+          logs: { title: "Logs OpenTelemetry Habilitados" },
+          sampleRate: { title: "Taxa de Amostragem de Rastreamento" },
+          flushIntervalMs: { title: "Intervalo de Envio (ms)" },
+        },
         cacheTrace: {
-          enabled: { title: "Trace de Cache Ativado" },
-          filePath: { title: "Caminho do Arquivo de Trace" },
-          includeMessages: { title: "Incluir Mensagens no Trace" },
-          includePrompt: { title: "Incluir Prompt no Trace" },
-          includeSystem: { title: "Incluir Sistema no Trace" },
+          enabled: { title: "Rastreamento de Cache Ativado" },
+          filePath: { title: "Caminho do Arquivo de Rastreamento" },
+          includeMessages: { title: "Incluir Mensagens no Rastreamento" },
+          includePrompt: { title: "Incluir Prompt no Rastreamento" },
+          includeSystem: { title: "Incluir Sistema no Rastreamento" },
         },
       },
       gateway: {
@@ -948,6 +960,8 @@ export const pt = {
           url: { title: "URL do Gateway Remoto" },
           sshTarget: { title: "Alvo SSH Remoto" },
           sshIdentity: { title: "Identidade SSH Remota" },
+          token: { title: "Token do Gateway Remoto" },
+          password: { title: "Senha do Gateway Remoto" },
           tlsFingerprint: { title: "Digital TLS (Fingerprint)" },
         },
         controlUi: {
@@ -955,10 +969,26 @@ export const pt = {
           root: { title: "Raiz da Interface" },
           allowedOrigins: { title: "Origens Permitidas (CORS)" },
           allowInsecureAuth: { title: "Permitir Autenticação Insegura (HTTP)" },
+          dangerouslyDisableDeviceAuth: {
+            title: "Desativar Verificação de Dispositivo (Perigoso)",
+          },
+        },
+        http: {
+          endpoints: {
+            chatCompletions: { enabled: { title: "Endpoint de Completions OpenAI" } },
+          },
         },
         reload: {
           mode: { title: "Modo de Recarga" },
           debounceMs: { title: "Debounce de Recarga (ms)" },
+        },
+        nodes: {
+          browser: {
+            mode: { title: "Modo de Navegador de Node" },
+            node: { title: "Node de Navegador Fixo" },
+          },
+          allowCommands: { title: "Comandos Permitidos (Node)" },
+          denyCommands: { title: "Comandos Bloqueados (Node)" },
         },
       },
       ui: {
@@ -976,30 +1006,110 @@ export const pt = {
       },
       tools: {
         exec: {
-          applyPatch: { enabled: { title: "Habilitar apply_patch" } },
+          applyPatch: {
+            enabled: { title: "Habilitar apply_patch" },
+            allowModels: { title: "Modelos Permitidos para Patch" },
+          },
           notifyOnExit: { title: "Notificar ao Sair" },
+          approvalRunningNoticeMs: { title: "Aviso de Aprovação em Execução (ms)" },
           host: { title: "Host de Execução" },
           security: { title: "Segurança de Execução" },
+          ask: { title: "Perguntar ao Executar" },
+          node: { title: "Vínculo de Node de Execução" },
           pathPrepend: { title: "Prepend de PATH" },
           safeBins: { title: "Binários Seguros" },
+        },
+        message: {
+          allowCrossContextSend: { title: "Permitir Envio Cruzado" },
+          crossContext: {
+            allowWithinProvider: { title: "Permitir Mesmo Provedor" },
+            allowAcrossProviders: { title: "Permitir Entre Provedores" },
+            marker: {
+              enabled: { title: "Marcador de Contexto" },
+              prefix: { title: "Prefixo do Marcador" },
+              suffix: { title: "Sufixo do Marcador" },
+            },
+          },
+          broadcast: { enabled: { title: "Transmissão Habilitada" } },
         },
         web: {
           search: {
             enabled: { title: "Pesquisa Web Ativada" },
             provider: { title: "Provedor de Pesquisa" },
+            apiKey: { title: "Chave de API de Pesquisa" },
             maxResults: { title: "Máximo de Resultados" },
+            timeoutSeconds: { title: "Timeout (seg)" },
+            cacheTtlMinutes: { title: "TTL de Cache (min)" },
+            perplexity: {
+              apiKey: { title: "Chave de API Perplexity" },
+              baseUrl: { title: "URL Base Perplexity" },
+              model: { title: "Modelo Perplexity" },
+            },
           },
           fetch: {
             enabled: { title: "Busca Web (Fetch) Ativada" },
             maxChars: { title: "Máximo de Caracteres" },
+            maxCharsCap: { title: "Teto Máximo de Caracteres" },
+            timeoutSeconds: { title: "Timeout (seg)" },
+            cacheTtlMinutes: { title: "TTL de Cache (min)" },
+            maxRedirects: { title: "Máximo de Redirecionamentos" },
             userAgent: { title: "User-Agent" },
+            readability: { title: "Usar Readability" },
+            firecrawl: {
+              enabled: { title: "Firecrawl Habilitado" },
+              apiKey: { title: "Chave de API Firecrawl" },
+              baseUrl: { title: "URL Base Firecrawl" },
+              onlyMainContent: { title: "Apenas Conteúdo Principal" },
+              maxAgeMs: { title: "Idade Máxima do Cache (ms)" },
+              timeoutSeconds: { title: "Timeout Firecrawl (seg)" },
+            },
           },
         },
-        media: {
-          image: { enabled: { title: "Análise de Imagem Ativada" } },
-          audio: { enabled: { title: "Análise de Áudio Ativada" } },
-          video: { enabled: { title: "Análise de Vídeo Ativada" } },
+        links: {
+          enabled: { title: "Análise de Links Habilitada" },
+          maxLinks: { title: "Máximo de Links" },
+          timeoutSeconds: { title: "Timeout (seg)" },
+          models: { title: "Modelos de Análise de Link" },
+          scope: { title: "Escopo de Link" },
         },
+        media: {
+          models: { title: "Modelos de Mídia Compartilhados" },
+          concurrency: { title: "Concorrência de Mídia" },
+          image: {
+            enabled: { title: "Compreensão de Imagem Ativada" },
+            maxBytes: { title: "Máximo de Bytes" },
+            maxChars: { title: "Máximo de Caracteres" },
+            prompt: { title: "Prompt de Imagem" },
+            timeoutSeconds: { title: "Timeout (seg)" },
+            attachments: { title: "Política de Anexos" },
+            models: { title: "Modelos de Imagem" },
+            scope: { title: "Escopo de Imagem" },
+          },
+          audio: {
+            enabled: { title: "Compreensão de Áudio Ativada" },
+            maxBytes: { title: "Máximo de Bytes" },
+            maxChars: { title: "Máximo de Caracteres" },
+            prompt: { title: "Prompt de Áudio" },
+            timeoutSeconds: { title: "Timeout (seg)" },
+            language: { title: "Idioma do Áudio" },
+            attachments: { title: "Política de Anexos" },
+            models: { title: "Modelos de Áudio" },
+            scope: { title: "Escopo de Áudio" },
+          },
+          video: {
+            enabled: { title: "Compreensão de Vídeo Ativada" },
+            maxBytes: { title: "Máximo de Bytes" },
+            maxChars: { title: "Máximo de Caracteres" },
+            prompt: { title: "Prompt de Vídeo" },
+            timeoutSeconds: { title: "Timeout (seg)" },
+            attachments: { title: "Política de Anexos" },
+            models: { title: "Modelos de Vídeo" },
+            scope: { title: "Escopo de Vídeo" },
+          },
+        },
+        profile: { title: "Perfil de Ferramentas" },
+        alsoAllow: { title: "Permissões Adicionais de Ferramentas" },
+        byProvider: { title: "Política de Ferramentas por Provedor" },
       },
       channels: {
         telegram: {
@@ -1078,28 +1188,193 @@ export const pt = {
       memory: {
         backend: {
           title: "Backend de Memória",
-          description: 'Provedor de memória ("builtin" ou "qmd").',
+          description: 'Provedor de memória ("builtin" para nativo ou "qmd" para sidecar).',
         },
         citations: { title: "Citações", description: "Comportamento padrão de citações." },
         qmd: {
-          command: { title: "Comando QMD" },
+          command: { title: "Binário QMD" },
           includeDefaultMemory: { title: "Incluir Memória Padrão" },
-          sessions: { enabled: { title: "Indexação de Transcrições de Sessão" } },
+          scope: { title: "Escopo de Superfície QMD" },
+          paths: {
+            title: "Caminhos Extras QMD",
+            path: { title: "Caminho" },
+            pattern: { title: "Padrão" },
+            name: { title: "Nome" },
+          },
+          sessions: {
+            enabled: { title: "Indexação de Sessões QMD" },
+            exportDir: { title: "Diretório de Exportação" },
+            retentionDays: { title: "Retenção (dias)" },
+          },
+          update: {
+            interval: { title: "Intervalo de Atualização" },
+            debounceMs: { title: "Debounce (ms)" },
+            onBoot: { title: "Atualizar ao Iniciar" },
+            waitForBootSync: { title: "Aguardar Sincronização no Boot" },
+            embedInterval: { title: "Intervalo de Embedding" },
+            commandTimeoutMs: { title: "Timeout de Comando (ms)" },
+            updateTimeoutMs: { title: "Timeout de Atualização (ms)" },
+            embedTimeoutMs: { title: "Timeout de Embedding (ms)" },
+          },
+          limits: {
+            maxResults: { title: "Máximo de Resultados" },
+            maxSnippetChars: { title: "Máximo de Caracteres do Trecho" },
+            maxInjectedChars: { title: "Máximo de Caracteres Injetados" },
+            timeoutMs: { title: "Timeout (ms)" },
+          },
         },
       },
       agents: {
         defaults: {
+          workspace: { title: "Workspace" },
           bootstrapMaxChars: { title: "Máximo de Caracteres de Inicialização" },
           repoRoot: { title: "Raiz do Repositório" },
           envelopeTimezone: { title: "Fuso Horário do Envelope" },
           envelopeTimestamp: { title: "Timestamp no Envelope" },
           envelopeElapsed: { title: "Tempo Decorrido no Envelope" },
+          models: { title: "Catálogo de Modelos" },
+          model: {
+            primary: { title: "Modelo Primário" },
+            fallbacks: { title: "Modelos de Fallback" },
+          },
+          imageModel: {
+            primary: { title: "Modelo de Imagem" },
+            fallbacks: { title: "Modelos de Imagem de Fallback" },
+          },
+          humanDelay: {
+            mode: { title: "Modo de Atraso Humano" },
+            minMs: { title: "Mínimo (ms)" },
+            maxMs: { title: "Máximo (ms)" },
+          },
+          cliBackends: { title: "Backends CLI" },
           memorySearch: {
             enabled: { title: "Busca em Memória Ativada" },
             provider: { title: "Provedor de Vetores" },
+            sources: { title: "Fontes de Busca" },
+            extraPaths: { title: "Caminhos Extras" },
             experimental: { sessionMemory: { title: "Memória de Sessão Experimental" } },
+            remote: {
+              baseUrl: { title: "URL Base Remota" },
+              apiKey: { title: "Chave de API Remota" },
+              headers: { title: "Cabeçalhos Remotos" },
+              batch: {
+                enabled: { title: "Lote Remoto Ativado" },
+                wait: { title: "Aguardar Lote" },
+                concurrency: { title: "Concorrência de Lote" },
+                pollIntervalMs: { title: "Intervalo de Polling (ms)" },
+                timeoutMinutes: { title: "Timeout de Lote (min)" },
+              },
+            },
+            model: { title: "Modelo de Embedding" },
+            fallback: { title: "Provedor de Fallback" },
+            local: { modelPath: { title: "Caminho do Modelo Local" } },
+            store: {
+              path: { title: "Caminho do Índice" },
+              vector: {
+                enabled: { title: "Vetor SQLite Habilitado" },
+                extensionPath: { title: "Caminho da Extensão Vetorial" },
+              },
+            },
+            chunking: {
+              tokens: { title: "Tokens por Fragmento" },
+              overlap: { title: "Sobreposição" },
+            },
+            sync: {
+              onSessionStart: { title: "Indexar ao Iniciar Sessão" },
+              onSearch: { title: "Indexar ao Buscar" },
+              watch: { title: "Monitorar Alterações" },
+              watchDebounceMs: { title: "Debounce de Monitoramento" },
+              sessions: {
+                deltaBytes: { title: "Bytes Delta (Sessão)" },
+                deltaMessages: { title: "Mensagens Delta (Sessão)" },
+              },
+            },
+            query: {
+              maxResults: { title: "Resultados Máximos" },
+              minScore: { title: "Pontuação Mínima" },
+              hybrid: {
+                enabled: { title: "Busca Híbrida" },
+                vectorWeight: { title: "Peso Vetorial" },
+                textWeight: { title: "Peso Textual" },
+                candidateMultiplier: { title: "Multiplicador de Candidatos" },
+              },
+            },
+            cache: {
+              enabled: { title: "Cache de Embeddings" },
+              maxEntries: { title: "Entradas Máximas no Cache" },
+            },
           },
         },
+        list: {
+          "*": {
+            skills: { title: "Filtro de Skills" },
+            tools: {
+              profile: { title: "Perfil de Ferramentas" },
+              alsoAllow: { title: "Também Permitir" },
+              byProvider: { title: "Política por Provedor" },
+            },
+            identity: { avatar: { title: "Avatar" } },
+          },
+        },
+      },
+      auth: {
+        profiles: { title: "Perfis de Autenticação" },
+        order: { title: "Ordem de Perfis" },
+        cooldowns: {
+          billingBackoffHours: { title: "Backoff de Cobrança (horas)" },
+          billingBackoffHoursByProvider: { title: "Backoff por Provedor" },
+          billingMaxHours: { title: "Máximo de Backoff (horas)" },
+          failureWindowHours: { title: "Janela de Falha (horas)" },
+        },
+      },
+      plugins: {
+        enabled: { title: "Plugins Habilitados" },
+        allow: { title: "Lista de Permissão" },
+        deny: { title: "Lista de Bloqueio" },
+        load: { paths: { title: "Caminhos de Carregamento" } },
+        slots: { memory: { title: "Plugin de Memória" } },
+        entries: {
+          "*": {
+            enabled: { title: "Plugin Habilitado" },
+            config: { title: "Configuração do Plugin" },
+          },
+        },
+        installs: {
+          "*": {
+            source: { title: "Fonte" },
+            spec: { title: "Especificação" },
+            sourcePath: { title: "Caminho Fonte" },
+            installPath: { title: "Caminho de Instalação" },
+            version: { title: "Versão" },
+            installedAt: { title: "Instalado Em" },
+          },
+        },
+      },
+      browser: {
+        evaluateEnabled: { title: "Habilitar Avaliação (Evaluate)" },
+        snapshotDefaults: {
+          mode: { title: "Modo de Snapshot Padrão" },
+        },
+        remoteCdpTimeoutMs: { title: "Timeout CDP Remoto (ms)" },
+        remoteCdpHandshakeTimeoutMs: { title: "Timeout Handshake CDP (ms)" },
+      },
+      session: {
+        dmScope: { title: "Escopo de Sessão DM" },
+        agentToAgent: {
+          maxPingPongTurns: { title: "Máximo de Turnos Agente-Agente" },
+        },
+      },
+      talk: {
+        apiKey: { title: "Chave de API Talk" },
+      },
+      nodeHost: {
+        browserProxy: {
+          enabled: { title: "Habilitar Proxy de Navegador" },
+          allowProfiles: { title: "Perfis de Navegador Permitidos" },
+        },
+      },
+      discovery: {
+        mdns: { mode: { title: "Modo mDNS" } },
       },
     },
   },
