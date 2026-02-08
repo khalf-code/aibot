@@ -176,7 +176,7 @@ describe("handleDirectiveOnly model persist behavior (fixes #1435)", () => {
     { provider: "openai", id: "gpt-4o" },
   ];
 
-  it("shows success message when session state is available", async () => {
+  it("does not emit a model set/reset ack when session state is available", async () => {
     const directives = parseInlineDirectives("/model openai/gpt-4o");
     const sessionEntry: SessionEntry = {
       sessionId: "s1",
@@ -205,8 +205,9 @@ describe("handleDirectiveOnly model persist behavior (fixes #1435)", () => {
       formatModelSwitchEvent: (label) => `Switched to ${label}`,
     });
 
-    expect(result?.text).toContain("Model set to");
-    expect(result?.text).toContain("openai/gpt-4o");
+    expect(result?.text ?? "").not.toContain("Model set to");
+    expect(result?.text ?? "").not.toContain("Model reset to default");
+    expect(result?.text).toBe("OK.");
     expect(result?.text).not.toContain("failed");
   });
 

@@ -471,17 +471,8 @@ export async function handleDirectiveOnly(params: {
       `Thinking level set to high (xhigh not supported for ${resolvedProvider}/${resolvedModel}).`,
     );
   }
-  if (modelSelection) {
-    const label = `${modelSelection.provider}/${modelSelection.model}`;
-    const labelWithAlias = modelSelection.alias ? `${modelSelection.alias} (${label})` : label;
-    parts.push(
-      modelSelection.isDefault
-        ? `Model reset to default (${labelWithAlias}).`
-        : `Model set to ${labelWithAlias}.`,
-    );
-    if (profileOverride) {
-      parts.push(`Auth profile set to ${profileOverride}.`);
-    }
+  if (modelSelection && profileOverride) {
+    parts.push(`Auth profile set to ${profileOverride}.`);
   }
   if (directives.hasQueueDirective && directives.queueMode) {
     parts.push(formatDirectiveAck(`Queue mode set to ${directives.queueMode}.`));
