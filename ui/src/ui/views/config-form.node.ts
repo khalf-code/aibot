@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from "lit";
-import type { ConfigUiHints } from "../types";
+import type { ConfigUiHints } from "../types.ts";
+import { icons } from "../icons.ts";
 import {
   defaultValue,
   hintForPath,
@@ -8,8 +9,7 @@ import {
   pathKey,
   schemaType,
   type JsonSchema,
-} from "./config-form.shared";
-import { icons } from "../icons";
+} from "./config-form.shared.ts";
 
 const META_KEYS = new Set(["title", "description", "default", "nullable"]);
 
@@ -363,7 +363,7 @@ function renderTextInput(params: {
                 @click=${(e: Event) => {
                   const button = e.currentTarget as HTMLElement;
                   const wrapper = button.parentElement;
-                  const input = wrapper?.querySelector('input') as HTMLInputElement;
+                  const input = wrapper?.querySelector("input") as HTMLInputElement;
                   if (input) {
                     input.type = input.type === "password" ? "text" : "password";
                   }
