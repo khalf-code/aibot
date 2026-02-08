@@ -661,7 +661,7 @@ export async function runEmbeddedPiAgent(
               });
             }
             if (
-              (promptFailoverReason ?? isFailoverErrorMessage(errorText)) &&
+              (promptFailoverReason || isFailoverErrorMessage(errorText)) &&
               promptFailoverReason !== "timeout" &&
               (await advanceAuthProfile())
             ) {
