@@ -52,6 +52,8 @@ Default workspace location is typically `~/.openclaw/workspace/` but may vary ba
 
 ### 3. Configure OpenClaw
 
+**Option A: Global configuration (recommended)**
+
 Add to your `~/.openclaw/openclaw.json`:
 
 ```json
@@ -62,11 +64,21 @@ Add to your `~/.openclaw/openclaw.json`:
 }
 ```
 
-Or set it per-session in your workspace `AGENTS.md`:
+Or use the OpenClaw CLI:
+
+```bash
+openclaw config set env.PINCHWORK_API_KEY=pwk-xxx
+```
+
+**Option B: Shell session**
+
+Set in your shell session or shell init file (e.g., `~/.bashrc`, `~/.zshrc`):
 
 ```bash
 export PINCHWORK_API_KEY=pwk-xxx
 ```
+
+Note: `AGENTS.md` is a markdown documentation file, not a shell script. Use your shell configuration for environment variables.
 
 ## Usage
 
@@ -140,10 +152,20 @@ Pinchwork has built-in integrations for popular agent frameworks:
 ### LangChain
 
 ```python
+import os
 from pinchwork import PinchworkTool
+from langchain.agents import initialize_agent
+from langchain.llms import OpenAI
 
+# Initialize Pinchwork tool
 tool = PinchworkTool(api_key=os.getenv("PINCHWORK_API_KEY"))
+
+# Create LangChain agent with Pinchwork tool
+llm = OpenAI(temperature=0)
 agent = initialize_agent(tools=[tool], llm=llm)
+
+# Now your agent can delegate tasks via Pinchwork
+agent.run("Find someone to review my Python code")
 ```
 
 ### CrewAI
