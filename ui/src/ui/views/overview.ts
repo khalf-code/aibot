@@ -4,6 +4,87 @@ import type { UiSettings } from "../storage.ts";
 import { formatAgo, formatDurationMs } from "../format.ts";
 import { formatNextRun } from "../presenter.ts";
 
+/**
+ * Validate session key format
+ * Returns validation result with error message if invalid
+ * Mirrors backend parsing logic in src/sessions/session-key-utils.ts
+ */
+function validateSessionKeyFormat(input: string): { isValid: boolean; error?: string } {
+  const trimmed = input.trim();
+
+  // Empty is allowed (will use default)
+  if (!trimmed) {
+    return { isValid: true };
+  }
+
+  // Handle special single-segment cases that are always valid (case-insensitive like backend)
+  const normalized = trimmed.toLowerCase();
+  if (normalized === "main" || normalized === "global" || normalized === "unknown") {
+    return { isValid: true };
+  }
+
+  // Mirror backend parsing: split and filter empty segments like parseAgentSessionKey
+  const parts = trimmed.split(":").filter(Boolean);
+  if (parts.length < 2) {
+    return {
+      isValid: false,
+      error:
+        "Session key must have at least 2 segments (e.g., agent:main:session, subagent:xxx, or acp:xxx)",
+    };
+  }
+
+  const prefix = parts[0]?.toLowerCase();
+
+  // Check agent: format (requires 3 segments after filtering, like parseAgentSessionKey)
+  if (prefix === "agent") {
+    if (parts.length >= 3) {
+      const agentId = parts[1]?.trim();
+      const rest = parts.slice(2).join(":");
+      if (agentId && rest) {
+        return { isValid: true };
+      }
+    }
+    return {
+      isValid: false,
+      error:
+        "Agent format requires 3 non-empty segments: agent:agentId:sessionName (e.g., agent:main:xiaohua)",
+    };
+  }
+
+  // Check subagent: format (case-insensitive like isSubagentSessionKey)
+  if (prefix === "subagent") {
+    if (parts.length >= 2 && parts[1]) {
+      return { isValid: true };
+    }
+    return {
+      isValid: false,
+      error: "Subagent format requires at least 2 non-empty segments: subagent:xxx",
+    };
+  }
+
+  // Check acp: format (case-insensitive like isAcpSessionKey)
+  if (prefix === "acp") {
+    if (parts.length >= 2 && parts[1]) {
+      return { isValid: true };
+    }
+    return {
+      isValid: false,
+      error: "ACP format requires at least 2 non-empty segments: acp:xxx",
+    };
+  }
+
+  // Other two-segment formats are also valid (for extensibility)
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return { isValid: true };
+  }
+
+  return {
+    isValid: false,
+    error:
+      "Invalid format. Use: agent:agentId:sessionName, subagent:xxx, acp:xxx, or other two-segment format",
+  };
+}
+
 export type OverviewProps = {
   connected: boolean;
   hello: GatewayHelloOk | null;
@@ -24,8 +105,14 @@ export type OverviewProps = {
 
 export function renderOverview(props: OverviewProps) {
   const snapshot = props.hello?.snapshot as
+    | { version?: string; agentId?: string; sessionDefaults?: Record<string, unknown> }
     | { uptimeMs?: number; policy?: { tickIntervalMs?: number } }
     | undefined;
+
+  // Validate session key format
+  const sessionKeyValidation = validateSessionKeyFormat(props.settings.sessionKey);
+  const canConnect = sessionKeyValidation.isValid;
+
   const uptime = snapshot?.uptimeMs ? formatDurationMs(snapshot.uptimeMs) : "n/a";
   const tick = snapshot?.policy?.tickIntervalMs ? `${snapshot.policy.tickIntervalMs}ms` : "n/a";
   const authHint = (() => {
@@ -167,13 +254,43 @@ export function renderOverview(props: OverviewProps) {
                 const v = (e.target as HTMLInputElement).value;
                 props.onSessionKeyChange(v);
               }}
+              placeholder="agent:main:session, subagent:xxx, or acp:xxx"
+              title="Supported formats: agent:agentId:sessionName, subagent:xxx, acp:xxx, or other two-segment format"
+              style=${sessionKeyValidation.isValid ? "" : "border-color: #e74c3c; background-color: #fdf2f2;"}
             />
+            ${
+              sessionKeyValidation.error
+                ? html`
+              <div style="color: #e74c3c; font-size: 12px; margin-top: 4px;">
+                ⚠️ ${sessionKeyValidation.error}
+              </div>
+            `
+                : ""
+            }
           </label>
         </div>
         <div class="row" style="margin-top: 14px;">
-          <button class="btn" @click=${() => props.onConnect()}>Connect</button>
+          <button 
+            class="btn" 
+            ?disabled=${!canConnect}
+            @click=${() => {
+              if (canConnect) {
+                props.onConnect();
+              }
+            }}
+            title=${canConnect ? "Connect to gateway" : "Fix session key format before connecting"}
+            style=${canConnect ? "" : "opacity: 0.5; cursor: not-allowed;"}
+          >
+            Connect
+          </button>
           <button class="btn" @click=${() => props.onRefresh()}>Refresh</button>
-          <span class="muted">Click Connect to apply connection changes.</span>
+          <span class="muted">
+            ${
+              canConnect
+                ? "Click Connect to apply connection changes."
+                : "⚠️ Fix session key format to enable connection."
+            }
+          </span>
         </div>
       </div>
 
