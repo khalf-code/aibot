@@ -657,6 +657,8 @@ export async function runEmbeddedAttempt(
         getMessagingToolSentTargets,
         didSendViaMessagingTool,
         getLastToolError,
+        getUsageTotals,
+        getCompactionCount,
       } = subscription;
 
       const queueHandle: EmbeddedPiQueueHandle = {
@@ -915,6 +917,8 @@ export async function runEmbeddedAttempt(
         cloudCodeAssistFormatError: Boolean(
           lastAssistant?.errorMessage && isCloudCodeAssistFormatError(lastAssistant.errorMessage),
         ),
+        attemptUsage: getUsageTotals(),
+        compactionCount: getCompactionCount(),
         // Client tool call detected (OpenResponses hosted tools)
         clientToolCall: clientToolCallDetected ?? undefined,
       };
