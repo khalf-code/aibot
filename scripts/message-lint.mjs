@@ -54,6 +54,18 @@ function lintMessage(msg) {
     });
   }
 
+  // Rule (warn): URLs with query params often sneak in extra '?' characters.
+  // Encourage canonical URLs without '?...' so the message can still include a real question.
+  const urlWithQuery = text.match(/https?:\/\/\S+\?\S+/g) || [];
+  if (urlWithQuery.length > 0) {
+    const example = urlWithQuery[0];
+    issues.push({
+      level: "warn",
+      code: "url_has_query_params",
+      message: `Message contains a URL with '?': ${example}. Consider stripping query params to avoid accidental extra '?'s.`,
+    });
+  }
+
   // Rule: First non-empty line should start with Outcome: or Done:
   const firstNonEmpty = lines.find((l) => l.trim().length > 0) ?? "";
   if (firstNonEmpty && !(firstNonEmpty.startsWith("Outcome:") || firstNonEmpty.startsWith("Done:"))) {
