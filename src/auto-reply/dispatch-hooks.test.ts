@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { dispatchInboundMessage } from "./dispatch.js";
-import * as internalHooks from "../hooks/internal-hooks.js";
-import type { MsgContext } from "./templating.js";
 import type { OpenClawConfig } from "../config/config.js";
+import type { ReplyDispatcher } from "./reply/reply-dispatcher.js";
+import type { MsgContext } from "./templating.js";
+import * as internalHooks from "../hooks/internal-hooks.js";
+import { dispatchInboundMessage } from "./dispatch.js";
 
 describe("dispatchInboundMessage hooks", () => {
   let triggerSpy: ReturnType<typeof vi.spyOn>;
@@ -40,7 +41,7 @@ describe("dispatchInboundMessage hooks", () => {
     await dispatchInboundMessage({
       ctx,
       cfg,
-      dispatcher: dispatcher as any,
+      dispatcher: dispatcher as unknown as ReplyDispatcher,
     });
 
     expect(triggerSpy).toHaveBeenCalledWith(
@@ -77,7 +78,7 @@ describe("dispatchInboundMessage hooks", () => {
     await dispatchInboundMessage({
       ctx,
       cfg,
-      dispatcher: dispatcher as any,
+      dispatcher: dispatcher as unknown as ReplyDispatcher,
     });
 
     expect(triggerSpy).not.toHaveBeenCalled();
@@ -103,7 +104,7 @@ describe("dispatchInboundMessage hooks", () => {
     await dispatchInboundMessage({
       ctx,
       cfg,
-      dispatcher: dispatcher as any,
+      dispatcher: dispatcher as unknown as ReplyDispatcher,
     });
 
     expect(triggerSpy).not.toHaveBeenCalled();

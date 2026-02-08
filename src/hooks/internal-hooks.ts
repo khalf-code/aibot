@@ -52,7 +52,9 @@ export type MessageReceivedHookEvent = InternalHookEvent & {
   context: MessageReceivedHookContext;
 };
 
-export function isMessageReceivedEvent(event: InternalHookEvent): event is MessageReceivedHookEvent {
+export function isMessageReceivedEvent(
+  event: InternalHookEvent,
+): event is MessageReceivedHookEvent {
   if (event.type !== "message" || event.action !== "received") {
     return false;
   }
