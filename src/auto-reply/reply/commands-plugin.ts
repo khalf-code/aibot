@@ -38,6 +38,8 @@ export const handlePluginCommand: CommandHandler = async (
     isAuthorizedSender: command.isAuthorizedSender,
     commandBody: command.commandBodyNormalized,
     config: cfg,
+    chatId: command.to?.replace(/^telegram:/, "") ?? command.from?.replace(/^telegram:/, ""),
+    messageId: params.ctx.MessageSid,
   });
 
   return {
