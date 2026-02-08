@@ -26,6 +26,13 @@ import { resolveOpenClawAgentDir } from "../agent-paths.js";
 import { resolveSessionAgentIds } from "../agent-scope.js";
 import { makeBootstrapWarn, resolveBootstrapContextForRun } from "../bootstrap-files.js";
 import { listChannelSupportedActions, resolveChannelMessageToolHints } from "../channel-tools.js";
+import {
+  estimateMessagesTokens,
+  pruneToolOutputs,
+  PRUNE_MINIMUM_TOKENS,
+  PRUNE_PROTECT_TOKENS,
+  PRUNE_PROTECTED_TOOLS,
+} from "../compaction.js";
 import { formatUserTime, resolveUserTimeFormat, resolveUserTimezone } from "../date-time.js";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "../defaults.js";
 import { resolveOpenClawDocsPath } from "../docs-path.js";
@@ -425,6 +432,66 @@ export async function compactEmbeddedPiSessionDirect(
         if (limited.length > 0) {
           session.agent.replaceMessages(limited);
         }
+
+        // =================================================================
+        // Phase 1: Prune old tool outputs (cheap, preserves cache)
+        // =================================================================
+        const compactionCfg = params.config?.agents?.defaults?.compaction;
+        const pruneEnabled = compactionCfg?.prune !== false;
+        if (pruneEnabled) {
+          const prePruneTokens = estimateMessagesTokens(session.messages);
+          const pruneResult = pruneToolOutputs(session.messages, {
+            protectTokens: compactionCfg?.pruneProtectTokens ?? PRUNE_PROTECT_TOKENS,
+            minimumTokens: compactionCfg?.pruneMinimumTokens ?? PRUNE_MINIMUM_TOKENS,
+            protectedTools: [
+              ...PRUNE_PROTECTED_TOOLS,
+              ...(compactionCfg?.pruneProtectedTools ?? []),
+            ],
+          });
+
+          if (pruneResult.didPrune) {
+            log.info(
+              `Pruned ${pruneResult.prunedCount} tool outputs (${pruneResult.prunedTokens} tokens)`,
+            );
+            // Update session with pruned messages
+            session.agent.replaceMessages(session.messages);
+
+            // Check if prune was sufficient (under 80% of context limit)
+            const postPruneTokens = estimateMessagesTokens(session.messages);
+            const contextLimit = model.contextWindow ?? 128_000;
+            if (postPruneTokens < contextLimit * 0.8) {
+              // Prune was enough, skip expensive summarization
+              log.info(
+                `Prune sufficient: ${prePruneTokens} → ${postPruneTokens} tokens (limit: ${contextLimit})`,
+              );
+              // For prune-only, use first message id or fallback (no messages dropped)
+              const firstMsgId =
+                (session.messages[0] as { id?: string } | undefined)?.id ?? "prune-only";
+              return {
+                ok: true,
+                compacted: true,
+                result: {
+                  summary: "[Pruned tool outputs only - no summarization needed]",
+                  firstKeptEntryId: firstMsgId,
+                  tokensBefore: prePruneTokens,
+                  tokensAfter: postPruneTokens,
+                  details: {
+                    pruneOnly: true,
+                    prunedCount: pruneResult.prunedCount,
+                    prunedTokens: pruneResult.prunedTokens,
+                  },
+                },
+              };
+            }
+            log.info(
+              `Prune not sufficient: ${postPruneTokens} tokens still over 80% of ${contextLimit}, proceeding to summarize`,
+            );
+          }
+        }
+
+        // =================================================================
+        // Phase 2: Summarize (expensive, requires LLM call)
+        // =================================================================
         const result = await session.compact(params.customInstructions);
         // Estimate tokens after compaction by summing token estimates for remaining messages
         let tokensAfter: number | undefined;

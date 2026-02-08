@@ -248,6 +248,14 @@ export type AgentCompactionConfig = {
   reserveTokensFloor?: number;
   /** Max share of context window for history during safeguard pruning (0.1–0.9, default 0.5). */
   maxHistoryShare?: number;
+  /** Enable prune phase before summarization (default: true). */
+  prune?: boolean;
+  /** Tokens to protect from pruning (default: 40000). */
+  pruneProtectTokens?: number;
+  /** Minimum tokens required to trigger pruning (default: 20000). */
+  pruneMinimumTokens?: number;
+  /** Additional tool names to protect from pruning (merged with built-in defaults). */
+  pruneProtectedTools?: string[];
   /** Pre-compaction memory flush (agentic turn). Default: enabled. */
   memoryFlush?: AgentCompactionMemoryFlushConfig;
 };

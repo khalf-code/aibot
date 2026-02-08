@@ -91,6 +91,14 @@ export const AgentDefaultsSchema = z
         mode: z.union([z.literal("default"), z.literal("safeguard")]).optional(),
         reserveTokensFloor: z.number().int().nonnegative().optional(),
         maxHistoryShare: z.number().min(0.1).max(0.9).optional(),
+        /** Enable prune phase before summarization (default: true) */
+        prune: z.boolean().optional(),
+        /** Tokens to protect from pruning (default: 40000) */
+        pruneProtectTokens: z.number().int().nonnegative().optional(),
+        /** Minimum tokens required to trigger pruning (default: 20000) */
+        pruneMinimumTokens: z.number().int().nonnegative().optional(),
+        /** Additional tool names to protect from pruning (merged with built-in defaults) */
+        pruneProtectedTools: z.array(z.string()).optional(),
         memoryFlush: z
           .object({
             enabled: z.boolean().optional(),

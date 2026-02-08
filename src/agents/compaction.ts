@@ -3,6 +3,23 @@ import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { estimateTokens, generateSummary } from "@mariozechner/pi-coding-agent";
 import { DEFAULT_CONTEXT_TOKENS } from "./defaults.js";
 
+// =============================================================================
+// Prune Phase Constants (OpenCode-inspired two-phase compaction)
+// =============================================================================
+
+/** Protect the last N tokens of tool outputs from pruning. */
+export const PRUNE_PROTECT_TOKENS = 40_000;
+
+/** Only prune if we can remove at least this many tokens. */
+export const PRUNE_MINIMUM_TOKENS = 20_000;
+
+/** Tools that should never have their outputs pruned. */
+export const PRUNE_PROTECTED_TOOLS = ["skill", "memory_search", "gandiva_recall"];
+
+// =============================================================================
+// Existing Constants
+// =============================================================================
+
 export const BASE_CHUNK_RATIO = 0.4;
 export const MIN_CHUNK_RATIO = 0.15;
 export const SAFETY_MARGIN = 1.2; // 20% buffer for estimateTokens() inaccuracy
@@ -353,4 +370,123 @@ export function pruneHistoryForContextShare(params: {
 
 export function resolveContextWindowTokens(model?: ExtensionContext["model"]): number {
   return Math.max(1, Math.floor(model?.contextWindow ?? DEFAULT_CONTEXT_TOKENS));
+}
+
+// =============================================================================
+// Prune Phase (OpenCode-inspired)
+// =============================================================================
+
+export interface PruneResult {
+  /** Total tokens in tool outputs that could be pruned. */
+  prunableTokens: number;
+  /** Number of tool result messages that would be pruned. */
+  prunableCount: number;
+  /** Tokens actually pruned (0 if below minimum threshold). */
+  prunedTokens: number;
+  /** Messages actually pruned. */
+  prunedCount: number;
+  /** Whether pruning was performed. */
+  didPrune: boolean;
+}
+
+/**
+ * Prune old tool outputs from messages (OpenCode-inspired two-phase compaction).
+ *
+ * This function walks backwards through messages and marks old tool results
+ * for pruning once we've accumulated PRUNE_PROTECT_TOKENS of recent tool outputs.
+ * Only prunes if total prunable exceeds PRUNE_MINIMUM_TOKENS.
+ *
+ * The pruning replaces tool result content with a placeholder, reducing context
+ * size without requiring an expensive LLM summarization call.
+ *
+ * @param messages - Array of messages to prune (mutated in place)
+ * @param options - Configuration options
+ * @returns PruneResult with statistics about what was pruned
+ */
+export function pruneToolOutputs(
+  messages: AgentMessage[],
+  options?: {
+    /** Tokens to protect from pruning (default: PRUNE_PROTECT_TOKENS) */
+    protectTokens?: number;
+    /** Minimum tokens to trigger prune (default: PRUNE_MINIMUM_TOKENS) */
+    minimumTokens?: number;
+    /** Tools to never prune (default: PRUNE_PROTECTED_TOOLS) */
+    protectedTools?: string[];
+    /** Placeholder text for pruned outputs (default: "[output pruned for context]") */
+    placeholder?: string;
+  },
+): PruneResult {
+  const protectTokens = options?.protectTokens ?? PRUNE_PROTECT_TOKENS;
+  const minimumTokens = options?.minimumTokens ?? PRUNE_MINIMUM_TOKENS;
+  const protectedTools = new Set(options?.protectedTools ?? PRUNE_PROTECTED_TOOLS);
+  const placeholder = options?.placeholder ?? "[output pruned for context]";
+
+  let totalToolTokens = 0;
+  let prunableTokens = 0;
+  const toPrune: Array<{ message: AgentMessage; index: number; tokens: number }> = [];
+  let userTurns = 0;
+
+  // Walk backwards through messages
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (!msg) continue;
+
+    // Count user turns to protect recent interaction (last 2 user messages)
+    if (msg.role === "user") {
+      userTurns++;
+    }
+    // Protect all messages until we've passed 2 user turns from the end
+    if (userTurns < 2) continue;
+
+    // Stop at summary boundary (already compacted)
+    if ((msg as { summary?: boolean }).summary === true) break;
+
+    // Check for tool results
+    if (msg.role === "toolResult") {
+      const toolMsg = msg as { toolName?: string; content?: unknown };
+      const toolName = toolMsg.toolName ?? "";
+
+      // Skip protected tools
+      if (protectedTools.has(toolName)) continue;
+
+      const tokens = estimateTokens(msg);
+      totalToolTokens += tokens;
+
+      // Once we've protected enough recent tokens, mark older ones for pruning
+      if (totalToolTokens > protectTokens) {
+        prunableTokens += tokens;
+        toPrune.push({ message: msg, index: i, tokens });
+      }
+    }
+  }
+
+  // Only prune if we'd remove enough tokens to be worthwhile
+  if (prunableTokens < minimumTokens) {
+    return {
+      prunableTokens,
+      prunableCount: toPrune.length,
+      prunedTokens: 0,
+      prunedCount: 0,
+      didPrune: false,
+    };
+  }
+
+  // Perform pruning by replacing content with placeholder
+  let prunedTokens = 0;
+  for (const { message, tokens } of toPrune) {
+    const toolMsg = message as { content?: unknown; prunedAt?: number };
+    // Replace content with placeholder
+    toolMsg.content = [{ type: "text", text: placeholder }];
+    // Mark when it was pruned (for debugging/tracking)
+    toolMsg.prunedAt = Date.now();
+    prunedTokens += tokens;
+  }
+
+  return {
+    prunableTokens,
+    prunableCount: toPrune.length,
+    prunedTokens,
+    prunedCount: toPrune.length,
+    didPrune: true,
+  };
 }
