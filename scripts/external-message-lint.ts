@@ -236,8 +236,9 @@ const urlQuerySuggestions = [...new Set(urlsWithQuery)]
 const qInUrls = urls.reduce((acc, url) => acc + countMatches(url, /\?/g), 0);
 
 const qCount = countMatches(text, /\?/g);
+const qOutsideUrls = Math.max(0, qCount - qInUrls);
+
 if (qCount > 1) {
-  const qOutsideUrls = Math.max(0, qCount - qInUrls);
   const urlList =
     urlsWithQuery.length > 0
       ? ` URL(s) with '?': ${urlsWithQuery.slice(0, 3).join(" ")}${
@@ -261,6 +262,55 @@ if (qCount > 1) {
       urlList +
       suggestions +
       " External replies should contain at most one. Strip URL query params and bundle clarifications into a single question.",
+  );
+}
+
+// Structure: if you ask a question, put it last (helps keep the message pasteable).
+// Heuristic: find the last '?' outside URLs and ensure no more non-empty lines follow.
+// Also enforce that an explicit "Question:" label (if used) appears on the last non-empty line.
+const lastNonEmptyLineNo = (() => {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if ((lines[i] ?? "").trim().length > 0) return i + 1;
+  }
+  return undefined;
+})();
+
+const questionLabelLineNos = lines
+  .map((line, idx) => ({ line, lineNo: idx + 1 }))
+  .filter((x) => /^\s*Question:\s*/i.test(x.line));
+
+const lastQuestionLabelLineNo = questionLabelLineNos.at(-1)?.lineNo;
+
+let lastQuestionLineNo: number | undefined;
+for (let i = 0; i < lines.length; i++) {
+  const noUrls = (lines[i] ?? "").replaceAll(/https?:\/\/\S+/g, "");
+  if (noUrls.includes("?")) lastQuestionLineNo = i + 1;
+}
+
+if (
+  qOutsideUrls > 0 &&
+  lastQuestionLineNo &&
+  lastNonEmptyLineNo &&
+  lastQuestionLineNo !== lastNonEmptyLineNo
+) {
+  add(
+    "warn",
+    "question-not-last",
+    `Question mark appears on line ${lastQuestionLineNo}, but the last non-empty line is ${lastNonEmptyLineNo}. ` +
+      "External replies should put the question last.",
+  );
+}
+
+if (
+  lastQuestionLabelLineNo &&
+  lastNonEmptyLineNo &&
+  lastQuestionLabelLineNo !== lastNonEmptyLineNo
+) {
+  add(
+    "warn",
+    "question-label-not-last",
+    `A 'Question:' line appears on line ${lastQuestionLabelLineNo}, but the last non-empty line is ${lastNonEmptyLineNo}. ` +
+      "If you use a 'Question:' label, keep it as the final line.",
   );
 }
 
