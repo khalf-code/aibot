@@ -2,6 +2,7 @@ import type { ReplyPayload } from "../auto-reply/types.js";
 import type { OpenClawConfig } from "../config/config.js";
 import type { SignalReactionNotificationMode } from "../config/types.js";
 import type { RuntimeEnv } from "../runtime.js";
+import type { SignalEnhancementDeps } from "./monitor/signal-enhancements.js";
 import { chunkTextWithMode, resolveChunkMode, resolveTextChunkLimit } from "../auto-reply/chunk.js";
 import { DEFAULT_GROUP_HISTORY_LIMIT, type HistoryEntry } from "../auto-reply/reply/history.js";
 import { loadConfig } from "../config/config.js";
@@ -349,6 +350,19 @@ export async function monitorSignalProvider(opts: MonitorSignalOpts = {}): Promi
       });
     }
 
+    // Signal enhancements: build enhancement deps
+    const requireMention = accountInfo.config.requireMention ?? false;
+    const enhancementDeps: SignalEnhancementDeps = {
+      cfg,
+      baseUrl,
+      account,
+      accountId: accountInfo.accountId,
+      mediaMaxBytes,
+      ignoreAttachments,
+      fetchAttachment,
+      requireMention,
+    };
+
     const handleEvent = createSignalEventHandler({
       runtime,
       cfg,
@@ -375,6 +389,7 @@ export async function monitorSignalProvider(opts: MonitorSignalOpts = {}): Promi
       isSignalReactionMessage,
       shouldEmitSignalReactionNotification,
       buildSignalReactionSystemEventText,
+      enhancementDeps,
     });
 
     await runSignalSseLoop({

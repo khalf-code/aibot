@@ -43,9 +43,24 @@ import {
   resolveSignalSender,
 } from "../identity.js";
 import { sendMessageSignal, sendReadReceiptSignal, sendTypingSignal } from "../send.js";
+import {
+  buildEnhancedMessage,
+  checkRequireMention,
+  loadSignalMediaCache,
+  preCacheGroupMedia,
+  stripMentionPlaceholders,
+  type SignalEnhancementDeps,
+} from "./signal-enhancements.js";
 
-export function createSignalEventHandler(deps: SignalEventHandlerDeps) {
+export function createSignalEventHandler(
+  deps: SignalEventHandlerDeps & { enhancementDeps?: SignalEnhancementDeps },
+) {
   const inboundDebounceMs = resolveInboundDebounceMs({ cfg: deps.cfg, channel: "signal" });
+
+  // Signal enhancements: load persistent media cache on startup
+  if (deps.enhancementDeps) {
+    void loadSignalMediaCache();
+  }
 
   type SignalInboundEntry = {
     senderName: string;
@@ -475,10 +490,27 @@ export function createSignalEventHandler(deps: SignalEventHandlerDeps) {
       }
     }
 
+    // Signal enhancements: pre-cache group media + requireMention gate
+    const eDeps = deps.enhancementDeps;
+    if (eDeps && isGroup) {
+      await preCacheGroupMedia({
+        dataMessage,
+        senderRecipient,
+        senderAllowId,
+        groupId,
+        deps: eDeps,
+      });
+    }
+    if (eDeps && checkRequireMention({ dataMessage, isGroup, deps: eDeps })) {
+      return;
+    }
+
     const useAccessGroups = deps.cfg.commands?.useAccessGroups !== false;
     const ownerAllowedForCommands = isSignalSenderAllowed(sender, effectiveDmAllow);
     const groupAllowedForCommands = isSignalSenderAllowed(sender, effectiveGroupAllow);
-    const hasControlCommandInMessage = hasControlCommand(messageText, deps.cfg);
+    // Strip U+FFFC mention placeholders so commands like "@bot /new" detect correctly
+    const textForCmd = eDeps ? stripMentionPlaceholders(messageText) : messageText;
+    const hasControlCommandInMessage = hasControlCommand(textForCmd, deps.cfg);
     const commandGate = resolveControlCommandGate({
       useAccessGroups,
       authorizers: [
@@ -529,7 +561,28 @@ export function createSignalEventHandler(deps: SignalEventHandlerDeps) {
       placeholder = "<media:attachment>";
     }
 
-    const bodyText = messageText || placeholder || dataMessage.quote?.text?.trim() || "";
+    // Signal enhancements: sticker, quote, U+FFFC stripping, enhanced bodyText
+    let bodyText: string;
+    if (eDeps) {
+      const enhanced = await buildEnhancedMessage({
+        dataMessage,
+        messageText,
+        mediaPath,
+        mediaType,
+        placeholder,
+        senderRecipient,
+        groupId,
+        deps: eDeps,
+      });
+      bodyText = enhanced.bodyText;
+      if (enhanced.mediaPath) {
+        mediaPath = enhanced.mediaPath;
+        mediaType = enhanced.mediaType;
+      }
+      placeholder = enhanced.placeholder;
+    } else {
+      bodyText = messageText || placeholder || dataMessage.quote?.text?.trim() || "";
+    }
     if (!bodyText) {
       return;
     }
