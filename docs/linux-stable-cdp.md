@@ -25,8 +25,8 @@ You can sync from default profile with `sync-main-profile-to-openclaw.sh`.
 
 Use templates:
 
-- `templates/systemd/openclaw-xvfb.service`
-- `templates/systemd/openclaw-chrome-main.service`
+- `examples/systemd/openclaw-xvfb.service`
+- `examples/systemd/openclaw-chrome-main.service`
 
 Install (example):
 
@@ -64,8 +64,8 @@ Recommended loop:
 
 Example helper:
 
-- `templates/scripts/openclaw-browser-safe-action.sh` (generic action engine)
-- `templates/scripts/openclaw-x-post.sh` (X-specific wrapper on top)
+- `examples/scripts/openclaw-browser-safe-action.sh` (generic action engine)
+- `examples/scripts/openclaw-x-post.sh` (X-specific wrapper on top)
 
 ## Troubleshooting
 
