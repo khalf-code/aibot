@@ -533,33 +533,32 @@ CLAUDE_CODE_GIT_BASH_PATH='C:\Users\<username>\Documents\Git\bin\bash.exe' node 
 
 ### Critical: Model Naming Convention
 
-**IMPORTANT**: OpenClaw model versions use **dashes not dots**.
+**IMPORTANT**: There are THREE naming layers — don't confuse them:
 
-| ❌ Wrong | ✅ Correct |
-|---------|-----------|
-| `claude-opus-4.5` | `claude-opus-4-5` |
-| `anthropic/claude-sonnet-4.5` | `anthropic/claude-sonnet-4-5` |
+| Layer | Example | Where Used |
+|-------|---------|------------|
+| **Marketing name** | "Opus 4.6" (dots) | Conversation, docs, Anthropic blog posts |
+| **API model ID** | `claude-opus-4-6` (dashes) | What the API actually returns in responses |
+| **OpenClaw catalog name** | `anthropic/claude-opus-4-5` (dashes) | `openclaw.json`, `src/config/defaults.ts` |
+| **OpenClaw alias** | `opus` | Short form in config, maps to catalog name |
 
-**Error symptom**: `Unknown model: anthropic/claude-opus-4.5`
+**Key rules:**
+1. **Always dashes, never dots** in any model identifier (`4-5` not `4.5`, `4-6` not `4.6`)
+2. The OpenClaw catalog name `anthropic/claude-opus-4-5` maps to the **latest** Opus — currently API model `claude-opus-4-6`. The `-4-5` is the catalog family, not the exact version.
+3. For CLI backend, use `claude-cli/opus` — this passes `--model opus` to the CLI which resolves to the latest Opus.
 
-**Fix**: Change dots to dashes in model version numbers.
+| ❌ Wrong | ✅ Correct | Why |
+|---------|-----------|-----|
+| `claude-opus-4.5` | `claude-opus-4-5` | Dots not allowed |
+| `anthropic/claude-sonnet-4.5` | `anthropic/claude-sonnet-4-5` | Dots not allowed |
+| `anthropic/claude-opus-4-6` | `anthropic/claude-opus-4-5` or `claude-cli/opus` | `4-6` not in OpenClaw catalog |
+| `anthropic/claude-opus-4-20260205` | `anthropic/claude-opus-4-5` or `claude-cli/opus` | Date IDs not in catalog |
 
-**Reference**: See `src/config/defaults.ts` for canonical model names:
+**Reference**: See `src/config/defaults.ts` for canonical catalog names:
 ```typescript
-opus: "anthropic/claude-opus-4-5",
-sonnet: "anthropic/claude-sonnet-4-5",
+opus: "anthropic/claude-opus-4-5",   // resolves to latest Opus (currently claude-opus-4-6)
+sonnet: "anthropic/claude-sonnet-4-5", // resolves to latest Sonnet
 ```
-
-**Date-Based Model Identifiers**: For specific model versions, use the date format:
-```json
-{
-  "model": {
-    "primary": "claude-cli/claude-opus-4-20260205"
-  }
-}
-```
-
-This format specifies the exact model version released on a particular date (e.g., `claude-opus-4-20260205` for Claude Opus 4.6 released on Feb 5, 2026).
 
 ### Testing Best Practices
 
@@ -761,10 +760,10 @@ gog auth list
 
 **Valid model names** (from `src/config/defaults.ts`):
 
-| Alias | Full Name | Notes |
+| Alias | Catalog Name | Resolves To (API) |
 |-------|-----------|-------|
-| `opus` | `anthropic/claude-opus-4-5` | Latest Opus (currently 4.6) |
-| `sonnet` | `anthropic/claude-sonnet-4-5` | Latest Sonnet |
+| `opus` | `anthropic/claude-opus-4-5` | `claude-opus-4-6` (latest Opus) |
+| `sonnet` | `anthropic/claude-sonnet-4-5` | `claude-sonnet-4-5-20250929` (latest Sonnet) |
 
 **For CLI backend**, prefix with the backend name:
 ```json
