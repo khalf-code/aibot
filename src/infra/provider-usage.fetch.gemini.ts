@@ -19,7 +19,9 @@ function parseQuotaError(status: number, data: unknown): string | undefined {
   }
   if (status === 429) {
     // Try to extract detailed error info
-    const errorData = data as { error?: { message?: string; details?: Array<{ reason?: string }> } };
+    const errorData = data as {
+      error?: { message?: string; details?: Array<{ reason?: string }> };
+    };
     const details = errorData?.error?.details;
     if (details) {
       const hasQuotaExhausted = details.some((d) => d.reason === "QUOTA_EXHAUSTED");
@@ -109,4 +111,3 @@ export async function fetchGeminiUsage(
 
   return { provider, displayName: PROVIDER_LABELS[provider], windows: topWindows };
 }
-
