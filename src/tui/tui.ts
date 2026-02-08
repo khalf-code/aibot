@@ -95,7 +95,7 @@ export async function runTui(opts: TuiOptions) {
   let isConnected = false;
   let wasDisconnected = false;
   let toolsExpanded = false;
-  let showThinking = false;
+  let showThinking = true;
   let thinkingExpanded = false;
   const localRunIds = new Set<string>();
 
