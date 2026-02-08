@@ -30,3 +30,20 @@
 - 증상: 소율이 'status ok' 했지만 실제 호출 안 됨 (Silent Failure)
 - 원인: agentToAgent.enabled 기본값이 false로 처리됨
 - 해결: src/config/defaults.ts에 applyToolDefaults 추가 (기본값 true)
+
+---
+
+[하윤] Phase 2 리서치 완료 (모델별 Tool Calling 안정성)
+
+- GPT-4o: Structured Outputs(strict:true) 권장 (단, Parallel Call 주의)
+- Claude 3.5: tool_choice 강제 필수 (프롬프트 JSON 불안정)
+- Gemini 1.5: response_schema 이중 정의 필요
+- 공통: sessions_send의 중첩 JSON은 스키마 강제 없이는 실패율 높음
+
+---
+
+[하윤] Phase 2 분석 완료 (deliveryContext 고착)
+
+- 원인 1: src/sessions 디렉토리 부재 (세션 영속성 미비)
+- 원인 2: lastChannel/lastTo 필드가 갱신되지 않고 stale 상태로 남음
+- 해결안: 세션 스위칭 시 명시적 context clear 로직 추가 필요
