@@ -2,13 +2,22 @@ import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { markdownTheme, theme } from "../theme/theme.js";
 
 function splitThinkingPrefix(text: string) {
-  const match = text.match(/^\[thinking\]\n([\s\S]*?)(?:\n\n([\s\S]*))?$/);
-  if (!match) {
+  const markerMatch = text.match(/^\[thinking\]\n([\s\S]*?)\n\[thinking_end\](?:\n\n([\s\S]*))?$/);
+  if (markerMatch) {
+    return {
+      thinking: (markerMatch[1] ?? "").trim(),
+      content: (markerMatch[2] ?? "").trim(),
+    };
+  }
+
+  // Backward-compat for older history entries without [thinking_end].
+  const legacyMatch = text.match(/^\[thinking\]\n([\s\S]*?)(?:\n\n([\s\S]*))?$/);
+  if (!legacyMatch) {
     return { thinking: "", content: text };
   }
   return {
-    thinking: (match[1] ?? "").trim(),
-    content: (match[2] ?? "").trim(),
+    thinking: (legacyMatch[1] ?? "").trim(),
+    content: (legacyMatch[2] ?? "").trim(),
   };
 }
 
