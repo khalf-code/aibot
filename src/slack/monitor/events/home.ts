@@ -1,58 +1,158 @@
 import type { SlackEventMiddlewareArgs } from "@slack/bolt";
+import type { AgentConfig } from "../../../config/types.agents.js";
+import type { OpenClawConfig } from "../../../config/types.openclaw.js";
 import type { SlackMonitorContext } from "../context.js";
 import { danger, logVerbose } from "../../../globals.js";
 import { VERSION } from "../../../version.js";
 import { hasCurrentHomeTab, hasCustomHomeTab, markHomeTabPublished } from "../../home-tab-state.js";
 
+/** Gateway process start time — used for uptime display. */
+const GATEWAY_START_MS = Date.now();
+
+/**
+ * Format a millisecond duration as a human-readable uptime string.
+ * @internal Exported for testing only.
+ */
+export function formatUptime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  parts.push(`${minutes}m`);
+  return parts.join(" ");
+}
+
+/**
+ * Resolve the primary model string for an agent, falling back to the
+ * agents.defaults or top-level model config.
+ * @internal Exported for testing only.
+ */
+export function resolveAgentModelDisplay(
+  agent: AgentConfig | undefined,
+  cfg: OpenClawConfig,
+): string {
+  // Per-agent model
+  const agentModel = agent?.model;
+  if (agentModel) {
+    return typeof agentModel === "string" ? agentModel : (agentModel.primary ?? "—");
+  }
+  // Agent defaults model (always AgentModelListConfig, not a plain string)
+  const defaultsModel = cfg.agents?.defaults?.model;
+  if (defaultsModel?.primary) {
+    return defaultsModel.primary;
+  }
+  return "—";
+}
+
 /** @internal Exported for testing only. */
 export function buildHomeTabBlocks(params: {
   botUserId: string;
   slashCommand?: string;
+  cfg?: OpenClawConfig;
+  uptimeMs?: number;
 }): Record<string, unknown>[] {
   const cmd = params.slashCommand ?? "/openclaw";
-  return [
-    {
-      type: "header",
-      text: { type: "plain_text", text: "OpenClaw", emoji: true },
-    },
-    {
-      type: "section",
-      fields: [
-        { type: "mrkdwn", text: `*Version:*\n\`${VERSION}\`` },
-        { type: "mrkdwn", text: `*Bot:*\n<@${params.botUserId}>` },
-      ],
-    },
-    { type: "divider" },
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*Getting Started*\nSend me a DM or mention me in a channel to start a conversation.",
-      },
-    },
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: [
-          "*Slash Commands*",
-          `• \`${cmd}\` — Main command`,
-          `• \`${cmd} status\` — Check status`,
-          `• \`${cmd} help\` — Show help`,
-        ].join("\n"),
-      },
-    },
-    { type: "divider" },
-    {
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: "<https://docs.openclaw.ai|Docs> · <https://github.com/openclaw/openclaw|GitHub> · <https://discord.com/invite/clawd|Community>",
-        },
-      ],
-    },
+  const cfg = params.cfg;
+  const blocks: Record<string, unknown>[] = [];
+
+  // --- Header: Agent name & status ---
+  const agents = cfg?.agents?.list ?? [];
+  const defaultAgent = agents.find((a) => a.default) ?? agents[0];
+  const agentName = defaultAgent?.name ?? cfg?.ui?.assistant?.name ?? "OpenClaw";
+
+  blocks.push({
+    type: "header",
+    text: { type: "plain_text", text: agentName, emoji: true },
+  });
+
+  // --- Agent status + version ---
+  const model = resolveAgentModelDisplay(defaultAgent, cfg ?? {});
+  const statusFields: Record<string, unknown>[] = [
+    { type: "mrkdwn", text: `*Status:*\n:large_green_circle: Online` },
+    { type: "mrkdwn", text: `*Version:*\n\`${VERSION}\`` },
   ];
+
+  blocks.push({ type: "section", fields: statusFields });
+
+  // --- Model + Uptime ---
+  const infoFields: Record<string, unknown>[] = [
+    { type: "mrkdwn", text: `*Model:*\n\`${model}\`` },
+  ];
+
+  const uptimeMs = params.uptimeMs ?? Date.now() - GATEWAY_START_MS;
+  infoFields.push({ type: "mrkdwn", text: `*Uptime:*\n${formatUptime(uptimeMs)}` });
+
+  blocks.push({ type: "section", fields: infoFields });
+
+  // --- Configured channels ---
+  const slackCfg = cfg?.channels?.slack;
+  const channelIds: string[] = [];
+  if (slackCfg) {
+    // Top-level channels (single-account or default account)
+    if (slackCfg.channels) {
+      channelIds.push(...Object.keys(slackCfg.channels));
+    }
+    // Multi-account channels
+    if (slackCfg.accounts) {
+      for (const account of Object.values(slackCfg.accounts)) {
+        if (account?.channels) {
+          channelIds.push(...Object.keys(account.channels));
+        }
+      }
+    }
+  }
+
+  if (channelIds.length > 0) {
+    const channelList = channelIds.map((id) => `<#${id}>`).join(", ");
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*Channels:*\n${channelList}` },
+    });
+  }
+
+  blocks.push({ type: "divider" });
+
+  // --- Quick start ---
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: "*Getting Started*\nSend me a DM or mention me in a channel to start a conversation.",
+    },
+  });
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: [
+        "*Slash Commands*",
+        `• \`${cmd}\` — Main command`,
+        `• \`${cmd} status\` — Check status`,
+        `• \`${cmd} help\` — Show help`,
+      ].join("\n"),
+    },
+  });
+
+  blocks.push({ type: "divider" });
+
+  // --- Footer: links ---
+  const footerParts = [
+    "<https://docs.openclaw.ai|Docs>",
+    "<https://github.com/openclaw/openclaw|GitHub>",
+    "<https://discord.com/invite/clawd|Community>",
+  ];
+
+  blocks.push({
+    type: "context",
+    elements: [{ type: "mrkdwn", text: footerParts.join(" · ") }],
+  });
+
+  return blocks;
 }
 
 export function registerSlackHomeTabEvents(params: { ctx: SlackMonitorContext }) {
@@ -93,6 +193,7 @@ export function registerSlackHomeTabEvents(params: { ctx: SlackMonitorContext })
         const blocks = buildHomeTabBlocks({
           botUserId: ctx.botUserId,
           slashCommand: ctx.slashCommand.name ? `/${ctx.slashCommand.name}` : undefined,
+          cfg: ctx.cfg,
         });
 
         await ctx.app.client.views.publish({
