@@ -444,7 +444,7 @@ export async function runEmbeddedAttempt(
       tools,
     });
     const systemPromptOverride = createSystemPromptOverride(appendPrompt);
-    const systemPromptText = systemPromptOverride();
+    let systemPromptText = systemPromptOverride();
 
     const sessionLock = await acquireSessionWriteLock({
       sessionFile: params.sessionFile,
@@ -805,6 +805,7 @@ export async function runEmbeddedAttempt(
                 systemPromptPatch,
               );
               applySystemPromptOverrideToSession(activeSession, patchedSystemPrompt);
+              systemPromptText = patchedSystemPrompt;
               log.debug(`hooks: appended ${systemPromptPatch.length} chars to system prompt`);
             }
           } catch (hookErr) {
