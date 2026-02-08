@@ -4,6 +4,7 @@ import { t } from "../i18n/i18n-manager.ts";
 import { icons } from "../icons.ts";
 import { renderNode } from "./config-form.node.ts";
 import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared.ts";
+import "../components/lazy-mount.ts";
 
 export type ConfigFormProps = {
   schema: JsonSchema | null;
@@ -449,16 +450,19 @@ export function renderConfigForm(props: ConfigFormProps) {
                   </div>
                 </div>
                 <div class="config-section-card__content">
-                  ${renderNode({
-                    schema: node,
-                    value: scopedValue,
-                    path: [sectionKey, subsectionKey],
-                    hints: props.uiHints,
-                    unsupported,
-                    disabled: props.disabled ?? false,
-                    showLabel: false,
-                    onPatch: props.onPatch,
-                  })}
+                  <lazy-mount .renderContent=${() =>
+                    renderNode({
+                      schema: node,
+                      value: scopedValue,
+                      path: [sectionKey, subsectionKey],
+                      hints: props.uiHints,
+                      unsupported,
+                      disabled: props.disabled ?? false,
+                      showLabel: false,
+                      onPatch: props.onPatch,
+                    })}
+                  label="${sectionKey}.${subsectionKey}"
+                  ></lazy-mount>
                 </div>
               </section>
             `;
@@ -487,16 +491,19 @@ export function renderConfigForm(props: ConfigFormProps) {
                   </div>
                 </div>
                 <div class="config-section-card__content">
-                  ${renderNode({
-                    schema: node,
-                    value: value[key],
-                    path: [key],
-                    hints: props.uiHints,
-                    unsupported,
-                    disabled: props.disabled ?? false,
-                    showLabel: false,
-                    onPatch: props.onPatch,
-                  })}
+                  <lazy-mount .renderContent=${() =>
+                    renderNode({
+                      schema: node,
+                      value: value[key],
+                      path: [key],
+                      hints: props.uiHints,
+                      unsupported,
+                      disabled: props.disabled ?? false,
+                      showLabel: false,
+                      onPatch: props.onPatch,
+                    })}
+                  label="${key}"
+                  ></lazy-mount>
                 </div>
               </section>
             `;
