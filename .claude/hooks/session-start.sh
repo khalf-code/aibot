@@ -6,6 +6,9 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
+# Run async so session starts immediately while deps install in background
+echo '{"async": true, "asyncTimeout": 300000}'
+
 cd "$CLAUDE_PROJECT_DIR"
 
 # Install pnpm if not available
