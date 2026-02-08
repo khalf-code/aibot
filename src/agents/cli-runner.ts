@@ -47,6 +47,7 @@ export async function runCliAgent(params: {
   extraSystemPrompt?: string;
   streamParams?: import("../commands/agent/types.js").AgentStreamParams;
   ownerNumbers?: string[];
+  skillsPrompt?: string;
   cliSessionId?: string;
   images?: ImageContent[];
 }): Promise<EmbeddedPiRunResult> {
@@ -99,6 +100,7 @@ export async function runCliAgent(params: {
     extraSystemPrompt,
     ownerNumbers: params.ownerNumbers,
     heartbeatPrompt,
+    skillsPrompt: params.skillsPrompt,
     docsPath: docsPath ?? undefined,
     tools: [],
     contextFiles,

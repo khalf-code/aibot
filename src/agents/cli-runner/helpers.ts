@@ -203,6 +203,7 @@ export function buildSystemPrompt(params: {
   extraSystemPrompt?: string;
   ownerNumbers?: string[];
   heartbeatPrompt?: string;
+  skillsPrompt?: string;
   docsPath?: string;
   tools: AgentTool[];
   contextFiles?: EmbeddedContextFile[];
@@ -236,6 +237,7 @@ export function buildSystemPrompt(params: {
     ownerNumbers: params.ownerNumbers,
     reasoningTagHint: false,
     heartbeatPrompt: params.heartbeatPrompt,
+    skillsPrompt: params.skillsPrompt,
     docsPath: params.docsPath,
     runtimeInfo,
     toolNames: params.tools.map((tool) => tool.name),

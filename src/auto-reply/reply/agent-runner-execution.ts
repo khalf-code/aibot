@@ -185,6 +185,7 @@ export async function runAgentTurnWithFallback(params: {
               runId,
               extraSystemPrompt: params.followupRun.run.extraSystemPrompt,
               ownerNumbers: params.followupRun.run.ownerNumbers,
+              skillsPrompt: params.followupRun.run.skillsSnapshot?.prompt,
               cliSessionId,
               images: params.opts?.images,
             })
