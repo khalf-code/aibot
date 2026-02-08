@@ -1,6 +1,9 @@
 import fsPromises from "node:fs/promises";
-import { homedir } from "node:os";
 import path from "node:path";
+import { createSubsystemLogger } from "../logging/subsystem.js";
+import { resolveConfigDir } from "../utils.js";
+
+const log = createSubsystemLogger("agents/health-manager");
 
 // Simple health stats
 type HealthStats = {
@@ -15,8 +18,7 @@ type HealthStats = {
 type HealthStore = Record<string, HealthStats>;
 
 function resolveHealthFile(): string {
-  const base = process.env.OPENCLAW_HOME || path.join(homedir(), ".openclaw");
-  return path.join(base, "health-stats.json");
+  return path.join(resolveConfigDir(), "health-stats.json");
 }
 
 export class HealthManager {
@@ -27,8 +29,11 @@ export class HealthManager {
 
   private constructor() {
     this.healthFile = resolveHealthFile();
+    // Start loading async. Note: this creates a race condition where getScore()
+    // might be called before load() completes. In that case, we default to
+    // neutral scores (100) until stats are loaded, which is acceptable behavior.
     this.load().catch((err) => {
-      console.error("[HealthManager] Unexpected error during load:", err);
+      log.warn(`Unexpected error during load: ${String(err)}`);
     });
   }
 
@@ -51,7 +56,7 @@ export class HealthManager {
       const data = await fsPromises.readFile(this.healthFile, "utf-8");
       this.stats = JSON.parse(data);
     } catch (err) {
-      console.error("[HealthManager] Failed to load health stats:", err);
+      log.warn(`Failed to load health stats: ${String(err)}`);
     }
   }
 
@@ -64,7 +69,7 @@ export class HealthManager {
         await fsPromises.mkdir(path.dirname(this.healthFile), { recursive: true });
         await fsPromises.writeFile(this.healthFile, JSON.stringify(this.stats, null, 2));
       } catch (err) {
-        console.error("[HealthManager] Failed to save health stats:", err);
+        log.warn(`Failed to save health stats: ${String(err)}`);
       } finally {
         this.saveTimer = null;
       }

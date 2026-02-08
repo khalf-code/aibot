@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import type { OpenClawConfig } from "../config/config.js";
@@ -7,6 +6,7 @@ import type { AgentBinding } from "../config/types.agents.js";
 import { resolveDefaultAgentId } from "../agents/agent-scope.js";
 import { normalizeChatChannelId } from "../channels/registry.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
+import { resolveConfigDir } from "../utils.js";
 import { normalizeAccountId, normalizeAgentId } from "./session-key.js";
 
 const log = createSubsystemLogger("routing/bindings");
@@ -43,7 +43,7 @@ export function loadExtraBindings(): AgentBinding[] {
     return cachedExtraBindings;
   }
 
-  const paths = [join(homedir(), ".openclaw", "routing.json"), join(process.cwd(), "routing.json")];
+  const paths = [join(resolveConfigDir(), "routing.json"), join(process.cwd(), "routing.json")];
 
   const allBindings: AgentBinding[] = [];
 
