@@ -823,7 +823,7 @@ Google API error (403 insufficientPermissions): Request had insufficient authent
    `https://console.cloud.google.com/apis/library/calendar-json.googleapis.com?project=YOUR_PROJECT_ID`
 2. Re-authenticate with `--force-consent` to get a fresh token with correct scopes:
    ```bash
-   gog auth add YOUR_EMAIL --services calendar,gmail --force-consent --manual
+   gog auth add YOUR_EMAIL --services calendar,gmail,drive --force-consent --manual
    ```
 3. Verify:
    ```bash
@@ -833,7 +833,33 @@ Google API error (403 insufficientPermissions): Request had insufficient authent
 
 **Note:** The project ID can be found in `~/.openclaw/credentials/google_client_secret.json` under the `project_id` field.
 
-#### 9. CLI Backend Skills Prompt Gap (Code Fix Required)
+#### 9. Google Drive (gog): API Not Enabled (403)
+
+**Symptom:**
+```
+Google API error (403 accessNotConfigured): Google Drive API has not been used in project XXXXXXXXX before or it is disabled.
+```
+
+**Root Cause:** OAuth token has Drive scope, but the Google Cloud project hasn't enabled the Drive API.
+
+**Solution:**
+1. Enable Drive API in Google Cloud Console:
+   `https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=YOUR_PROJECT_ID`
+2. If Drive scope is also missing from the token, re-authenticate with Drive added:
+   ```bash
+   gog auth add YOUR_EMAIL --services calendar,gmail,drive --force-consent --manual
+   ```
+3. Verify:
+   ```bash
+   gog auth list
+   # Should show: calendar,drive,gmail
+   gog drive search "test" --max 1 --json
+   # Should return file results, not a 403
+   ```
+
+**Note:** Adding a new scope (e.g., Drive) to an existing account requires `--force-consent` to trigger a fresh consent screen. Without it, the existing token keeps its old scopes. The project ID can be found in `~/.openclaw/credentials/google_client_secret.json` under the `project_id` field.
+
+#### 10. CLI Backend Skills Prompt Gap (Code Fix Required)
 
 **Symptom:** Bot responds to `/agenda` with generic "I don't have access to your calendar" even though skills are loaded and `gog`/`NOTION_API_KEY` are available.
 
@@ -846,7 +872,7 @@ Google API error (403 insufficientPermissions): Request had insufficient authent
 
 **Comparison:** The embedded Pi runner at `src/agents/pi-embedded-runner/system-prompt.ts:57` already passed `skillsPrompt` correctly. This was only broken on the CLI backend path.
 
-#### 10. NOTION_API_KEY Not Persisted Across Sessions
+#### 11. NOTION_API_KEY Not Persisted Across Sessions
 
 **Symptom:** Notion integration works in one terminal session but fails after restarting the terminal or gateway.
 
@@ -862,7 +888,7 @@ chmod 600 ~/.openclaw/credentials/notion-api-key.txt
 echo 'export NOTION_API_KEY="$(cat ~/.openclaw/credentials/notion-api-key.txt)"' >> ~/.bashrc
 ```
 
-#### 11. USER.md Setup
+#### 12. USER.md Setup
 
 **No issues encountered.** The USER.md file creation worked smoothly using direct file write with heredoc.
 
@@ -886,35 +912,47 @@ Use this checklist to verify complete DJ setup:
   - [ ] Tasks database shared with integration
   - [ ] Projects database shared with integration
   - [ ] Research database shared with integration
-- [ ] **Google Calendar (gog)**:
+- [ ] **Google Workspace (gog)**:
   - [ ] Calendar API enabled in Google Cloud Console for OAuth project
+  - [ ] Drive API enabled in Google Cloud Console for OAuth project
   - [ ] OAuth client credentials saved to `~/.openclaw/credentials/google_client_secret.json`
   - [ ] gog binary installed at `~/.local/bin/gog`
-  - [ ] Authentication completed with calendar scope: `gog auth list` shows account
+  - [ ] Authentication completed with all scopes: `gog auth list` shows `calendar,drive,gmail`
   - [ ] `gog calendar list --json` returns data (not 403)
+  - [ ] `gog drive search "test" --max 1 --json` returns data (not 403)
   - [ ] `GOG_KEYRING_PASSWORD` set in `~/.bashrc`
   - [ ] `GOG_ACCOUNT` set in `~/.bashrc`
 - [ ] **USER.md**: Profile created at `~/.openclaw/workspace/USER.md`
-- [ ] **Model Configuration**: `claude-cli/opus` for CLI backend or `anthropic/claude-opus-4-5` for direct API
+- [ ] **Model Configuration**: `anthropic/claude-opus-4-5` (primary) with `codex-cli/gpt-5-codex` (fallback)
 - [ ] **Gateway Restart**: Restarted with all environment variables
 
-**Working openclaw.json reference (CLI backend + Telegram):**
+**Working openclaw.json reference (dual-model + Telegram):**
 ```json
 {
   "agents": {
     "defaults": {
       "model": {
-        "primary": "claude-cli/opus"
+        "primary": "anthropic/claude-opus-4-5",
+        "fallbacks": ["codex-cli/gpt-5-codex"]
       },
       "cliBackends": {
         "claude-cli": {
           "command": "claude",
-          "args": ["-p", "--output-format", "json"],
+          "args": ["-p", "--output-format", "json", "--dangerously-skip-permissions"],
           "output": "json",
           "input": "arg",
           "modelArg": "--model",
           "sessionMode": "always",
           "sessionArg": "--session-id"
+        },
+        "codex-cli": {
+          "command": "codex",
+          "args": ["exec", "--json", "--color", "never", "--sandbox", "read-only", "--skip-git-repo-check"],
+          "output": "jsonl",
+          "input": "arg",
+          "modelArg": "--model",
+          "sessionMode": "existing",
+          "serialize": true
         }
       }
     }
@@ -932,6 +970,13 @@ Use this checklist to verify complete DJ setup:
 }
 ```
 
+**Dual-model usage in Telegram:**
+- Default messages use Opus via direct Anthropic API (no CLI subprocess)
+- `/model codex` switches session to GPT-5-Codex via Codex CLI
+- `/model opus` switches back to Claude Opus
+- If Opus rate-limits or fails, auto-fallback to Codex
+- `claude-cli/*` backend hangs when an interactive Claude Code session is running (per-user concurrency limit) — use `anthropic/*` as primary to avoid this
+
 **Gateway startup (WSL2):**
 ```bash
 source ~/.bashrc
@@ -947,6 +992,9 @@ node openclaw.mjs gateway run --port 18789 --verbose
 2. `/calendars` — Google Calendar connectivity
 3. `/agenda` — Calendar + Notion integration
 4. `/capture test note` — Notion write
+5. Ask "search my Drive for test" — Google Drive connectivity
+6. `/model codex` then ask a coding question — Codex CLI backend
+7. `/model opus` — Switch back to Opus
 
 ### Budget System (`src/budget/`)
 

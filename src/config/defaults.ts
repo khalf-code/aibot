@@ -19,6 +19,7 @@ const DEFAULT_MODEL_ALIASES: Readonly<Record<string, string>> = {
   // OpenAI
   gpt: "openai/gpt-5.2",
   "gpt-mini": "openai/gpt-5-mini",
+  codex: "codex-cli/gpt-5-codex",
 
   // Google Gemini (3.x are preview ids in the catalog)
   gemini: "google/gemini-3-pro-preview",

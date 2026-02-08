@@ -394,6 +394,22 @@ export function parseCliJsonl(raw: string, backend: CliBackendConfig): CliOutput
         texts.push(item.text);
       }
     }
+    const msg = isRecord(parsed.msg) ? parsed.msg : null;
+    if (msg) {
+      if (
+        typeof msg.message === "string" &&
+        typeof msg.type === "string" &&
+        msg.type === "agent_message"
+      ) {
+        texts.push(msg.message);
+      }
+      if (!usage && isRecord(msg.info)) {
+        const info = msg.info as Record<string, unknown>;
+        if (isRecord(info.total_token_usage)) {
+          usage = toUsage(info.total_token_usage) ?? usage;
+        }
+      }
+    }
   }
   const text = texts.join("\n").trim();
   if (!text) {
