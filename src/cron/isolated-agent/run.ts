@@ -287,6 +287,7 @@ export async function runCronIsolatedAgentTurn(params: {
     channel: deliveryPlan.channel ?? "last",
     to: deliveryPlan.to,
   });
+  const announceSessionKey = resolveAgentMainSessionKey({ cfg: cfgWithAgentDefaults, agentId });
 
   const userTimezone = resolveUserTimezone(params.cfg.agents?.defaults?.userTimezone);
   const userTimeFormat = resolveUserTimeFormat(params.cfg.agents?.defaults?.timeFormat);

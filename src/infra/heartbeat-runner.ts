@@ -96,6 +96,11 @@ const EXEC_EVENT_PROMPT =
   "Please relay the command output to the user in a helpful way. If the command succeeded, share the relevant output. " +
   "If it failed, explain what went wrong.";
 
+const CRON_EVENT_PROMPT =
+  "A scheduled job produced output. The result is shown in the system messages above. " +
+  "Please relay the output to the user in a helpful way. If it succeeded, share the relevant output. " +
+  "If it failed, explain what went wrong.";
+
 async function maybeRunCoreMemoriesMaintenance(params: {
   cfg: OpenClawConfig;
   heartbeat?: HeartbeatConfig;
