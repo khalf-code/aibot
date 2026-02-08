@@ -3,6 +3,13 @@
  *
  * Provides utilities for executing plugin lifecycle hooks with proper
  * error handling, priority ordering, and async support.
+ *
+ * NOTE: Compliance logging (agent_start, agent_end, etc.) is handled by the
+ * optional compliance hook plugin, not hardcoded here. Enable it via config:
+ *
+ *   hooks.internal.entries.compliance.enabled = true
+ *
+ * See: src/hooks/bundled/compliance/HOOK.md
  */
 
 import type { PluginRegistry } from "./registry.js";
@@ -179,6 +186,8 @@ export function createHookRunner(registry: PluginRegistry, options: HookRunnerOp
    * Run before_agent_start hook.
    * Allows plugins to inject context into the system prompt.
    * Runs sequentially, merging systemPrompt and prependContext from all handlers.
+   *
+   * NOTE: Compliance logging is handled by the compliance hook plugin if enabled.
    */
   async function runBeforeAgentStart(
     event: PluginHookBeforeAgentStartEvent,
@@ -202,6 +211,8 @@ export function createHookRunner(registry: PluginRegistry, options: HookRunnerOp
    * Run agent_end hook.
    * Allows plugins to analyze completed conversations.
    * Runs in parallel (fire-and-forget).
+   *
+   * NOTE: Compliance logging is handled by the compliance hook plugin if enabled.
    */
   async function runAgentEnd(
     event: PluginHookAgentEndEvent,
@@ -237,11 +248,27 @@ export function createHookRunner(registry: PluginRegistry, options: HookRunnerOp
   /**
    * Run message_received hook.
    * Runs in parallel (fire-and-forget).
+   *
+   * NOTE: Human message logging to MC is DISABLED by default for privacy.
+   * Messages contain PII and should not be logged without explicit consent.
+   * To enable, set cron.missionControl.logHumanMessages: true in config.
    */
   async function runMessageReceived(
     event: PluginHookMessageReceivedEvent,
     ctx: PluginHookMessageContext,
   ): Promise<void> {
+    // Human message logging DISABLED by default for privacy
+    // Only log if explicitly enabled in config
+    // const cfg = loadConfig();
+    // if (cfg.cron?.missionControl?.logHumanMessages === true) {
+    //   logToMissionControl({
+    //     kind: "human_message",
+    //     channel: ctx.channelId || "unknown",
+    //     from: event.from || "unknown",
+    //     preview: "[content redacted]", // Never log actual content
+    //   });
+    // }
+
     return runVoidHook("message_received", event, ctx);
   }
 
