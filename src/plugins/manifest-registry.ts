@@ -163,14 +163,14 @@ export function loadPluginManifestRegistry(params: {
 
     if (seenIds.has(manifest.id)) {
       diagnostics.push({
-        level: "warn",
+        level: "debug",
         pluginId: manifest.id,
         source: candidate.source,
-        message: `duplicate plugin id detected; later plugin may be overridden (${candidate.source})`,
+        message: `duplicate plugin id skipped (already registered); source: ${candidate.source}`,
       });
-    } else {
-      seenIds.add(manifest.id);
+      continue;
     }
+    seenIds.add(manifest.id);
 
     const configSchema = manifest.configSchema;
     const manifestMtime = safeStatMtimeMs(manifestRes.manifestPath);
