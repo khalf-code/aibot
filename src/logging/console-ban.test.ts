@@ -68,8 +68,8 @@ describe("console ban enforcement", () => {
           continue;
         }
 
-        // Only check TypeScript files
-        if (!entry.name.endsWith(".ts")) {
+        // Only check TypeScript source files (skip tests — they may legitimately use console)
+        if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) {
           continue;
         }
 
