@@ -177,10 +177,28 @@ export async function invokeAgentOnNode(params: {
       };
     }
 
+    // Validate nested payload for remote errors
+    // The transport may return ok:true but the remote agent could have failed
+    const payload = response.payload;
+    if (payload?.error) {
+      return {
+        ok: false,
+        error: payload.error,
+        payload,
+      };
+    }
+    if (payload?.status === "error" || payload?.status === "failed") {
+      return {
+        ok: false,
+        error: payload.error ?? `remote agent returned status: ${payload.status}`,
+        payload,
+      };
+    }
+
     return {
       ok: true,
-      runId: response.payload?.runId,
-      payload: response.payload,
+      runId: payload?.runId,
+      payload,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

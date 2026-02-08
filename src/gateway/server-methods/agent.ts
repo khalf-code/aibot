@@ -186,17 +186,18 @@ export const agentHandlers: GatewayRequestHandlers = {
     // Node routing: check if agent is configured to run on a specific node
     const nodeTarget = agentId ? resolveAgentNodeRouting(cfg, agentId) : undefined;
     if (nodeTarget) {
-      // Set dedupe entry early to prevent duplicate invocations on retry
-      const accepted = {
-        runId: idem,
-        status: "accepted" as const,
-        acceptedAt: Date.now(),
-        routedToNode: nodeTarget,
-      };
-      context.dedupe.set(`agent:${idem}`, {
+      // Set in-flight marker to signal request is being processed
+      // This prevents race conditions where retries see premature "accepted" status
+      const dedupeKey = `agent:${idem}`;
+      context.dedupe.set(dedupeKey, {
         ts: Date.now(),
         ok: true,
-        payload: accepted,
+        payload: {
+          runId: idem,
+          status: "in-flight" as const,
+          startedAt: Date.now(),
+          routedToNode: nodeTarget,
+        },
       });
       const nodeResolution = await resolveNodeByIdOrName(nodeTarget);
       if (!nodeResolution.ok) {
@@ -204,7 +205,7 @@ export const agentHandlers: GatewayRequestHandlers = {
           details: { code: nodeResolution.code, nodeTarget },
         });
         // Overwrite dedupe with error to prevent poisoning on retry
-        context.dedupe.set(`agent:${idem}`, {
+        context.dedupe.set(dedupeKey, {
           ts: Date.now(),
           ok: false,
           error,
@@ -244,7 +245,7 @@ export const agentHandlers: GatewayRequestHandlers = {
           { details: { nodeId: nodeResolution.node.nodeId } },
         );
         // Overwrite dedupe with error to prevent poisoning on retry
-        context.dedupe.set(`agent:${idem}`, {
+        context.dedupe.set(dedupeKey, {
           ts: Date.now(),
           ok: false,
           error,
@@ -255,17 +256,20 @@ export const agentHandlers: GatewayRequestHandlers = {
 
       // Return the result from the node
       const runId = nodeResult.runId ?? idem;
-      respond(
-        true,
-        {
-          runId,
-          status: "accepted",
-          acceptedAt: Date.now(),
-          routedToNode: nodeResolution.node.nodeId,
-        },
-        undefined,
-        { runId },
-      );
+      const acceptedPayload = {
+        runId,
+        status: "accepted" as const,
+        acceptedAt: Date.now(),
+        routedToNode: nodeResolution.node.nodeId,
+      };
+      // Update dedupe entry to "accepted" only AFTER successful node resolution
+      // This prevents race conditions where retries see premature acceptance
+      context.dedupe.set(dedupeKey, {
+        ts: Date.now(),
+        ok: true,
+        payload: acceptedPayload,
+      });
+      respond(true, acceptedPayload, undefined, { runId });
       return;
     }
 
