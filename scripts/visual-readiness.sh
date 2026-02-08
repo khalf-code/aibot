@@ -39,7 +39,8 @@ Timeline (example):
 EOF
 }
 
-if echo "$perm_out" | grep -Fq "Screen Recording (Required): Not Granted"; then
+sr_line="$(printf "%s\n" "$perm_out" | grep -i "screen recording" | head -n 1 || true)"
+if printf "%s\n" "$sr_line" | grep -Eiq '(not granted|denied|not determined)'; then
   cat <<'EOF'
 
 == Fix: grant Screen Recording (exact macOS steps) ==
@@ -61,7 +62,8 @@ EOF
   exit 2
 fi
 
-if echo "$perm_out" | grep -Fq "Accessibility (Required): Not Granted"; then
+ax_line="$(printf "%s\n" "$perm_out" | grep -i "accessibility" | head -n 1 || true)"
+if printf "%s\n" "$ax_line" | grep -Eiq '(not granted|denied|not determined)'; then
   cat <<'EOF'
 
 == Fix: grant Accessibility (exact macOS steps) ==
