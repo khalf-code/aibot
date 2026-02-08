@@ -25,6 +25,7 @@ import {
   formatCronState,
   formatNextRun,
 } from "../presenter.ts";
+import { translateEnumValue } from "./config-form.ts";
 
 export type AgentsPanel = "overview" | "files" | "tools" | "skills" | "channels" | "cron";
 
@@ -395,7 +396,10 @@ function buildAgentContext(
   const workspaceFromFiles =
     agentFilesList && agentFilesList.agentId === agent.id ? agentFilesList.workspace : null;
   const workspace =
-    workspaceFromFiles || config.entry?.workspace || config.defaults?.workspace || "default";
+    workspaceFromFiles ||
+    config.entry?.workspace ||
+    config.defaults?.workspace ||
+    t("agents.default");
   const modelLabel = config.entry?.model
     ? resolveModelLabel(config.entry?.model)
     : resolveModelLabel(config.defaults?.model);
@@ -432,7 +436,9 @@ function resolveModelLabel(model?: unknown): string {
     const primary = record.primary?.trim();
     if (primary) {
       const fallbackCount = Array.isArray(record.fallbacks) ? record.fallbacks.length : 0;
-      return fallbackCount > 0 ? `${primary} (+${fallbackCount} fallback)` : primary;
+      return fallbackCount > 0
+        ? `${primary} (${t("agents.fallbackCount", { count: fallbackCount })})`
+        : primary;
     }
   }
   return "-";
@@ -529,11 +535,11 @@ function buildModelOptions(configForm: Record<string, unknown> | null, current?:
   const options = resolveConfiguredModels(configForm);
   const hasCurrent = current ? options.some((option) => option.value === current) : false;
   if (current && !hasCurrent) {
-    options.unshift({ value: current, label: `Current (${current})` });
+    options.unshift({ value: current, label: `${t("common.current")} (${current})` });
   }
   if (options.length === 0) {
     return html`
-      <option value="" disabled>No configured models</option>
+      <option value="" disabled>${t("agents.noConfiguredModels")}</option>
     `;
   }
   return options.map((option) => html`<option value=${option.value}>${option.label}</option>`);
@@ -830,7 +836,7 @@ function renderAgentHeader(
       </div>
       <div class="agent-header-meta">
         <div class="mono">${agent.id}</div>
-        ${badge ? html`<span class="agent-pill">${badge}</span>` : nothing}
+        ${badge ? html`<span class="agent-pill">${t("agents.default")}</span>` : nothing}
       </div>
     </section>
   `;
@@ -1133,7 +1139,10 @@ function formatChannelExtraValue(raw: unknown): string {
   if (raw == null) {
     return t("common.na");
   }
-  if (typeof raw === "string" || typeof raw === "number" || typeof raw === "boolean") {
+  if (typeof raw === "string") {
+    return translateEnumValue(raw);
+  }
+  if (typeof raw === "number" || typeof raw === "boolean") {
     return String(raw);
   }
   try {
@@ -1155,7 +1164,7 @@ function resolveChannelExtras(
     if (!(field in value)) {
       return [];
     }
-    return [{ label: field, value: formatChannelExtraValue(value[field]) }];
+    return [{ label: t(`channels.${field}`), value: formatChannelExtraValue(value[field]) }];
   });
 }
 
@@ -2000,11 +2009,15 @@ function renderAgentSkillRow(
   },
 ) {
   const enabled = params.usingAllowlist ? params.allowSet.has(skill.name) : true;
+  const formatMissingItem = (type: string, item: string) => {
+    const translated = t(`skills.technicalNames.${item}`, { defaultValue: item });
+    return `${t(`skills.missingType.${type}`)}: ${translated}`;
+  };
   const missing = [
-    ...skill.missing.bins.map((b) => `bin:${b}`),
-    ...skill.missing.env.map((e) => `env:${e}`),
-    ...skill.missing.config.map((c) => `config:${c}`),
-    ...skill.missing.os.map((o) => `os:${o}`),
+    ...skill.missing.bins.map((b) => formatMissingItem("bin", b)),
+    ...skill.missing.env.map((e) => formatMissingItem("env", e)),
+    ...skill.missing.config.map((c) => formatMissingItem("config", c)),
+    ...skill.missing.os.map((o) => formatMissingItem("os", o)),
   ];
   const reasons: string[] = [];
   if (skill.disabled) {
@@ -2017,11 +2030,19 @@ function renderAgentSkillRow(
     <div class="list-item agent-skill-row">
       <div class="list-main">
         <div class="list-title">
-          ${skill.emoji ? `${skill.emoji} ` : ""}${skill.name}
+          ${skill.emoji ? `${skill.emoji} ` : ""}${t(`skills.skillNames.${skill.skillKey}`, {
+            defaultValue: skill.name.replace(/-/g, " "),
+          })}
         </div>
-        <div class="list-sub">${skill.description}</div>
+        <div class="list-sub">
+          ${t(`skills.skillDescriptions.${skill.skillKey}`, {
+            defaultValue: skill.description,
+          })}
+        </div>
         <div class="chip-row" style="margin-top: 6px;">
-          <span class="chip">${skill.source}</span>
+          <span class="chip">${t(`skills.skillSources.${skill.source}`, {
+            defaultValue: skill.source,
+          })}</span>
           <span class="chip ${skill.eligible ? "chip-ok" : "chip-warn"}">
             ${skill.eligible ? t("agents.skillStatus.eligible") : t("agents.skillStatus.blocked")}
           </span>
@@ -2035,16 +2056,16 @@ function renderAgentSkillRow(
         </div>
         ${
           missing.length > 0
-            ? html`<div class="muted" style="margin-top: 6px;">${t("agents.skillStatus.missing")} ${missing.join(
-                ", ",
-              )}</div>`
+            ? html`<div class="muted" style="margin-top: 6px;">${t("skills.missing", {
+                items: missing.join(", "),
+              })}</div>`
             : nothing
         }
         ${
           reasons.length > 0
-            ? html`<div class="muted" style="margin-top: 6px;">${t("agents.skillStatus.reason")} ${reasons.join(
-                ", ",
-              )}</div>`
+            ? html`<div class="muted" style="margin-top: 6px;">${t("skills.reason", {
+                items: reasons.join(", "),
+              })}</div>`
             : nothing
         }
       </div>

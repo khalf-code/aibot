@@ -133,7 +133,9 @@ function renderDevices(props: NodesProps) {
 function renderPendingDevice(req: PendingDevice, props: NodesProps) {
   const name = req.displayName?.trim() || req.deviceId;
   const age = typeof req.ts === "number" ? formatAgo(req.ts) : t("common.na");
-  const role = req.role?.trim() ? `${t("nodes.role")}: ${req.role}` : `${t("nodes.role")}: -`;
+  const role = req.role?.trim()
+    ? `${t("nodes.role")}: ${formatScope(req.role)}`
+    : `${t("nodes.role")}: -`;
   const repair = req.isRepair ? ` · ${t("nodes.repair")}` : "";
   const ip = req.remoteIp ? ` · ${req.remoteIp}` : "";
   return html`
@@ -162,8 +164,8 @@ function renderPendingDevice(req: PendingDevice, props: NodesProps) {
 function renderPairedDevice(device: PairedDevice, props: NodesProps) {
   const name = device.displayName?.trim() || device.deviceId;
   const ip = device.remoteIp ? ` · ${device.remoteIp}` : "";
-  const roles = `${t("nodes.roles")}: ${formatList(device.roles)}`;
-  const scopes = `${t("nodes.scopes")}: ${formatList(device.scopes)}`;
+  const roles = `${t("nodes.roles")}: ${formatList((device.roles || []).map(formatScope))}`;
+  const scopes = `${t("nodes.scopes")}: ${formatList((device.scopes || []).map(formatScope))}`;
   const tokens = Array.isArray(device.tokens) ? device.tokens : [];
   return html`
     <div class="list-item">
@@ -190,11 +192,11 @@ function renderPairedDevice(device: PairedDevice, props: NodesProps) {
 
 function renderTokenRow(deviceId: string, token: DeviceTokenSummary, props: NodesProps) {
   const status = token.revokedAtMs ? t("nodes.revoked") : t("nodes.active");
-  const scopes = `${t("nodes.scope")}: ${formatList(token.scopes)}`;
+  const scopes = `${t("nodes.scope")}: ${formatList((token.scopes || []).map(formatScope))}`;
   const when = formatAgo(token.rotatedAtMs ?? token.createdAtMs ?? token.lastUsedAtMs ?? null);
   return html`
     <div class="row" style="justify-content: space-between; gap: 8px;">
-      <div class="list-sub">${token.role} · ${status} · ${scopes} · ${when}</div>
+      <div class="list-sub">${formatScope(token.role)} · ${status} · ${scopes} · ${when}</div>
       <div class="row" style="justify-content: flex-end; gap: 6px; flex-wrap: wrap;">
         <button
           class="btn btn--sm"
@@ -1143,7 +1145,7 @@ function renderNode(node: Record<string, unknown>) {
   const paired = Boolean(node.paired);
   const title =
     (typeof node.displayName === "string" && node.displayName.trim()) ||
-    (typeof node.nodeId === "string" ? node.nodeId : "unknown");
+    (typeof node.nodeId === "string" ? node.nodeId : t("common.unknown"));
   const caps = Array.isArray(node.caps) ? (node.caps as unknown[]) : [];
   const commands = Array.isArray(node.commands) ? (node.commands as unknown[]) : [];
   return html`
@@ -1166,4 +1168,17 @@ function renderNode(node: Record<string, unknown>) {
       </div>
     </div>
   `;
+}
+
+function formatScope(scope: string) {
+  if (!scope) {
+    return scope;
+  }
+  const key = `nodes.scopeNames.${scope.replace(/\./g, "_")}`;
+  return t(key, {
+    defaultValue: scope
+      .split(".")
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(" "),
+  });
 }

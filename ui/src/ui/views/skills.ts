@@ -59,6 +59,13 @@ export type SkillsProps = {
   onInstall: (skillKey: string, name: string, installId: string) => void;
 };
 
+function formatInstallLabel(label: string) {
+  if (label.startsWith("Install ")) {
+    return label.replace(/^Install /, t("skills.installAction") + " ");
+  }
+  return label;
+}
+
 export function renderSkills(props: SkillsProps) {
   const skills = props.report?.skills ?? [];
   const filter = props.filter.trim().toLowerCase();
@@ -133,11 +140,25 @@ function renderSkill(skill: SkillStatusEntry, props: SkillsProps) {
   const message = props.messages[skill.skillKey] ?? null;
   const canInstall = skill.install.length > 0 && skill.missing.bins.length > 0;
   const showBundledBadge = Boolean(skill.bundled && skill.source !== "openclaw-bundled");
+  const defaultName = skill.name.replace(/-/g, " ");
+  const displayName = t(`skills.skillNames.${skill.skillKey}`, {
+    defaultValue: defaultName.charAt(0).toUpperCase() + defaultName.slice(1),
+  });
+  const description = t(`skills.skillDescriptions.${skill.skillKey}`, {
+    defaultValue: skill.description,
+  });
+  const sourceLabel = t(`skills.skillSources.${skill.source}`, {
+    defaultValue: skill.source,
+  });
+  const formatMissingItem = (type: string, item: string) => {
+    const translated = t(`skills.technicalNames.${item}`, { defaultValue: item });
+    return `${t(`skills.missingType.${type}`)}: ${translated}`;
+  };
   const missing = [
-    ...skill.missing.bins.map((b) => `bin:${b}`),
-    ...skill.missing.env.map((e) => `env:${e}`),
-    ...skill.missing.config.map((c) => `config:${c}`),
-    ...skill.missing.os.map((o) => `os:${o}`),
+    ...skill.missing.bins.map((b) => formatMissingItem("bin", b)),
+    ...skill.missing.env.map((e) => formatMissingItem("env", e)),
+    ...skill.missing.config.map((c) => formatMissingItem("config", c)),
+    ...skill.missing.os.map((o) => formatMissingItem("os", o)),
   ];
   const reasons: string[] = [];
   if (skill.disabled) {
@@ -150,11 +171,11 @@ function renderSkill(skill: SkillStatusEntry, props: SkillsProps) {
     <div class="list-item">
       <div class="list-main">
         <div class="list-title">
-          ${skill.emoji ? `${skill.emoji} ` : ""}${skill.name}
+          ${skill.emoji ? `${skill.emoji} ` : ""}${displayName}
         </div>
-        <div class="list-sub">${clampText(skill.description, 140)}</div>
+        <div class="list-sub">${clampText(description, 140)}</div>
         <div class="chip-row" style="margin-top: 6px;">
-          <span class="chip">${skill.source}</span>
+          <span class="chip">${sourceLabel}</span>
           ${
             showBundledBadge
               ? html`
@@ -208,7 +229,7 @@ function renderSkill(skill: SkillStatusEntry, props: SkillsProps) {
                 ?disabled=${busy}
                 @click=${() => props.onInstall(skill.skillKey, skill.name, skill.install[0].id)}
               >
-                ${busy ? t("skills.installing") : skill.install[0].label}
+                ${busy ? t("skills.installing") : formatInstallLabel(skill.install[0].label)}
               </button>`
               : nothing
           }

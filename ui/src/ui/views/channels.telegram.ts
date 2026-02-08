@@ -55,7 +55,7 @@ export function renderTelegramCard(params: {
 
   return html`
     <div class="card">
-      <div class="card-title">Telegram</div>
+      <div class="card-title">${t("channels.telegram")}</div>
       <div class="card-sub">${t("telegram.subtitle")}</div>
       ${accountCountLabel}
 
@@ -78,7 +78,13 @@ export function renderTelegramCard(params: {
               </div>
               <div>
                 <span class="label">${t("channels.mode")}</span>
-                <span>${telegram?.mode ?? t("common.na")}</span>
+                <span>
+                  ${
+                    telegram?.mode
+                      ? t(`channels.modes.${telegram.mode}`, { defaultValue: telegram.mode })
+                      : t("common.na")
+                  }
+                </span>
               </div>
               <div>
                 <span class="label">${t("channels.lastStart")}</span>

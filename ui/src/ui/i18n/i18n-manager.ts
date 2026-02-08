@@ -67,7 +67,7 @@ export class I18nManager {
   t(
     key: string,
     locale: Locale = this.currentLocale,
-    replacements?: Record<string, string | number>,
+    replacements?: Record<string, string | number> & { defaultValue?: string },
   ): string {
     try {
       // Split the key by dots to navigate the nested object
@@ -76,12 +76,20 @@ export class I18nManager {
 
       for (const k of keys) {
         if (value && typeof value === "object" && k in value) {
-          const obj = value as Record<string, unknown>;
-          value = obj[k];
+          value = (value as Record<string, unknown>)[k];
         } else {
           // If key not found in current locale, fallback to default
           if (locale !== defaultLocale) {
-            return this.t(key, defaultLocale as Locale, replacements);
+            const fallback = this.t(key, defaultLocale as Locale, replacements);
+            // If fallback returned key (not found), try defaultValue
+            if (fallback === key && replacements?.defaultValue) {
+              return replacements.defaultValue;
+            }
+            return fallback;
+          }
+          // If checking default and not found, use defaultValue
+          if (replacements?.defaultValue) {
+            return replacements.defaultValue;
           }
           return key; // Return the key itself if not found anywhere
         }
@@ -113,6 +121,9 @@ export class I18nManager {
 export const i18n = I18nManager.getInstance();
 
 // Helper function for templates
-export function t(key: string, replacements?: Record<string, string | number>): string {
+export function t(
+  key: string,
+  replacements?: Record<string, string | number> & { defaultValue?: string },
+): string {
   return i18n.t(key, undefined, replacements);
 }

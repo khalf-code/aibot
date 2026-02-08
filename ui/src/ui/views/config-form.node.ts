@@ -18,6 +18,86 @@ function isAnySchema(schema: JsonSchema): boolean {
   return keys.length === 0;
 }
 
+function resolveSchemaMeta(path: Array<string | number>, schema: JsonSchema, hints: ConfigUiHints) {
+  const hint = hintForPath(path, hints);
+  const key = pathKey(path);
+  const segments = key.split(".");
+  const defaultLabel = schema.title ?? humanize(String(path.at(-1)));
+
+  // Try direct translation first
+  let label = t(`config.path.${key}.title`, { defaultValue: "__MISSING__" });
+
+  // If missing, try wildcard translations (e.g., channels.telegram.*.allowFrom)
+  if (label === "__MISSING__") {
+    // We try replacing one segment at a time with * from right to left
+    for (let i = segments.length - 2; i >= 0; i--) {
+      const wildcardSegments = [...segments];
+      wildcardSegments[i] = "*";
+      const wildcardKey = wildcardSegments.join(".");
+      const wildcardLabel = t(`config.path.${wildcardKey}.title`, { defaultValue: "__MISSING__" });
+      if (wildcardLabel !== "__MISSING__") {
+        label = wildcardLabel;
+        break;
+      }
+    }
+  }
+
+  // Try common translation (e.g., enabled, actions.deleteMessage, etc.)
+  if (label === "__MISSING__") {
+    // Try last segment
+    label = t(`config.path.common.${segments.at(-1)}.title`, { defaultValue: "__MISSING__" });
+
+    // Try last two segments (e.g. actions.deleteMessage)
+    if (label === "__MISSING__" && segments.length >= 2) {
+      const parent = segments.at(-2);
+      const child = segments.at(-1);
+      label = t(`config.path.common.${parent}.${child}.title`, { defaultValue: "__MISSING__" });
+    }
+  }
+
+  // Fallback to hints (FIELD_LABELS) then default label
+  if (label === "__MISSING__") {
+    label = hint?.label ?? defaultLabel;
+  }
+
+  // Handle help/description similarly
+  let help = t(`config.path.${key}.description`, { defaultValue: "__MISSING__" });
+  if (help === "__MISSING__") {
+    for (let i = segments.length - 2; i >= 0; i--) {
+      const wildcardSegments = [...segments];
+      wildcardSegments[i] = "*";
+      const wildcardKey = wildcardSegments.join(".");
+      const wildcardHelp = t(`config.path.${wildcardKey}.description`, {
+        defaultValue: "__MISSING__",
+      });
+      if (wildcardHelp !== "__MISSING__") {
+        help = wildcardHelp;
+        break;
+      }
+    }
+  }
+
+  if (help === "__MISSING__") {
+    // Try last segment
+    help = t(`config.path.common.${segments.at(-1)}.description`, { defaultValue: "__MISSING__" });
+
+    // Try last two segments (e.g. actions.deleteMessage)
+    if (help === "__MISSING__" && segments.length >= 2) {
+      const parent = segments.at(-2);
+      const child = segments.at(-1);
+      help = t(`config.path.common.${parent}.${child}.description`, {
+        defaultValue: "__MISSING__",
+      });
+    }
+  }
+
+  if (help === "__MISSING__") {
+    help = hint?.help ?? schema.description ?? "";
+  }
+
+  return { label, help, hint, key };
+}
+
 function jsonValue(value: unknown): string {
   if (value === undefined) {
     return "";
@@ -27,6 +107,17 @@ function jsonValue(value: unknown): string {
   } catch {
     return "";
   }
+}
+
+export function translateEnumValue(value: unknown): string {
+  const strValue = String(value);
+  // Try to get translation for the enum value
+  const translated = t(`config.enumValues.${strValue}`, { defaultValue: "__MISSING__" });
+  if (translated !== "__MISSING__") {
+    return translated;
+  }
+  // Fall back to humanized version of the value
+  return humanize(strValue);
 }
 
 // SVG Icons as template literals
@@ -109,10 +200,7 @@ export function renderNode(params: {
   const { schema, value, path, hints, unsupported, disabled, onPatch } = params;
   const showLabel = params.showLabel ?? true;
   const type = schemaType(schema);
-  const hint = hintForPath(path, hints);
-  const label = hint?.label ?? schema.title ?? humanize(String(path.at(-1)));
-  const help = hint?.help ?? schema.description;
-  const key = pathKey(path);
+  const { label, help, key } = resolveSchemaMeta(path, schema, hints);
 
   if (unsupported.has(key)) {
     return html`<div class="cfg-field cfg-field--error">
@@ -164,10 +252,7 @@ export function renderNode(params: {
                 ?disabled=${disabled}
                 @click=${() => onPatch(path, lit)}
               >
-                ${
-                  // oxlint-disable typescript/no-base-to-string
-                  String(lit)
-                }
+                ${translateEnumValue(lit)}
               </button>
             `,
             )}
@@ -226,7 +311,7 @@ export function renderNode(params: {
                 ?disabled=${disabled}
                 @click=${() => onPatch(path, opt)}
               >
-                ${String(opt)}
+                ${translateEnumValue(opt)}
               </button>
             `,
             )}
@@ -305,9 +390,7 @@ function renderTextInput(params: {
 }): TemplateResult {
   const { schema, value, path, hints, disabled, onPatch, inputType } = params;
   const showLabel = params.showLabel ?? true;
-  const hint = hintForPath(path, hints);
-  const label = hint?.label ?? schema.title ?? humanize(String(path.at(-1)));
-  const help = hint?.help ?? schema.description;
+  const { label, help, hint } = resolveSchemaMeta(path, schema, hints);
   const isSensitive = hint?.sensitive ?? isSensitivePath(path);
   const placeholder =
     hint?.placeholder ??
@@ -380,9 +463,7 @@ function renderNumberInput(params: {
 }): TemplateResult {
   const { schema, value, path, hints, disabled, onPatch } = params;
   const showLabel = params.showLabel ?? true;
-  const hint = hintForPath(path, hints);
-  const label = hint?.label ?? schema.title ?? humanize(String(path.at(-1)));
-  const help = hint?.help ?? schema.description;
+  const { label, help } = resolveSchemaMeta(path, schema, hints);
   const displayValue = value ?? schema.default ?? "";
   const numValue = typeof displayValue === "number" ? displayValue : 0;
 
@@ -456,7 +537,7 @@ function renderSelect(params: {
         <option value=${unset}>${t("configForm.select")}</option>
         ${options.map(
           (opt, idx) => html`
-          <option value=${String(idx)}>${String(opt)}</option>
+          <option value=${String(idx)}>${translateEnumValue(opt)}</option>
         `,
         )}
       </select>
@@ -475,9 +556,7 @@ function renderObject(params: {
   onPatch: (path: Array<string | number>, value: unknown) => void;
 }): TemplateResult {
   const { schema, value, path, hints, unsupported, disabled, onPatch } = params;
-  const hint = hintForPath(path, hints);
-  const label = hint?.label ?? schema.title ?? humanize(String(path.at(-1)));
-  const help = hint?.help ?? schema.description;
+  const { label, help } = resolveSchemaMeta(path, schema, hints);
 
   const fallback = value ?? schema.default;
   const obj =
@@ -585,9 +664,7 @@ function renderArray(params: {
 }): TemplateResult {
   const { schema, value, path, hints, unsupported, disabled, onPatch } = params;
   const showLabel = params.showLabel ?? true;
-  const hint = hintForPath(path, hints);
-  const label = hint?.label ?? schema.title ?? humanize(String(path.at(-1)));
-  const help = hint?.help ?? schema.description;
+  const { label, help } = resolveSchemaMeta(path, schema, hints);
 
   const itemsSchema = Array.isArray(schema.items) ? schema.items[0] : schema.items;
   if (!itemsSchema) {

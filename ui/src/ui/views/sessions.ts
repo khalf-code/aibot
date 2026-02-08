@@ -36,10 +36,10 @@ export type SessionsProps = {
 const THINK_LEVELS = ["", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
 const BINARY_THINK_LEVELS = ["", "off", "on"] as const;
 const VERBOSE_LEVELS = [
-  { value: "", label: "inherit" },
-  { value: "off", label: "off (explicit)" },
-  { value: "on", label: "on" },
-  { value: "full", label: "full" },
+  { value: "", label: "sessions.inherit" },
+  { value: "off", label: "sessions.offExplicit" },
+  { value: "on", label: "sessions.on" },
+  { value: "full", label: "sessions.full" },
 ] as const;
 const REASONING_LEVELS = ["", "off", "on", "stream"] as const;
 
@@ -82,17 +82,7 @@ function withCurrentLabeledOption(
   if (options.some((option) => option.value === current)) {
     return [...options];
   }
-  return [...options, { value: current, label: `${current} (custom)` }];
-}
-
-function resolveThinkLevelDisplay(value: string, isBinary: boolean): string {
-  if (!isBinary) {
-    return value;
-  }
-  if (!value || value === "off") {
-    return value;
-  }
-  return "on";
+  return [...options, { value: current, label: t("sessions.custom", { name: current }) }];
 }
 
 function resolveThinkLevelPatchValue(value: string, isBinary: boolean): string | null {
@@ -186,7 +176,14 @@ export function renderSessions(props: SessionsProps) {
       }
 
       <div class="muted" style="margin-top: 12px;">
-        ${props.result ? t("sessions.store", { path: props.result.path }) : ""}
+        ${
+          props.result
+            ? t("sessions.store", {
+                path:
+                  props.result.path === "(multiple)" ? t("sessions.multiple") : props.result.path,
+              })
+            : ""
+        }
       </div>
 
       <div class="table" style="margin-top: 16px;">
@@ -222,15 +219,9 @@ function renderRow(
   onDelete: SessionsProps["onDelete"],
   disabled: boolean,
 ) {
-  const updated = row.updatedAt ? formatAgo(row.updatedAt) : "n/a";
-  const rawThinking = row.thinkingLevel ?? "";
+  const updated = row.updatedAt ? formatAgo(row.updatedAt) : t("common.na");
   const isBinaryThinking = isBinaryThinkingProvider(row.modelProvider);
-  const thinking = resolveThinkLevelDisplay(rawThinking, isBinaryThinking);
-  const thinkLevels = withCurrentOption(resolveThinkLevelOptions(row.modelProvider), thinking);
-  const verbose = row.verboseLevel ?? "";
-  const verboseLevels = withCurrentLabeledOption(VERBOSE_LEVELS, verbose);
-  const reasoning = row.reasoningLevel ?? "";
-  const reasoningLevels = withCurrentOption(REASONING_LEVELS, reasoning);
+  const _reasoning = row.reasoningLevel ?? "";
   const displayName =
     typeof row.displayName === "string" && row.displayName.trim().length > 0
       ? row.displayName.trim()
@@ -259,7 +250,7 @@ function renderRow(
           }}
         />
       </div>
-      <div>${row.kind}</div>
+      <div>${t(`sessions.kinds.${row.kind}`, { defaultValue: row.kind })}</div>
       <div>${updated}</div>
       <div>${formatSessionTokens(row)}</div>
       <div>
@@ -272,10 +263,13 @@ function renderRow(
             });
           }}
         >
-          ${thinkLevels.map(
+          ${withCurrentOption(
+            resolveThinkLevelOptions(row.modelProvider),
+            row.thinkingLevel ?? "",
+          ).map(
             (level) =>
-              html`<option value=${level} ?selected=${thinking === level}>
-                ${level ? t(`sessions.${level}`) || level : t("sessions.inherit")}
+              html`<option value=${level} ?selected=${level === (row.thinkingLevel ?? "")}>
+                ${level ? t(`sessions.${level}`) : t("sessions.inherit")}
               </option>`,
           )}
         </select>
@@ -288,10 +282,10 @@ function renderRow(
             onPatch(row.key, { verboseLevel: value || null });
           }}
         >
-          ${verboseLevels.map(
+          ${withCurrentLabeledOption(VERBOSE_LEVELS, row.verboseLevel ?? "").map(
             (level) =>
-              html`<option value=${level.value} ?selected=${verbose === level.value}>
-                ${level.value === "off" ? t("sessions.offExplicit") : level.value ? t(`sessions.${level.value}`) || level.label : t("sessions.inherit")}
+              html`<option value=${level.value} ?selected=${level.value === (row.verboseLevel ?? "")}>
+                ${t(level.label)}
               </option>`,
           )}
         </select>
@@ -304,10 +298,10 @@ function renderRow(
             onPatch(row.key, { reasoningLevel: value || null });
           }}
         >
-          ${reasoningLevels.map(
+          ${withCurrentOption(REASONING_LEVELS, row.reasoningLevel ?? "").map(
             (level) =>
-              html`<option value=${level} ?selected=${reasoning === level}>
-                ${level ? t(`sessions.${level}`) || level : t("sessions.inherit")}
+              html`<option value=${level} ?selected=${level === (row.reasoningLevel ?? "")}>
+                ${level ? t(`sessions.${level}`) : t("sessions.inherit")}
               </option>`,
           )}
         </select>

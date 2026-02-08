@@ -14,25 +14,25 @@ export function renderSlackCard(params: {
 
   return html`
     <div class="card">
-      <div class="card-title">Slack</div>
+      <div class="card-title">${t("channels.slack")}</div>
       <div class="card-sub">${t("slack.subtitle")}</div>
       ${accountCountLabel}
 
       <div class="status-list" style="margin-top: 16px;">
         <div>
-          <span class="label">${t("slack.configured")}</span>
+          <span class="label">${t("channels.configured")}</span>
           <span>${slack?.configured ? t("common.yes") : t("common.no")}</span>
         </div>
         <div>
-          <span class="label">${t("slack.running")}</span>
+          <span class="label">${t("channels.running")}</span>
           <span>${slack?.running ? t("common.yes") : t("common.no")}</span>
         </div>
         <div>
-          <span class="label">${t("slack.lastStart")}</span>
+          <span class="label">${t("channels.lastStart")}</span>
           <span>${slack?.lastStartAt ? formatAgo(slack.lastStartAt) : t("common.na")}</span>
         </div>
         <div>
-          <span class="label">${t("slack.lastProbe")}</span>
+          <span class="label">${t("channels.lastProbe")}</span>
           <span>${slack?.lastProbeAt ? formatAgo(slack.lastProbeAt) : t("common.na")}</span>
         </div>
       </div>
@@ -48,7 +48,10 @@ export function renderSlackCard(params: {
       ${
         slack?.probe
           ? html`<div class="callout" style="margin-top: 12px;">
-            ${t("slack.probeStatus", { status: slack.probe.ok ? "ok" : "failed", message: (slack.probe.status ?? "") + (slack.probe.error ?? "") })}
+            ${t("channels.probeStatus", {
+              status: slack.probe.ok ? t("common.valid") : t("common.invalid"),
+              message: (slack.probe.status ?? "") + (slack.probe.error ?? ""),
+            })}
           </div>`
           : nothing
       }
@@ -57,7 +60,7 @@ export function renderSlackCard(params: {
 
       <div class="row" style="margin-top: 12px;">
         <button class="btn" @click=${() => props.onRefresh(true)}>
-          ${t("slack.probe")}
+          ${t("channels.probe")}
         </button>
       </div>
     </div>

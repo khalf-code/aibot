@@ -47,7 +47,8 @@ export function formatCronState(job: CronJob) {
   const state = job.state ?? {};
   const next = state.nextRunAtMs ? formatMs(state.nextRunAtMs) : t("common.na");
   const last = state.lastRunAtMs ? formatMs(state.lastRunAtMs) : t("common.na");
-  const status = state.lastStatus ?? t("common.na");
+  const lastStatus = state.lastStatus;
+  const status = lastStatus ? t(`common.${lastStatus}`) || lastStatus : t("common.na");
   return `${status} · ${t("cron.nextLabel")} ${next} · ${t("cron.lastLabel")} ${last}`;
 }
 

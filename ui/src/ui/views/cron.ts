@@ -46,13 +46,18 @@ function buildChannelOptions(props: CronProps): string[] {
 
 function resolveChannelLabel(props: CronProps, channel: string): string {
   if (channel === "last") {
-    return "last";
+    return t("cron.lastUsed");
   }
   const meta = props.channelMeta?.find((entry) => entry.id === channel);
   if (meta?.label) {
     return meta.label;
   }
-  return props.channelLabels?.[channel] ?? channel;
+  const label = props.channelLabels?.[channel];
+  if (label) {
+    return label;
+  }
+  const translated = t(`channels.${channel}`);
+  return translated !== `channels.${channel}` ? translated : channel;
 }
 
 export function renderCron(props: CronProps) {
@@ -399,8 +404,8 @@ function renderJob(job: CronJob, props: CronProps) {
           <span class=${`chip ${job.enabled ? "chip-ok" : "chip-danger"}`}>
             ${job.enabled ? t("common.enabled") : t("common.disabled")}
           </span>
-          <span class="chip">${job.sessionTarget}</span>
-          <span class="chip">${job.wakeMode}</span>
+          <span class="chip">${t(`cron.${job.sessionTarget}`)}</span>
+          <span class="chip">${job.wakeMode === "next-heartbeat" ? t("cron.nextHeartbeat") : t("cron.now")}</span>
         </div>
         <div class="row cron-job-actions">
           <button
@@ -460,7 +465,7 @@ function renderJobPayload(job: CronJob) {
   const delivery = job.delivery;
   const deliveryTarget =
     delivery?.channel || delivery?.to
-      ? ` (${delivery.channel ?? t("cron.lastLabel")}${delivery.to ? ` -> ${delivery.to}` : ""})`
+      ? ` (${delivery.channel === "last" ? t("cron.lastUsed") : (delivery.channel ?? "")}${delivery.to ? ` -> ${delivery.to}` : ""})`
       : "";
 
   return html`
@@ -472,7 +477,17 @@ function renderJobPayload(job: CronJob) {
       delivery
         ? html`<div class="cron-job-detail">
             <span class="cron-job-detail-label">${t("cron.deliveryLabel")}</span>
-            <span class="muted cron-job-detail-value">${delivery.mode}${deliveryTarget}</span>
+            <span class="muted cron-job-detail-value">
+              ${
+                delivery.mode === "announce"
+                  ? t("cron.announceShort")
+                  : delivery.mode === "dm"
+                    ? t("cron.dm")
+                    : delivery.mode === "channel"
+                      ? t("cron.channel")
+                      : delivery.mode
+              }${deliveryTarget}
+            </span>
           </div>`
         : nothing
     }
@@ -487,13 +502,14 @@ function formatStateRelative(ms?: number) {
 }
 
 function renderJobState(job: CronJob) {
-  const status = job.state?.lastStatus ?? t("common.na");
+  const lastStatus = job.state?.lastStatus;
+  const statusLabel = lastStatus ? t(`common.${lastStatus}`) || lastStatus : t("common.na");
   const statusClass =
-    status === "ok"
+    lastStatus === "ok"
       ? "cron-job-status-ok"
-      : status === "error"
+      : lastStatus === "error"
         ? "cron-job-status-error"
-        : status === "skipped"
+        : lastStatus === "skipped"
           ? "cron-job-status-skipped"
           : "cron-job-status-na";
   const nextRunAtMs = job.state?.nextRunAtMs;
@@ -503,7 +519,7 @@ function renderJobState(job: CronJob) {
     <div class="cron-job-state">
       <div class="cron-job-state-row">
         <span class="cron-job-state-key">${t("cron.statusLabel")}</span>
-        <span class=${`cron-job-status-pill ${statusClass}`}>${status}</span>
+        <span class=${`cron-job-status-pill ${statusClass}`}>${statusLabel}</span>
       </div>
       <div class="cron-job-state-row">
         <span class="cron-job-state-key">${t("cron.nextLabel")}</span>
@@ -529,7 +545,7 @@ function renderRun(entry: CronRunLogEntry, basePath: string) {
   return html`
     <div class="list-item">
       <div class="list-main">
-        <div class="list-title">${entry.status}</div>
+        <div class="list-title">${t(`common.${entry.status}`) || entry.status}</div>
         <div class="list-sub">${entry.summary ?? ""}</div>
       </div>
       <div class="list-meta">

@@ -2,7 +2,13 @@ import { html } from "lit";
 import type { ConfigUiHints } from "../types.ts";
 import type { ChannelsProps } from "./channels.types.ts";
 import { t } from "../i18n/i18n-manager.ts";
-import { analyzeConfigSchema, renderNode, schemaType, type JsonSchema } from "./config-form.ts";
+import {
+  analyzeConfigSchema,
+  renderNode,
+  schemaType,
+  translateEnumValue,
+  type JsonSchema,
+} from "./config-form.ts";
 
 type ChannelConfigFormProps = {
   channelId: string;
@@ -68,15 +74,18 @@ const EXTRA_CHANNEL_FIELDS = ["groupPolicy", "streamMode", "dmPolicy"] as const;
 
 function formatExtraValue(raw: unknown): string {
   if (raw == null) {
-    return "n/a";
+    return t("common.na");
   }
-  if (typeof raw === "string" || typeof raw === "number" || typeof raw === "boolean") {
+  if (typeof raw === "string") {
+    return translateEnumValue(raw);
+  }
+  if (typeof raw === "number" || typeof raw === "boolean") {
     return String(raw);
   }
   try {
     return JSON.stringify(raw);
   } catch {
-    return "n/a";
+    return t("common.na");
   }
 }
 
@@ -95,7 +104,7 @@ function renderExtraChannelFields(value: Record<string, unknown>) {
       ${entries.map(
         ([field, raw]) => html`
           <div>
-            <span class="label">${field}</span>
+            <span class="label">${t(`channels.${field}`)}</span>
             <span>${formatExtraValue(raw)}</span>
           </div>
         `,
