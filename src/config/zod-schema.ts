@@ -528,7 +528,7 @@ export const OpenClawSchema = z
           .optional(),
         gcp: z
           .object({
-            project: z.string(),
+            project: z.string().min(1, "GCP project ID cannot be empty"),
           })
           .strict()
           .optional(),
