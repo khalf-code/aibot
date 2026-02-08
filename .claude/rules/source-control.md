@@ -1,2 +1,2 @@
-- Do not make code modifications directly on the develop branch.
-- Before commencing code modifications, ensure you create a new working branch from the latest develop branch.
+- Do not make code modifications directly on the main branch.
+- Before commencing code modifications, ensure you create a new working branch from the latest main branch.
