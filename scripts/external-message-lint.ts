@@ -323,8 +323,21 @@ if (urlsWithQuery.length > 0) {
   );
 }
 
-const lower = text.toLowerCase();
-const jargonHits = INTERNAL_JARGON.filter((w) => lower.includes(w));
+function escapeRegExp(s: string): string {
+  // Keep this script dependency-free; escape for safe regex construction.
+  return s.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function includesTokenLike(haystack: string, token: string): boolean {
+  // Match as a standalone token to reduce false positives (e.g. "session" in "possession").
+  // Still allow a simple plural (trailing "s") so we catch "sessions" / "sub-agents".
+  const escaped = escapeRegExp(token);
+  const maybePlural = token.toLowerCase().endsWith("s") ? "" : "s?";
+  const re = new RegExp(`(^|[^a-z0-9])${escaped}${maybePlural}([^a-z0-9]|$)`, "i");
+  return re.test(haystack);
+}
+
+const jargonHits = INTERNAL_JARGON.filter((w) => includesTokenLike(text, w));
 if (jargonHits.length > 0) {
   add(
     "warn",
