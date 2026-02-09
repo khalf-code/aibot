@@ -1046,6 +1046,17 @@ export function createExecTool(
       let command = params.command;
       let tempScriptFile: string | undefined;
 
+      // Helper for idempotent temp file cleanup
+      const cleanupTempScriptFile = () => {
+        if (tempScriptFile) {
+          try {
+            fs.unlinkSync(tempScriptFile);
+          } catch {
+            // Ignore cleanup errors (file may not exist)
+          }
+        }
+      };
+
       if (scriptDetection.isScript) {
         // Only apply temp file fix for local gateway execution
         // host=node won't work because the temp file won't exist on the remote node
@@ -1584,30 +1595,12 @@ export function createExecTool(
                 timeoutSec: effectiveTimeout,
               });
             } catch {
-              // Clean up temp file on spawn failure
-              if (tempScriptFile) {
-                try {
-                  fs.unlinkSync(tempScriptFile);
-                } catch {
-                  // Ignore cleanup errors
-                }
-              }
+              cleanupTempScriptFile();
               emitExecSystemEvent(
                 `Exec denied (gateway id=${approvalId}, spawn-failed): ${commandText}`,
                 { sessionKey: notifySessionKey, contextKey },
               );
               return;
-            }
-
-            // Register cleanup callback for guaranteed temp file cleanup
-            if (tempScriptFile && run) {
-              run.session.onExit = () => {
-                try {
-                  fs.unlinkSync(tempScriptFile);
-                } catch {
-                  // Ignore cleanup errors
-                }
-              };
             }
 
             markBackgrounded(run.session);
@@ -1621,29 +1614,20 @@ export function createExecTool(
                 );
               }, approvalRunningNoticeMs);
             }
-
-            const outcome = await run.promise;
-
-            // Clean up temp file after execution completes
-            if (tempScriptFile) {
-              try {
-                fs.unlinkSync(tempScriptFile);
-              } catch {
-                // Ignore cleanup errors
-              }
+            try {
+              const outcome = await run.promise;
+              const output = normalizeNotifyOutput(
+                tail(outcome.aggregated || "", DEFAULT_NOTIFY_TAIL_CHARS),
+              );
+              const exitLabel = outcome.timedOut ? "timeout" : `code ${outcome.exitCode ?? "?"}`;
+              const summary = output
+                ? `Exec finished (gateway id=${approvalId}, session=${run.session.id}, ${exitLabel})\n${output}`
+                : `Exec finished (gateway id=${approvalId}, session=${run.session.id}, ${exitLabel})`;
+              emitExecSystemEvent(summary, { sessionKey: notifySessionKey, contextKey });
+            } finally {
+              cleanupTempScriptFile();
+              if (runningTimer) clearTimeout(runningTimer);
             }
-
-            if (runningTimer) {
-              clearTimeout(runningTimer);
-            }
-            const output = normalizeNotifyOutput(
-              tail(outcome.aggregated || "", DEFAULT_NOTIFY_TAIL_CHARS),
-            );
-            const exitLabel = outcome.timedOut ? "timeout" : `code ${outcome.exitCode ?? "?"}`;
-            const summary = output
-              ? `Exec finished (gateway id=${approvalId}, session=${run.session.id}, ${exitLabel})\n${output}`
-              : `Exec finished (gateway id=${approvalId}, session=${run.session.id}, ${exitLabel})`;
-            emitExecSystemEvent(summary, { sessionKey: notifySessionKey, contextKey });
           })();
 
           return {
@@ -1668,6 +1652,7 @@ export function createExecTool(
         }
 
         if (hostSecurity === "allowlist" && (!analysisOk || !allowlistSatisfied)) {
+          cleanupTempScriptFile();
           throw new Error("exec denied: allowlist miss");
         }
 
@@ -1693,22 +1678,28 @@ export function createExecTool(
         typeof params.timeout === "number" ? params.timeout : defaultTimeoutSec;
       const getWarningText = () => (warnings.length ? `${warnings.join("\n")}\n\n` : "");
       const usePty = params.pty === true && !sandbox;
-      const run = await runExecProcess({
-        command,
-        workdir,
-        env,
-        sandbox,
-        containerWorkdir,
-        usePty,
-        warnings,
-        maxOutput,
-        pendingMaxOutput,
-        notifyOnExit,
-        scopeKey: defaults?.scopeKey,
-        sessionKey: notifySessionKey,
-        timeoutSec: effectiveTimeout,
-        onUpdate,
-      });
+      let run: ExecProcessHandle;
+      try {
+        run = await runExecProcess({
+          command,
+          workdir,
+          env,
+          sandbox,
+          containerWorkdir,
+          usePty,
+          warnings,
+          maxOutput,
+          pendingMaxOutput,
+          notifyOnExit,
+          scopeKey: defaults?.scopeKey,
+          sessionKey: notifySessionKey,
+          timeoutSec: effectiveTimeout,
+          onUpdate,
+        });
+      } catch (err) {
+        cleanupTempScriptFile();
+        throw err;
+      }
 
       let yielded = false;
       let yieldTimer: NodeJS.Timeout | null = null;
@@ -1775,25 +1766,9 @@ export function createExecTool(
           }
         }
 
-        // Ensure temp file is always cleaned up, even if yielded/backgrounded
-        const cleanupTempFile = () => {
-          if (tempScriptFile) {
-            try {
-              fs.unlinkSync(tempScriptFile);
-            } catch {
-              // Ignore cleanup errors
-            }
-          }
-        };
-
-        // Register cleanup callback on session for guaranteed cleanup on exit/kill
-        if (tempScriptFile) {
-          run.session.onExit = cleanupTempFile;
-        }
-
         run.promise
           .then((outcome) => {
-            cleanupTempFile();
+            cleanupTempScriptFile();
             if (yieldTimer) {
               clearTimeout(yieldTimer);
             }
@@ -1821,7 +1796,7 @@ export function createExecTool(
             });
           })
           .catch((err) => {
-            cleanupTempFile();
+            cleanupTempScriptFile();
             if (yieldTimer) {
               clearTimeout(yieldTimer);
             }
