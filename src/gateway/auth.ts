@@ -154,6 +154,7 @@ function getTailscaleUser(req?: IncomingMessage): TailscaleUser | null {
     typeof nameRaw === "string" && nameRaw.trim()
       ? nameRaw
           .trim()
+          // eslint-disable-next-line no-control-regex
           .replace(/[\x00-\x1f\x7f]/g, "")
           .slice(0, 256)
       : trimmedLogin;

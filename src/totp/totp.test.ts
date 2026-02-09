@@ -92,12 +92,12 @@ describe("generateTotp / verifyTotp", () => {
     counterBuf.writeBigUInt64BE(1n);
     const crypto = require("node:crypto");
     const hmac = crypto.createHmac("sha1", secret).update(counterBuf).digest() as Buffer;
-    const offset = hmac[hmac.length - 1]! & 0x0f;
+    const offset = hmac[hmac.length - 1] & 0x0f;
     const code =
-      ((hmac[offset]! & 0x7f) << 24) |
-      ((hmac[offset + 1]! & 0xff) << 16) |
-      ((hmac[offset + 2]! & 0xff) << 8) |
-      (hmac[offset + 3]! & 0xff);
+      ((hmac[offset] & 0x7f) << 24) |
+      ((hmac[offset + 1] & 0xff) << 16) |
+      ((hmac[offset + 2] & 0xff) << 8) |
+      (hmac[offset + 3] & 0xff);
     const otpString = String(code % 10 ** 6).padStart(6, "0");
     expect(otpString).toBe("287082");
   });

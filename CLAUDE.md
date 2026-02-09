@@ -40,6 +40,7 @@ pnpm format:fix               # Auto-fix formatting only
 ### Monorepo Structure
 
 pnpm workspace with these packages:
+
 - `.` (root) — the core CLI and gateway
 - `ui/` — web UI (Lit + Vite)
 - `packages/clawdbot`, `packages/moltbot` — bot packages
@@ -50,6 +51,7 @@ pnpm workspace with these packages:
 **Entry flow:** `openclaw.mjs` → `dist/entry.js` → `src/entry.ts` (respawns with Node flags) → `src/cli/run-main.ts` → `src/cli/program.ts` (Commander-based CLI). `src/index.ts` is the library entrypoint that re-exports public API and also bootstraps the CLI when run directly.
 
 **Key directories:**
+
 - `src/cli/` — CLI wiring, subcommand registration, progress/prompt utilities. Uses Commander.
 - `src/commands/` — Individual command implementations (onboarding, doctor, status, gateway config, agent management, etc.)
 - `src/gateway/` — Gateway server: WebSocket server, HTTP endpoints (including OpenAI-compatible), session management, channel bridging, plugin hosting, node events

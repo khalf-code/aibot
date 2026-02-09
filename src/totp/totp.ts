@@ -56,12 +56,12 @@ function hotpCode(secret: Buffer, counter: bigint, digits: number): string {
   const counterBuf = Buffer.alloc(8);
   counterBuf.writeBigUInt64BE(counter);
   const hmac = crypto.createHmac("sha1", secret).update(counterBuf).digest();
-  const offset = hmac[hmac.length - 1]! & 0x0f;
+  const offset = hmac[hmac.length - 1] & 0x0f;
   const code =
-    ((hmac[offset]! & 0x7f) << 24) |
-    ((hmac[offset + 1]! & 0xff) << 16) |
-    ((hmac[offset + 2]! & 0xff) << 8) |
-    (hmac[offset + 3]! & 0xff);
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
   return String(code % 10 ** digits).padStart(digits, "0");
 }
 

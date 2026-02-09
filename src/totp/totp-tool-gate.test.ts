@@ -71,8 +71,9 @@ describe("wrapToolsWithTotpGate", () => {
   it("blocks protected tool execution when user has no TOTP session", async () => {
     await enrollTotpUser("12345");
     const tools = [makeMockTool("exec")];
-    const [wrappedExec] = wrapToolsWithTotpGate(tools, { totpConfig, senderId: "12345" });
-    await expect(wrappedExec!.execute!("call-1", {}, undefined, undefined)).rejects.toThrow(
+    const wrappedTools = wrapToolsWithTotpGate(tools, { totpConfig, senderId: "12345" });
+    const wrappedExec = wrappedTools[0];
+    await expect(wrappedExec.execute("call-1", {}, undefined, undefined)).rejects.toThrow(
       "TOTP authentication required",
     );
   });
@@ -84,8 +85,9 @@ describe("wrapToolsWithTotpGate", () => {
     await verifyAndCreateSession("12345", code, 3600, 5, 300);
 
     const tools = [makeMockTool("exec")];
-    const [wrappedExec] = wrapToolsWithTotpGate(tools, { totpConfig, senderId: "12345" });
-    const result = await wrappedExec!.execute!("call-1", {}, undefined, undefined);
+    const wrappedTools = wrapToolsWithTotpGate(tools, { totpConfig, senderId: "12345" });
+    const wrappedExec = wrappedTools[0];
+    const result = await wrappedExec.execute("call-1", {}, undefined, undefined);
     expect(result).toBe("exec executed");
   });
 
@@ -95,9 +97,10 @@ describe("wrapToolsWithTotpGate", () => {
     // so the tool gate will block. This is the correct behavior: if TOTP is enabled
     // for the account AND protectedToolGroups is set, only users with sessions can use tools.
     const tools = [makeMockTool("exec")];
-    const [wrappedExec] = wrapToolsWithTotpGate(tools, { totpConfig, senderId: "99999" });
+    const wrappedTools = wrapToolsWithTotpGate(tools, { totpConfig, senderId: "99999" });
+    const wrappedExec = wrappedTools[0];
     // Non-enrolled user has no session -> blocked
-    await expect(wrappedExec!.execute!("call-1", {}, undefined, undefined)).rejects.toThrow(
+    await expect(wrappedExec.execute("call-1", {}, undefined, undefined)).rejects.toThrow(
       "TOTP authentication required",
     );
   });

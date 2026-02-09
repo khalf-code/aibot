@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   clearSession,
   enrollTotpUser,
@@ -49,7 +49,7 @@ describe("totp store enrollment", () => {
     await enrollTotpUser("222", "bob");
     const users = await listTotpUsers();
     expect(users).toHaveLength(2);
-    expect(users.map((u) => u.telegramUserId).sort()).toEqual(["111", "222"]);
+    expect(users.map((u) => u.telegramUserId).toSorted()).toEqual(["111", "222"]);
   });
 
   it("checks enrollment status", async () => {

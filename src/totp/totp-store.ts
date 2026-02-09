@@ -277,7 +277,9 @@ export async function hasValidSession(
   const store = await readJsonFile<TotpStore>(filePath, { ...EMPTY_STORE });
   const now = Date.now();
   return (store.sessions ?? []).some((s) => {
-    if (s.telegramUserId !== userId) return false;
+    if (s.telegramUserId !== userId) {
+      return false;
+    }
     const expires = Date.parse(s.expiresAt);
     return Number.isFinite(expires) && now < expires;
   });
