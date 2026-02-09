@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 
 import type { DatabaseSync } from "node:sqlite";
@@ -164,6 +165,7 @@ export class MemoryIndexManager {
   private dirty = false;
   private sessionsDirty = false;
   private sessionsDirtyFiles = new Set<string>();
+  private sessionsColdStartNeeded: boolean | null = null;
   private sessionPendingFiles = new Set<string>();
   private sessionDeltas = new Map<
     string,
@@ -968,6 +970,42 @@ export class MemoryIndexManager {
     const reason = params?.reason;
     if (reason === "session-start" || reason === "watch") return false;
     if (needsFullReindex) return true;
+
+    // Cold-start bootstrap: if sessions source is configured but DB has fewer
+    // session records than files on disk, force a catch-up sync.  Without this,
+    // sessionsDirty (set only by runtime delta events) stays false after a
+    // restart and new/untracked session files are never indexed.
+    if (this.sessionsColdStartNeeded == null) {
+      try {
+        const indexed = (
+          this.db
+            .prepare(
+              `SELECT COUNT(*) as c FROM files WHERE source = 'sessions'`,
+            )
+            .get() as { c: number }
+        ).c;
+        // Peek at disk — intentionally sync so the check is cheap and only
+        // runs once per manager lifetime.
+        const dir = resolveSessionTranscriptsDirForAgent(this.agentId);
+        let onDisk = 0;
+        try {
+          const entries = readdirSync(dir);
+          onDisk = entries.filter((e: string) => e.endsWith(".jsonl")).length;
+        } catch {
+          // dir missing / unreadable → nothing to catch up on
+        }
+        this.sessionsColdStartNeeded = onDisk > indexed;
+        if (this.sessionsColdStartNeeded) {
+          log.info(
+            `sessions cold-start: ${onDisk} files on disk, ${indexed} indexed — will sync`,
+          );
+        }
+      } catch {
+        this.sessionsColdStartNeeded = false;
+      }
+    }
+    if (this.sessionsColdStartNeeded) return true;
+
     return this.sessionsDirty && this.sessionsDirtyFiles.size > 0;
   }
 
@@ -1213,6 +1251,7 @@ export class MemoryIndexManager {
         await this.syncSessionFiles({ needsFullReindex, progress: progress ?? undefined });
         this.sessionsDirty = false;
         this.sessionsDirtyFiles.clear();
+        this.sessionsColdStartNeeded = false;
       } else if (this.sessionsDirtyFiles.size > 0) {
         this.sessionsDirty = true;
       } else {
@@ -1356,6 +1395,7 @@ export class MemoryIndexManager {
         await this.syncSessionFiles({ needsFullReindex: true, progress: params.progress });
         this.sessionsDirty = false;
         this.sessionsDirtyFiles.clear();
+        this.sessionsColdStartNeeded = false;
       } else if (this.sessionsDirtyFiles.size > 0) {
         this.sessionsDirty = true;
       } else {
