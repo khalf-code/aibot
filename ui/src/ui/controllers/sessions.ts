@@ -27,7 +27,7 @@ export type SessionsState = {
 };
 
 export async function loadSessions(
-  state: SessionsState,
+  state: SessionsState & { requestUpdate?: () => void },
   overrides?: {
     activeMinutes?: number;
     limit?: number;
@@ -66,11 +66,12 @@ export async function loadSessions(
     state.sessionsError = String(err);
   } finally {
     state.sessionsLoading = false;
+    state.requestUpdate?.();
   }
 }
 
 export async function patchSession(
-  state: SessionsState,
+  state: SessionsState & { requestUpdate?: () => void },
   key: string,
   patch: {
     label?: string | null;
@@ -98,12 +99,14 @@ export async function patchSession(
   try {
     await state.client.request("sessions.patch", params);
     await loadSessions(state);
+    state.requestUpdate?.();
   } catch (err) {
     state.sessionsError = String(err);
+    state.requestUpdate?.();
   }
 }
 
-export async function loadDeletedSessions(state: SessionsState) {
+export async function loadDeletedSessions(state: SessionsState & { requestUpdate?: () => void }) {
   if (!state.client || !state.connected) {
     return;
   }
@@ -133,10 +136,14 @@ export async function loadDeletedSessions(state: SessionsState) {
     state.sessionsError = String(err);
   } finally {
     state.sessionsLoading = false;
+    state.requestUpdate?.();
   }
 }
 
-export async function restoreSession(state: SessionsState, sessionId: string) {
+export async function restoreSession(
+  state: SessionsState & { requestUpdate?: () => void },
+  sessionId: string,
+) {
   if (!state.client || !state.connected) {
     return;
   }
@@ -161,14 +168,22 @@ export async function restoreSession(state: SessionsState, sessionId: string) {
       loadSessions(state),
       state.sessionsShowDeleted ? loadDeletedSessions(state) : Promise.resolve(),
     ]);
+
+    // Force UI update
+    state.requestUpdate?.();
   } catch (err) {
     state.sessionsError = String(err);
   } finally {
     state.sessionsLoading = false;
+    // Force UI update on error too
+    state.requestUpdate?.();
   }
 }
 
-export async function deleteSession(state: SessionsState, key: string) {
+export async function deleteSession(
+  state: SessionsState & { requestUpdate?: () => void },
+  key: string,
+) {
   if (!state.client || !state.connected) {
     return;
   }
@@ -212,9 +227,14 @@ export async function deleteSession(state: SessionsState, key: string) {
       loadSessions(state),
       state.sessionsShowDeleted ? loadDeletedSessions(state) : Promise.resolve(),
     ]);
+
+    // Force UI update
+    state.requestUpdate?.();
   } catch (err) {
     state.sessionsError = String(err);
   } finally {
     state.sessionsLoading = false;
+    // Force UI update on error too
+    state.requestUpdate?.();
   }
 }
