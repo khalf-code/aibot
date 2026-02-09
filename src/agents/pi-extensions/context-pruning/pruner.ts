@@ -272,8 +272,9 @@ export async function pruneContextMessages(params: {
   let softTrimmedCount = 0;
   let hardClearedCount = 0;
   const prunedToolNames = new Set<string>();
+  const trimmedSessionKey = params.sessionKey?.trim();
   const hookSessionKey =
-    params.sessionKey?.trim() || (params.sessionId ? `session:${params.sessionId}` : undefined);
+    trimmedSessionKey || (params.sessionId ? `session:${params.sessionId}` : undefined);
   const emitPruneHook = async () => {
     if (!hookSessionKey || (softTrimmedCount === 0 && hardClearedCount === 0)) {
       return;
