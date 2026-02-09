@@ -12,12 +12,21 @@ export type SessionsProps = {
   limit: string;
   includeGlobal: boolean;
   includeUnknown: boolean;
+  showDeleted: boolean;
+  deletedSessions: Array<{
+    sessionId: string;
+    file: string;
+    size: number;
+    deletedAt: string | null;
+    mtime: number;
+  }> | null;
   basePath: string;
   onFiltersChange: (next: {
     activeMinutes: string;
     limit: string;
     includeGlobal: boolean;
     includeUnknown: boolean;
+    showDeleted: boolean;
   }) => void;
   onRefresh: () => void;
   onPatch: (
@@ -30,6 +39,7 @@ export type SessionsProps = {
     },
   ) => void;
   onDelete: (key: string) => void;
+  onRestore: (sessionId: string) => void;
 };
 
 const THINK_LEVELS = ["", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
@@ -132,6 +142,7 @@ export function renderSessions(props: SessionsProps) {
                 limit: props.limit,
                 includeGlobal: props.includeGlobal,
                 includeUnknown: props.includeUnknown,
+                showDeleted: props.showDeleted,
               })}
           />
         </label>
@@ -145,6 +156,7 @@ export function renderSessions(props: SessionsProps) {
                 limit: (e.target as HTMLInputElement).value,
                 includeGlobal: props.includeGlobal,
                 includeUnknown: props.includeUnknown,
+                showDeleted: props.showDeleted,
               })}
           />
         </label>
@@ -159,6 +171,7 @@ export function renderSessions(props: SessionsProps) {
                 limit: props.limit,
                 includeGlobal: (e.target as HTMLInputElement).checked,
                 includeUnknown: props.includeUnknown,
+                showDeleted: props.showDeleted,
               })}
           />
         </label>
@@ -173,6 +186,22 @@ export function renderSessions(props: SessionsProps) {
                 limit: props.limit,
                 includeGlobal: props.includeGlobal,
                 includeUnknown: (e.target as HTMLInputElement).checked,
+                showDeleted: props.showDeleted,
+              })}
+          />
+        </label>
+        <label class="field checkbox">
+          <span>Show deleted</span>
+          <input
+            type="checkbox"
+            .checked=${props.showDeleted}
+            @change=${(e: Event) =>
+              props.onFiltersChange({
+                activeMinutes: props.activeMinutes,
+                limit: props.limit,
+                includeGlobal: props.includeGlobal,
+                includeUnknown: props.includeUnknown,
+                showDeleted: (e.target as HTMLInputElement).checked,
               })}
           />
         </label>
@@ -210,6 +239,62 @@ export function renderSessions(props: SessionsProps) {
               )
         }
       </div>
+
+      ${
+        props.showDeleted
+          ? html`
+              <div style="margin-top: 32px;">
+                <h3>🗑️ Deleted Sessions</h3>
+                ${
+                  props.deletedSessions && props.deletedSessions.length > 0
+                    ? html`
+                        <div class="table" style="margin-top: 16px;">
+                          <div class="table-head">
+                            <div>Session ID</div>
+                            <div>File</div>
+                            <div>Size</div>
+                            <div>Deleted At</div>
+                            <div>Actions</div>
+                          </div>
+                          ${props.deletedSessions.map(
+                            (deleted) => html`
+                              <div class="table-row">
+                                <div style="font-family: monospace; font-size: 0.9em;">
+                                  ${deleted.sessionId}
+                                </div>
+                                <div style="font-size: 0.85em; color: var(--muted);">
+                                  ${deleted.file}
+                                </div>
+                                <div>${(deleted.size / 1024).toFixed(1)} KB</div>
+                                <div>
+                                  ${
+                                    deleted.deletedAt
+                                      ? deleted.deletedAt.replace(/T/, " ").replace(/Z$/, "")
+                                      : "Unknown"
+                                  }
+                                </div>
+                                <div>
+                                  <button
+                                    class="btn"
+                                    ?disabled=${props.loading}
+                                    @click=${() => props.onRestore(deleted.sessionId)}
+                                  >
+                                    Restore
+                                  </button>
+                                </div>
+                              </div>
+                            `,
+                          )}
+                        </div>
+                      `
+                    : html`
+                        <div class="muted" style="margin-top: 12px">No deleted sessions found.</div>
+                      `
+                }
+              </div>
+            `
+          : nothing
+      }
     </section>
   `;
 }

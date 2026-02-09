@@ -12,6 +12,14 @@ export type SessionsState = {
   sessionsFilterLimit: string;
   sessionsIncludeGlobal: boolean;
   sessionsIncludeUnknown: boolean;
+  sessionsShowDeleted: boolean;
+  sessionsDeletedList: Array<{
+    sessionId: string;
+    file: string;
+    size: number;
+    deletedAt: string | null;
+    mtime: number;
+  }> | null;
   sessionKey: string;
 };
 
@@ -92,6 +100,68 @@ export async function patchSession(
   }
 }
 
+export async function loadDeletedSessions(state: SessionsState) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  if (state.sessionsLoading) {
+    return;
+  }
+  state.sessionsLoading = true;
+  state.sessionsError = null;
+  try {
+    const res = await state.client.request<{
+      ok: boolean;
+      deleted: Array<{
+        sessionId: string;
+        file: string;
+        size: number;
+        deletedAt: string | null;
+        mtime: number;
+      }>;
+    }>("sessions.list.deleted", { limit: 100 });
+    if (res && res.ok) {
+      state.sessionsDeletedList = res.deleted;
+    }
+  } catch (err) {
+    state.sessionsError = String(err);
+  } finally {
+    state.sessionsLoading = false;
+  }
+}
+
+export async function restoreSession(state: SessionsState, sessionId: string) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  if (state.sessionsLoading) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Restore session "${sessionId}"?\n\nThis will recreate the session entry and restore its transcript.`,
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  state.sessionsLoading = true;
+  state.sessionsError = null;
+  try {
+    await state.client.request("sessions.restore", { sessionId });
+
+    // Refresh both lists after restore
+    await Promise.all([
+      loadSessions(state),
+      state.sessionsShowDeleted ? loadDeletedSessions(state) : Promise.resolve(),
+    ]);
+  } catch (err) {
+    state.sessionsError = String(err);
+  } finally {
+    state.sessionsLoading = false;
+  }
+}
+
 export async function deleteSession(state: SessionsState, key: string) {
   if (!state.client || !state.connected) {
     return;
@@ -131,7 +201,11 @@ export async function deleteSession(state: SessionsState, key: string) {
       return;
     }
 
-    await loadSessions(state);
+    // Refresh both lists after deletion
+    await Promise.all([
+      loadSessions(state),
+      state.sessionsShowDeleted ? loadDeletedSessions(state) : Promise.resolve(),
+    ]);
   } catch (err) {
     state.sessionsError = String(err);
   } finally {

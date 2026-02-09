@@ -42,7 +42,13 @@ import {
 import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
-import { deleteSession, loadSessions, patchSession } from "./controllers/sessions.ts";
+import {
+  deleteSession,
+  loadDeletedSessions,
+  loadSessions,
+  patchSession,
+  restoreSession,
+} from "./controllers/sessions.ts";
 import {
   installSkill,
   loadSkills,
@@ -301,16 +307,24 @@ export function renderApp(state: AppViewState) {
                 limit: state.sessionsFilterLimit,
                 includeGlobal: state.sessionsIncludeGlobal,
                 includeUnknown: state.sessionsIncludeUnknown,
+                showDeleted: state.sessionsShowDeleted,
+                deletedSessions: state.sessionsDeletedList,
                 basePath: state.basePath,
                 onFiltersChange: (next) => {
                   state.sessionsFilterActive = next.activeMinutes;
                   state.sessionsFilterLimit = next.limit;
                   state.sessionsIncludeGlobal = next.includeGlobal;
                   state.sessionsIncludeUnknown = next.includeUnknown;
+                  const wasShowingDeleted = state.sessionsShowDeleted;
+                  state.sessionsShowDeleted = next.showDeleted;
+                  if (next.showDeleted && !wasShowingDeleted) {
+                    void loadDeletedSessions(state);
+                  }
                 },
                 onRefresh: () => loadSessions(state),
                 onPatch: (key, patch) => patchSession(state, key, patch),
                 onDelete: (key) => deleteSession(state, key),
+                onRestore: (sessionId) => restoreSession(state, sessionId),
               })
             : nothing
         }
