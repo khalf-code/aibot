@@ -30,7 +30,7 @@ Parse images and PDF files using PaddleOCR's API. Supports multiple document par
 
 ## Setup
 
-1. Obtain credentials from the [PaddleOCR official website](https://www.paddleocr.com). Click the “API” button, choose the desired algorithm (e.g., PP-Structure, PaddleOCR-VL-1.5), and copy the API URL and the access token.
+1. Obtain credentials from the [PaddleOCR official website](https://www.paddleocr.com). Click the “API” button, choose the desired algorithm (e.g., PP-StructureV3, PaddleOCR-VL-1.5), and copy the API URL and the access token.
 2. Set environment variables:
 
 ```bash
