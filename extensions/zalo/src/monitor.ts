@@ -294,10 +294,6 @@ async function processUpdate(
   fetcher?: ZaloFetch,
 ): Promise<void> {
   const { event_name, message } = update;
-  console.log(
-    `[${account.accountId}] Zalo event: ${event_name}`,
-    JSON.stringify(update).slice(0, 500),
-  );
   if (!message) {
     return;
   }
