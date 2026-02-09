@@ -109,9 +109,9 @@
 
 <style>
   .chat-area {
-    flex: 1;
+    width: 100%;
+    height: 100%;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 40px;
@@ -129,7 +129,7 @@
   .title {
     font-size: 3rem;
     font-weight: 300;
-    color: #666;
+    color: var(--text-secondary);
     margin: 0;
     letter-spacing: -1px;
   }
@@ -143,21 +143,21 @@
     align-items: flex-end;
     gap: 12px;
     padding: 14px 18px;
-    background: #141414;
-    border: 1px solid #252525;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
     border-radius: 14px;
     transition: border-color 0.2s;
   }
 
   .input-box:focus-within {
-    border-color: #353535;
+    border-color: var(--border-hover);
   }
 
   textarea {
     flex: 1;
     background: transparent;
     border: none;
-    color: #e0e0e0;
+    color: var(--text-primary);
     font-size: 1rem;
     font-family: inherit;
     resize: none;
@@ -167,7 +167,7 @@
   }
 
   textarea::placeholder {
-    color: #4a4a4a;
+    color: var(--text-placeholder);
   }
 
   .input-actions {
@@ -186,9 +186,9 @@
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background: #1e1e1e;
-    border: 1px solid #2a2a2a;
-    color: #888;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
     font-size: 0.85rem;
     cursor: pointer;
     border-radius: 8px;
@@ -196,8 +196,8 @@
   }
 
   .model-btn:hover {
-    background: #252525;
-    color: #aaa;
+    border-color: var(--border-hover);
+    color: var(--text-primary);
   }
 
   .chevron {
@@ -210,12 +210,12 @@
     bottom: 100%;
     right: 0;
     margin-bottom: 8px;
-    background: #1a1a1a;
-    border: 1px solid #2a2a2a;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 8px;
     min-width: 180px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     z-index: 100;
   }
 
@@ -228,14 +228,14 @@
     padding: 10px 12px;
     background: transparent;
     border: none;
-    color: #ccc;
+    color: var(--text-primary);
     cursor: pointer;
     border-radius: 8px;
     transition: all 0.15s;
   }
 
   .model-option:hover {
-    background: #262626;
+    background: var(--bg-tertiary);
   }
 
   .model-option.active {
@@ -250,7 +250,7 @@
 
   .model-provider {
     font-size: 0.75rem;
-    color: #555;
+    color: var(--text-muted);
   }
 
   .model-option.active .model-provider {
@@ -262,7 +262,7 @@
     height: 36px;
     border-radius: 50%;
     border: none;
-    background: #2dd4bf;
+    background: var(--accent);
     color: #000;
     cursor: pointer;
     transition: all 0.2s;
@@ -272,12 +272,12 @@
   }
 
   .send-btn:hover:not(:disabled) {
-    background: #5eead4;
+    background: var(--accent-hover);
   }
 
   .send-btn:disabled {
-    background: #252525;
-    color: #444;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
     cursor: not-allowed;
   }
 
@@ -291,17 +291,17 @@
   .action-chip {
     padding: 10px 20px;
     background: transparent;
-    border: 1px solid #252525;
+    border: 1px solid var(--border-color);
     border-radius: 20px;
-    color: #666;
+    color: var(--text-secondary);
     font-size: 0.9rem;
     cursor: pointer;
     transition: all 0.2s;
   }
 
   .action-chip:hover {
-    background: #151515;
-    border-color: #353535;
-    color: #999;
+    background: var(--bg-tertiary);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
   }
 </style>

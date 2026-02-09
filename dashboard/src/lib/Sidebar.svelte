@@ -1,19 +1,48 @@
 <script>
-  // Empty sidebar - features will be added here as they're built
+  import { createEventDispatcher } from 'svelte';
+  
+  export let theme = 'dark';
+  
+  const dispatch = createEventDispatcher();
+
+  function toggleTheme() {
+    dispatch('toggleTheme');
+  }
 </script>
 
 <aside>
   <div class="top">
-    <!-- Logo only -->
+    <!-- Logo -->
     <div class="logo">
       <span class="logo-text">E</span>
     </div>
   </div>
 
   <div class="bottom">
+    <!-- Theme Toggle -->
+    <button class="icon-btn" on:click={toggleTheme} aria-label="Toggle theme">
+      {#if theme === 'dark'}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      {:else}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      {/if}
+    </button>
+
     <!-- Settings -->
-    <button class="settings-btn" title="Settings">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="icon-btn" aria-label="Settings">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
@@ -24,8 +53,8 @@
 <style>
   aside {
     width: 60px;
-    background: #0f0f0f;
-    border-right: 1px solid #1a1a1a;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -37,6 +66,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 8px;
   }
 
   .logo {
@@ -55,13 +85,13 @@
     color: #000;
   }
 
-  .settings-btn {
+  .icon-btn {
     width: 40px;
     height: 40px;
     border-radius: 10px;
     border: none;
     background: transparent;
-    color: #555;
+    color: var(--text-muted);
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -69,8 +99,8 @@
     justify-content: center;
   }
 
-  .settings-btn:hover {
-    background: #1a1a1a;
-    color: #888;
+  .icon-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
   }
 </style>
