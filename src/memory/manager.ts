@@ -17,7 +17,7 @@ import type {
 import { resolveAgentDir, resolveAgentWorkspaceDir } from "../agents/agent-scope.js";
 import { resolveMemorySearchConfig } from "../agents/memory-search.js";
 import { resolveSessionTranscriptsDirForAgent } from "../config/sessions/paths.js";
-import { isVerbose, logVerbose } from "../globals.js";
+import { logVerbose, shouldLogVerbose } from "../globals.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { onSessionTranscriptUpdate } from "../sessions/transcript-events.js";
 import { resolveUserPath } from "../utils.js";
@@ -2320,13 +2320,21 @@ export class MemoryIndexManager implements MemorySearchManager {
       (chunk) => chunk.text.trim().length > 0,
     );
 
-    if (isVerbose()) {
+    if (shouldLogVerbose()) {
       const totalLines = content.split("\n").length;
       const totalBytes = Buffer.byteLength(content, "utf-8");
       const avgChunkSize = chunks.length > 0 ? Math.round(totalBytes / chunks.length) : 0;
-      const chunkSizes = chunks.map((c) => Buffer.byteLength(c.text, "utf-8"));
-      const minChunkSize = chunks.length > 0 ? Math.min(...chunkSizes) : 0;
-      const maxChunkSize = chunks.length > 0 ? Math.max(...chunkSizes) : 0;
+      let minChunkSize = Infinity;
+      let maxChunkSize = 0;
+      for (const chunk of chunks) {
+        const size = Buffer.byteLength(chunk.text, "utf-8");
+        if (size < minChunkSize) minChunkSize = size;
+        if (size > maxChunkSize) maxChunkSize = size;
+      }
+      if (chunks.length === 0) {
+        minChunkSize = 0;
+        maxChunkSize = 0;
+      }
       const avgLinesPerChunk = chunks.length > 0 ? Math.round(totalLines / chunks.length) : 0;
 
       const maxChars = Math.max(32, this.settings.chunking.tokens * 4);
