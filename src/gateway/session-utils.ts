@@ -6,7 +6,11 @@ import type {
   GatewaySessionsDefaults,
   SessionsListResult,
 } from "./session-utils.types.js";
-import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
+import {
+  resolveAgentDir,
+  resolveAgentWorkspaceDir,
+  resolveDefaultAgentId,
+} from "../agents/agent-scope.js";
 import { lookupContextTokens } from "../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL, DEFAULT_PROVIDER } from "../agents/defaults.js";
 import {
@@ -780,8 +784,11 @@ export function listSessionsFromStore(params: {
   if (storePath === "(multiple)") {
     // Combined mode - use default agent's sessions directory
     const defaultAgentId = normalizeAgentId(resolveDefaultAgentId(cfg));
-    const agentDir = path.join(resolveStateDir(), "agents", defaultAgentId);
-    sessionsDir = path.join(agentDir, "sessions");
+    const agentDir = resolveAgentDir(cfg, defaultAgentId);
+    // resolveAgentDir returns ~/.openclaw/agents/{agentId}/agent
+    // We need ~/.openclaw/agents/{agentId}/sessions
+    const agentScope = path.dirname(agentDir);
+    sessionsDir = path.join(agentScope, "sessions");
   } else if (storePath.endsWith("sessions.json")) {
     // Single agent mode with full path to sessions.json
     sessionsDir = path.dirname(storePath);

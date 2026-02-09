@@ -367,7 +367,10 @@ export const sessionsHandlers: GatewayRequestHandlers = {
     if (deleteTranscript && sessionId) {
       // Clean up any old .deleted files for this sessionId to prevent duplicates
       const agentDir = resolveAgentDir(cfg, target.agentId);
-      const sessionsDir = path.join(agentDir, "sessions");
+      // resolveAgentDir returns ~/.openclaw/agents/{agentId}/agent
+      // We need ~/.openclaw/agents/{agentId}/sessions
+      const agentScope = path.dirname(agentDir);
+      const sessionsDir = path.join(agentScope, "sessions");
       try {
         const files = fs.readdirSync(sessionsDir);
         const oldDeleted = files.filter((f) => f.startsWith(`${sessionId}.jsonl.deleted.`));
@@ -636,7 +639,10 @@ export const sessionsHandlers: GatewayRequestHandlers = {
     const cfg = loadConfig();
     const agentId = normalizeAgentId(p.agentId ?? resolveDefaultAgentId(cfg));
     const agentDir = resolveAgentDir(cfg, agentId);
-    const sessionsDir = path.join(agentDir, "sessions");
+    // resolveAgentDir returns ~/.openclaw/agents/{agentId}/agent
+    // We need ~/.openclaw/agents/{agentId}/sessions
+    const agentScope = path.dirname(agentDir);
+    const sessionsDir = path.join(agentScope, "sessions");
 
     try {
       // Find the deleted file for this sessionId
