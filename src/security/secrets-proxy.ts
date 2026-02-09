@@ -392,6 +392,11 @@ export async function startSecretsProxy(opts: SecretsProxyOptions): Promise<http
     }
   });
 
+  // Validate: exactly one of socketPath or port must be provided
+  if (!opts.socketPath && !opts.port) {
+    throw new Error("startSecretsProxy requires either socketPath (Linux/macOS) or port (Windows)");
+  }
+
   return new Promise((resolve, reject) => {
     server.on("error", reject);
     if (opts.socketPath) {
@@ -399,6 +404,8 @@ export async function startSecretsProxy(opts: SecretsProxyOptions): Promise<http
       // Remove stale socket file from previous session (prevents EADDRINUSE)
       try { fs.unlinkSync(opts.socketPath); } catch { /* doesn't exist, fine */ }
       server.listen(opts.socketPath, () => {
+        // Restrict socket permissions to owner only (prevents other local users from connecting)
+        try { fs.chmodSync(opts.socketPath!, 0o600); } catch { /* best effort */ }
         // Clean up socket file when server closes
         server.on("close", () => {
           try { fs.unlinkSync(opts.socketPath!); } catch { /* already gone */ }

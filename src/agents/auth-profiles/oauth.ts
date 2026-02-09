@@ -37,8 +37,10 @@ async function refreshOAuthTokenWithLock(params: {
   profileId: string;
   agentDir?: string;
 }): Promise<{ apiKey: string; newCredentials: OAuthCredentials } | null> {
-  // SECURE MODE: Don't attempt local refresh - the host proxy handles token management
-  if (process.env.OPENCLAW_SECURE_MODE === "1") {
+  // SECURE MODE: Don't attempt local refresh - the host proxy handles token management.
+  // Gate on PROXY_URL (only set inside the container) instead of OPENCLAW_SECURE_MODE
+  // to avoid breaking the host-side proxy which also calls into this code path.
+  if (process.env.PROXY_URL) {
     return null;
   }
 
@@ -131,7 +133,8 @@ async function tryResolveOAuthProfile(params: {
 
   // SECURE MODE: Return placeholder without checking expiry or refreshing.
   // The secrets proxy on the host will inject the real token at HTTP time.
-  if (process.env.OPENCLAW_SECURE_MODE === "1") {
+  // Gate on PROXY_URL (container-only) to avoid affecting host-side resolution.
+  if (process.env.PROXY_URL) {
     // For google-gemini-cli, return JSON format with placeholders
     const needsProjectId =
       cred.provider === "google-gemini-cli" || cred.provider === "google-antigravity";
@@ -192,8 +195,9 @@ export async function resolveApiKeyForProfile(params: {
     }
   }
 
-  // SECURE MODE: Return placeholders instead of actual credentials
-  if (process.env.OPENCLAW_SECURE_MODE === "1") {
+  // SECURE MODE: Return placeholders instead of actual credentials.
+  // Gate on PROXY_URL (container-only) to avoid affecting host-side resolution.
+  if (process.env.PROXY_URL) {
     let placeholder: string;
     if (cred.type === "oauth") {
       // For google-gemini-cli, return JSON format with placeholders

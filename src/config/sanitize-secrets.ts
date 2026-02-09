@@ -97,12 +97,13 @@ export function sanitizeConfigSecrets(
   // Sanitize inline env vars
   if (sanitized.env?.vars) {
     for (const key of Object.keys(sanitized.env.vars)) {
-      // Only sanitize keys that look like secrets
+      // Only sanitize keys that look like secrets (case-insensitive)
+      const upperKey = key.toUpperCase();
       if (
-        key.includes("KEY") ||
-        key.includes("SECRET") ||
-        key.includes("TOKEN") ||
-        key.includes("PASSWORD")
+        upperKey.includes("KEY") ||
+        upperKey.includes("SECRET") ||
+        upperKey.includes("TOKEN") ||
+        upperKey.includes("PASSWORD")
       ) {
         sanitized.env.vars[key] = `{{CONFIG:env.vars.${key}}}`;
       }

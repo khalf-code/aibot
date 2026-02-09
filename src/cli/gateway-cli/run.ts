@@ -329,7 +329,7 @@ async function runGatewayCommand(opts: GatewayRunOpts) {
           gatewayLog.info(`Secrets proxy started on 127.0.0.1:${proxyPort}`);
         } else {
           // Generate unique socket path for this session
-          proxySocketPath = `/tmp/openclaw-proxy-${proxyAuthToken.slice(0, 16)}.sock`;
+          proxySocketPath = `/tmp/openclaw-proxy-${process.pid}.sock`;
           proxyServer = await startSecretsProxy({
             socketPath: proxySocketPath,
             registry,
