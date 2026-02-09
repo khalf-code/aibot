@@ -189,7 +189,11 @@ function broadcastChatError(params: {
  * Check if a message is an assistant heartbeat-only message (just HEARTBEAT_OK).
  * Returns true if the message should be filtered when showOk is false.
  */
-function isHeartbeatOnlyMessage(message: unknown): boolean {
+/**
+ * Check if a message is a heartbeat-only message (assistant message containing only HEARTBEAT_OK).
+ * Exported for testing.
+ */
+export function isHeartbeatOnlyMessage(message: unknown): boolean {
   if (!message || typeof message !== "object") {
     return false;
   }
@@ -199,13 +203,13 @@ function isHeartbeatOnlyMessage(message: unknown): boolean {
     return false;
   }
 
-  // Check string content
+  // Check string content - must be exactly HEARTBEAT_OK (with optional whitespace)
   if (typeof entry.content === "string") {
     const trimmed = entry.content.trim();
-    return trimmed === HEARTBEAT_TOKEN || trimmed.startsWith(`${HEARTBEAT_TOKEN}\n`);
+    return trimmed === HEARTBEAT_TOKEN;
   }
 
-  // Check array content (text blocks)
+  // Check array content (text blocks) - combined text must be exactly HEARTBEAT_OK
   if (Array.isArray(entry.content)) {
     const textParts = entry.content
       .filter(
@@ -217,7 +221,7 @@ function isHeartbeatOnlyMessage(message: unknown): boolean {
       return false;
     }
     const combined = textParts.join(" ").trim();
-    return combined === HEARTBEAT_TOKEN || combined.startsWith(`${HEARTBEAT_TOKEN} `);
+    return combined === HEARTBEAT_TOKEN;
   }
 
   return false;
@@ -225,8 +229,9 @@ function isHeartbeatOnlyMessage(message: unknown): boolean {
 
 /**
  * Filter heartbeat-only messages from chat history when showOk is false.
+ * Exported for testing.
  */
-function filterHeartbeatMessages(messages: unknown[], showOk: boolean): unknown[] {
+export function filterHeartbeatMessages(messages: unknown[], showOk: boolean): unknown[] {
   if (showOk) {
     return messages;
   }
