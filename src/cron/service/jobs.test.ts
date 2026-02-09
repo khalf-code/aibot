@@ -1,3 +1,5 @@
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { CronJob } from "../types.js";
 import type { CronServiceState } from "./state.js";
@@ -31,7 +33,11 @@ function makeState(jobs: CronJob[], nowMs: number): CronServiceState {
     deps: {
       nowMs: () => nowMs,
       log: noopLog,
-      storePath: "/tmp/cron.json",
+      // Use a temp path that is unique per test run to avoid cross-test interference.
+      storePath: path.join(
+        os.tmpdir(),
+        `cron-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+      ),
       cronEnabled: true,
       enqueueSystemEvent: () => {},
       requestHeartbeatNow: () => {},
