@@ -1,6 +1,7 @@
 import {
   createReplyPrefixContext,
   createTypingCallbacks,
+  emitMessageSent,
   logTypingFailure,
   type OpenClawConfig,
   type RuntimeEnv,
@@ -451,6 +452,13 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
     }
   };
 
+  const notifyMessageSent = (content: string, messageId?: string) => {
+    emitMessageSent(
+      { to: chatId, content, success: true, messageId },
+      { channelId: "feishu", accountId: account.accountId, conversationId: chatId },
+    );
+  };
+
   const { dispatcher, replyOptions, markDispatchIdle } =
     core.channel.reply.createReplyDispatcherWithTyping({
       responsePrefix: prefixContext.responsePrefix,
@@ -494,6 +502,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               params.runtime.log?.(
                 `feishu[${account.accountId}] streaming status: used=${streamEverUpdated}, backend=${streamBackend}, partials=${streamPartialCount}, flushes=${streamFlushCount}, updates=${streamUpdateCount}`,
               );
+              notifyMessageSent(text, streamMessageId ?? undefined);
               return;
             }
           }
@@ -517,6 +526,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
 
         // Card mode with block streaming: accumulate text and update via CardKit
         if (useCard && blockStreamingEnabled && streamBackend !== "stopped") {
+          let blockSentMessageId: string | undefined;
           if (streamingCardId) {
             accumulatedCardText += "\n\n" + text;
             params.runtime.log?.(
@@ -560,6 +570,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               });
 
               streamingCardId = result.messageId;
+              blockSentMessageId = result.messageId;
               streamCardKitId = entity.cardId;
               streamBackend = "cardkit";
               streamSequence = 0;
@@ -569,7 +580,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
                 `feishu[${account.accountId}] deliver: CardKit create failed: ${String(cardKitErr)}`,
               );
               streamBackend = "stopped";
-              await sendMarkdownCardFeishu({
+              const result = await sendMarkdownCardFeishu({
                 cfg,
                 to: chatId,
                 text,
@@ -577,7 +588,11 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
                 mentions: mentionTargets,
                 accountId,
               });
+              blockSentMessageId = result.messageId;
             }
+          }
+          if (blockSentMessageId) {
+            notifyMessageSent(text, blockSentMessageId);
           }
           return;
         }
@@ -585,6 +600,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         // Non-streaming path: send each delivery as a separate message
         // Only include @mentions in the first chunk (avoid duplicate @s)
         let isFirstChunk = true;
+        let firstMessageId: string | undefined;
 
         if (useCard) {
           // Card mode: send as interactive card with markdown rendering
@@ -593,7 +609,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
             `feishu[${account.accountId}] deliver: sending ${chunks.length} card chunks to ${chatId}`,
           );
           for (const chunk of chunks) {
-            await sendMarkdownCardFeishu({
+            const result = await sendMarkdownCardFeishu({
               cfg,
               to: chatId,
               text: chunk,
@@ -601,6 +617,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               mentions: isFirstChunk ? mentionTargets : undefined,
               accountId,
             });
+            firstMessageId ??= result.messageId;
             isFirstChunk = false;
           }
         } else {
@@ -611,7 +628,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
             `feishu[${account.accountId}] deliver: sending ${chunks.length} text chunks to ${chatId}`,
           );
           for (const chunk of chunks) {
-            await sendMessageFeishu({
+            const result = await sendMessageFeishu({
               cfg,
               to: chatId,
               text: chunk,
@@ -619,9 +636,11 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               mentions: isFirstChunk ? mentionTargets : undefined,
               accountId,
             });
+            firstMessageId ??= result.messageId;
             isFirstChunk = false;
           }
         }
+        notifyMessageSent(text, firstMessageId);
       },
       onError: (err, info) => {
         params.runtime.error?.(
