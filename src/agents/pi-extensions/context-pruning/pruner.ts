@@ -351,6 +351,7 @@ export async function pruneContextMessages(params: {
     prunableToolChars += estimateMessageChars(msg);
   }
   if (prunableToolChars < settings.minPrunableToolChars) {
+    emitPruneHook();
     return outputAfterSoftTrim;
   }
 
