@@ -333,35 +333,181 @@ export async function editMessageFeishu(params: {
 }
 
 export const STREAMING_ELEMENT_ID = "streaming_md";
+const STREAM_PRINT_FREQUENCY_MS = 70;
+const STREAM_PRINT_STEP = 1;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getNested(value: unknown, keys: string[]): unknown {
+  let current: unknown = value;
+  for (const key of keys) {
+    const obj = asRecord(current);
+    if (!obj || !(key in obj)) {
+      return undefined;
+    }
+    current = obj[key];
+  }
+  return current;
+}
+
+function stringifyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function prettyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function sanitizeStreamingContent(text: string): string {
+  // Strip non-printable control chars except newline/tab/carriage return.
+  return text.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+}
+
+type StreamingCardPayload = {
+  schema: "2.0";
+  config: {
+    streaming_mode: true;
+    update_multi: true;
+    summary: { content: string };
+    streaming_config?: {
+      print_frequency_ms: { default: number; android?: number; ios?: number; pc?: number };
+      print_step: { default: number; android?: number; ios?: number; pc?: number };
+      print_strategy: "fast" | "delay";
+    };
+  };
+  body: {
+    elements: Array<{
+      tag: "markdown";
+      content: string;
+      element_id: string;
+    }>;
+  };
+  header?: {
+    title: {
+      tag: "plain_text";
+      content: string;
+    };
+  };
+};
+
+function buildStreamingCardPayloadVariants(
+  initialContent: string,
+  summaryText = "Generating ...",
+): Array<{
+  name: string;
+  payload: StreamingCardPayload;
+}> {
+  const content = sanitizeStreamingContent(initialContent || "Generating response...");
+
+  return [
+    {
+      name: "no-header+full-streaming-config",
+      payload: {
+        schema: "2.0",
+        config: {
+          streaming_mode: true,
+          update_multi: true,
+          summary: { content: summaryText },
+          streaming_config: {
+            print_frequency_ms: { default: STREAM_PRINT_FREQUENCY_MS },
+            print_step: { default: STREAM_PRINT_STEP },
+            print_strategy: "fast",
+          },
+        },
+        body: {
+          elements: [
+            {
+              tag: "markdown",
+              content,
+              element_id: STREAMING_ELEMENT_ID,
+            },
+          ],
+        },
+      },
+    },
+    {
+      name: "header+full-streaming-config",
+      payload: {
+        schema: "2.0",
+        header: {
+          title: {
+            tag: "plain_text",
+            content: "OpenClaw",
+          },
+        },
+        config: {
+          streaming_mode: true,
+          update_multi: true,
+          summary: { content: summaryText },
+          streaming_config: {
+            print_frequency_ms: { default: STREAM_PRINT_FREQUENCY_MS },
+            print_step: { default: STREAM_PRINT_STEP },
+            print_strategy: "fast",
+          },
+        },
+        body: {
+          elements: [
+            {
+              tag: "markdown",
+              content,
+              element_id: STREAMING_ELEMENT_ID,
+            },
+          ],
+        },
+      },
+    },
+    {
+      name: "header+minimal-streaming-config",
+      payload: {
+        schema: "2.0",
+        header: {
+          title: {
+            tag: "plain_text",
+            content: "OpenClaw",
+          },
+        },
+        config: {
+          streaming_mode: true,
+          update_multi: true,
+          summary: { content: summaryText },
+        },
+        body: {
+          elements: [
+            {
+              tag: "markdown",
+              content,
+              element_id: STREAMING_ELEMENT_ID,
+            },
+          ],
+        },
+      },
+    },
+  ];
+}
 
 export type CreateCardEntityResult = {
   cardId: string;
 };
 
-export function buildStreamingCardData(initialContent: string): string {
-  // Match the official Feishu streaming card example exactly:
-  // https://open.feishu.cn/document/uAjLw4CM/ukzMukzMukzM/feishu-cards/streaming-updates-openapi-overview
-  return JSON.stringify({
-    schema: "2.0",
-    config: {
-      streaming_mode: true,
-      summary: { content: "" },
-      streaming_config: {
-        print_frequency_ms: { default: 70, android: 70, ios: 70, pc: 70 },
-        print_step: { default: 1, android: 1, ios: 1, pc: 1 },
-        print_strategy: "fast",
-      },
-    },
-    body: {
-      elements: [
-        {
-          tag: "markdown",
-          content: initialContent,
-          element_id: STREAMING_ELEMENT_ID,
-        },
-      ],
-    },
-  });
+export function buildStreamingCardData(initialContent: string, summaryText?: string): string {
+  const [first] = buildStreamingCardPayloadVariants(initialContent, summaryText);
+  if (!first) {
+    return "{}";
+  }
+  return JSON.stringify(first.payload);
 }
 
 export async function createCardEntityFeishu(params: {
@@ -376,19 +522,108 @@ export async function createCardEntityFeishu(params: {
   }
 
   const client = createFeishuClient(account);
+  const emit = (message: string) => {
+    console.info(message);
+  };
 
-  const response = (await client.cardkit.v1.card.create({
-    data: {
-      type: "card_json",
-      data: buildStreamingCardData(initialContent),
-    },
-  })) as { code?: number; msg?: string; data?: { card_id?: string } };
+  const variants = buildStreamingCardPayloadVariants(initialContent);
+  let lastError: unknown;
 
-  if (response.code !== 0 || !response.data?.card_id) {
-    throw new Error(`Feishu CardKit create failed: ${response.msg || `code ${response.code}`}`);
+  for (let i = 0; i < variants.length; i += 1) {
+    const variant = variants[i];
+    if (!variant) {
+      continue;
+    }
+    const data = JSON.stringify(variant.payload);
+    emit(
+      `feishu[${account.accountId}] card.create attempt ${i + 1}/${variants.length} variant=${variant.name}, cardJsonLen=${data.length}, initialTextLen=${initialContent.length}`,
+    );
+    emit(
+      `feishu[${account.accountId}] card.create request payload variant=${variant.name}: ${prettyJson({ type: "card_json", data: variant.payload })}`,
+    );
+
+    try {
+      const response = (await client.cardkit.v1.card.create({
+        data: {
+          type: "card_json",
+          data,
+        },
+      })) as { code?: number; msg?: string; data?: { card_id?: string }; log_id?: string };
+
+      if (response.code === 0 && response.data?.card_id) {
+        emit(
+          `feishu[${account.accountId}] card.create success variant=${variant.name}, cardId=${response.data.card_id}`,
+        );
+        return { cardId: response.data.card_id };
+      }
+
+      const msg = response.msg || `code ${response.code}`;
+      emit(
+        `feishu[${account.accountId}] card.create rejected variant=${variant.name}, code=${String(response.code)}, logId=${String(response.log_id ?? "")}, msg=${msg}`,
+      );
+      lastError = new Error(`Feishu CardKit create failed: ${msg}`);
+    } catch (err) {
+      const code = getNested(err, ["response", "data", "code"]);
+      const msg = getNested(err, ["response", "data", "msg"]);
+      const logId = getNested(err, ["response", "data", "log_id"]);
+      const details = getNested(err, ["response", "data"]);
+      emit(
+        `feishu[${account.accountId}] card.create error variant=${variant.name}, code=${String(code ?? "")}, logId=${String(logId ?? "")}, msg=${String(msg ?? String(err))}, details=${stringifyJson(details)}`,
+      );
+      lastError = err;
+    }
   }
 
-  return { cardId: response.data.card_id };
+  throw (
+    lastError ??
+    new Error(
+      `Feishu CardKit create failed: all payload variants rejected for account ${account.accountId}`,
+    )
+  );
+}
+
+export async function updateCardSummaryFeishu(params: {
+  cfg: ClawdbotConfig;
+  cardId: string;
+  summaryText: string;
+  content: string;
+  sequence: number;
+  accountId?: string;
+}): Promise<void> {
+  const { cfg, cardId, summaryText, content, sequence, accountId } = params;
+  const account = resolveFeishuAccount({ cfg, accountId });
+  if (!account.configured) {
+    throw new Error(`Feishu account "${account.accountId}" not configured`);
+  }
+
+  const client = createFeishuClient(account);
+  const cardApi = asRecord(getNested(client, ["cardkit", "v1", "card"]));
+  const update = cardApi?.update;
+  if (typeof update !== "function") {
+    throw new Error("Feishu CardKit card.update API unavailable");
+  }
+
+  const cardJson = buildStreamingCardData(content, summaryText);
+  const response = (await (update as (payload: unknown) => Promise<unknown>)({
+    path: { card_id: cardId },
+    data: {
+      card: {
+        type: "card_json",
+        data: cardJson,
+      },
+      sequence,
+    },
+  })) as { code?: number; msg?: string; log_id?: string };
+
+  if (response.code !== 0) {
+    throw new Error(
+      `Feishu CardKit summary update failed: ${response.msg || `code ${response.code}`}`,
+    );
+  }
+
+  console.info(
+    `feishu[${account.accountId}] card.summary updated: cardId=${cardId}, sequence=${sequence}, summary=${summaryText}`,
+  );
 }
 
 export async function sendCardByCardIdFeishu(params: {
@@ -411,41 +646,79 @@ export async function sendCardByCardIdFeishu(params: {
   }
 
   const receiveIdType = resolveReceiveIdType(receiveId);
-  const content = JSON.stringify({ card_id: cardId });
+  // Official card-id send shape: {"type":"card","data":{"card_id":"..."}}
+  const content = JSON.stringify({
+    type: "card",
+    data: {
+      card_id: cardId,
+    },
+  });
+
+  console.info(
+    `feishu[${account.accountId}] card.bind request: ${prettyJson({ endpoint: replyToMessageId ? "im.message.reply" : "im.message.create", receive_id_type: receiveIdType, receive_id: receiveId, reply_to_message_id: replyToMessageId ?? null, msg_type: "interactive", content: { type: "card", data: { card_id: cardId } } })}`,
+  );
 
   if (replyToMessageId) {
-    const response = await client.im.message.reply({
-      path: { message_id: replyToMessageId },
-      data: { content, msg_type: "interactive" },
+    try {
+      const response = await client.im.message.reply({
+        path: { message_id: replyToMessageId },
+        data: { content, msg_type: "interactive" },
+      });
+
+      console.info(
+        `feishu[${account.accountId}] card.bind reply response: ${prettyJson(response)}`,
+      );
+
+      if (response.code !== 0) {
+        throw new Error(`Feishu card-id reply failed: ${response.msg || `code ${response.code}`}`);
+      }
+
+      return {
+        messageId: response.data?.message_id ?? "unknown",
+        chatId: receiveId,
+      };
+    } catch (err) {
+      const code = getNested(err, ["response", "data", "code"]);
+      const msg = getNested(err, ["response", "data", "msg"]);
+      const logId = getNested(err, ["response", "data", "log_id"]);
+      const details = getNested(err, ["response", "data"]);
+      console.info(
+        `feishu[${account.accountId}] card.bind reply error: code=${String(code ?? "")}, logId=${String(logId ?? "")}, msg=${String(msg ?? String(err))}, details=${stringifyJson(details)}`,
+      );
+      throw err;
+    }
+  }
+
+  try {
+    const response = await client.im.message.create({
+      params: { receive_id_type: receiveIdType },
+      data: {
+        receive_id: receiveId,
+        content,
+        msg_type: "interactive",
+      },
     });
 
+    console.info(`feishu[${account.accountId}] card.bind create response: ${prettyJson(response)}`);
+
     if (response.code !== 0) {
-      throw new Error(`Feishu card-id reply failed: ${response.msg || `code ${response.code}`}`);
+      throw new Error(`Feishu card-id send failed: ${response.msg || `code ${response.code}`}`);
     }
 
     return {
       messageId: response.data?.message_id ?? "unknown",
       chatId: receiveId,
     };
+  } catch (err) {
+    const code = getNested(err, ["response", "data", "code"]);
+    const msg = getNested(err, ["response", "data", "msg"]);
+    const logId = getNested(err, ["response", "data", "log_id"]);
+    const details = getNested(err, ["response", "data"]);
+    console.info(
+      `feishu[${account.accountId}] card.bind create error: code=${String(code ?? "")}, logId=${String(logId ?? "")}, msg=${String(msg ?? String(err))}, details=${stringifyJson(details)}`,
+    );
+    throw err;
   }
-
-  const response = await client.im.message.create({
-    params: { receive_id_type: receiveIdType },
-    data: {
-      receive_id: receiveId,
-      content,
-      msg_type: "interactive",
-    },
-  });
-
-  if (response.code !== 0) {
-    throw new Error(`Feishu card-id send failed: ${response.msg || `code ${response.code}`}`);
-  }
-
-  return {
-    messageId: response.data?.message_id ?? "unknown",
-    chatId: receiveId,
-  };
 }
 
 /** @param sequence Strictly increasing per card (1, 2, 3, …). */

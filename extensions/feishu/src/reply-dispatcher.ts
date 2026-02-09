@@ -17,6 +17,7 @@ import {
   createCardEntityFeishu,
   sendCardByCardIdFeishu,
   updateCardElementContentFeishu,
+  updateCardSummaryFeishu,
 } from "./send.js";
 import { addTypingIndicator, removeTypingIndicator, type TypingIndicatorState } from "./typing.js";
 
@@ -36,7 +37,39 @@ function shouldUseCard(text: string): boolean {
   return false;
 }
 
-const STREAM_THROTTLE_MS = 350;
+function firstSentence(text: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "Generating ...";
+  }
+  const match = normalized.match(/^(.{1,120}?[。！？.!?])(\s|$)/);
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+  return normalized.slice(0, 120).trim();
+}
+
+const STREAM_THROTTLE_MS = 500;
+const STREAM_UPDATE_MAX_RETRIES = 3;
+
+function isRetryableStreamError(err: unknown): boolean {
+  const msg = String(err).toLowerCase();
+  return (
+    msg.includes("429") ||
+    msg.includes("rate") ||
+    msg.includes("too many") ||
+    msg.includes("timeout") ||
+    msg.includes("temporar") ||
+    msg.includes("econn") ||
+    msg.includes("etimedout") ||
+    msg.includes("enotfound") ||
+    msg.includes("5xx")
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 type StreamingBackend =
   | "none" // Initial state, not yet determined
@@ -120,6 +153,15 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
   const trueStreamingEnabled = feishuCfg?.streaming !== false;
   const renderMode = feishuCfg?.renderMode ?? "auto";
   const streamRenderMode = renderMode === "raw" ? "raw" : "card";
+  const configuredStreamMethod = trueStreamingEnabled
+    ? streamRenderMode === "card"
+      ? "cardkit.cardElement.content"
+      : "im.message.update"
+    : "disabled";
+
+  params.runtime.log?.(
+    `feishu[${account.accountId}] streaming config: enabled=${trueStreamingEnabled}, renderMode=${renderMode}, streamRenderMode=${streamRenderMode}, blockStreaming=${blockStreamingEnabled}, method=${configuredStreamMethod}`,
+  );
 
   // Block streaming state: accumulate blocks into a single card.
   let streamingCardId: string | null = null;
@@ -135,6 +177,14 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
   let streamInFlight = false;
   let streamTimer: ReturnType<typeof setTimeout> | null = null;
   let streamFinalText: string | null = null; // Store final text for delivery after flush
+  let streamPartialCount = 0;
+  let streamFlushCount = 0;
+  let streamUpdateCount = 0;
+  let streamEverUpdated = false;
+  let streamFirstPartialAt = 0;
+  let streamLastPartialAt = 0;
+  let streamFirstFlushAt = 0;
+  let streamFinalEnteredAt = 0;
 
   const applyMentions = (text: string): string => {
     if (!mentionTargets || mentionTargets.length === 0) {
@@ -143,6 +193,41 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
     return streamRenderMode === "card"
       ? buildMentionedCardContent(mentionTargets, text)
       : buildMentionedMessage(mentionTargets, text);
+  };
+
+  const updateCardElementWithRetry = async (updateParams: {
+    cardId: string;
+    content: string;
+    sequence: number;
+  }): Promise<void> => {
+    const { cardId, content, sequence } = updateParams;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= STREAM_UPDATE_MAX_RETRIES; attempt += 1) {
+      try {
+        await updateCardElementContentFeishu({
+          cfg,
+          cardId,
+          content,
+          sequence,
+          accountId,
+        });
+        return;
+      } catch (err) {
+        lastError = err;
+        const retryable = isRetryableStreamError(err);
+        const shouldRetry = retryable && attempt < STREAM_UPDATE_MAX_RETRIES;
+        params.runtime.log?.(
+          `feishu[${account.accountId}] stream update failed (cardId=${cardId}, sequence=${sequence}, attempt=${attempt}, retryable=${retryable}): ${String(err)}`,
+        );
+        if (!shouldRetry) {
+          throw err;
+        }
+        await sleep(250 * attempt);
+      }
+    }
+
+    throw lastError ?? new Error("Feishu stream update failed without details");
   };
 
   /**
@@ -161,15 +246,18 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         if (streamBackend === "cardkit" && streamCardKitId) {
           // CardKit streaming update — sequence must be strictly increasing
           const nextSequence = streamSequence + 1;
-          await updateCardElementContentFeishu({
-            cfg,
+          params.runtime.log?.(
+            `feishu[${account.accountId}] stream update via cardElement.content (cardId=${streamCardKitId}, sequence=${nextSequence}, textLen=${text.length})`,
+          );
+          await updateCardElementWithRetry({
             cardId: streamCardKitId,
             content: applyMentions(text),
             sequence: nextSequence,
-            accountId,
           });
           // Only commit sequence after successful update
           streamSequence = nextSequence;
+          streamUpdateCount += 1;
+          streamEverUpdated = true;
         } else if (streamBackend === "none") {
           // First partial: try CardKit first
           try {
@@ -191,14 +279,14 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
             streamCardKitId = entity.cardId;
             streamMessageId = result.messageId;
             streamBackend = "cardkit";
-            streamSequence = 1; // First update was the initial content (sequence 1)
+            streamSequence = 0; // First element update should start at sequence 1
             params.runtime.log?.(
-              `feishu[${account.accountId}] CardKit stream initialized: cardId=${entity.cardId}, msgId=${result.messageId}`,
+              `feishu[${account.accountId}] CardKit stream initialized (method=cardkit.cardElement.content): cardId=${entity.cardId}, msgId=${result.messageId}`,
             );
           } catch (cardKitErr) {
-            // CardKit unavailable — stop streaming, deliver will send final message
+            // CardKit stream init unavailable (create or bind failed) — stop streaming.
             params.runtime.log?.(
-              `feishu[${account.accountId}] CardKit create failed, streaming unavailable: ${String(cardKitErr)}`,
+              `feishu[${account.accountId}] CardKit stream init failed (create-or-bind), streaming unavailable: ${String(cardKitErr)}`,
             );
             streamBackend = "stopped";
           }
@@ -208,12 +296,17 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         // Raw mode — use text message edit
         if (streamBackend === "raw" && streamMessageId) {
           const textWithMentions = applyMentions(text);
+          params.runtime.log?.(
+            `feishu[${account.accountId}] stream update via im.message.update (messageId=${streamMessageId}, textLen=${text.length})`,
+          );
           await editMessageFeishu({
             cfg,
             messageId: streamMessageId,
             text: textWithMentions,
             accountId,
           });
+          streamUpdateCount += 1;
+          streamEverUpdated = true;
         } else if (streamBackend === "none") {
           const result = await sendMessageFeishu({
             cfg,
@@ -225,6 +318,9 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
           });
           streamMessageId = result.messageId;
           streamBackend = "raw";
+          params.runtime.log?.(
+            `feishu[${account.accountId}] raw stream initialized (method=im.message.update): messageId=${result.messageId}`,
+          );
         }
         // If backend is "stopped", do nothing
       }
@@ -253,6 +349,17 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       return;
     }
 
+    streamFlushCount += 1;
+    const now = Date.now();
+    if (!streamFirstFlushAt) {
+      streamFirstFlushAt = now;
+    }
+    const sinceLastPartialMs = streamLastPartialAt > 0 ? now - streamLastPartialAt : -1;
+    const sinceFirstPartialMs = streamFirstPartialAt > 0 ? now - streamFirstPartialAt : -1;
+    params.runtime.log?.(
+      `feishu[${account.accountId}] stream flush #${streamFlushCount}: backend=${streamBackend}, textLen=${text.length}, sinceLastPartialMs=${sinceLastPartialMs}, sinceFirstPartialMs=${sinceFirstPartialMs}, finalEntered=${streamFinalEnteredAt > 0}`,
+    );
+
     streamInFlight = true;
     try {
       const success = await sendOrUpdateStreamMessage(text);
@@ -261,7 +368,8 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       }
     } finally {
       streamInFlight = false;
-      if (streamPendingText) {
+      // Keep a single timer so update cadence stays stable.
+      if (streamPendingText && !streamTimer) {
         streamTimer = setTimeout(() => {
           void flushStream();
         }, STREAM_THROTTLE_MS);
@@ -274,6 +382,9 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       return;
     }
     streamPendingText = text;
+    params.runtime.log?.(
+      `feishu[${account.accountId}] queue stream partial: backend=${streamBackend}, textLen=${text.length}`,
+    );
     if (!streamTimer) {
       streamTimer = setTimeout(() => {
         void flushStream();
@@ -303,6 +414,10 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       deliver: async (payload: ReplyPayload) => {
         const text = payload.text ?? "";
         streamFinalText = text;
+        streamFinalEnteredAt = Date.now();
+        params.runtime.log?.(
+          `feishu[${account.accountId}] deliver entered: partials=${streamPartialCount}, flushes=${streamFlushCount}, updates=${streamUpdateCount}, firstPartialAt=${streamFirstPartialAt || 0}, finalAt=${streamFinalEnteredAt}`,
+        );
 
         if (trueStreamingEnabled && text) {
           // Wait for any pending stream operations to complete
@@ -310,13 +425,38 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
 
           // If streaming succeeded, just send the final update
           if (streamBackend !== "stopped" && streamMessageId) {
+            params.runtime.log?.(
+              `feishu[${account.accountId}] final stream delivery via ${streamRenderMode === "card" ? "cardkit.cardElement.content" : "im.message.update"}: backend=${streamBackend}, partials=${streamPartialCount}, flushes=${streamFlushCount}, updates=${streamUpdateCount}`,
+            );
             await sendOrUpdateStreamMessage(text);
+            if (streamRenderMode === "card" && streamCardKitId) {
+              const summary = firstSentence(text);
+              const nextSequence = streamSequence + 1;
+              try {
+                await updateCardSummaryFeishu({
+                  cfg,
+                  cardId: streamCardKitId,
+                  summaryText: summary,
+                  content: applyMentions(text),
+                  sequence: nextSequence,
+                  accountId,
+                });
+                streamSequence = nextSequence;
+              } catch (err) {
+                params.runtime.log?.(
+                  `feishu[${account.accountId}] summary update skipped: ${String(err)}`,
+                );
+              }
+            }
+            params.runtime.log?.(
+              `feishu[${account.accountId}] streaming status: used=${streamEverUpdated}, backend=${streamBackend}, partials=${streamPartialCount}, flushes=${streamFlushCount}, updates=${streamUpdateCount}`,
+            );
             return;
           }
 
           // If streaming failed or never started, continue to send final message below
           params.runtime.log?.(
-            `feishu[${account.accountId}] deliver: streaming unavailable or failed, sending final message`,
+            `feishu[${account.accountId}] deliver: streaming unavailable/failed (backend=${streamBackend}, partials=${streamPartialCount}, flushes=${streamFlushCount}, updates=${streamUpdateCount}), sending final message`,
           );
         }
 
@@ -342,12 +482,10 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               // CardKit path — unlimited updates
               try {
                 const nextSequence = streamSequence + 1;
-                await updateCardElementContentFeishu({
-                  cfg,
+                await updateCardElementWithRetry({
                   cardId: streamCardKitId,
                   content: accumulatedCardText,
                   sequence: nextSequence,
-                  accountId,
                 });
                 streamSequence = nextSequence;
               } catch (err) {
@@ -380,7 +518,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               streamingCardId = result.messageId;
               streamCardKitId = entity.cardId;
               streamBackend = "cardkit";
-              streamSequence = 1;
+              streamSequence = 0;
             } catch (cardKitErr) {
               // CardKit unavailable — send as regular card, no block streaming
               params.runtime.log?.(
@@ -462,6 +600,18 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
             if (!text) {
               return;
             }
+            streamPartialCount += 1;
+            const now = Date.now();
+            if (!streamFirstPartialAt) {
+              streamFirstPartialAt = now;
+              params.runtime.log?.(
+                `feishu[${account.accountId}] first partial received: ts=${streamFirstPartialAt}, throttleMs=${STREAM_THROTTLE_MS}`,
+              );
+            }
+            streamLastPartialAt = now;
+            params.runtime.log?.(
+              `feishu[${account.accountId}] onPartialReply #${streamPartialCount}: backend=${streamBackend}, textLen=${text.length}, method=${configuredStreamMethod}, ts=${now}`,
+            );
             queueStreamUpdate(text);
           }
         : undefined,
