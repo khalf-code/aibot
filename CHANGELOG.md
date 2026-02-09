@@ -128,7 +128,6 @@ Docs: https://docs.openclaw.ai
 - Telegram: include forward_from_chat metadata in forwarded messages and harden cron delivery target checks. (#8392) Thanks @Glucksberg.
 - macOS: fix cron payload summary rendering and ISO 8601 formatter concurrency safety.
 
-
 ## 2026.2.2-3
 
 ### Fixes
