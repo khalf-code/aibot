@@ -42,9 +42,9 @@
   }
 
   .app {
-    display: flex;
     height: 100vh;
     width: 100vw;
+    position: relative;
   }
 
   /* Dark theme (default) */
@@ -85,11 +85,11 @@
   }
 
   main {
-    flex: 1;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
     background: var(--bg-primary);
   }
 </style>

@@ -52,14 +52,18 @@
 
 <style>
   aside {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 60px;
+    height: 100vh;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     padding: 16px 0;
-    flex-shrink: 0;
+    z-index: 100;
   }
 
   .top, .bottom {
