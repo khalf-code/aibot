@@ -53,7 +53,8 @@ Each sub-agent has its **own** context and token usage. Set a cheaper model for 
 
 Sub-agents work out of the box with no configuration. Defaults:
 
-- Model: inherited from the caller
+- Model: target agent’s normal model selection (unless `subagents.model` is set)
+- Thinking: no sub-agent override (unless `subagents.thinking` is set)
 - Max concurrent: 8
 - Auto-archive: after 60 minutes
 
@@ -161,8 +162,8 @@ This is the tool the agent calls to create sub-agents.
 | `task`              | string                 | _(required)_       | What the sub-agent should do                                   |
 | `label`             | string                 | —                  | Short label for identification                                 |
 | `agentId`           | string                 | _(caller's agent)_ | Spawn under a different agent id (must be allowed)             |
-| `model`             | string                 | _(inherited)_      | Override the model for this sub-agent                          |
-| `thinking`          | string                 | _(inherited)_      | Override thinking level (`off`, `low`, `medium`, `high`, etc.) |
+| `model`             | string                 | _(optional)_       | Override the model for this sub-agent                          |
+| `thinking`          | string                 | _(optional)_       | Override thinking level (`off`, `low`, `medium`, `high`, etc.) |
 | `runTimeoutSeconds` | number                 | `0` (no limit)     | Abort the sub-agent after N seconds                            |
 | `cleanup`           | `"delete"` \| `"keep"` | `"keep"`           | `"delete"` archives immediately after announce                 |
 
@@ -173,9 +174,14 @@ The sub-agent model is resolved in this order (first match wins):
 1. Explicit `model` parameter in the `sessions_spawn` call
 2. Per-agent config: `agents.list[].subagents.model`
 3. Global default: `agents.defaults.subagents.model`
-4. Caller's current model (inherited)
+4. Target agent’s normal model resolution for that new session
 
-Thinking level follows the same resolution order using the `thinking` fields.
+Thinking level is resolved in this order:
+
+1. Explicit `thinking` parameter in the `sessions_spawn` call
+2. Per-agent config: `agents.list[].subagents.thinking`
+3. Global default: `agents.defaults.subagents.thinking`
+4. Otherwise no sub-agent-specific thinking override is applied
 
 <Note>
 Invalid model values are silently skipped — the sub-agent runs on the next valid default with a warning in the tool result.
@@ -289,7 +295,7 @@ When a sub-agent finishes, it goes through an **announce** step:
 2. A summary message is sent to the main agent's session with the result, status, and stats
 3. The main agent posts a natural-language summary to your chat
 
-The announce step runs inside the sub-agent session (not the requester session). Announce replies preserve thread/topic routing when available (Slack threads, Telegram topics, Matrix threads).
+Announce replies preserve thread/topic routing when available (Slack threads, Telegram topics, Matrix threads).
 
 ### Announce Stats
 
@@ -304,13 +310,13 @@ Each announce includes a stats line with:
 
 The announce message includes a status derived from the runtime outcome (not from model output):
 
-- **success** — task completed normally
+- **successful completion** (`ok`) — task completed normally
 - **error** — task failed (error details in notes)
 - **timeout** — task exceeded `runTimeoutSeconds`
 - **unknown** — status could not be determined
 
 <Tip>
-If the sub-agent replies exactly `ANNOUNCE_SKIP`, nothing is posted to the chat. Useful for internal tasks with no user-facing result.
+If no user-facing announcement is needed, the main-agent summarize step can return `NO_REPLY` and nothing is posted.
 </Tip>
 
 ## Tool Policy
