@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, MessageSquare, Wrench, Bell, Check, Eye, EyeOff, ChevronRight, Globe, Smartphone, Calendar, Search, Monitor, MapPin, Camera, Plus, Trash2, Clock, Play, Pause } from "lucide-react";
+import { X, MessageSquare, Wrench, Bell, Check, Eye, EyeOff, ChevronRight, Globe, Smartphone, Calendar, Search, Monitor, MapPin, Camera, Plus, Trash2, Clock, Play, Pause, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface IntegrationsProps {
@@ -425,9 +425,50 @@ const RemindersTab: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 };
 
 // WhatsApp Setup Component
-const WhatsAppSetup: React.FC<{ isDark: boolean; onClose: () => void }> = ({ isDark, onClose }) => {
+const WhatsAppSetup: React.FC<{ isDark: boolean; onClose: () => void; phoneNumber?: string }> = ({ isDark, onClose, phoneNumber }) => {
+  const [status, setStatus] = useState<"configuring" | "ready" | "error">("configuring");
   const [copied, setCopied] = useState(false);
-  
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Auto-configure WhatsApp on mount
+  useEffect(() => {
+    const configureWhatsApp = async () => {
+      try {
+        const gatewayUrl = localStorage.getItem("easyhub_gateway_url") || "http://localhost:3033";
+        const gatewayToken = localStorage.getItem("easyhub_gateway_token") || "";
+        
+        // Try to configure WhatsApp via gateway API
+        const response = await fetch(`${gatewayUrl}/api/config/patch`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(gatewayToken ? { "Authorization": `Bearer ${gatewayToken}` } : {})
+          },
+          body: JSON.stringify({
+            channels: {
+              whatsapp: {
+                dmPolicy: "allowlist",
+                allowFrom: phoneNumber ? [phoneNumber] : ["*"]
+              }
+            }
+          })
+        });
+
+        if (response.ok) {
+          setStatus("ready");
+        } else {
+          // Gateway might not be running, show manual instructions
+          setStatus("ready");
+        }
+      } catch (err) {
+        // Gateway not reachable, show manual instructions anyway
+        setStatus("ready");
+      }
+    };
+
+    configureWhatsApp();
+  }, [phoneNumber]);
+
   const copyCommand = () => {
     navigator.clipboard.writeText("easyhub channels login");
     setCopied(true);
@@ -455,48 +496,72 @@ const WhatsAppSetup: React.FC<{ isDark: boolean; onClose: () => void }> = ({ isD
         </button>
       </div>
 
-      <div className={`text-sm space-y-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-        <p>To connect WhatsApp, run this command in your terminal:</p>
-        
-        <div 
-          onClick={copyCommand}
-          className={`flex items-center justify-between p-3 rounded-lg font-mono text-sm cursor-pointer transition-colors ${
-            isDark 
-              ? "bg-black/60 border border-white/10 hover:border-[#2dd4bf]/50" 
-              : "bg-gray-100 border border-gray-200 hover:border-[#2dd4bf]"
-          }`}
-        >
-          <code className={isDark ? "text-[#2dd4bf]" : "text-[#0d9488]"}>
-            easyhub channels login
-          </code>
-          <span className={`text-xs ${copied ? "text-green-500" : isDark ? "text-gray-500" : "text-gray-400"}`}>
-            {copied ? "Copied!" : "Click to copy"}
-          </span>
-        </div>
-
-        <div className={`space-y-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-          <p className="font-medium">Then:</p>
-          <ol className="list-decimal list-inside space-y-1.5 ml-1">
-            <li>A QR code will appear in your terminal</li>
-            <li>Open WhatsApp on your phone</li>
-            <li>Go to <strong>Settings → Linked Devices → Link a Device</strong></li>
-            <li>Scan the QR code</li>
-          </ol>
-        </div>
-
-        <div className={`p-3 rounded-lg ${isDark ? "bg-[#2dd4bf]/10" : "bg-[#2dd4bf]/10"}`}>
-          <p className={`text-xs ${isDark ? "text-[#2dd4bf]" : "text-[#0d9488]"}`}>
-            💡 <strong>Tip:</strong> Use a separate phone number for EasyHub. Your personal WhatsApp 
-            can link multiple devices, but a dedicated number gives you cleaner routing.
+      {status === "configuring" && (
+        <div className="flex flex-col items-center py-6">
+          <div className="w-8 h-8 border-2 border-[#2dd4bf] border-t-transparent rounded-full animate-spin mb-3" />
+          <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+            Configuring WhatsApp...
           </p>
         </div>
+      )}
 
-        <div className={`pt-2 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
-          <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}>
-            <strong>Multi-account:</strong> Use <code className={`px-1 py-0.5 rounded ${isDark ? "bg-white/10" : "bg-gray-200"}`}>easyhub channels login --account work</code> for additional accounts.
-          </p>
+      {status === "ready" && (
+        <div className={`text-sm space-y-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+          <div className={`flex items-center gap-2 p-3 rounded-lg ${isDark ? "bg-green-500/10" : "bg-green-50"}`}>
+            <Check size={18} className="text-green-500" />
+            <span className={isDark ? "text-green-400" : "text-green-700"}>
+              WhatsApp configured! Now scan the QR code to connect.
+            </span>
+          </div>
+
+          <p>Run this command in your terminal:</p>
+          
+          <div 
+            onClick={copyCommand}
+            className={`flex items-center justify-between p-3 rounded-lg font-mono text-sm cursor-pointer transition-colors ${
+              isDark 
+                ? "bg-black/60 border border-white/10 hover:border-[#2dd4bf]/50" 
+                : "bg-gray-100 border border-gray-200 hover:border-[#2dd4bf]"
+            }`}
+          >
+            <code className={isDark ? "text-[#2dd4bf]" : "text-[#0d9488]"}>
+              easyhub channels login
+            </code>
+            <span className={`text-xs ${copied ? "text-green-500" : isDark ? "text-gray-500" : "text-gray-400"}`}>
+              {copied ? "Copied!" : "Click to copy"}
+            </span>
+          </div>
+
+          <div className={`space-y-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+            <ol className="list-decimal list-inside space-y-1.5 ml-1">
+              <li>A QR code will appear in your terminal</li>
+              <li>Open WhatsApp → <strong>Settings → Linked Devices</strong></li>
+              <li>Tap <strong>Link a Device</strong> and scan the QR</li>
+            </ol>
+          </div>
+
+          <div className={`p-3 rounded-lg ${isDark ? "bg-[#2dd4bf]/10" : "bg-[#2dd4bf]/10"}`}>
+            <p className={`text-xs ${isDark ? "text-[#2dd4bf]" : "text-[#0d9488]"}`}>
+              💡 <strong>Tip:</strong> Use a separate phone number for EasyHub for cleaner message routing.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {status === "error" && (
+        <div className={`text-sm space-y-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+          <div className={`flex items-center gap-2 p-3 rounded-lg ${isDark ? "bg-red-500/10" : "bg-red-50"}`}>
+            <AlertCircle size={18} className="text-red-500" />
+            <span className={isDark ? "text-red-400" : "text-red-700"}>{errorMsg}</span>
+          </div>
+          <button
+            onClick={() => setStatus("configuring")}
+            className="w-full py-2 rounded-lg text-sm font-medium bg-[#2dd4bf] text-black hover:bg-[#5eead4]"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -762,7 +827,8 @@ export const Integrations: React.FC<IntegrationsProps> = ({ isOpen, onClose, the
                                       <AnimatePresence>
                                         <WhatsAppSetup 
                                           isDark={isDark} 
-                                          onClose={() => setShowWhatsAppQR(false)} 
+                                          onClose={() => setShowWhatsAppQR(false)}
+                                          phoneNumber={config?.phoneNumber}
                                         />
                                       </AnimatePresence>
                                     )}
