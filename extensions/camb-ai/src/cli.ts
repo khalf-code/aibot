@@ -87,7 +87,11 @@ export function registerCambAiCli(params: CambAiCliParams) {
   root
     .command("voices")
     .description("List available TTS voices")
-    .option("-l, --language <id>", "Filter by language ID (use 'camb languages' to see IDs)", parseInt)
+    .option(
+      "-l, --language <id>",
+      "Filter by language ID (use 'camb languages' to see IDs)",
+      parseInt,
+    )
     .option("-g, --gender <gender>", "Filter by gender (male, female)")
     .option("--json", "Output as JSON")
     .action(async (options: { language?: number; gender?: string; json?: boolean }) => {
