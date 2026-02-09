@@ -251,19 +251,41 @@ async function agentViaGatewayStreamJson(opts: AgentCliOpts, _runtime: RuntimeEn
   return response;
 }
 
+/**
+ * Build a runtime that redirects all human-readable output to stderr,
+ * keeping stdout exclusively for NDJSON lines.
+ */
+function buildStderrRuntime(base: RuntimeEnv): RuntimeEnv {
+  return {
+    ...base,
+    log: (...args: Parameters<typeof console.log>) => {
+      process.stderr.write(`${args.map(String).join(" ")}\n`);
+    },
+    error: (...args: Parameters<typeof console.error>) => {
+      process.stderr.write(`${args.map(String).join(" ")}\n`);
+    },
+  };
+}
+
 export async function agentCliCommand(opts: AgentCliOpts, runtime: RuntimeEnv, deps?: CliDeps) {
+  const effectiveRuntime = opts.streamJson ? buildStderrRuntime(runtime) : runtime;
   const localOpts = {
     ...opts,
     agentId: opts.agent,
     replyAccountId: opts.replyAccount,
   };
   if (opts.local === true) {
-    return await agentCommand(localOpts, runtime, deps);
+    return await agentCommand(localOpts, effectiveRuntime, deps);
   }
 
   // Stream NDJSON via the gateway (no embedded fallback — streaming should fail loud).
   if (opts.streamJson) {
-    return await agentViaGatewayStreamJson(opts, runtime);
+    try {
+      return await agentViaGatewayStreamJson(opts, effectiveRuntime);
+    } catch (err) {
+      emitNdjsonLine({ event: "error", error: String(err) });
+      throw err;
+    }
   }
 
   try {

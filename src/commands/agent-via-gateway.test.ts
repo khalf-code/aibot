@@ -171,7 +171,35 @@ describe("agentCliCommand", () => {
       expect(lastLine.event).toBe("result");
       expect(lastLine.status).toBe("ok");
 
-      // Normal log output should NOT be called (NDJSON-only)
+      // runtime.log must not write to stdout — it is redirected to stderr
+      expect(runtime.log).not.toHaveBeenCalled();
+    } finally {
+      stdoutSpy.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("emits NDJSON error event and re-throws on gateway failure with --stream-json", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-agent-cli-"));
+    const store = path.join(dir, "sessions.json");
+    mockConfig(store);
+
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    vi.mocked(callGateway).mockRejectedValue(new Error("connection refused"));
+
+    try {
+      await expect(
+        agentCliCommand({ message: "hi", to: "+1555", streamJson: true }, runtime),
+      ).rejects.toThrow("connection refused");
+
+      // An NDJSON error line should have been emitted to stdout
+      const writes = stdoutSpy.mock.calls.map(([data]) => String(data));
+      expect(writes.length).toBeGreaterThanOrEqual(1);
+      const errorLine = JSON.parse(writes[writes.length - 1]);
+      expect(errorLine.event).toBe("error");
+      expect(errorLine.error).toContain("connection refused");
+
+      // runtime.log should NOT have been called (stderr runtime)
       expect(runtime.log).not.toHaveBeenCalled();
     } finally {
       stdoutSpy.mockRestore();
