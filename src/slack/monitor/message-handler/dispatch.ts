@@ -211,9 +211,11 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
       }
     }
 
-    // Append converted mrkdwn text to the stream.
+    // Set the stream text.  Using `set` handles both cumulative and
+    // incremental block deliveries — it diffs against what was already
+    // sent and only streams the new portion.
     try {
-      await streamState.handle.append(markdownToSlackMrkdwn(text));
+      await streamState.handle.set(markdownToSlackMrkdwn(text));
     } catch (err) {
       logVerbose(`slack: stream append failed, falling back: ${String(err)}`);
       streamState.failed = true;

@@ -2,8 +2,10 @@ import type { WebClient } from "@slack/web-api";
 import { logVerbose } from "../globals.js";
 
 export type SlackStreamHandle = {
-  /** Append markdown text to the live-updating message. */
+  /** Append incremental text to the live-updating message. Accumulates internally. */
   append: (text: string) => Promise<void>;
+  /** Set the full message text (for cumulative block deliveries). */
+  set: (fullText: string) => Promise<void>;
   /** Finalize the stream. The message becomes a normal Slack message. */
   stop: () => Promise<void>;
 };
@@ -42,8 +44,9 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  * `chat.appendStream` / `chat.stopStream`.
  *
  * The API returns a message `ts` which is used with the channel to
- * identify the stream for append/stop calls.  Each append sends
- * incremental text via `markdown_text` — Slack accumulates internally.
+ * identify the stream for append/stop calls.  Each call sends the
+ * full cumulative text as `markdown_text` (Slack replaces the message).
+ * Use `append` for incremental text, `set` for already-cumulative text.
  */
 export async function startSlackStream(params: {
   client: WebClient;
@@ -75,16 +78,24 @@ export async function startSlackStream(params: {
   }
 
   const streamChannel = startResult.channel ?? channel;
+  let cumulativeText = "";
 
-  const rawAppend = async (text: string) => {
+  /** Send the current cumulative text to Slack (replaces the full message). */
+  const sendCumulative = async () => {
     const result = (await client.apiCall("chat.appendStream", {
       channel: streamChannel,
       ts: streamId,
-      markdown_text: text,
+      markdown_text: cumulativeText,
     })) as { ok?: boolean; error?: string };
     if (!result.ok) {
       throw new Error(`chat.appendStream failed: ${result.error}`);
     }
+  };
+
+  /** Append incremental text and send updated cumulative to Slack. */
+  const rawAppend = async (text: string) => {
+    cumulativeText += text;
+    await sendCumulative();
   };
 
   const rawStop = async () => {
@@ -104,8 +115,27 @@ export async function startSlackStream(params: {
     }
   };
 
+  /** Set full cumulative text (for block deliveries that are already cumulative). */
+  const setFullText = async (fullText: string) => {
+    if (fullText === cumulativeText) {
+      return; // No change — skip the API call.
+    }
+    // If the new text extends what we have, only chunk the delta for the typing effect.
+    if (fullText.startsWith(cumulativeText) && cumulativeText.length > 0) {
+      const delta = fullText.slice(cumulativeText.length);
+      if (delta) {
+        await chunkedAppend(delta);
+      }
+      return;
+    }
+    // Otherwise replace entirely.
+    cumulativeText = fullText;
+    await sendCumulative();
+  };
+
   return {
     append: chunkedAppend,
+    set: setFullText,
     stop: rawStop,
   };
 }
