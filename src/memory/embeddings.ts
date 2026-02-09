@@ -81,6 +81,15 @@ function isMissingApiKeyError(err: unknown): boolean {
   return message.includes("No API key found for provider");
 }
 
+function isVertexMissingCredentialError(err: unknown): boolean {
+  const message = formatErrorMessage(err);
+  return (
+    message.includes("GOOGLE_CLOUD_PROJECT") ||
+    message.includes("gcloud") ||
+    message.includes("GOOGLE_APPLICATION_CREDENTIALS")
+  );
+}
+
 async function createLocalEmbeddingProvider(
   options: EmbeddingProviderOptions,
 ): Promise<EmbeddingProvider> {
@@ -180,7 +189,7 @@ export async function createEmbeddingProvider(
         return { ...result, requestedProvider };
       } catch (err) {
         const message = formatPrimaryError(err, provider);
-        if (isMissingApiKeyError(err)) {
+        if (isMissingApiKeyError(err) || isVertexMissingCredentialError(err)) {
           missingKeyErrors.push(message);
           continue;
         }

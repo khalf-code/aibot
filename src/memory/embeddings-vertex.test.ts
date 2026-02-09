@@ -265,4 +265,130 @@ describe("vertex embedding provider", () => {
     await provider.embedQuery("hello");
     expect(fetchMock.mock.calls[0]![0]).toContain("us-central1-aiplatform.googleapis.com");
   });
+
+  it("throws on non-200 HTTP response from predict endpoint", async () => {
+    process.env.GOOGLE_CLOUD_PROJECT = "my-project";
+    process.env.GOOGLE_CLOUD_LOCATION = "us-central1";
+
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({}),
+      text: async () => "Forbidden: insufficient permissions",
+    })) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { createVertexEmbeddingProvider } = await import("./embeddings-vertex.js");
+    const { provider, client } = await createVertexEmbeddingProvider({
+      config: {} as never,
+      provider: "google-vertex",
+      model: "text-embedding-005",
+      fallback: "none",
+    });
+    client.getAccessToken = async () => "mock-token";
+
+    await expect(provider.embedQuery("hello")).rejects.toThrow(
+      /vertex embeddings failed: 403 Forbidden/,
+    );
+  });
+
+  it("throws on malformed response body missing predictions", async () => {
+    process.env.GOOGLE_CLOUD_PROJECT = "my-project";
+    process.env.GOOGLE_CLOUD_LOCATION = "us-central1";
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ someOtherField: "unexpected" }),
+      text: async () => "",
+    })) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { createVertexEmbeddingProvider } = await import("./embeddings-vertex.js");
+    const { provider, client } = await createVertexEmbeddingProvider({
+      config: {} as never,
+      provider: "google-vertex",
+      model: "text-embedding-005",
+      fallback: "none",
+    });
+    client.getAccessToken = async () => "mock-token";
+
+    await expect(provider.embedQuery("hello")).rejects.toThrow(
+      /unexpected response shape.*missing 'predictions' array/,
+    );
+  });
+
+  it("throws when prediction has missing embeddings.values", async () => {
+    process.env.GOOGLE_CLOUD_PROJECT = "my-project";
+    process.env.GOOGLE_CLOUD_LOCATION = "us-central1";
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        predictions: [{ embeddings: {} }],
+      }),
+      text: async () => "",
+    })) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { createVertexEmbeddingProvider } = await import("./embeddings-vertex.js");
+    const { provider, client } = await createVertexEmbeddingProvider({
+      config: {} as never,
+      provider: "google-vertex",
+      model: "text-embedding-005",
+      fallback: "none",
+    });
+    client.getAccessToken = async () => "mock-token";
+
+    await expect(provider.embedQuery("hello")).rejects.toThrow(
+      /prediction\[0\] has missing or empty embeddings\.values/,
+    );
+  });
+
+  it("normalizes model name by stripping vertex/ prefix", async () => {
+    process.env.GOOGLE_CLOUD_PROJECT = "my-project";
+    process.env.GOOGLE_CLOUD_LOCATION = "us-central1";
+
+    const fetchMock = createPredictFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { createVertexEmbeddingProvider } = await import("./embeddings-vertex.js");
+    const { provider, client } = await createVertexEmbeddingProvider({
+      config: {} as never,
+      provider: "google-vertex",
+      model: "vertex/text-embedding-005",
+      fallback: "none",
+    });
+    client.getAccessToken = async () => "mock-token";
+
+    expect(provider.model).toBe("text-embedding-005");
+
+    await provider.embedQuery("hello");
+    expect(fetchMock.mock.calls[0]![0]).toContain("/models/text-embedding-005:predict");
+  });
+
+  it("uses custom region from GOOGLE_CLOUD_LOCATION in predict URL", async () => {
+    process.env.GOOGLE_CLOUD_PROJECT = "my-project";
+    process.env.GOOGLE_CLOUD_LOCATION = "europe-west4";
+
+    const fetchMock = createPredictFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { createVertexEmbeddingProvider } = await import("./embeddings-vertex.js");
+    const { provider, client } = await createVertexEmbeddingProvider({
+      config: {} as never,
+      provider: "google-vertex",
+      model: "text-embedding-005",
+      fallback: "none",
+    });
+    client.getAccessToken = async () => "mock-token";
+
+    await provider.embedQuery("hello");
+
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(
+      "https://europe-west4-aiplatform.googleapis.com/v1/projects/my-project/locations/europe-west4/publishers/google/models/text-embedding-005:predict",
+    );
+  });
 });
