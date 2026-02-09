@@ -58,7 +58,7 @@ describe("splitShellArgs", () => {
     expect(splitShellArgs("foo\\")).toBeNull();
   });
 
-  it("handles empty quoted strings as empty tokens", () => {
+  it("drops empty quoted strings", () => {
     expect(splitShellArgs("foo '' bar")).toEqual(["foo", "bar"]);
   });
 
