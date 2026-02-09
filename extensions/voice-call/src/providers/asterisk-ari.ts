@@ -909,22 +909,22 @@ export class AsteriskAriProvider implements VoiceCallProvider {
 
     this.pendingInboundChannels.add(providerCallId);
 
+    const call = this.manager.ensureInboundCall({ providerCallId, from, to });
+    if (!call) {
+      this.pendingInboundChannels.delete(providerCallId);
+      return;
+    }
+
     this.manager.processEvent(
       makeEvent({
         type: "call.initiated",
-        callId: providerCallId,
+        callId: call.callId,
         providerCallId,
         direction: "inbound",
         from,
         to,
       }),
     );
-
-    const call = this.manager.getCallByProviderCallId(providerCallId);
-    if (!call) {
-      this.pendingInboundChannels.delete(providerCallId);
-      return;
-    }
 
     this.pendingInboundChannels.delete(providerCallId);
 

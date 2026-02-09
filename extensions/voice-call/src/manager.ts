@@ -534,6 +534,44 @@ export class CallManager {
   /**
    * Look up a call by either internal callId or providerCallId.
    */
+  ensureInboundCall(params: {
+    providerCallId?: string;
+    from?: string;
+    to?: string;
+  }): CallRecord | undefined {
+    if (!params.providerCallId) return undefined;
+
+    let call = this.getCallByProviderCallId(params.providerCallId);
+    if (call) return call;
+
+    if (!this.shouldAcceptInbound(params.from)) {
+      if (this.provider && params.providerCallId) {
+        void this.provider
+          .hangupCall({
+            callId: params.providerCallId,
+            providerCallId: params.providerCallId,
+            reason: "hangup-bot",
+          })
+          .catch((err) => {
+            console.warn(
+              `[voice-call] Failed to reject inbound call ${params.providerCallId}: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          });
+      }
+      return undefined;
+    }
+
+    call = this.createInboundCall(
+      params.providerCallId,
+      params.from || "unknown",
+      params.to || this.config.fromNumber || "unknown",
+    );
+
+    return call;
+  }
+
   private findCall(callIdOrProviderCallId: string): CallRecord | undefined {
     // Try direct lookup by internal callId
     const directCall = this.activeCalls.get(callIdOrProviderCallId);
