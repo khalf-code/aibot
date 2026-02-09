@@ -630,9 +630,9 @@ async function runWebSearch(params: {
     });
 
     const mapped = results.slice(0, params.count).map((entry) => ({
-      title: entry.title,
+      title: entry.title ? wrapWebContent(entry.title, "web_search") : "",
       url: entry.url,
-      description: entry.snippet,
+      description: entry.snippet ? wrapWebContent(entry.snippet, "web_search") : "",
       siteName: entry.siteName,
     }));
 
