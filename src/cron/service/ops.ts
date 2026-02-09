@@ -162,9 +162,39 @@ export async function run(state: CronServiceState, id: string, mode?: "due" | "f
     await executeJob(state, job, start.nowMs, { forced, alreadyMarkedRunning: true });
   }
 
-  // Phase 3: under lock, persist updated job state + re-arm.
+  // Phase 3: under lock, merge finished state into latest persisted store + persist + re-arm.
+  const finishedState = job ? { ...job.state } : undefined;
+
   return await locked(state, async () => {
-    // Do NOT force reload; we want to persist the in-memory mutations from executeJob.
+    await ensureLoaded(state, { forceReload: true, skipRecompute: true });
+
+    if (finishedState && state.store) {
+      const latest = state.store.jobs.find((j) => j.id === id);
+      if (latest) {
+        latest.state.runningAtMs = undefined;
+        latest.state.lastRunAtMs = finishedState.lastRunAtMs;
+        latest.state.lastStatus = finishedState.lastStatus;
+        latest.state.lastDurationMs = finishedState.lastDurationMs;
+        latest.state.lastError = finishedState.lastError;
+
+        if (
+          latest.schedule.kind === "at" &&
+          finishedState.lastStatus === "ok" &&
+          latest.deleteAfterRun === true
+        ) {
+          state.store.jobs = state.store.jobs.filter((j) => j.id !== id);
+          emit(state, { jobId: id, action: "removed" });
+        } else if (latest.schedule.kind === "at" && finishedState.lastStatus === "ok") {
+          latest.enabled = false;
+          latest.state.nextRunAtMs = undefined;
+        } else if (!latest.enabled) {
+          latest.state.nextRunAtMs = undefined;
+        } else {
+          latest.state.nextRunAtMs = finishedState.nextRunAtMs;
+        }
+      }
+    }
+
     await persist(state);
     armTimer(state);
     return { ok: true, ran: true } as const;

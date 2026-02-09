@@ -81,16 +81,58 @@ export async function onTimer(state: CronServiceState) {
     });
 
     // Phase 2: outside lock, execute jobs.
-    // After each job finishes, persist under lock so list/status reflect completion
-    // and so a crash/restart doesn't leave long-lived runningAtMs states.
+    // After each job finishes, merge the finished job state into the latest persisted store
+    // under lock. IMPORTANT: we must reload to avoid overwriting concurrent add/update/remove
+    // operations that occurred while the lock was released.
     for (const id of dueIds) {
       const job = state.store?.jobs.find((j) => j.id === id);
       if (!job) {
         continue;
       }
+
       await executeJob(state, job, now, { forced: false, alreadyMarkedRunning: true });
+
+      // Snapshot the minimal finished state we want to persist.
+      const finishedState = { ...job.state };
+
       await locked(state, async () => {
-        // Do NOT reload here; we want to persist the in-memory mutations from executeJob.
+        await ensureLoaded(state, { forceReload: true, skipRecompute: true });
+        if (!state.store) {
+          return;
+        }
+
+        const latest = state.store.jobs.find((j) => j.id === id);
+        if (!latest) {
+          // Job was removed concurrently; nothing to update.
+          return;
+        }
+
+        // Apply run result fields without clobbering other concurrent job edits
+        // (schedule/payload/description/etc).
+        latest.state.runningAtMs = undefined;
+        latest.state.lastRunAtMs = finishedState.lastRunAtMs;
+        latest.state.lastStatus = finishedState.lastStatus;
+        latest.state.lastDurationMs = finishedState.lastDurationMs;
+        latest.state.lastError = finishedState.lastError;
+
+        // Handle one-shot completion semantics based on *latest* config.
+        if (
+          latest.schedule.kind === "at" &&
+          finishedState.lastStatus === "ok" &&
+          latest.deleteAfterRun === true
+        ) {
+          state.store.jobs = state.store.jobs.filter((j) => j.id !== id);
+          emit(state, { jobId: id, action: "removed" });
+        } else if (latest.schedule.kind === "at" && finishedState.lastStatus === "ok") {
+          // One-shot job completed successfully; disable it.
+          latest.enabled = false;
+          latest.state.nextRunAtMs = undefined;
+        } else if (!latest.enabled) {
+          latest.state.nextRunAtMs = undefined;
+        } else {
+          latest.state.nextRunAtMs = finishedState.nextRunAtMs;
+        }
+
         await persist(state);
       });
     }
