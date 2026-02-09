@@ -293,7 +293,7 @@ describe("fuse circuit breaker", () => {
     await checkCircuitBreaker(config, mockGateway);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "https://raw.githubusercontent.com/openclaw/openclaw/refs/heads/main/FUSE.txt",
+      "https://openclaw.ai/FUSE.txt",
       expect.objectContaining({
         headers: {
           "User-Agent": "openclaw-gateway",
