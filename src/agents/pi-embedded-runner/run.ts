@@ -443,8 +443,7 @@ export async function runEmbeddedPiAgent(
                 );
               } else {
                 log.warn(
-                  `[session-growth-guard] Pre-prompt compaction did not compact: ` +
-                    `${preCompactResult.reason ?? "unknown"}`,
+                  `[session-growth-guard] Pre-prompt compaction did not compact: ${preCompactResult.reason ?? "unknown"}`,
                 );
               }
             }
