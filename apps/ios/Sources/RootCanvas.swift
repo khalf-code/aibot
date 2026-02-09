@@ -54,6 +54,7 @@ struct RootCanvas: View {
                 ChatSheet(
                     gateway: self.appModel.operatorGatewaySession,
                     sessionKey: self.appModel.mainSessionKey,
+                    supportsChatSubscribe: false,
                     userAccent: self.appModel.seamColor)
             }
         }

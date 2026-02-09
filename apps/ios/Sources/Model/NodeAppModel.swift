@@ -261,8 +261,10 @@ final class NodeAppModel {
                                     message: "UNAVAILABLE: operator connection does not handle invokes"))
                         })
                     if Task.isCancelled { break }
-                    attempt = 0
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    // Backoff after disconnect to avoid tight reconnect loop (battery drain)
+                    attempt += 1
+                    let reconnectDelay = min(8.0, 0.5 * pow(1.7, Double(attempt)))
+                    try? await Task.sleep(nanoseconds: UInt64(reconnectDelay * 1_000_000_000))
                 } catch {
                     if Task.isCancelled { break }
                     attempt += 1

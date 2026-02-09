@@ -7,8 +7,8 @@ struct ChatSheet: View {
     @State private var viewModel: OpenClawChatViewModel
     private let userAccent: Color?
 
-    init(gateway: GatewayNodeSession, sessionKey: String, userAccent: Color? = nil) {
-        let transport = IOSGatewayChatTransport(gateway: gateway, supportsChatSubscribe: false)
+    init(gateway: GatewayNodeSession, sessionKey: String, supportsChatSubscribe: Bool = true, userAccent: Color? = nil) {
+        let transport = IOSGatewayChatTransport(gateway: gateway, supportsChatSubscribe: supportsChatSubscribe)
         self._viewModel = State(
             initialValue: OpenClawChatViewModel(
                 sessionKey: sessionKey,
