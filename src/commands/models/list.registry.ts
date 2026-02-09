@@ -15,6 +15,7 @@ import { ensureOpenClawModelsJson } from "../../agents/models-config.js";
 import { discoverAuthStorage, discoverModels } from "../../agents/pi-model-discovery.js";
 import {
   formatErrorWithStack,
+  MODEL_AVAILABILITY_UNAVAILABLE_CODE,
   shouldFallbackToAuthHeuristics,
   shouldFallbackToDiscoveryHeuristics,
 } from "./list.errors.js";
@@ -52,6 +53,35 @@ const hasAuthForProvider = (provider: string, cfg: OpenClawConfig, authStore: Au
   return false;
 };
 
+function createAvailabilityUnavailableError(message: string): Error {
+  const err = new Error(message);
+  (err as { code?: string }).code = MODEL_AVAILABILITY_UNAVAILABLE_CODE;
+  return err;
+}
+
+function validateAvailableModels(availableModels: unknown): Model<Api>[] {
+  if (!Array.isArray(availableModels)) {
+    throw createAvailabilityUnavailableError(
+      "Model availability unavailable: getAvailable() returned a non-array value.",
+    );
+  }
+
+  for (const model of availableModels) {
+    if (
+      !model ||
+      typeof model !== "object" ||
+      typeof (model as { provider?: unknown }).provider !== "string" ||
+      typeof (model as { id?: unknown }).id !== "string"
+    ) {
+      throw createAvailabilityUnavailableError(
+        "Model availability unavailable: getAvailable() returned invalid model entries.",
+      );
+    }
+  }
+
+  return availableModels as Model<Api>[];
+}
+
 export async function loadModelRegistry(cfg: OpenClawConfig) {
   await ensureOpenClawModelsJson(cfg);
   const agentDir = resolveOpenClawAgentDir();
@@ -83,7 +113,7 @@ export async function loadModelRegistry(cfg: OpenClawConfig) {
 
   if (!modelDiscoveryUnavailable) {
     try {
-      const availableModels = registry.getAvailable();
+      const availableModels = validateAvailableModels(registry.getAvailable());
       availableKeys = new Set(availableModels.map((model) => modelKey(model.provider, model.id)));
       if (
         synthesizedForwardCompatKey &&

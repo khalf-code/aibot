@@ -53,6 +53,8 @@ vi.mock("@mariozechner/pi-coding-agent", async () => {
     "@mariozechner/pi-coding-agent",
   );
 
+  class MockAuthStorage {}
+
   class MockModelRegistry {
     find(provider: string, id: string): ReturnType<typeof actual.ModelRegistry.prototype.find> {
       const found =
@@ -80,6 +82,7 @@ vi.mock("@mariozechner/pi-coding-agent", async () => {
 
   return {
     ...actual,
+    AuthStorage: MockAuthStorage as unknown as typeof actual.AuthStorage,
     ModelRegistry: MockModelRegistry as unknown as typeof actual.ModelRegistry,
   };
 });
@@ -479,6 +482,53 @@ describe("models list/status", () => {
     expect(runtime.error).toHaveBeenCalledTimes(1);
     expect(runtime.error.mock.calls[0]?.[0]).toContain("falling back to auth heuristics");
     expect(runtime.error.mock.calls[0]?.[0]).toContain("getAvailable failed");
+    expect(runtime.log).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(runtime.log.mock.calls[0]?.[0]));
+    expect(payload.models[0]?.key).toBe("google-antigravity/claude-opus-4-6-thinking");
+    expect(payload.models[0]?.missing).toBe(false);
+    expect(payload.models[0]?.available).toBe(true);
+  });
+
+  it("models list falls back to auth heuristics when getAvailable returns invalid shape", async () => {
+    loadConfig.mockReturnValue({
+      agents: {
+        defaults: {
+          model: "google-antigravity/claude-opus-4-6-thinking",
+          models: {
+            "google-antigravity/claude-opus-4-6-thinking": {},
+          },
+        },
+      },
+    });
+    listProfilesForProvider.mockImplementation((_: unknown, provider: string) =>
+      provider === "google-antigravity"
+        ? ([{ id: "profile-1" }] as Array<Record<string, unknown>>)
+        : [],
+    );
+    modelRegistryState.available = { bad: true } as unknown as Array<Record<string, unknown>>;
+    const runtime = makeRuntime();
+
+    modelRegistryState.models = [
+      {
+        provider: "google-antigravity",
+        id: "claude-opus-4-5-thinking",
+        name: "Claude Opus 4.5 Thinking",
+        api: "google-gemini-cli",
+        input: ["text", "image"],
+        baseUrl: "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        contextWindow: 200000,
+        maxTokens: 64000,
+        reasoning: true,
+        cost: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+      },
+    ];
+
+    const { modelsListCommand } = await import("./models/list.js");
+    await modelsListCommand({ json: true }, runtime);
+
+    expect(runtime.error).toHaveBeenCalledTimes(1);
+    expect(runtime.error.mock.calls[0]?.[0]).toContain("falling back to auth heuristics");
+    expect(runtime.error.mock.calls[0]?.[0]).toContain("non-array value");
     expect(runtime.log).toHaveBeenCalledTimes(1);
     const payload = JSON.parse(String(runtime.log.mock.calls[0]?.[0]));
     expect(payload.models[0]?.key).toBe("google-antigravity/claude-opus-4-6-thinking");
