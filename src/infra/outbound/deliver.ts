@@ -85,6 +85,7 @@ async function createChannelHandler(params: {
   threadId?: string | number | null;
   deps?: OutboundSendDeps;
   gifPlayback?: boolean;
+  sandboxRoot?: string;
 }): Promise<ChannelHandler> {
   const outbound = await loadChannelOutboundAdapter(params.channel);
   if (!outbound?.sendText || !outbound?.sendMedia) {
@@ -100,6 +101,7 @@ async function createChannelHandler(params: {
     threadId: params.threadId,
     deps: params.deps,
     gifPlayback: params.gifPlayback,
+    sandboxRoot: params.sandboxRoot,
   });
   if (!handler) {
     throw new Error(`Outbound not configured for channel: ${params.channel}`);
@@ -117,6 +119,7 @@ function createPluginHandler(params: {
   threadId?: string | number | null;
   deps?: OutboundSendDeps;
   gifPlayback?: boolean;
+  sandboxRoot?: string;
 }): ChannelHandler | null {
   const outbound = params.outbound;
   if (!outbound?.sendText || !outbound?.sendMedia) {
@@ -143,6 +146,7 @@ function createPluginHandler(params: {
             gifPlayback: params.gifPlayback,
             deps: params.deps,
             payload,
+            sandboxRoot: params.sandboxRoot,
           })
       : undefined,
     sendText: async (text) =>
@@ -167,6 +171,7 @@ function createPluginHandler(params: {
         threadId: params.threadId,
         gifPlayback: params.gifPlayback,
         deps: params.deps,
+        sandboxRoot: params.sandboxRoot,
       }),
   };
 }
@@ -191,8 +196,12 @@ export async function deliverOutboundPayloads(params: {
     text?: string;
     mediaUrls?: string[];
   };
+  /** Root directory for resolving relative media paths (e.g., sandbox workspace). */
+  sandboxRoot?: string;
 }): Promise<OutboundDeliveryResult[]> {
   const { cfg, channel, to, payloads } = params;
+  // Use sandboxRoot from params, or fall back to first payload with sandboxRoot
+  const sandboxRoot = params.sandboxRoot ?? payloads.find((p) => p.sandboxRoot)?.sandboxRoot;
   const accountId = params.accountId;
   const deps = params.deps;
   const abortSignal = params.abortSignal;
@@ -207,6 +216,7 @@ export async function deliverOutboundPayloads(params: {
     replyToId: params.replyToId,
     threadId: params.threadId,
     gifPlayback: params.gifPlayback,
+    sandboxRoot,
   });
   const textLimit = handler.chunker
     ? resolveTextChunkLimit(cfg, channel, accountId, {
