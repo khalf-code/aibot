@@ -76,11 +76,11 @@ To require an `@mention`, set:
 
 While OpenClaw generates a reply, it reacts to the triggering message:
 
-| Phase | Default emoji | Meaning |
-|-------|--------------|---------|
-| Start | 👀 `eyes` | Processing |
-| Success | ✅ `check_mark` | Done |
-| Failure | ⚠️ `warning` | Error |
+| Phase   | Default emoji   | Meaning    |
+| ------- | --------------- | ---------- |
+| Start   | 👀 `eyes`       | Processing |
+| Success | ✅ `check_mark` | Done       |
+| Failure | ⚠️ `warning`    | Error      |
 
 The start reaction is removed when the final reaction is added.
 
@@ -91,11 +91,11 @@ Customize or disable:
   channels: {
     zulip: {
       reactions: {
-        enabled: true,          // set false to disable
+        enabled: true, // set false to disable
         onStart: "eyes",
         onSuccess: "check_mark",
         onError: "warning",
-        clearOnFinish: true,    // remove onStart when done
+        clearOnFinish: true, // remove onStart when done
       },
     },
   },
@@ -139,7 +139,7 @@ Optional size limit:
 {
   channels: {
     zulip: {
-      mediaMaxMb: 5,  // default: 5MB
+      mediaMaxMb: 5, // default: 5MB
     },
   },
 }

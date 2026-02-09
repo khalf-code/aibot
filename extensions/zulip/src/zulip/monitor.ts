@@ -251,11 +251,14 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
       cfg,
       accountId: account.accountId,
       resolveChannelLimitMb: ({ cfg, accountId }) =>
-        (cfg.channels?.zulip as { mediaMaxMb?: number; accounts?: Record<string, { mediaMaxMb?: number }> })
-          ?.accounts?.[accountId]?.mediaMaxMb ??
+        (
+          cfg.channels?.zulip as {
+            mediaMaxMb?: number;
+            accounts?: Record<string, { mediaMaxMb?: number }>;
+          }
+        )?.accounts?.[accountId]?.mediaMaxMb ??
         (cfg.channels?.zulip as { mediaMaxMb?: number })?.mediaMaxMb,
-    }) ??
-    5 * 1024 * 1024;
+    }) ?? 5 * 1024 * 1024;
 
   const reactionConfig = account.config.reactions ?? {};
   const reactionsEnabled = reactionConfig.enabled !== false;
@@ -326,8 +329,7 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
             mediaTypes.push(saved.contentType);
             mediaUrls.push(uploadUrl);
           }
-        } catch (err) {
-        }
+        } catch (err) {}
       }
     }
     const oncharTriggered = oncharEnabled && oncharResult.triggered;
@@ -517,7 +519,9 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
 
     const preview = bodyText.replace(/\s+/g, " ").slice(0, 160);
     const inboundLabel =
-      kind === "dm" ? `Zulip DM from ${senderName}` : `Zulip message in ${roomLabel} from ${senderName}`;
+      kind === "dm"
+        ? `Zulip DM from ${senderName}`
+        : `Zulip message in ${roomLabel} from ${senderName}`;
     core.system.enqueueSystemEvent(`${inboundLabel}: ${preview}`, {
       sessionKey,
       contextKey: `zulip:message:${messageId}`,
@@ -775,7 +779,10 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
       });
 
       if (response.result === "error") {
-        if (response.code === "BAD_EVENT_QUEUE_ID" || response.msg?.includes("Bad event queue id")) {
+        if (
+          response.code === "BAD_EVENT_QUEUE_ID" ||
+          response.msg?.includes("Bad event queue id")
+        ) {
           runtime.log?.("zulip: queue expired, re-registering...");
           const newQueue = await registerZulipQueue(client, {
             eventTypes: ["message"],
@@ -829,7 +836,8 @@ export async function monitorZulipProvider(opts: MonitorZulipOpts = {}): Promise
       } else {
         pollBackoffMs = Math.min(30000, pollBackoffMs * 2);
       }
-      const delay = retryAfterMs && retryAfterMs > 0 ? Math.min(30000, retryAfterMs) : pollBackoffMs;
+      const delay =
+        retryAfterMs && retryAfterMs > 0 ? Math.min(30000, retryAfterMs) : pollBackoffMs;
       await sleep(delay);
     }
   }

@@ -10,9 +10,13 @@ import {
   type ChannelAccountSnapshot,
   type ChannelPlugin,
 } from "openclaw/plugin-sdk";
+import type { ZulipAccountConfig, ZulipConfig } from "./types.js";
+import { zulipMessageActions } from "./actions.js";
 import { ZulipConfigSchema } from "./config-schema.js";
 import { resolveZulipGroupRequireMention } from "./group-mentions.js";
-import type { ZulipAccountConfig, ZulipConfig } from "./types.js";
+import { looksLikeZulipTargetId, normalizeZulipMessagingTarget } from "./normalize.js";
+import { zulipOnboardingAdapter } from "./onboarding.js";
+import { getZulipRuntime } from "./runtime.js";
 import {
   listZulipAccountIds,
   resolveDefaultZulipAccountId,
@@ -23,10 +27,6 @@ import { normalizeZulipBaseUrl } from "./zulip/client.js";
 import { monitorZulipProvider } from "./zulip/monitor.js";
 import { probeZulip } from "./zulip/probe.js";
 import { sendMessageZulip } from "./zulip/send.js";
-import { looksLikeZulipTargetId, normalizeZulipMessagingTarget } from "./normalize.js";
-import { zulipOnboardingAdapter } from "./onboarding.js";
-import { getZulipRuntime } from "./runtime.js";
-import { zulipMessageActions } from "./actions.js";
 
 const meta = {
   id: "zulip",
@@ -345,14 +345,12 @@ export const zulipPlugin: ChannelPlugin<ResolvedZulipAccount> = {
   gateway: {
     startAccount: async (ctx) => {
       const account = ctx.account;
-      ctx.setStatus(
-        {
-          accountId: account.accountId,
-          baseUrl: account.baseUrl,
-          apiKeySource: account.apiKeySource,
-          emailSource: account.emailSource,
-        } as ChannelAccountSnapshot,
-      );
+      ctx.setStatus({
+        accountId: account.accountId,
+        baseUrl: account.baseUrl,
+        apiKeySource: account.apiKeySource,
+        emailSource: account.emailSource,
+      } as ChannelAccountSnapshot);
       ctx.log?.info(`[${account.accountId}] starting channel`);
       return monitorZulipProvider({
         apiKey: account.apiKey ?? undefined,

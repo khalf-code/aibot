@@ -28,10 +28,7 @@ describe("extractZulipUploadUrls", () => {
   const baseUrl = "https://zulip.example.com";
 
   it("extracts relative /user_uploads links", () => {
-    const urls = extractZulipUploadUrls(
-      "[file](/user_uploads/abc123/photo.png)",
-      baseUrl,
-    );
+    const urls = extractZulipUploadUrls("[file](/user_uploads/abc123/photo.png)", baseUrl);
     expect(urls).toEqual(["https://zulip.example.com/user_uploads/abc123/photo.png"]);
   });
 

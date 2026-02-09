@@ -18,9 +18,7 @@ export async function probeZulip(
     return { ok: false, error: "invalid baseUrl" };
   }
   const controller = new AbortController();
-  const timeout = timeoutMs
-    ? setTimeout(() => controller.abort(), Math.max(timeoutMs, 500))
-    : null;
+  const timeout = timeoutMs ? setTimeout(() => controller.abort(), Math.max(timeoutMs, 500)) : null;
 
   try {
     const authHeader = Buffer.from(`${email}:${apiKey}`).toString("base64");

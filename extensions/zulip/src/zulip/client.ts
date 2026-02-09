@@ -251,7 +251,10 @@ export async function fetchZulipMemberInfo(
   return await fetchZulipUser(client, trimmed);
 }
 
-export async function fetchZulipStream(client: ZulipClient, streamId: string): Promise<ZulipStream> {
+export async function fetchZulipStream(
+  client: ZulipClient,
+  streamId: string,
+): Promise<ZulipStream> {
   const payload = await client.request<
     ZulipApiResponse & { stream?: { stream_id: number; name?: string; description?: string } }
   >(`/streams/${streamId}`);
@@ -283,10 +286,9 @@ export async function registerZulipQueue(
     body.set("all_public_streams", "true");
   }
 
-  const payload = await client.request<ZulipApiResponse & { queue_id?: string; last_event_id?: number }>(
-    "/register",
-    { method: "POST", body: body.toString() },
-  );
+  const payload = await client.request<
+    ZulipApiResponse & { queue_id?: string; last_event_id?: number }
+  >("/register", { method: "POST", body: body.toString() });
   assertSuccess(payload, "Zulip /register failed");
   if (!payload.queue_id) {
     throw new Error("Zulip /register missing queue_id");
@@ -304,7 +306,9 @@ export async function getZulipEvents(
     lastEventId: number;
     timeoutMs?: number;
   },
-): Promise<ZulipApiResponse & { events?: Array<{ id: number; type: string; message?: ZulipMessage }> }> {
+): Promise<
+  ZulipApiResponse & { events?: Array<{ id: number; type: string; message?: ZulipMessage }> }
+> {
   const qs = new URLSearchParams({
     queue_id: params.queueId,
     last_event_id: String(params.lastEventId),
@@ -330,7 +334,9 @@ export async function getZulipEventsWithRetry(
     timeoutMs?: number;
     retryBaseDelayMs?: number;
   },
-): Promise<ZulipApiResponse & { events?: Array<{ id: number; type: string; message?: ZulipMessage }> }> {
+): Promise<
+  ZulipApiResponse & { events?: Array<{ id: number; type: string; message?: ZulipMessage }> }
+> {
   const qs = new URLSearchParams({
     queue_id: params.queueId,
     last_event_id: String(params.lastEventId),
@@ -381,10 +387,14 @@ export async function sendZulipStreamMessage(
     topic: params.topic,
     content: params.content,
   });
-  const payload = await zulipRequestWithRetry<ZulipApiResponse & { id?: number }>(client, "/messages", {
-    method: "POST",
-    body: body.toString(),
-  });
+  const payload = await zulipRequestWithRetry<ZulipApiResponse & { id?: number }>(
+    client,
+    "/messages",
+    {
+      method: "POST",
+      body: body.toString(),
+    },
+  );
   assertSuccess(payload, "Zulip stream send failed");
   return { id: payload.id };
 }
@@ -402,10 +412,14 @@ export async function sendZulipPrivateMessage(
     to: JSON.stringify(recipients),
     content: params.content,
   });
-  const payload = await zulipRequestWithRetry<ZulipApiResponse & { id?: number }>(client, "/messages", {
-    method: "POST",
-    body: body.toString(),
-  });
+  const payload = await zulipRequestWithRetry<ZulipApiResponse & { id?: number }>(
+    client,
+    "/messages",
+    {
+      method: "POST",
+      body: body.toString(),
+    },
+  );
   assertSuccess(payload, "Zulip private send failed");
   return { id: payload.id };
 }
@@ -476,7 +490,9 @@ export async function fetchZulipSubscriptions(
 
 export async function fetchZulipStreams(client: ZulipClient): Promise<ZulipStream[]> {
   const payload = await client.request<
-    ZulipApiResponse & { streams?: Array<{ stream_id: number; name?: string; description?: string }> }
+    ZulipApiResponse & {
+      streams?: Array<{ stream_id: number; name?: string; description?: string }>;
+    }
   >("/streams");
   assertSuccess(payload, "Zulip /streams failed");
   return (payload.streams ?? []).map((stream) => ({
@@ -492,7 +508,10 @@ export async function resolveZulipStreamId(
 ): Promise<string> {
   // The SDK normalizes channelId params to "stream:NAME" format (via normalizeZulipMessagingTarget)
   // before passing to the plugin. Strip the prefix so we can match against actual stream names.
-  const raw = streamIdOrName.trim().replace(/^stream:/i, "").trim();
+  const raw = streamIdOrName
+    .trim()
+    .replace(/^stream:/i, "")
+    .trim();
   const trimmed = raw;
   // If it's already a numeric ID, return it
   if (/^\d+$/.test(trimmed)) {
@@ -500,15 +519,15 @@ export async function resolveZulipStreamId(
   }
   // Otherwise, look up the stream by name
   const subscriptions = await fetchZulipSubscriptions(client, { includeAllPublic: true });
-  const found = subscriptions.find(
-    (sub) => sub.name?.toLowerCase() === trimmed.toLowerCase(),
-  );
+  const found = subscriptions.find((sub) => sub.name?.toLowerCase() === trimmed.toLowerCase());
   if (found?.stream_id) {
     return String(found.stream_id);
   }
   // Fall back to fetching all streams
   const streams = await fetchZulipStreams(client);
-  const foundStream = streams.find((stream) => stream.name?.toLowerCase() === trimmed.toLowerCase());
+  const foundStream = streams.find(
+    (stream) => stream.name?.toLowerCase() === trimmed.toLowerCase(),
+  );
   if (foundStream) {
     return foundStream.id;
   }
@@ -700,10 +719,10 @@ export async function editZulipMessage(
   const body = new URLSearchParams({
     content: params.content,
   });
-  const payload = await client.request<ZulipApiResponse>(
-    `/messages/${params.messageId}`,
-    { method: "PATCH", body: body.toString() },
-  );
+  const payload = await client.request<ZulipApiResponse>(`/messages/${params.messageId}`, {
+    method: "PATCH",
+    body: body.toString(),
+  });
   assertSuccess(payload, "Zulip edit message failed");
 }
 
@@ -713,10 +732,9 @@ export async function deleteZulipMessage(
     messageId: string;
   },
 ): Promise<void> {
-  const payload = await client.request<ZulipApiResponse>(
-    `/messages/${params.messageId}`,
-    { method: "DELETE" },
-  );
+  const payload = await client.request<ZulipApiResponse>(`/messages/${params.messageId}`, {
+    method: "DELETE",
+  });
   assertSuccess(payload, "Zulip delete message failed");
 }
 
@@ -729,9 +747,8 @@ export async function updateZulipMessageFlag(
   },
 ): Promise<void> {
   // Convert messageId to integer
-  const messageIdInt = typeof params.messageId === "number" 
-    ? params.messageId 
-    : parseInt(params.messageId, 10);
+  const messageIdInt =
+    typeof params.messageId === "number" ? params.messageId : parseInt(params.messageId, 10);
   if (isNaN(messageIdInt)) {
     throw new Error(`Invalid messageId: ${params.messageId}`);
   }
@@ -759,10 +776,10 @@ export async function updateZulipMessageTopic(
     topic: params.topic,
     propagate_mode: params.propagateMode ?? "change_all",
   });
-  const payload = await client.request<ZulipApiResponse>(
-    `/messages/${params.messageId}`,
-    { method: "PATCH", body: body.toString() },
-  );
+  const payload = await client.request<ZulipApiResponse>(`/messages/${params.messageId}`, {
+    method: "PATCH",
+    body: body.toString(),
+  });
   assertSuccess(payload, "Zulip update message topic failed");
 }
 
@@ -802,9 +819,7 @@ export async function searchZulipMessages(
   },
 ): Promise<ZulipMessage[]> {
   const limit = Math.min(Math.max(1, params.limit ?? 50), 1000);
-  const narrow: Array<Record<string, unknown>> = [
-    { operator: "search", operand: params.query },
-  ];
+  const narrow: Array<Record<string, unknown>> = [{ operator: "search", operand: params.query }];
   if (params.stream) {
     narrow.push({ operator: "stream", operand: params.stream });
   }
@@ -840,10 +855,7 @@ export async function fetchZulipUserPresence(
   return payload.presence ?? {};
 }
 
-export async function deactivateZulipUser(
-  client: ZulipClient,
-  userId: string,
-): Promise<void> {
+export async function deactivateZulipUser(client: ZulipClient, userId: string): Promise<void> {
   const trimmed = userId?.trim();
   if (!trimmed) {
     throw new Error("userId is required to deactivate a Zulip user.");
@@ -854,10 +866,7 @@ export async function deactivateZulipUser(
   assertSuccess(payload, "Zulip deactivate user failed");
 }
 
-export async function reactivateZulipUser(
-  client: ZulipClient,
-  userId: string,
-): Promise<void> {
+export async function reactivateZulipUser(client: ZulipClient, userId: string): Promise<void> {
   const trimmed = userId?.trim();
   if (!trimmed) {
     throw new Error("userId is required to reactivate a Zulip user.");
@@ -868,9 +877,7 @@ export async function reactivateZulipUser(
   assertSuccess(payload, "Zulip reactivate user failed");
 }
 
-export async function fetchZulipServerSettings(
-  client: ZulipClient,
-): Promise<ZulipServerSettings> {
+export async function fetchZulipServerSettings(client: ZulipClient): Promise<ZulipServerSettings> {
   const payload = await client.request<ZulipServerSettings>("/server_settings");
   assertSuccess(payload, "Zulip server settings failed");
   return payload;

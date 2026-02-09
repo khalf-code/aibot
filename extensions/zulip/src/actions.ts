@@ -270,7 +270,10 @@ function readBooleanParam(params: Record<string, unknown>, ...keys: string[]): b
   return undefined;
 }
 
-function readStringArrayParam(params: Record<string, unknown>, key: string): Array<string | number> | undefined {
+function readStringArrayParam(
+  params: Record<string, unknown>,
+  key: string,
+): Array<string | number> | undefined {
   if (!Object.prototype.hasOwnProperty.call(params, key)) {
     return undefined;
   }
@@ -351,12 +354,10 @@ function readUserIdOrEmailParam(params: Record<string, unknown>): string {
   throw new Error("userId or email is required for Zulip presence.");
 }
 
-function readRealmUpdateParams(params: Record<string, unknown>): Record<string, string | number | boolean> {
-  const raw =
-    params.settings ??
-    params.realm ??
-    params.updates ??
-    params.update;
+function readRealmUpdateParams(
+  params: Record<string, unknown>,
+): Record<string, string | number | boolean> {
+  const raw = params.settings ?? params.realm ?? params.updates ?? params.update;
   if (raw === undefined) {
     throw new Error("settings are required to update Zulip organization settings.");
   }
@@ -473,9 +474,7 @@ export const zulipMessageActions: ChannelMessageActionAdapter = {
       const subscriptions = await fetchZulipSubscriptions(client, {
         includeAllPublic,
       });
-      const publicStreams = includeAllPublic
-        ? await fetchZulipStreams(client)
-        : undefined;
+      const publicStreams = includeAllPublic ? await fetchZulipStreams(client) : undefined;
       return jsonResult({
         ok: true,
         subscriptions,
@@ -656,7 +655,10 @@ export const zulipMessageActions: ChannelMessageActionAdapter = {
         readStringArrayParam(params, "users");
       // Support comma-separated string for userId param (message tool compat)
       if ((!principals || principals.length === 0) && typeof params.userId === "string") {
-        principals = params.userId.split(",").map((s: string) => s.trim()).filter(Boolean);
+        principals = params.userId
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean);
       }
       if (!principals || principals.length === 0) {
         throw new Error("principals are required to invite Zulip users to a stream.");
@@ -701,11 +703,9 @@ export const zulipMessageActions: ChannelMessageActionAdapter = {
         readStringParam(params, "emojiName") ??
         readStringParam(params, "emoji_name");
       const emojiCode =
-        readStringParam(params, "emojiCode") ??
-        readStringParam(params, "emoji_code");
+        readStringParam(params, "emojiCode") ?? readStringParam(params, "emoji_code");
       const reactionType =
-        readStringParam(params, "reactionType") ??
-        readStringParam(params, "reaction_type");
+        readStringParam(params, "reactionType") ?? readStringParam(params, "reaction_type");
       const remove = params.remove === true;
 
       if (!emojiName && !remove) {
@@ -793,7 +793,9 @@ export const zulipMessageActions: ChannelMessageActionAdapter = {
       let targetMessageId = messageId;
       if (!targetMessageId) {
         if (!target?.stream) {
-          throw new Error("stream is required to resolve a Zulip topic when messageId is not provided.");
+          throw new Error(
+            "stream is required to resolve a Zulip topic when messageId is not provided.",
+          );
         }
         const messages = await fetchZulipMessages(client, {
           stream: target.stream,

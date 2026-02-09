@@ -1,12 +1,12 @@
 import type { ChannelOnboardingAdapter, OpenClawConfig, WizardPrompter } from "openclaw/plugin-sdk";
-import type { ZulipAccountConfig, ZulipConfig } from "./types.js";
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
+import type { ZulipAccountConfig, ZulipConfig } from "./types.js";
+import { promptAccountId } from "./onboarding-helpers.js";
 import {
   listZulipAccountIds,
   resolveDefaultZulipAccountId,
   resolveZulipAccount,
 } from "./zulip/accounts.js";
-import { promptAccountId } from "./onboarding-helpers.js";
 
 const channel = "zulip" as const;
 
