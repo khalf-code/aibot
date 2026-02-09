@@ -295,9 +295,9 @@ describe("buildAgentSystemPrompt", () => {
     });
 
     expect(prompt).toContain("# Project Context");
-    expect(prompt).toContain("## AGENTS.md");
+    expect(prompt).toContain("## ./AGENTS.md");
     expect(prompt).toContain("Alpha");
-    expect(prompt).toContain("## IDENTITY.md");
+    expect(prompt).toContain("## ./IDENTITY.md");
     expect(prompt).toContain("Bravo");
   });
 

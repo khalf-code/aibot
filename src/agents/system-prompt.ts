@@ -564,7 +564,12 @@ export function buildAgentSystemPrompt(params: {
     }
     lines.push("");
     for (const file of contextFiles) {
-      lines.push(`## ${file.path}`, "", file.content, "");
+      // Prefix bare filenames (e.g. "SOUL.md") with "./" to prevent .md TLD resolution
+      const displayPath =
+        !file.path.includes("/") && !file.path.includes("\\") && !file.path.startsWith("./")
+          ? `./${file.path}`
+          : file.path;
+      lines.push(`## ${displayPath}`, "", file.content, "");
     }
   }
 

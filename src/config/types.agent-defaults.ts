@@ -188,7 +188,7 @@ export type AgentDefaultsConfig = {
     accountId?: string;
     /** Override the heartbeat prompt body (default: "Read ./HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK."). */
     prompt?: string;
-    /** Max chars allowed after HEARTBEAT_OK before delivery (default: 30). */
+    /** Max chars allowed after HEARTBEAT_OK before delivery (default: 300). */
     ackMaxChars?: number;
     /**
      * When enabled, deliver the model's reasoning payload for heartbeat runs (when available)
