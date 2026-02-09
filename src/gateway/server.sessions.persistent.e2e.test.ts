@@ -664,4 +664,106 @@ describe("gateway server sessions - persistent sessions", () => {
 
     ws.close();
   });
+
+  test("sessions.delete prevents duplicates when deleting same session multiple times", async () => {
+    const ws = await openClient();
+
+    // Create a session
+    const createResult = await rpcReq<{
+      ok: boolean;
+      key?: string;
+      sessionId?: string;
+    }>(ws, "sessions.create", {
+      label: "Cycle Test",
+      persistent: true,
+    });
+
+    expect(createResult.ok).toBe(true);
+    const sessionKey = createResult.payload?.key;
+    const sessionId = createResult.payload?.sessionId;
+    expect(sessionKey).toBeTruthy();
+    expect(sessionId).toBeTruthy();
+
+    // Send a message
+    await rpcReq(ws, "chat.send", {
+      sessionKey,
+      text: "Test message 1",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Delete it
+    await rpcReq(ws, "sessions.delete", {
+      key: sessionKey,
+      deleteTranscript: true,
+    });
+
+    // Verify it's in deleted list (should have 1 entry)
+    let listResult = await rpcReq<{
+      ok: boolean;
+      deleted?: Array<{ sessionId: string }>;
+    }>(ws, "sessions.list.deleted", {
+      limit: 100,
+    });
+
+    let deletedEntries = listResult.payload?.deleted?.filter((d) => d.sessionId === sessionId);
+    expect(deletedEntries?.length).toBe(1);
+
+    // Restore it
+    await rpcReq(ws, "sessions.restore", {
+      sessionId,
+    });
+
+    // Verify deleted list is now empty for this session
+    listResult = await rpcReq<{
+      ok: boolean;
+      deleted?: Array<{ sessionId: string }>;
+    }>(ws, "sessions.list.deleted", {
+      limit: 100,
+    });
+
+    deletedEntries = listResult.payload?.deleted?.filter((d) => d.sessionId === sessionId);
+    expect(deletedEntries?.length).toBe(0);
+
+    // Delete it again
+    await rpcReq(ws, "sessions.delete", {
+      key: sessionKey,
+      deleteTranscript: true,
+    });
+
+    // Verify it's back in deleted list with STILL only 1 entry (no duplicates)
+    listResult = await rpcReq<{
+      ok: boolean;
+      deleted?: Array<{ sessionId: string }>;
+    }>(ws, "sessions.list.deleted", {
+      limit: 100,
+    });
+
+    deletedEntries = listResult.payload?.deleted?.filter((d) => d.sessionId === sessionId);
+    expect(deletedEntries?.length).toBe(1);
+
+    // Restore again
+    await rpcReq(ws, "sessions.restore", {
+      sessionId,
+    });
+
+    // Delete one more time
+    await rpcReq(ws, "sessions.delete", {
+      key: sessionKey,
+      deleteTranscript: true,
+    });
+
+    // Final check - should STILL be only 1 entry
+    listResult = await rpcReq<{
+      ok: boolean;
+      deleted?: Array<{ sessionId: string }>;
+    }>(ws, "sessions.list.deleted", {
+      limit: 100,
+    });
+
+    deletedEntries = listResult.payload?.deleted?.filter((d) => d.sessionId === sessionId);
+    expect(deletedEntries?.length).toBe(1);
+
+    ws.close();
+  });
 });
