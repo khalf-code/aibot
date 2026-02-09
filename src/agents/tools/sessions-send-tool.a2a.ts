@@ -25,6 +25,7 @@ export async function runSessionsSendA2AFlow(params: {
   announceEnabled: boolean;
   requesterSessionKey?: string;
   requesterChannel?: GatewayMessageChannel;
+  requesterTo?: string;
   roundOneReply?: string;
   waitRunId?: string;
 }) {
@@ -50,6 +51,11 @@ export async function runSessionsSendA2AFlow(params: {
       }
     }
     if (!latestReply) {
+      log.warn("[a2a] no reply from target session — skipping announce", {
+        runId: runContextId,
+        targetSessionKey: params.targetSessionKey,
+        waitRunId: params.waitRunId,
+      });
       return;
     }
 
@@ -58,8 +64,10 @@ export async function runSessionsSendA2AFlow(params: {
       sessionKey: params.targetSessionKey,
       displayKey: params.displayKey,
       requesterSessionKey: params.requesterSessionKey,
+      requesterChannel: params.requesterChannel,
+      requesterTo: params.requesterTo,
     });
-    const targetChannel = announceTarget?.channel ?? "unknown";
+    const targetChannel = announceTarget?.channel;
 
     // Resolve the originating channel for nested agent steps so the gateway
     // agent handler records the correct channel in the session entry instead
@@ -78,7 +86,13 @@ export async function runSessionsSendA2AFlow(params: {
         return;
       }
 
-      if (!announceTarget) {
+      if (!announceTarget?.channel || !announceTarget?.to) {
+        log.warn("[a2a] no announce target resolved — skipping announce", {
+          sessionKey,
+          targetSessionKey: params.targetSessionKey,
+          hasChannel: !!announceTarget?.channel,
+          hasTo: !!announceTarget?.to,
+        });
         return;
       }
       const agentId = resolveAgentIdFromSessionKey(sessionKey);
