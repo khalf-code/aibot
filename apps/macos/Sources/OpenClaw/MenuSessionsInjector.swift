@@ -597,11 +597,10 @@ extension MenuSessionsInjector {
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
         item.view = hosting
 
-        let task = Task { [weak hosting] in
+        let task = Task { [self] in
             let snapshot = await SessionMenuPreviewLoader.load(sessionKey: sessionKey, maxItems: 10)
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                guard let hosting else { return }
                 let nextView = AnyView(SessionMenuPreviewView(
                     width: width,
                     maxLines: maxLines,
