@@ -9,21 +9,7 @@
  * See: https://github.com/openclaw/openclaw/issues/5769
  */
 
-interface MessageContent {
-  type: string;
-  [key: string]: unknown;
-}
-
-interface Message {
-  role: string;
-  content: string | MessageContent[] | unknown;
-  [key: string]: unknown;
-}
-
-interface Context {
-  messages?: Message[];
-  [key: string]: unknown;
-}
+import type { Context, Message } from "@mariozechner/pi-ai";
 
 /**
  * Strips thinking blocks from assistant messages that also include tool calls.
@@ -32,20 +18,20 @@ interface Context {
 export function stripThinkingFromAssistantToolCallMessages(context: Context): Context {
   if (!context.messages) return context;
 
-  const messages = context.messages.map((msg) => {
+  const messages = context.messages.map((msg: Message) => {
     if (msg.role !== "assistant") return msg;
     if (!Array.isArray(msg.content)) return msg;
 
     const hasToolCall = msg.content.some(
-      (block: MessageContent) => block.type === "toolCall" || block.type === "tool_use",
+      (block) => (block as { type: string }).type === "toolCall" || (block as { type: string }).type === "tool_use",
     );
     if (!hasToolCall) return msg;
 
-    const hasThinking = msg.content.some((block: MessageContent) => block.type === "thinking");
+    const hasThinking = msg.content.some((block) => (block as { type: string }).type === "thinking");
     if (!hasThinking) return msg;
 
     // Remove thinking blocks, keep everything else
-    const filtered = msg.content.filter((block: MessageContent) => block.type !== "thinking");
+    const filtered = msg.content.filter((block) => (block as { type: string }).type !== "thinking");
     return { ...msg, content: filtered };
   });
 
