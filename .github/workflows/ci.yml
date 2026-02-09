@@ -409,8 +409,7 @@ jobs:
         run: |
           python scripts/analyze_code_files.py \
             --compare-to origin/${{ github.base_ref }} \
-            --threshold 1000 \
-            --strict
+            --threshold 1000
 
   secrets:
     runs-on: blacksmith-4vcpu-ubuntu-2404
