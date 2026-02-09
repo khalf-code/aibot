@@ -167,7 +167,9 @@ import {
   SessionsDeleteParamsSchema,
   type SessionsListParams,
   SessionsListParamsSchema,
+  type SessionsListDeletedParams,
   SessionsListDeletedParamsSchema,
+  type SessionsRestoreParams,
   SessionsRestoreParamsSchema,
   type SessionsPatchParams,
   SessionsPatchParamsSchema,
@@ -297,8 +299,12 @@ export const validateSessionsCompactParams = ajv.compile<SessionsCompactParams>(
 );
 export const validateSessionsUsageParams =
   ajv.compile<SessionsUsageParams>(SessionsUsageParamsSchema);
-export const validateSessionsListDeletedParams = ajv.compile(SessionsListDeletedParamsSchema);
-export const validateSessionsRestoreParams = ajv.compile(SessionsRestoreParamsSchema);
+export const validateSessionsListDeletedParams = ajv.compile<SessionsListDeletedParams>(
+  SessionsListDeletedParamsSchema,
+);
+export const validateSessionsRestoreParams = ajv.compile<SessionsRestoreParams>(
+  SessionsRestoreParamsSchema,
+);
 export const validateConfigGetParams = ajv.compile<ConfigGetParams>(ConfigGetParamsSchema);
 export const validateConfigSetParams = ajv.compile<ConfigSetParams>(ConfigSetParamsSchema);
 export const validateConfigApplyParams = ajv.compile<ConfigApplyParams>(ConfigApplyParamsSchema);

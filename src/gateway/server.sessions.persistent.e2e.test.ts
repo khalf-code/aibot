@@ -374,15 +374,14 @@ describe("gateway server sessions - persistent sessions", () => {
 
     const result = await rpcReq<{
       ok: boolean;
-      error?: { code: string; message: string };
     }>(ws, "sessions.delete", {
       key: "agent:main:main",
       deleteTranscript: true,
     });
 
     expect(result.ok).toBe(false);
-    expect(result.payload?.error?.code).toBe("INVALID_REQUEST");
-    expect(result.payload?.error?.message).toContain("Cannot delete the main session");
+    expect(result.error?.code).toBe("INVALID_REQUEST");
+    expect(result.error?.message).toContain("Cannot delete the main session");
 
     ws.close();
   });
@@ -544,14 +543,13 @@ describe("gateway server sessions - persistent sessions", () => {
 
     const result = await rpcReq<{
       ok: boolean;
-      error?: { code: string; message: string };
     }>(ws, "sessions.restore", {
       sessionId: "00000000-0000-0000-0000-000000000000",
     });
 
     expect(result.ok).toBe(false);
-    expect(result.payload?.error?.code).toBe("NOT_FOUND");
-    expect(result.payload?.error?.message).toContain("No deleted session found");
+    expect(result.error?.code).toBe("NOT_FOUND");
+    expect(result.error?.message).toContain("No deleted session found");
 
     ws.close();
   });
@@ -573,16 +571,15 @@ describe("gateway server sessions - persistent sessions", () => {
     const sessionId = createResult.payload?.sessionId;
     expect(sessionId).toBeTruthy();
 
-    // Try to restore (should fail because session exists)
+    // Try to restore (should fail because there's no deleted file)
     const restoreResult = await rpcReq<{
       ok: boolean;
-      error?: { code: string; message: string };
     }>(ws, "sessions.restore", {
       sessionId,
     });
 
     expect(restoreResult.ok).toBe(false);
-    expect(restoreResult.payload?.error?.code).toBe("NOT_FOUND");
+    expect(restoreResult.error?.code).toBe("NOT_FOUND");
     // Will fail because there's no deleted file (we didn't delete it)
 
     ws.close();

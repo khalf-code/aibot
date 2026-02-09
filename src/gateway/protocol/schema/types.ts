@@ -112,10 +112,12 @@ import type {
   SessionsCompactParamsSchema,
   SessionsCreateParamsSchema,
   SessionsDeleteParamsSchema,
+  SessionsListDeletedParamsSchema,
   SessionsListParamsSchema,
   SessionsPatchParamsSchema,
   SessionsPreviewParamsSchema,
   SessionsResetParamsSchema,
+  SessionsRestoreParamsSchema,
   SessionsResolveParamsSchema,
   SessionsUsageParamsSchema,
 } from "./sessions.js";
