@@ -17,6 +17,7 @@ Docs: https://docs.openclaw.ai
 
 - Errors: prevent false positive context overflow detection when conversation mentions "context overflow" topic. (#2078) Thanks @sbking.
 - Model failover: treat HTTP 400 errors as failover-eligible, enabling automatic model fallback when providers return bad request errors. (#1879) Thanks @orenyomtov.
+- Antigravity: add forward-compat fallback for `google-antigravity/claude-opus-4-6-thinking` so model resolution and `models list` work before upstream catalog refreshes. (#10976) Thanks @communityorg-discord.
 - Exec approvals: format forwarded command text as inline/fenced monospace for safer approval scanning across channels. (#11937)
 - Config: clamp `maxTokens` to `contextWindow` to prevent invalid model configs. (#5516) Thanks @lailoo.
 - Docs: fix language switcher ordering and Japanese locale flag in Mintlify nav. (#12023) Thanks @joshp123.
