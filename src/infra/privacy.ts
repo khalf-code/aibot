@@ -86,7 +86,7 @@ export function scrubPIIWithConfig(text: string): string {
 /**
  * Scrub PII in a list of agent messages.
  */
-export function scrubPIIInMessages(messages: unknown[]): unknown[] {
+export function scrubPIIInMessages<T extends { content?: unknown }>(messages: T[]): T[] {
   try {
     const config = loadConfig();
     const privacy = config.security?.privacy;
@@ -116,7 +116,7 @@ export function scrubPIIInMessages(messages: unknown[]): unknown[] {
           return block;
         });
       }
-      return next;
+      return next as T;
     });
   } catch {
     return messages;
