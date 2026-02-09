@@ -44,6 +44,8 @@ import {
   pickFallbackThinkingLevel,
   type FailoverReason,
 } from "../pi-embedded-helpers.js";
+import { sanitizeToolCallId, type ToolCallIdMode } from "../tool-call-id.js";
+import { resolveTranscriptPolicy } from "../transcript-policy.js";
 import { normalizeUsage, type UsageLike } from "../usage.js";
 import { redactRunIdentifier, resolveRunWorkspaceDir } from "../workspace-run.js";
 import { compactEmbeddedPiSessionDirect } from "./compact.js";
@@ -693,6 +695,20 @@ export async function runEmbeddedPiAgent(
               agentDir: params.agentDir,
             });
           }
+          // Generate client tool call ID with provider-aware sanitization
+          let clientToolCallId: string | undefined;
+          if (attempt.clientToolCall) {
+            const rawId = `call_${Date.now()}`;
+            // Determine sanitization mode based on provider requirements
+            const transcriptPolicy = resolveTranscriptPolicy({
+              modelApi: model.api,
+              provider: model.provider,
+              modelId: model.id,
+            });
+            const sanitizationMode: ToolCallIdMode = transcriptPolicy.toolCallIdMode ?? "strict";
+            clientToolCallId = sanitizeToolCallId(rawId, sanitizationMode);
+          }
+
           return {
             payloads: payloads.length ? payloads : undefined,
             meta: {
@@ -705,7 +721,7 @@ export async function runEmbeddedPiAgent(
               pendingToolCalls: attempt.clientToolCall
                 ? [
                     {
-                      id: `call_${Date.now()}`,
+                      id: clientToolCallId!,
                       name: attempt.clientToolCall.name,
                       arguments: JSON.stringify(attempt.clientToolCall.params),
                     },
