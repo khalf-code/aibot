@@ -465,38 +465,42 @@ export async function compactEmbeddedPiSessionDirect(
         const compactionTimeoutMs =
           params.config?.agents?.defaults?.compaction?.timeoutMs ?? 120_000;
         const compactionStartMs = Date.now();
-        let compactionTimedOut = false;
-
-        const timeoutHandle = setTimeout(() => {
-          compactionTimedOut = true;
-          session.abortCompaction();
-        }, compactionTimeoutMs);
-        timeoutHandle.unref();
 
         log.info(
           `compaction: start sessionId=${params.sessionId} ` +
             `model=${effectiveProvider}/${effectiveModelId} timeoutMs=${compactionTimeoutMs}`,
         );
 
+        // Use Promise.race to enforce timeout: abortCompaction() is best-effort
+        // and may not cause session.compact() to reject, so we race against a
+        // hard timeout rejection to guarantee we never hang indefinitely.
+        const TIMEOUT_SENTINEL = Symbol("compaction_timeout");
+        const timeoutPromise = new Promise<typeof TIMEOUT_SENTINEL>((resolve) => {
+          const handle = setTimeout(() => {
+            session.abortCompaction();
+            resolve(TIMEOUT_SENTINEL);
+          }, compactionTimeoutMs);
+          handle.unref();
+        });
+
         let result: Awaited<ReturnType<typeof session.compact>>;
-        try {
-          result = await session.compact(params.customInstructions);
-        } catch (err) {
-          clearTimeout(timeoutHandle);
-          if (compactionTimedOut) {
-            log.warn(
-              `compaction: timeout sessionId=${params.sessionId} ` +
-                `timeoutMs=${compactionTimeoutMs} elapsedMs=${Date.now() - compactionStartMs}`,
-            );
-            return {
-              ok: false,
-              compacted: false,
-              reason: `compaction_timeout (${compactionTimeoutMs}ms)`,
-            };
-          }
-          throw err;
+        const raceResult = await Promise.race([
+          session.compact(params.customInstructions).then((r) => ({ ok: true as const, value: r })),
+          timeoutPromise.then(() => ({ ok: false as const, sentinel: TIMEOUT_SENTINEL })),
+        ]);
+
+        if (!raceResult.ok) {
+          log.warn(
+            `compaction: timeout sessionId=${params.sessionId} ` +
+              `timeoutMs=${compactionTimeoutMs} elapsedMs=${Date.now() - compactionStartMs}`,
+          );
+          return {
+            ok: false,
+            compacted: false,
+            reason: `compaction_timeout (${compactionTimeoutMs}ms)`,
+          };
         }
-        clearTimeout(timeoutHandle);
+        result = raceResult.value;
 
         // Estimate tokens after compaction by summing token estimates for remaining messages
         let tokensAfter: number | undefined;
