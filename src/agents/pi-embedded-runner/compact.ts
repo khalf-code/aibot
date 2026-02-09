@@ -477,19 +477,22 @@ export async function compactEmbeddedPiSessionDirect(
         const TIMEOUT_SENTINEL = Symbol("compaction_timeout");
         const timeoutPromise = new Promise<typeof TIMEOUT_SENTINEL>((resolve) => {
           const handle = setTimeout(() => {
-            session.abortCompaction();
             resolve(TIMEOUT_SENTINEL);
+            session.abortCompaction();
           }, compactionTimeoutMs);
           handle.unref();
         });
 
         let result: Awaited<ReturnType<typeof session.compact>>;
         const raceResult = await Promise.race([
-          session.compact(params.customInstructions).then((r) => ({ ok: true as const, value: r })),
-          timeoutPromise.then(() => ({ ok: false as const, sentinel: TIMEOUT_SENTINEL })),
+          session
+            .compact(params.customInstructions)
+            .then((r) => ({ ok: true as const, value: r }))
+            .catch((err) => ({ ok: false as const, error: err as unknown })),
+          timeoutPromise.then(() => ({ ok: false as const, timeout: true as const })),
         ]);
 
-        if (!raceResult.ok) {
+        if ("timeout" in raceResult) {
           log.warn(
             `compaction: timeout sessionId=${params.sessionId} ` +
               `timeoutMs=${compactionTimeoutMs} elapsedMs=${Date.now() - compactionStartMs}`,
@@ -499,6 +502,9 @@ export async function compactEmbeddedPiSessionDirect(
             compacted: false,
             reason: `compaction_timeout (${compactionTimeoutMs}ms)`,
           };
+        }
+        if (!raceResult.ok) {
+          throw raceResult.error;
         }
         result = raceResult.value;
 
