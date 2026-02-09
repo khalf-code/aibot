@@ -391,8 +391,12 @@ function extractMentionInfo(annotations: GoogleChatAnnotation[], botUser?: strin
       return true;
     }
     // Webhook events use numeric user IDs (users/123...) instead of users/app.
-    // Detect bot self-mentions by checking the user type field.
-    return entry.userMention?.user?.type?.toUpperCase() === "BOT";
+    // When no botUser is configured, fall back to matching any single BOT-type mention.
+    // This avoids false positives in multi-bot Spaces where another bot is mentioned.
+    if (!botUser && mentionAnnotations.length === 1) {
+      return entry.userMention?.user?.type?.toUpperCase() === "BOT";
+    }
+    return false;
   });
   return { hasAnyMention, wasMentioned };
 }
