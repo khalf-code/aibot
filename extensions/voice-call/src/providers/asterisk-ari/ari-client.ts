@@ -69,6 +69,7 @@ export class AriClient {
     await this.fetchJson(`/bridges/${encodeURIComponent(bridgeId)}/addChannel`, {
       method: "POST",
       query: { channel: channelId },
+      allowEmpty: true,
     });
   }
 
@@ -76,6 +77,7 @@ export class AriClient {
     await this.fetchJson(`/bridges/${encodeURIComponent(bridgeId)}/addChannel`, {
       method: "POST",
       query: { channel: channelIds.join(",") },
+      allowEmpty: true,
     });
   }
 
@@ -119,19 +121,31 @@ export class AriClient {
   }
 
   async deleteBridge(bridgeId: string): Promise<void> {
-    await this.fetchJson(`/bridges/${encodeURIComponent(bridgeId)}`, { method: "DELETE" });
+    await this.fetchJson(`/bridges/${encodeURIComponent(bridgeId)}`, {
+      method: "DELETE",
+      allowEmpty: true,
+    });
   }
 
   async deleteChannel(channelId: string): Promise<void> {
-    await this.fetchJson(`/channels/${encodeURIComponent(channelId)}`, { method: "DELETE" });
+    await this.fetchJson(`/channels/${encodeURIComponent(channelId)}`, {
+      method: "DELETE",
+      allowEmpty: true,
+    });
   }
 
   async answerChannel(channelId: string): Promise<void> {
-    await this.fetchJson(`/channels/${encodeURIComponent(channelId)}/answer`, { method: "POST" });
+    await this.fetchJson(`/channels/${encodeURIComponent(channelId)}/answer`, {
+      method: "POST",
+      allowEmpty: true,
+    });
   }
 
   async hangupChannel(channelId: string): Promise<void> {
-    await this.fetchJson(`/channels/${encodeURIComponent(channelId)}/hangup`, { method: "POST" });
+    await this.fetchJson(`/channels/${encodeURIComponent(channelId)}/hangup`, {
+      method: "POST",
+      allowEmpty: true,
+    });
   }
 
   async safeHangupChannel(channelId: string): Promise<void> {
@@ -219,6 +233,7 @@ export class AriClient {
       method?: string;
       query?: Record<string, string | number | boolean | undefined>;
       body?: unknown;
+      allowEmpty?: boolean;
     },
   ): Promise<T> {
     const url = new URL(this.cfg.baseUrl.replace(/\/$/, "") + "/ari" + path);
@@ -245,6 +260,10 @@ export class AriClient {
     }
 
     const text = await res.text();
-    return text ? (JSON.parse(text) as T) : (undefined as T);
+    if (!text) {
+      if (opts?.allowEmpty) return undefined as T;
+      throw new Error(`ARI HTTP ${res.status} ${res.statusText}: empty body`);
+    }
+    return JSON.parse(text) as T;
   }
 }
