@@ -77,7 +77,12 @@ export class AsteriskAriProvider implements VoiceCallProvider {
   // providerCallId -> state
   private readonly calls = new Map<string, CallState>();
 
-  constructor(params: { config: VoiceCallConfig; manager: CallManager; coreConfig?: CoreConfig }) {
+  constructor(params: {
+    config: VoiceCallConfig;
+    manager: CallManager;
+    coreConfig?: CoreConfig;
+    connectWs?: boolean;
+  }) {
     const a = params.config.asteriskAri;
     if (!a) throw new Error("asteriskAri config missing");
     this.voiceConfig = params.config;
@@ -87,7 +92,9 @@ export class AsteriskAriProvider implements VoiceCallProvider {
     this.client = new AriClient(this.cfg);
     this.mediaFactory = new AriMedia(this.cfg, this.client);
 
-    this.client.connectWs((evt) => this.onAriEvent(evt));
+    if (params.connectWs !== false) {
+      this.client.connectWs((evt) => this.onAriEvent(evt));
+    }
   }
 
   setTTSProvider(provider: TelephonyTtsProvider) {

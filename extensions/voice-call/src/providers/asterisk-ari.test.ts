@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { VoiceCallConfig } from "../config.js";
 import { AsteriskAriProvider, buildEndpoint } from "./asterisk-ari.js";
 
@@ -19,17 +19,23 @@ function createProvider() {
   } as unknown as VoiceCallConfig;
 
   const managerStub = {
-    processEvent: () => undefined,
+    processEvent: vi.fn(),
     getCallByProviderCallId: () => undefined,
     getCall: () => undefined,
   } as any;
 
-  return new AsteriskAriProvider({ config, manager: managerStub });
+  const provider = new AsteriskAriProvider({
+    config,
+    manager: managerStub,
+    connectWs: false,
+  });
+
+  return { provider, managerStub };
 }
 
 describe("AsteriskAriProvider", () => {
   it("verifyWebhook returns ok", () => {
-    const provider = createProvider();
+    const { provider } = createProvider();
     const result = provider.verifyWebhook({
       headers: {},
       rawBody: "",
@@ -40,7 +46,7 @@ describe("AsteriskAriProvider", () => {
   });
 
   it("parseWebhookEvent returns empty events", () => {
-    const provider = createProvider();
+    const { provider } = createProvider();
     const result = provider.parseWebhookEvent({
       headers: {},
       rawBody: "",
@@ -48,6 +54,33 @@ describe("AsteriskAriProvider", () => {
       method: "POST",
     });
     expect(result.events).toHaveLength(0);
+  });
+
+  it("emits call.dtmf on ChannelDtmfReceived", async () => {
+    const { provider, managerStub } = createProvider();
+    const anyProvider = provider as any;
+
+    anyProvider.calls.set("call-1", {
+      callId: "internal-1",
+      providerCallId: "call-1",
+      sipChannelId: "sip-1",
+      speaking: false,
+    });
+
+    await anyProvider.onAriEvent({
+      type: "ChannelDtmfReceived",
+      channel: { id: "sip-1" },
+      digit: "5",
+    });
+
+    expect(managerStub.processEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "call.dtmf",
+        callId: "internal-1",
+        providerCallId: "call-1",
+        digits: "5",
+      }),
+    );
   });
 });
 
