@@ -985,9 +985,7 @@ export class AsteriskAriProvider implements VoiceCallProvider {
       return;
     }
 
-    if (evt.channel?.state?.toLowerCase() === "up") {
-      this.maybeEmitAnswered(state);
-    }
+    // Note: do not emit answered from StasisStart; rely on ChannelStateChange → Up.
   }
 
   private async cleanup(providerCallId: string, reason: EndReason = "completed") {
