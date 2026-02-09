@@ -255,6 +255,11 @@ export type ExecToolDetails =
       durationMs: number;
       aggregated: string;
       cwd?: string;
+      truncated?: boolean;
+      originalChars?: number;
+      keptChars?: number;
+      /** Human-readable failure reason (only meaningful when status=failed). */
+      error?: string;
     }
   | {
       status: "approval-pending";
