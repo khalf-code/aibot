@@ -21,6 +21,8 @@ import {
   appendAssistantMessageToSessionTranscript,
   resolveMirroredTranscriptText,
 } from "../../config/sessions.js";
+import { createSubsystemLogger } from "../../logging/subsystem.js";
+import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { markdownToSignalTextChunks, type SignalTextStyleRange } from "../../signal/format.js";
 import { sendMessageSignal } from "../../signal/send.js";
 import { throwIfAborted } from "./abort.js";
@@ -171,11 +173,15 @@ function createPluginHandler(params: {
   };
 }
 
+const log = createSubsystemLogger("infra/outbound");
+
 export async function deliverOutboundPayloads(params: {
   cfg: OpenClawConfig;
   channel: Exclude<OutboundChannel, "none">;
   to: string;
   accountId?: string;
+  sessionKey?: string;
+  sessionId?: string;
   payloads: ReplyPayload[];
   replyToId?: string | null;
   threadId?: string | number | null;
@@ -227,11 +233,77 @@ export async function deliverOutboundPayloads(params: {
         accountId,
       })
     : undefined;
+  const hookRunner = getGlobalHookRunner();
+  const canMessageSendHook = hookRunner?.hasHooks("message_sending");
+  const canMessageSentHook = hookRunner?.hasHooks("message_sent");
+  const messageHookContext = {
+    channelId: channel,
+    accountId,
+    conversationId: to,
+    sessionKey: params.sessionKey,
+    sessionId: params.sessionId,
+  };
+
+  const runMessageSendingHook = async (content: string) => {
+    if (!hookRunner || !canMessageSendHook) {
+      return { content };
+    }
+    // TODO(hooks): Message hooks are unparented when sessionKey is unavailable.
+    let result: { cancel?: boolean; content?: string } | undefined;
+    try {
+      result = await hookRunner.runMessageSending(
+        {
+          to,
+          content,
+          metadata: {
+            channel,
+            accountId,
+            threadId: params.threadId ?? null,
+          },
+        },
+        messageHookContext,
+      );
+    } catch (err) {
+      log.warn(
+        `message_sending hook failed: channel=${channel} to=${to} error=${err instanceof Error ? err.message : String(err)}`,
+      );
+      return { content };
+    }
+    if (result?.cancel) {
+      return { content, canceled: true };
+    }
+    if (typeof result?.content === "string") {
+      return { content: result.content };
+    }
+    return { content };
+  };
+
+  const runMessageSentHook = async (content: string, success: boolean, error?: string) => {
+    if (!hookRunner || !canMessageSentHook) {
+      return;
+    }
+    try {
+      await hookRunner.runMessageSent(
+        {
+          to,
+          content,
+          success,
+          error,
+        },
+        messageHookContext,
+      );
+    } catch (err) {
+      log.warn(
+        `message_sent hook failed: channel=${channel} to=${to} error=${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  };
 
   const sendTextChunks = async (text: string) => {
     throwIfAborted(abortSignal);
     if (!handler.chunker || textLimit === undefined) {
       results.push(await handler.sendText(text));
+      await runMessageSentHook(text, true);
       return;
     }
     if (chunkMode === "newline") {
@@ -252,6 +324,7 @@ export async function deliverOutboundPayloads(params: {
         for (const chunk of chunks) {
           throwIfAborted(abortSignal);
           results.push(await handler.sendText(chunk));
+          await runMessageSentHook(chunk, true);
         }
       }
       return;
@@ -260,6 +333,7 @@ export async function deliverOutboundPayloads(params: {
     for (const chunk of chunks) {
       throwIfAborted(abortSignal);
       results.push(await handler.sendText(chunk));
+      await runMessageSentHook(chunk, true);
     }
   };
 
@@ -290,6 +364,7 @@ export async function deliverOutboundPayloads(params: {
     for (const chunk of signalChunks) {
       throwIfAborted(abortSignal);
       results.push(await sendSignalText(chunk.text, chunk.styles));
+      await runMessageSentHook(chunk.text, true);
     }
   };
 
@@ -319,11 +394,22 @@ export async function deliverOutboundPayloads(params: {
       mediaUrls: payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []),
       channelData: payload.channelData,
     };
+    let attemptedSendContent = payloadSummary.text;
     try {
       throwIfAborted(abortSignal);
+      const hookResult = await runMessageSendingHook(payloadSummary.text);
+      if (hookResult.canceled) {
+        await runMessageSentHook(payloadSummary.text, false, "canceled by message_sending hook");
+        continue;
+      }
+      payloadSummary.text = hookResult.content;
+      payload.text = hookResult.content;
+      attemptedSendContent = payloadSummary.text;
       params.onPayload?.(payloadSummary);
       if (handler.sendPayload && payload.channelData) {
-        results.push(await handler.sendPayload(payload));
+        const result = await handler.sendPayload(payload);
+        results.push(result);
+        await runMessageSentHook(payloadSummary.text, true);
         continue;
       }
       if (payloadSummary.mediaUrls.length === 0) {
@@ -339,14 +425,23 @@ export async function deliverOutboundPayloads(params: {
       for (const url of payloadSummary.mediaUrls) {
         throwIfAborted(abortSignal);
         const caption = first ? payloadSummary.text : "";
+        const messageSentContent = caption;
+        attemptedSendContent = messageSentContent;
         first = false;
         if (isSignalChannel) {
           results.push(await sendSignalMedia(caption, url));
+          await runMessageSentHook(messageSentContent, true);
         } else {
           results.push(await handler.sendMedia(caption, url));
+          await runMessageSentHook(messageSentContent, true);
         }
       }
     } catch (err) {
+      await runMessageSentHook(
+        attemptedSendContent,
+        false,
+        err instanceof Error ? err.message : String(err),
+      );
       if (!params.bestEffort) {
         throw err;
       }
