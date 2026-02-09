@@ -39,11 +39,11 @@ describe("VULN-188: default operator scope must not be admin", () => {
     return ws;
   }
 
-  test("operator connecting without scopes does not receive admin access", async () => {
+  test("operator connecting with empty scopes does not receive admin access", async () => {
     const ws = await openWs();
     try {
-      // Connect without specifying scopes (scopes: undefined → omitted from JSON).
-      // Before the fix this would default to ["operator.admin"].
+      // Send scopes: [] explicitly. The server treats this the same as omitted
+      // (both result in requestedScopes = []) and should default to read-only.
       const res = await connectReq(ws, { scopes: [] });
       expect(res.ok).toBe(true);
 
@@ -57,10 +57,26 @@ describe("VULN-188: default operator scope must not be admin", () => {
     }
   });
 
+  test("operator connecting with omitted scopes does not receive admin access", async () => {
+    const ws = await openWs();
+    try {
+      // Omit the scopes field entirely from the connect message (scopes: undefined
+      // is dropped by JSON.stringify). The server should default to read-only.
+      const res = await connectReq(ws, { omitScopes: true });
+      expect(res.ok).toBe(true);
+
+      const adminRes = await rpcReq(ws, "config.get");
+      expect(adminRes.ok).toBe(false);
+      expect(adminRes.error?.message).toContain("missing scope: operator.admin");
+    } finally {
+      ws.close();
+    }
+  });
+
   test("operator connecting without scopes can still access read methods", async () => {
     const ws = await openWs();
     try {
-      const res = await connectReq(ws, { scopes: [] });
+      const res = await connectReq(ws, { omitScopes: true });
       expect(res.ok).toBe(true);
 
       // Read-only methods should still work with the default scope.
