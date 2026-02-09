@@ -1079,8 +1079,9 @@ export function createExecTool(
               }
             }
           } else if (/^(import\s|from\s+\w+\s+import|def\s|class\s)/m.test(trimmedCommand)) {
-            // Auto-detect python availability: prefer python3, fall back to python
-            interpreterCmd = fs.existsSync("/usr/bin/python3") ? "python3" : "python";
+            // Auto-detect python via PATH resolution, not hardcoded paths
+            // Prefer python3, fall back to python for compatibility
+            interpreterCmd = "python3";
           }
 
           // For sandbox, use workspace root so the temp file is accessible in the container
@@ -1092,8 +1093,11 @@ export function createExecTool(
             tempScriptFile = path.join(sandbox.workspaceDir, scriptFileName);
             fs.writeFileSync(tempScriptFile, params.command, { mode: 0o700 });
 
-            // In container, the file is at the container workdir root
-            const containerTempFile = path.posix.join(sandbox.containerWorkdir, scriptFileName);
+            // In container, the file is at the resolved container workdir root
+            // Use the resolved containerWorkdir (not sandbox.containerWorkdir) to ensure
+            // the path matches what the sandbox actually sees
+            const resolvedContainerWorkdir = containerWorkdir ?? sandbox.containerWorkdir;
+            const containerTempFile = path.posix.join(resolvedContainerWorkdir, scriptFileName);
             command = `${interpreterCmd} "${containerTempFile}"`;
           } else {
             // For gateway, use system temp directory

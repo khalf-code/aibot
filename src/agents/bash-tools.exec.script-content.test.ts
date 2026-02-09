@@ -4,14 +4,15 @@ import type { ExecApprovalsResolved } from "../infra/exec-approvals.js";
 
 const isWin = process.platform === "win32";
 
-// Check if Python is available (with timeout to prevent hanging)
+// Lazily check if Python is available (avoid import-time side effects)
 // Note: We specifically check for python3 since that's what the code prefers
-let pythonAvailable = false;
-try {
-  execSync("python3 --version", { stdio: "ignore", timeout: 5000 });
-  pythonAvailable = true;
-} catch {
-  pythonAvailable = false;
+function isPythonAvailable(): boolean {
+  try {
+    execSync("python3 --version", { stdio: "ignore", timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 vi.mock("../infra/shell-env.js", async (importOriginal) => {
@@ -59,7 +60,7 @@ vi.mock("../infra/exec-approvals.js", async (importOriginal) => {
 
 describe("exec script content detection (Issue #11724)", () => {
   it("should handle Python code with import statements via temp file", async () => {
-    if (isWin || !pythonAvailable) {
+    if (isWin || !isPythonAvailable()) {
       return;
     }
 
@@ -98,7 +99,7 @@ echo "Hello from Shell"`;
   });
 
   it("should handle shebang with env via temp file", async () => {
-    if (isWin || !pythonAvailable) {
+    if (isWin || !isPythonAvailable()) {
       return;
     }
 
@@ -137,7 +138,7 @@ print("Hello")`;
   });
 
   it("should handle single-line Python commands normally", async () => {
-    if (isWin || !pythonAvailable) {
+    if (isWin || !isPythonAvailable()) {
       return;
     }
 
