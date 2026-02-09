@@ -108,6 +108,21 @@ export type CompactEmbeddedPiSessionParams = {
   ownerNumbers?: string[];
 };
 
+function normalizeMessageContent(messages: Array<{ content?: unknown }>): void {
+  for (const message of messages) {
+    if (Array.isArray(message.content)) {
+      continue;
+    }
+    if (typeof message.content === "string") {
+      message.content = [{ type: "text", text: message.content }];
+      continue;
+    }
+    if (message.content == null) {
+      message.content = [];
+    }
+  }
+}
+
 /**
  * Core compaction logic without lane queueing.
  * Use this when already inside a session/global lane to avoid deadlocks.
@@ -436,6 +451,7 @@ export async function compactEmbeddedPiSessionDirect(
         if (limited.length > 0) {
           session.agent.replaceMessages(limited);
         }
+        normalizeMessageContent(session.messages as Array<{ content?: unknown }>);
         const result = await session.compact(params.customInstructions);
         // Estimate tokens after compaction by summing token estimates for remaining messages
         let tokensAfter: number | undefined;
