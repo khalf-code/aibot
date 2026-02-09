@@ -257,8 +257,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1
       '@sinclair/typebox':
-        specifier: 0.34.47
-        version: 0.34.47
+        specifier: 0.34.48
+        version: 0.34.48
       zod:
         specifier: ^4.3.6
         version: 4.3.6
