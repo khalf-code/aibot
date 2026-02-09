@@ -44,7 +44,6 @@ Docs: https://docs.openclaw.ai
 - Doctor/State dir: suppress repeated legacy migration warnings only for valid symlink mirrors, while keeping warnings for empty or invalid legacy trees. (#11709) Thanks @gumadeiras.
 - Tests: harden flaky hotspots by removing timer sleeps, consolidating onboarding provider-auth coverage, and improving memory test realism. (#11598) Thanks @gumadeiras.
 - macOS: honor Nix-managed defaults suite (`ai.openclaw.mac`) for nixMode to prevent onboarding from reappearing after bundle-id churn. (#12205) Thanks @joshp123.
-- Plugins: fallback to bundled channel plugins when `plugins install` hits npm 404 for known bundled specs (e.g. `@openclaw/feishu`). (#8576)
 
 ## 2026.2.6
 
