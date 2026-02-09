@@ -289,8 +289,7 @@ async function runGatewayCommand(opts: GatewayRunOpts) {
       );
 
       // Start secrets proxy first
-      // Detect Docker bridge gateway IP dynamically - only reachable from Docker containers
-      // This is more secure than 0.0.0.0 (all interfaces) while still allowing container access
+      // Detect Docker bridge gateway IP — still needed for prepareSanitizedMounts config rewriting
       let dockerBridgeIp = "172.17.0.1"; // fallback default
       try {
         const { execFileSync } = await import("child_process");
@@ -308,13 +307,36 @@ async function runGatewayCommand(opts: GatewayRunOpts) {
       } catch {
         gatewayLog.warn(`Could not detect Docker bridge IP, using default ${dockerBridgeIp}`);
       }
+
       // Generate shared secret for proxy client auth
       const proxyAuthToken = generateProxyAuthToken();
 
+      // Per-platform proxy binding:
+      // - Linux/macOS: Unix socket (zero TCP exposure, filesystem ACL only)
+      // - Windows: TCP on 127.0.0.1 (Docker Desktop can reach via host.docker.internal)
+      const isWindows = process.platform === "win32";
+      let proxySocketPath: string | undefined;
+
       let proxyServer: Awaited<ReturnType<typeof startSecretsProxy>>;
       try {
-        proxyServer = await startSecretsProxy({ port: proxyPort, registry, bind: dockerBridgeIp, authToken: proxyAuthToken });
-        gatewayLog.info(`Secrets proxy started on ${dockerBridgeIp}:${proxyPort}`);
+        if (isWindows) {
+          proxyServer = await startSecretsProxy({
+            port: proxyPort,
+            bind: "127.0.0.1",
+            registry,
+            authToken: proxyAuthToken,
+          });
+          gatewayLog.info(`Secrets proxy started on 127.0.0.1:${proxyPort}`);
+        } else {
+          // Generate unique socket path for this session
+          proxySocketPath = `/tmp/openclaw-proxy-${proxyAuthToken.slice(0, 16)}.sock`;
+          proxyServer = await startSecretsProxy({
+            socketPath: proxySocketPath,
+            registry,
+            authToken: proxyAuthToken,
+          });
+          gatewayLog.info(`Secrets proxy started on socket: ${proxySocketPath}`);
+        }
       } catch (err) {
         gatewayLog.error(`Failed to start secrets proxy: ${String(err)}`);
         defaultRuntime.exit(1);
@@ -338,8 +360,8 @@ async function runGatewayCommand(opts: GatewayRunOpts) {
       let containerName: string;
       try {
         containerName = await startGatewayContainer({
-          proxyBridgeIp: dockerBridgeIp,
           proxyPort,
+          proxySocketPath,
           gatewayPort: port,
           env: { ...process.env, PROXY_AUTH_TOKEN: proxyAuthToken },
           binds: sanitizedMounts.binds,

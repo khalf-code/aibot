@@ -10,10 +10,10 @@ const GATEWAY_CONTAINER_NAME = "openclaw-gateway-secure";
 export type GatewayContainerOptions = {
   /** Gateway WebSocket port (host and container) */
   gatewayPort: number;
-  /** Docker bridge IP where the host proxy is listening */
-  proxyBridgeIp: string;
-  /** Port the host proxy is listening on */
+  /** Port the relay listens on inside the internal network */
   proxyPort: number;
+  /** Unix socket path to the host proxy (Linux/macOS). Mutually exclusive with TCP mode. */
+  proxySocketPath?: string;
   env?: Record<string, string | undefined>;
   /** Bind mounts in format ["host:container:ro"] */
   binds?: string[];
@@ -22,6 +22,7 @@ export type GatewayContainerOptions = {
 const SECURE_NETWORK_NAME = "openclaw-secure-net";
 const RELAY_CONTAINER_NAME = "openclaw-relay";
 const SOCAT_IMAGE = "alpine/socat";
+const RELAY_SOCKET_MOUNT = "/tmp/proxy.sock";
 
 /**
  * Create the internal Docker network (blocks all outbound internet).
@@ -51,9 +52,16 @@ async function removeSecureNetwork(): Promise<void> {
 
 /**
  * Start a socat relay container that bridges the internal network to the host proxy.
- * Connected to both the internal network (for gateway access) and bridge (to reach host).
+ *
+ * Socket mode (Linux/macOS): mount the host proxy's Unix socket into the relay.
+ *   socat TCP-LISTEN → UNIX-CONNECT:/tmp/proxy.sock
+ *   No TCP exposure on any network interface.
+ *
+ * TCP mode (Windows): relay connects to host.docker.internal (Docker Desktop loopback).
+ *   socat TCP-LISTEN → TCP:host.docker.internal:port
+ *   Proxy is on 127.0.0.1, reachable only via Docker Desktop's host gateway.
  */
-async function startRelayContainer(proxyBridgeIp: string, proxyPort: number): Promise<void> {
+async function startRelayContainer(proxyPort: number, proxySocketPath?: string): Promise<void> {
   // Remove any existing relay
   try {
     await execDocker(["rm", "-f", RELAY_CONTAINER_NAME], { allowFailure: true });
@@ -61,23 +69,38 @@ async function startRelayContainer(proxyBridgeIp: string, proxyPort: number): Pr
     // ignore
   }
 
-  // Start relay with socat forwarding both proxy port and gateway port (inbound)
-  // The relay is on the bridge network by default (can reach host), then we also connect it to the internal network
-  await execDocker([
+  const args = [
     "run", "-d",
     "--name", RELAY_CONTAINER_NAME,
     "--network", "bridge",
     "--restart", "unless-stopped",
-    SOCAT_IMAGE,
-    // Forward proxy port: internal network → host proxy
-    `TCP-LISTEN:${proxyPort},fork,reuseaddr`,
-    `TCP:${proxyBridgeIp}:${proxyPort}`,
-  ]);
+  ];
+
+  if (proxySocketPath) {
+    // Socket mode: mount host socket into relay container
+    args.push("-v", `${proxySocketPath}:${RELAY_SOCKET_MOUNT}:ro`);
+    args.push(
+      SOCAT_IMAGE,
+      `TCP-LISTEN:${proxyPort},fork,reuseaddr`,
+      `UNIX-CONNECT:${RELAY_SOCKET_MOUNT}`,
+    );
+  } else {
+    // TCP mode (Windows): reach host via Docker Desktop's host.docker.internal
+    args.push(
+      "--add-host", "host.docker.internal:host-gateway",
+      SOCAT_IMAGE,
+      `TCP-LISTEN:${proxyPort},fork,reuseaddr`,
+      `TCP:host.docker.internal:${proxyPort}`,
+    );
+  }
+
+  await execDocker(args);
 
   // Also connect relay to the internal network so the gateway container can reach it
   await execDocker(["network", "connect", SECURE_NETWORK_NAME, RELAY_CONTAINER_NAME]);
 
-  logger.info(`Relay container started: ${RELAY_CONTAINER_NAME} (forwarding port ${proxyPort} to ${proxyBridgeIp}:${proxyPort})`);
+  const mode = proxySocketPath ? `socket:${proxySocketPath}` : `tcp:host.docker.internal:${proxyPort}`;
+  logger.info(`Relay container started: ${RELAY_CONTAINER_NAME} (${mode} → port ${proxyPort})`);
 }
 
 /**
@@ -110,7 +133,7 @@ export async function startGatewayContainer(opts: GatewayContainerOptions): Prom
 
   // Set up network isolation: internal network + relay
   await ensureSecureNetwork();
-  await startRelayContainer(opts.proxyBridgeIp, opts.proxyPort);
+  await startRelayContainer(opts.proxyPort, opts.proxySocketPath);
 
   const filteredEnv = filterSecretEnv(opts.env || process.env);
 

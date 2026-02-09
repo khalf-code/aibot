@@ -1,4 +1,5 @@
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import fs from "node:fs";
 import crypto from "node:crypto";
 import { request } from "undici";
 import type { SecretRegistry } from "./secrets-registry.js";
@@ -185,8 +186,12 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
 }
 
 export type SecretsProxyOptions = {
-  port: number;
+  /** TCP port (required for TCP mode, used on Windows). */
+  port?: number;
+  /** TCP bind address (default: 127.0.0.1). Only used in TCP mode. */
   bind?: string;
+  /** Unix socket path. When set, proxy listens on this socket instead of TCP. */
+  socketPath?: string;
   registry: SecretRegistry;
   /** Shared secret token that clients must send in X-Proxy-Token header. */
   authToken?: string;
@@ -389,9 +394,26 @@ export async function startSecretsProxy(opts: SecretsProxyOptions): Promise<http
 
   return new Promise((resolve, reject) => {
     server.on("error", reject);
-    server.listen(opts.port, opts.bind || "127.0.0.1", () => {
-      logger.info(`Secrets Injection Proxy listening on ${opts.bind || "127.0.0.1"}:${opts.port}`);
-      resolve(server);
-    });
+    if (opts.socketPath) {
+      // Unix socket mode (Linux/macOS) — no TCP exposure at all
+      // Remove stale socket file from previous session (prevents EADDRINUSE)
+      try { fs.unlinkSync(opts.socketPath); } catch { /* doesn't exist, fine */ }
+      server.listen(opts.socketPath, () => {
+        // Clean up socket file when server closes
+        server.on("close", () => {
+          try { fs.unlinkSync(opts.socketPath!); } catch { /* already gone */ }
+        });
+        logger.info(`Secrets Injection Proxy listening on socket: ${opts.socketPath}`);
+        resolve(server);
+      });
+    } else {
+      // TCP mode (Windows) — bind to loopback only
+      const bind = opts.bind || "127.0.0.1";
+      const port = opts.port!;
+      server.listen(port, bind, () => {
+        logger.info(`Secrets Injection Proxy listening on ${bind}:${port}`);
+        resolve(server);
+      });
+    }
   });
 }
