@@ -432,18 +432,11 @@ export async function compactEmbeddedPiSessionDirect(
           ? validateAnthropicTurns(validatedGemini)
           : validatedGemini;
         const originalMessages = session.messages.slice();
-        const limited = limitHistoryTurns(
-          validated,
-          getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
-        );
-        if (limited.length > 0) {
-          session.agent.replaceMessages(limited);
-        }
         const missingSessionKey = !params.sessionKey || !params.sessionKey.trim();
         const hookSessionKey = params.sessionKey?.trim() || `compact:${params.sessionId}`;
         const hookRunner = getGlobalHookRunner();
         const messageCountOriginal = originalMessages.length;
-        const messageCountBefore = session.messages.length;
+        const messageCountBefore = originalMessages.length;
         let tokenCountOriginal: number | undefined;
         let tokenCountBefore: number | undefined;
         try {
@@ -487,7 +480,7 @@ export async function compactEmbeddedPiSessionDirect(
               {
                 agentId: sessionAgentId,
                 sessionKey: params.sessionKey,
-                workspaceDir: params.workspaceDir,
+                workspaceDir: effectiveWorkspace,
                 messageProvider: params.messageProvider,
               },
             );
@@ -495,6 +488,14 @@ export async function compactEmbeddedPiSessionDirect(
             log.warn(`before_compaction hook failed: ${String(err)}`);
           }
         }
+        const limited = limitHistoryTurns(
+          validated,
+          getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
+        );
+        if (limited.length > 0) {
+          session.agent.replaceMessages(limited);
+        }
+        const messageCountCompactionInput = session.messages.length;
         const result = await session.compact(params.customInstructions);
         // Estimate tokens after compaction by summing token estimates for remaining messages
         let tokensAfter: number | undefined;
@@ -512,7 +513,7 @@ export async function compactEmbeddedPiSessionDirect(
           tokensAfter = undefined;
         }
         const messageCountAfter = session.messages.length;
-        const compactedCount = Math.max(0, messageCountBefore - messageCountAfter);
+        const compactedCount = Math.max(0, messageCountCompactionInput - messageCountAfter);
         // TODO(#9611): Consider exposing compaction summaries or post-compaction injection;
         // current events only report summary metadata.
         try {
@@ -542,7 +543,7 @@ export async function compactEmbeddedPiSessionDirect(
               {
                 agentId: sessionAgentId,
                 sessionKey: params.sessionKey,
-                workspaceDir: params.workspaceDir,
+                workspaceDir: effectiveWorkspace,
                 messageProvider: params.messageProvider,
               },
             );
