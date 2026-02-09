@@ -213,6 +213,9 @@ export function applyJobPatch(job: CronJob, patch: CronJobPatch) {
   if (patch.wakeMode) {
     job.wakeMode = patch.wakeMode;
   }
+  if (patch.catchUp !== undefined) {
+    job.catchUp = patch.catchUp;
+  }
   if (patch.payload) {
     job.payload = mergeCronPayload(job.payload, patch.payload);
   }
