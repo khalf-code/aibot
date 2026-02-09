@@ -13,7 +13,11 @@ import {
 import { resolveForwardCompatModel } from "../../agents/model-forward-compat.js";
 import { ensureOpenClawModelsJson } from "../../agents/models-config.js";
 import { discoverAuthStorage, discoverModels } from "../../agents/pi-model-discovery.js";
-import { formatErrorWithStack, shouldFallbackToAuthHeuristics } from "./list.errors.js";
+import {
+  formatErrorWithStack,
+  shouldFallbackToAuthHeuristics,
+  shouldFallbackToDiscoveryHeuristics,
+} from "./list.errors.js";
 import { modelKey } from "./shared.js";
 
 const isLocalBaseUrl = (baseUrl: string) => {
@@ -65,7 +69,7 @@ export async function loadModelRegistry(cfg: OpenClawConfig) {
     models = appended.models;
     synthesizedForwardCompatKey = appended.synthesizedForwardCompatKey;
   } catch (err) {
-    if (!shouldFallbackToAuthHeuristics(err)) {
+    if (!shouldFallbackToDiscoveryHeuristics(err)) {
       throw err;
     }
 

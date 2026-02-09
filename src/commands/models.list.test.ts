@@ -53,25 +53,22 @@ vi.mock("@mariozechner/pi-coding-agent", async () => {
     "@mariozechner/pi-coding-agent",
   );
 
-  class MockModelRegistry extends actual.ModelRegistry {
-    override find(
-      provider: string,
-      id: string,
-    ): ReturnType<typeof actual.ModelRegistry.prototype.find> {
+  class MockModelRegistry {
+    find(provider: string, id: string): ReturnType<typeof actual.ModelRegistry.prototype.find> {
       const found =
         modelRegistryState.models.find((model) => model.provider === provider && model.id === id) ??
         null;
       return found as ReturnType<typeof actual.ModelRegistry.prototype.find>;
     }
 
-    override getAll(): ReturnType<typeof actual.ModelRegistry.prototype.getAll> {
+    getAll(): ReturnType<typeof actual.ModelRegistry.prototype.getAll> {
       if (modelRegistryState.getAllError !== undefined) {
         throw modelRegistryState.getAllError;
       }
       return modelRegistryState.models as ReturnType<typeof actual.ModelRegistry.prototype.getAll>;
     }
 
-    override getAvailable(): ReturnType<typeof actual.ModelRegistry.prototype.getAvailable> {
+    getAvailable(): ReturnType<typeof actual.ModelRegistry.prototype.getAvailable> {
       if (modelRegistryState.getAvailableError !== undefined) {
         throw modelRegistryState.getAvailableError;
       }
@@ -83,7 +80,7 @@ vi.mock("@mariozechner/pi-coding-agent", async () => {
 
   return {
     ...actual,
-    ModelRegistry: MockModelRegistry,
+    ModelRegistry: MockModelRegistry as unknown as typeof actual.ModelRegistry,
   };
 });
 
@@ -535,10 +532,33 @@ describe("models list/status", () => {
       "availability unsupported: getAvailable failed",
     );
     expect(runtime.error.mock.calls[0]?.[0]).not.toContain("falling back to auth heuristics");
-    expect(runtime.log).toHaveBeenCalledTimes(1);
-    const payload = JSON.parse(String(runtime.log.mock.calls[0]?.[0]));
-    expect(payload.models[0]?.key).toBe("google-antigravity/claude-opus-4-6-thinking");
-    expect(payload.models[0]?.missing).toBe(true);
+    expect(runtime.log).not.toHaveBeenCalled();
+  });
+
+  it("models list does not treat availability-unavailable code as discovery fallback", async () => {
+    loadConfig.mockReturnValue({
+      agents: {
+        defaults: {
+          model: "google-antigravity/claude-opus-4-6-thinking",
+          models: {
+            "google-antigravity/claude-opus-4-6-thinking": {},
+          },
+        },
+      },
+    });
+    modelRegistryState.getAllError = Object.assign(new Error("model discovery failed"), {
+      code: "MODEL_AVAILABILITY_UNAVAILABLE",
+    });
+    const runtime = makeRuntime();
+
+    const { modelsListCommand } = await import("./models/list.js");
+    await modelsListCommand({ json: true }, runtime);
+
+    expect(runtime.error).toHaveBeenCalledTimes(1);
+    expect(runtime.error.mock.calls[0]?.[0]).toContain("Model registry unavailable:");
+    expect(runtime.error.mock.calls[0]?.[0]).toContain("model discovery failed");
+    expect(runtime.error.mock.calls[0]?.[0]).not.toContain("configured models may appear missing");
+    expect(runtime.log).not.toHaveBeenCalled();
   });
 
   it("models list falls back when registry model discovery is unavailable", async () => {
@@ -558,7 +578,7 @@ describe("models list/status", () => {
         : [],
     );
     modelRegistryState.getAllError = Object.assign(new Error("model discovery unavailable"), {
-      code: "MODEL_AVAILABILITY_UNAVAILABLE",
+      code: "MODEL_DISCOVERY_UNAVAILABLE",
     });
     const runtime = makeRuntime();
 
@@ -581,7 +601,7 @@ describe("models list/status", () => {
 
   it("loadModelRegistry keeps availability undefined when discovery is unavailable", async () => {
     modelRegistryState.getAllError = Object.assign(new Error("model discovery unavailable"), {
-      code: "MODEL_AVAILABILITY_UNAVAILABLE",
+      code: "MODEL_DISCOVERY_UNAVAILABLE",
     });
     modelRegistryState.available = [
       {

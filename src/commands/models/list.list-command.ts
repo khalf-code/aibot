@@ -44,6 +44,7 @@ export async function modelsListCommand(
     availabilityErrorMessage = loaded.availabilityErrorMessage;
   } catch (err) {
     runtime.error(`Model registry unavailable:\n${formatErrorWithStack(err)}`);
+    return;
   }
   if (discoveryErrorMessage !== undefined) {
     runtime.error(
