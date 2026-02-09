@@ -143,8 +143,8 @@
   .kpi-card.cost .kpi-value { color: var(--orange); }
 
   /* Bar chart */
-  .chart-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; overflow-x: auto; }
-  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 280px; padding-top: 20px; position: relative; min-width: fit-content; }
+  .chart-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; overflow-x: auto; overflow-y: visible; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 320px; padding-top: 40px; position: relative; min-width: fit-content; }
   .bar-chart .grid-line { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--border); pointer-events: none; }
   .bar-chart .grid-label { position: absolute; left: -4px; transform: translateX(-100%); color: var(--muted); font-size: 0.65rem; }
   .station-col { flex: 1; min-width: 70px; max-width: 120px; display: flex; flex-direction: column; align-items: center; }
@@ -156,11 +156,10 @@
   }
   .task-segment:hover { filter: brightness(1.2); z-index: 10; }
   .task-segment .tooltip {
-    display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
-    transform: translateX(-50%); background: #0f172a; border: 1px solid var(--border);
+    display: none; position: fixed; background: #0f172a; border: 1px solid var(--border);
     border-radius: 8px; padding: 10px; font-size: 0.7rem; color: var(--text);
-    white-space: nowrap; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    min-width: 200px; text-align: left;
+    white-space: nowrap; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    min-width: 200px; text-align: left; pointer-events: none;
   }
   .task-segment:hover .tooltip { display: block; }
   .station-label { margin-top: 6px; font-size: 0.7rem; color: var(--muted); font-weight: 600; }
@@ -303,8 +302,8 @@
               <th class="input-col" style="width:75px">Shift Start</th>
               <th class="input-col" style="width:75px">Shift End</th>
               <th class="input-col" style="width:70px">Break (min)</th>
+              <th class="calc-col" style="width:70px">Hours/Day</th>
               <th class="calc-col" style="width:75px">Hours/Week</th>
-              <th class="input-col" style="width:70px">Hours/Day</th>
               <th class="input-col" style="width:80px">Participation %</th>
               <th class="calc-col" style="width:85px">Working Days/Yr</th>
               <th class="calc-col" style="width:80px">Net Work Hrs</th>
@@ -468,11 +467,11 @@ let processes = [
 ];
 
 let workers = [
-  { uid: 'w1', code: 'M01 - MC', name: 'Muhitdin Cagin', shiftStart: '06:00', shiftEnd: '11:15', breakMin: 15, hoursPerDay: 5, participationRate: 60, hourlyRate: 17.42 },
-  { uid: 'w2', code: 'M02 - PK', name: 'Petra Krause', shiftStart: '06:00', shiftEnd: '14:00', breakMin: 30, hoursPerDay: 7, participationRate: 30, hourlyRate: 17.42 },
-  { uid: 'w3', code: 'M03 - DM', name: 'Diana Menger', shiftStart: '07:00', shiftEnd: '12:15', breakMin: 15, hoursPerDay: 5, participationRate: 97, hourlyRate: 17.42 },
-  { uid: 'w4', code: 'M04 - JN', name: 'Jonas Nickel', shiftStart: '06:00', shiftEnd: '13:30', breakMin: 30, hoursPerDay: 1.4, participationRate: 97, hourlyRate: 17.42 },
-  { uid: 'w5', code: 'M05 - SA', name: 'Saeideh Alinezhad', shiftStart: '07:00', shiftEnd: '15:30', breakMin: 30, hoursPerDay: 7, participationRate: 97, hourlyRate: 17.42 },
+  { uid: 'w1', code: 'M01 - MC', name: 'Muhitdin Cagin', shiftStart: '06:00', shiftEnd: '11:15', breakMin: 15, participationRate: 60, hourlyRate: 17.42 },
+  { uid: 'w2', code: 'M02 - PK', name: 'Petra Krause', shiftStart: '06:00', shiftEnd: '14:00', breakMin: 30, participationRate: 30, hourlyRate: 17.42 },
+  { uid: 'w3', code: 'M03 - DM', name: 'Diana Menger', shiftStart: '07:00', shiftEnd: '12:15', breakMin: 15, participationRate: 97, hourlyRate: 17.42 },
+  { uid: 'w4', code: 'M04 - JN', name: 'Jonas Nickel', shiftStart: '06:00', shiftEnd: '13:30', breakMin: 30, participationRate: 97, hourlyRate: 17.42 },
+  { uid: 'w5', code: 'M05 - SA', name: 'Saeideh Alinezhad', shiftStart: '07:00', shiftEnd: '15:30', breakMin: 30, participationRate: 97, hourlyRate: 17.42 },
 ];
 
 // Global capacity settings
@@ -530,8 +529,8 @@ function getTotalTime() {
   return processes.reduce((s, p) => s + p.total, 0);
 }
 
-function getWorkerShiftHours(w) {
-  // Calculate hours based on shift times (for Hours/Week calculation)
+function getWorkerHoursPerDay(w) {
+  // Calculate Hours/Day = (Shift End - Shift Start) - Break
   const [sh, sm] = w.shiftStart.split(':').map(Number);
   const [eh, em] = w.shiftEnd.split(':').map(Number);
   const totalMin = (eh * 60 + em) - (sh * 60 + sm) - w.breakMin;
@@ -539,13 +538,13 @@ function getWorkerShiftHours(w) {
 }
 
 function getWorkerHoursPerWeek(w) {
-  // Assuming 5-day work week based on shift hours
-  return getWorkerShiftHours(w) * 5;
+  // Assuming 5-day work week based on Hours/Day
+  return getWorkerHoursPerDay(w) * 5;
 }
 
 function getWorkerNetWorkingHours(w) {
   // Net Working Hours = Hours/Day * Participation Rate
-  return (w.hoursPerDay || 0) * ((w.participationRate || 0) / 100);
+  return getWorkerHoursPerDay(w) * ((w.participationRate || 0) / 100);
 }
 
 function getWorkingDaysPerYearPercent() {
@@ -553,11 +552,11 @@ function getWorkingDaysPerYearPercent() {
 }
 
 function getWorkerDailyCost(w) {
-  return +((w.hoursPerDay || 0) * w.hourlyRate).toFixed(2);
+  return +(getWorkerHoursPerDay(w) * w.hourlyRate).toFixed(2);
 }
 
 function getTotalDailyWorkHours() {
-  return workers.reduce((s, w) => s + (w.hoursPerDay || 0), 0);
+  return workers.reduce((s, w) => s + getWorkerHoursPerDay(w), 0);
 }
 
 function getTotalNetWorkingHours() {
@@ -658,9 +657,9 @@ function renderWorkerTable() {
   const workingDaysPct = getWorkingDaysPerYearPercent();
 
   workers.forEach((w, i) => {
+    const hoursPerDay = getWorkerHoursPerDay(w);
     const hoursPerWeek = getWorkerHoursPerWeek(w);
     const netWorkHrs = getWorkerNetWorkingHours(w);
-    const hoursPerDay = w.hoursPerDay || 0;
     const participationRate = w.participationRate || 0;
 
     html += `<tr>
@@ -670,8 +669,8 @@ function renderWorkerTable() {
       <td><input type="time" value="${w.shiftStart}" onchange="updateWorker(${i},'shiftStart',this.value)"></td>
       <td><input type="time" value="${w.shiftEnd}" onchange="updateWorker(${i},'shiftEnd',this.value)"></td>
       <td><input type="number" value="${w.breakMin}" min="0" step="5" onchange="updateWorker(${i},'breakMin',parseInt(this.value)||0)"></td>
+      <td><input type="text" class="readonly calc" value="${hoursPerDay.toFixed(2)}" readonly></td>
       <td><input type="text" class="readonly calc" value="${hoursPerWeek.toFixed(0)}" readonly></td>
-      <td><input type="number" value="${hoursPerDay}" min="0" max="24" step="0.1" onchange="updateWorker(${i},'hoursPerDay',parseFloat(this.value)||0)"></td>
       <td><input type="number" value="${participationRate}" min="0" max="100" step="1" onchange="updateWorker(${i},'participationRate',parseFloat(this.value)||0)"></td>
       <td><input type="text" class="readonly calc" value="${workingDaysPct.toFixed(1)}%" readonly></td>
       <td><input type="text" class="readonly calc" value="${netWorkHrs.toFixed(2)}" readonly></td>
@@ -700,7 +699,6 @@ function addWorker() {
     shiftStart: '06:00',
     shiftEnd: '14:00',
     breakMin: 30,
-    hoursPerDay: 7,
     participationRate: 97,
     hourlyRate: rate
   });
@@ -1109,29 +1107,30 @@ function renderKPIs() {
 function renderBarChart() {
   const effTimes = stations.map((_, si) => effectiveStationTime(si));
   const maxTime = Math.max(...effTimes, 1);
-  const chartHeight = 240;
+  const chartHeight = 260; // Usable height for bars
+  const topPadding = 40;   // Space at top for bars that reach 100%
 
   let html = '';
   for (let pct = 0; pct <= 100; pct += 25) {
     const y = chartHeight - (pct / 100) * chartHeight;
-    html += `<div class="grid-line" style="top:${y + 20}px;"></div>`;
-    html += `<div class="grid-label" style="top:${y + 14}px;">${(pct / 100 * maxTime).toFixed(0)}s</div>`;
+    html += `<div class="grid-line" style="top:${y + topPadding}px;"></div>`;
+    html += `<div class="grid-label" style="top:${y + topPadding - 6}px;">${(pct / 100 * maxTime).toFixed(0)}s</div>`;
   }
 
   if (stations.length > 1) {
-    html += `<div class="takt-line" style="top:20px;"><span class="takt-label">Bottleneck: ${maxTime.toFixed(1)}s</span></div>`;
+    html += `<div class="takt-line" style="top:${topPadding}px;"><span class="takt-label">Bottleneck: ${maxTime.toFixed(1)}s</span></div>`;
   }
 
   stations.forEach((st, si) => {
     const effT = effectiveStationTime(si);
     const workersCount = stationResources[si]?.workers || 1;
     let stackHtml = '';
-    st.tasks.forEach(ti => {
+    st.tasks.forEach((ti, taskIdx) => {
       const p = processes[ti];
       const segTime = p.total / workersCount;
       const h = Math.max(2, (segTime / maxTime) * chartHeight);
       const oph = segTime > 0 ? (3600 / segTime).toFixed(1) : 0;
-      stackHtml += `<div class="task-segment color-${ti % 11}" style="height:${h}px;">
+      stackHtml += `<div class="task-segment color-${ti % 11}" style="height:${h}px;" data-tooltip-content="${p.sapNo}|${p.desc}|${p.cycle}|${p.eff}|${p.total.toFixed(2)}|${workersCount}|${segTime.toFixed(2)}|${oph}">
         ${p.sapNo.slice(-3)}
         <div class="tooltip">
           <strong>${p.sapNo}</strong><br>${p.desc}<br>
@@ -1160,6 +1159,37 @@ function renderBarChart() {
 
   document.getElementById('barChart').innerHTML = html;
   document.getElementById('barChart').style.paddingLeft = '36px';
+
+  // Add tooltip positioning event listeners
+  setupTooltipPositioning();
+}
+
+function setupTooltipPositioning() {
+  const chartWrapper = document.querySelector('.chart-wrapper');
+  if (!chartWrapper) return;
+
+  const segments = document.querySelectorAll('.task-segment');
+  segments.forEach(seg => {
+    seg.addEventListener('mouseenter', function(e) {
+      const tooltip = this.querySelector('.tooltip');
+      if (!tooltip) return;
+
+      const wrapperRect = chartWrapper.getBoundingClientRect();
+      const segRect = this.getBoundingClientRect();
+
+      // Position tooltip at center of chart wrapper vertically, to the right of the segment
+      const tooltipTop = wrapperRect.top + (wrapperRect.height / 2) - 60;
+      let tooltipLeft = segRect.right + 10;
+
+      // If tooltip would go off right edge, show on left side
+      if (tooltipLeft + 220 > window.innerWidth) {
+        tooltipLeft = segRect.left - 220;
+      }
+
+      tooltip.style.top = tooltipTop + 'px';
+      tooltip.style.left = tooltipLeft + 'px';
+    });
+  });
 }
 
 function renderGantt() {
@@ -1465,14 +1495,13 @@ function clearProcessData() {
 // ══════════════════════════════════════════════════════════════
 
 function exportWorkersCSV() {
-  const headers = ['Employee Code','Name','Shift Start','Shift End','Break (min)','Hours/Day','Participation %','Hourly Rate'];
+  const headers = ['Employee Code','Name','Shift Start','Shift End','Break (min)','Participation %','Hourly Rate'];
   const rows = workers.map(w => [
     w.code,
     '"' + w.name.replace(/"/g, '""') + '"',
     w.shiftStart,
     w.shiftEnd,
     w.breakMin,
-    w.hoursPerDay || 0,
     w.participationRate || 0,
     w.hourlyRate.toFixed(2)
   ].join(','));
@@ -1495,7 +1524,7 @@ function importWorkersCSV(input) {
     const newWorkers = [];
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i];
-      if (cols.length < 6) continue;
+      if (cols.length < 5) continue;
       newWorkers.push({
         uid: genUid(),
         code: cols[0] || '',
@@ -1503,9 +1532,8 @@ function importWorkersCSV(input) {
         shiftStart: cols[2] || '06:00',
         shiftEnd: cols[3] || '14:00',
         breakMin: parseInt(cols[4]) || 30,
-        hoursPerDay: parseFloat(cols[5]) || 7,
-        participationRate: parseFloat(cols[6]) || 97,
-        hourlyRate: parseFloat(cols[7]) || 17.42
+        participationRate: parseFloat(cols[5]) || 97,
+        hourlyRate: parseFloat(cols[6]) || 17.42
       });
     }
     if (newWorkers.length > 0) {
