@@ -213,6 +213,9 @@ async function transcribeAudioBufferWithCore(params: {
     }
   }
 
+  let lastError: string | null = null;
+  let lastProvider: string | null = null;
+
   for (const entry of entries) {
     if ((entry.type ?? (entry.command ? "cli" : "provider")) !== "provider") {
       continue;
@@ -277,9 +280,19 @@ async function transcribeAudioBufferWithCore(params: {
           decision: { capability: "audio", outcome: "success", attachments: [] },
         };
       }
-    } catch {
+    } catch (err) {
+      lastProvider = providerId;
+      lastError = err instanceof Error ? err.message : String(err);
       continue;
     }
+  }
+
+  if (lastError) {
+    console.warn(
+      `[media-understanding] audio transcription failed (last provider ${
+        lastProvider ?? "unknown"
+      }): ${lastError}`,
+    );
   }
 
   return {
