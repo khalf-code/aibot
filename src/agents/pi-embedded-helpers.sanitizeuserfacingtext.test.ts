@@ -60,4 +60,17 @@ describe("sanitizeUserFacingText", () => {
     const text = "Hello there!\n\nDifferent line.";
     expect(sanitizeUserFacingText(text)).toBe(text);
   });
+
+  it("does not false-positive on billing-related words in normal AI responses", () => {
+    const samples = [
+      "Check your billing plan for details.",
+      "The credit balance on the account is sufficient.",
+      "Please update your payment method in the billing portal.",
+      "Here's a summary of your billing and payment history.",
+      "Error 402 is a payment required status code in HTTP.",
+    ];
+    for (const sample of samples) {
+      expect(sanitizeUserFacingText(sample)).toBe(sample);
+    }
+  });
 });

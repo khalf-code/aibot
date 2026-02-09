@@ -424,10 +424,6 @@ export function sanitizeUserFacingText(text: string): string {
     );
   }
 
-  if (isBillingErrorMessage(trimmed)) {
-    return BILLING_ERROR_USER_MESSAGE;
-  }
-
   if (isRawApiErrorPayload(trimmed) || isLikelyHttpErrorText(trimmed)) {
     return formatRawAssistantErrorForUi(trimmed);
   }
