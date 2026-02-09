@@ -147,10 +147,18 @@ export {
   resolveStageConfig,
   safeJsonStringify,
 } from "../plugins/guardrails-utils.js";
+export type { ChatType } from "../channels/chat-type.js";
+/** @deprecated Use ChatType instead */
+export type { RoutePeerKind } from "../routing/resolve-route.js";
 export { resolveAckReaction } from "../agents/identity.js";
 export type { ReplyPayload } from "../auto-reply/types.js";
 export type { ChunkMode } from "../auto-reply/chunk.js";
 export { SILENT_REPLY_TOKEN, isSilentReplyText } from "../auto-reply/tokens.js";
+export {
+  approveDevicePairing,
+  listDevicePairing,
+  rejectDevicePairing,
+} from "../infra/device-pairing.js";
 export { resolveToolsBySender } from "../config/group-policy.js";
 export {
   buildPendingHistoryContextFromMap,
@@ -177,7 +185,7 @@ export {
   shouldAckReactionForWhatsApp,
 } from "../channels/ack-reactions.js";
 export { createTypingCallbacks } from "../channels/typing.js";
-export { createReplyPrefixContext } from "../channels/reply-prefix.js";
+export { createReplyPrefixContext, createReplyPrefixOptions } from "../channels/reply-prefix.js";
 export { logAckFailure, logInboundDrop, logTypingFailure } from "../channels/logging.js";
 export { resolveChannelMediaMaxBytes } from "../channels/plugins/media-limits.js";
 export type { NormalizedLocation } from "../channels/location.js";
@@ -335,6 +343,7 @@ export {
   normalizeTelegramMessagingTarget,
 } from "../channels/plugins/normalize/telegram.js";
 export { collectTelegramStatusIssues } from "../channels/plugins/status-issues/telegram.js";
+export { type TelegramProbe } from "../telegram/probe.js";
 
 // Channel: Signal
 export {
