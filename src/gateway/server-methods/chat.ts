@@ -248,37 +248,35 @@ export const chatHandlers: GatewayRequestHandlers = {
             return true;
           }
           // Extract text from content (handles both string and array formats)
-          let text = "";
+          // Implementation mirrors extractTextFromContent in session-utils.fs.ts
+          let text: string | null = null;
           const content = message.content;
           if (typeof content === "string") {
-            text = content;
+            text = content.trim() || null;
           } else if (Array.isArray(content)) {
             // Handle array format: [{ type: "text", text: "..." }]
             for (const part of content) {
+              if (!part || typeof part !== "object") {
+                continue;
+              }
+              if (!("text" in part) || typeof part.text !== "string") {
+                continue;
+              }
               if (
-                part &&
-                typeof part === "object" &&
-                "type" in part &&
-                "text" in part &&
-                typeof part.text === "string"
+                part.type === "text" ||
+                part.type === "output_text" ||
+                part.type === "input_text"
               ) {
-                if (
-                  part.type === "text" ||
-                  part.type === "output_text" ||
-                  part.type === "input_text"
-                ) {
-                  const trimmed = part.text.trim();
-                  if (trimmed) {
-                    text = trimmed;
-                    break;
-                  }
+                const trimmed = part.text.trim();
+                if (trimmed) {
+                  text = trimmed;
+                  break;
                 }
               }
             }
           }
           // Filter out assistant messages that are only HEARTBEAT_OK
-          const trimmed = text.trim();
-          return trimmed !== HEARTBEAT_TOKEN;
+          return text !== HEARTBEAT_TOKEN;
         });
 
     respond(true, {
