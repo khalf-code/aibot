@@ -82,7 +82,7 @@ const OLLAMA_DEFAULT_COST = {
 
 export const AISA_BASE_URL = "https://api.aisa.one/v1";
 export const AISA_DEFAULT_MODEL_ID = "qwen3-max";
-const AISA_DEFAULT_CONTEXT_WINDOW = 262144;
+const AISA_DEFAULT_CONTEXT_WINDOW = 256000;
 const AISA_DEFAULT_MAX_TOKENS = 32768;
 const AISA_DEFAULT_COST = {
   input: 0,
