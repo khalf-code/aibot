@@ -300,7 +300,7 @@ export async function transcribeAudioWithCore(params: {
       cfg: params.cfg,
       buffer: params.buffer,
       mime: params.mime,
-      fileName: params.filePath ? params.filePath.split("/").pop() : undefined,
+      fileName: params.filePath ? path.basename(params.filePath) : undefined,
     });
   }
   if (!params.filePath) {
