@@ -4,9 +4,10 @@ import type {
   AgentToolUpdateCallback,
 } from "@mariozechner/pi-agent-core";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { randomUUID } from "node:crypto";
 import type { ClientToolDefinition } from "./pi-embedded-runner/run/params.js";
 import { logDebug, logError } from "../logger.js";
-import { runBeforeToolCallHook } from "./pi-tools.before-tool-call.js";
+import { runAfterToolCallHook, runBeforeToolCallHook } from "./pi-tools.before-tool-call.js";
 import { normalizeToolName } from "./tool-policy.js";
 import { jsonResult } from "./tools/common.js";
 
@@ -125,7 +126,11 @@ export function toToolDefinitions(tools: AnyAgentTool[]): ToolDefinition[] {
 // These tools are intercepted to return a "pending" result instead of executing
 export function toClientToolDefinitions(
   tools: ClientToolDefinition[],
-  onClientToolCall?: (toolName: string, params: Record<string, unknown>) => void,
+  onClientToolCall?: (
+    toolName: string,
+    params: Record<string, unknown>,
+    toolCallId: string,
+  ) => void,
   hookContext?: { agentId?: string; sessionKey?: string },
 ): ToolDefinition[] {
   return tools.map((tool) => {
@@ -138,27 +143,57 @@ export function toClientToolDefinitions(
       parameters: func.parameters as any,
       execute: async (...args: ToolExecuteArgs): Promise<AgentToolResult<unknown>> => {
         const { toolCallId, params } = splitToolExecuteArgs(args);
+        const hookToolCallId =
+          typeof toolCallId === "string" && toolCallId.trim() ? toolCallId : `hook-${randomUUID()}`;
+        const startedAt = Date.now();
         const outcome = await runBeforeToolCallHook({
           toolName: func.name,
           params,
-          toolCallId,
-          ctx: hookContext,
+          toolCallId: hookToolCallId,
+          ctx: {
+            ...hookContext,
+            toolCallId: hookToolCallId,
+          },
         });
         if (outcome.blocked) {
+          await runAfterToolCallHook({
+            toolName: func.name,
+            params,
+            error: outcome.reason,
+            durationMs: Date.now() - startedAt,
+            toolCallId: hookToolCallId,
+            ctx: {
+              ...hookContext,
+              toolCallId: hookToolCallId,
+            },
+          });
           throw new Error(outcome.reason);
         }
         const adjustedParams = outcome.params;
         const paramsRecord = isPlainObject(adjustedParams) ? adjustedParams : {};
         // Notify handler that a client tool was called
         if (onClientToolCall) {
-          onClientToolCall(func.name, paramsRecord);
+          onClientToolCall(func.name, paramsRecord, hookToolCallId);
         }
         // Return a pending result - the client will execute this tool
-        return jsonResult({
+        const result = jsonResult({
           status: "pending",
           tool: func.name,
+          toolCallId: hookToolCallId,
           message: "Tool execution delegated to client",
         });
+        await runAfterToolCallHook({
+          toolName: func.name,
+          params: adjustedParams,
+          result,
+          durationMs: Date.now() - startedAt,
+          toolCallId: hookToolCallId,
+          ctx: {
+            ...hookContext,
+            toolCallId: hookToolCallId,
+          },
+        });
+        return result;
       },
     } satisfies ToolDefinition;
   });

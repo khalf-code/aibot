@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { AnyAgentTool } from "./tools/common.js";
+import { createInternalHookEvent, triggerInternalHook } from "../hooks/internal-hooks.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import { normalizeToolName } from "./tool-policy.js";
@@ -6,6 +8,7 @@ import { normalizeToolName } from "./tool-policy.js";
 type HookContext = {
   agentId?: string;
   sessionKey?: string;
+  toolCallId?: string;
 };
 
 type HookOutcome = { blocked: true; reason: string } | { blocked: false; params: unknown };
@@ -16,19 +19,50 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function resolveHookSessionKey(
+  ctxSessionKey: string | undefined,
+  agentId: string | undefined,
+  toolCallId: string | undefined,
+): string {
+  if (typeof ctxSessionKey === "string" && ctxSessionKey.trim().length > 0) {
+    return ctxSessionKey;
+  }
+  const normalizedAgentId =
+    typeof agentId === "string" && agentId.trim().length > 0 ? agentId : "unknown";
+  if (typeof toolCallId === "string" && toolCallId.trim().length > 0) {
+    return `tool:${normalizedAgentId}:${toolCallId}`;
+  }
+  return `tool:${normalizedAgentId}:unknown`;
+}
+
 export async function runBeforeToolCallHook(args: {
   toolName: string;
   params: unknown;
   toolCallId?: string;
   ctx?: HookContext;
 }): Promise<HookOutcome> {
+  const toolName = normalizeToolName(args.toolName || "tool");
+  const params = args.params;
+  const effectiveToolCallId = args.toolCallId ?? args.ctx?.toolCallId;
+  const hookSessionKey = resolveHookSessionKey(
+    args.ctx?.sessionKey,
+    args.ctx?.agentId,
+    effectiveToolCallId,
+  );
+  try {
+    const hookEvent = createInternalHookEvent("agent", "tool:start", hookSessionKey, {
+      toolName,
+      toolCallId: effectiveToolCallId,
+      params: isPlainObject(params) ? params : undefined,
+    });
+    await triggerInternalHook(hookEvent);
+  } catch (err) {
+    log.warn(`agent:tool:start hook failed: tool=${toolName} error=${String(err)}`);
+  }
   const hookRunner = getGlobalHookRunner();
   if (!hookRunner?.hasHooks("before_tool_call")) {
     return { blocked: false, params: args.params };
   }
-
-  const toolName = normalizeToolName(args.toolName || "tool");
-  const params = args.params;
   try {
     const normalizedParams = isPlainObject(params) ? params : {};
     const hookResult = await hookRunner.runBeforeToolCall(
@@ -40,6 +74,7 @@ export async function runBeforeToolCallHook(args: {
         toolName,
         agentId: args.ctx?.agentId,
         sessionKey: args.ctx?.sessionKey,
+        toolCallId: effectiveToolCallId,
       },
     );
 
@@ -64,6 +99,62 @@ export async function runBeforeToolCallHook(args: {
   return { blocked: false, params };
 }
 
+export async function runAfterToolCallHook(args: {
+  toolName: string;
+  params: unknown;
+  result?: unknown;
+  error?: string;
+  durationMs?: number;
+  toolCallId?: string;
+  ctx?: HookContext;
+}): Promise<void> {
+  const toolName = normalizeToolName(args.toolName || "tool");
+  const params = isPlainObject(args.params) ? args.params : {};
+  const effectiveToolCallId = args.toolCallId ?? args.ctx?.toolCallId;
+  const hookSessionKey = resolveHookSessionKey(
+    args.ctx?.sessionKey,
+    args.ctx?.agentId,
+    effectiveToolCallId,
+  );
+  try {
+    const hookEvent = createInternalHookEvent("agent", "tool:end", hookSessionKey, {
+      toolName,
+      toolCallId: effectiveToolCallId,
+      params,
+      result: args.result,
+      error: args.error,
+      durationMs: args.durationMs,
+    });
+    await triggerInternalHook(hookEvent);
+  } catch (err) {
+    log.warn(`agent:tool:end hook failed: tool=${toolName} error=${String(err)}`);
+  }
+  const hookRunner = getGlobalHookRunner();
+  if (!hookRunner?.hasHooks("after_tool_call")) {
+    return;
+  }
+  try {
+    await hookRunner.runAfterToolCall(
+      {
+        toolName,
+        params,
+        result: args.result,
+        error: args.error,
+        durationMs: args.durationMs,
+      },
+      {
+        toolName,
+        agentId: args.ctx?.agentId,
+        sessionKey: args.ctx?.sessionKey,
+        toolCallId: effectiveToolCallId,
+      },
+    );
+  } catch (err) {
+    const toolCallId = args.toolCallId ? ` toolCallId=${args.toolCallId}` : "";
+    log.warn(`after_tool_call hook failed: tool=${toolName}${toolCallId} error=${String(err)}`);
+  }
+}
+
 export function wrapToolWithBeforeToolCallHook(
   tool: AnyAgentTool,
   ctx?: HookContext,
@@ -76,21 +167,68 @@ export function wrapToolWithBeforeToolCallHook(
   return {
     ...tool,
     execute: async (toolCallId, params, signal, onUpdate) => {
+      // TODO(hooks): Prefer real toolCallId once all tool sources supply it consistently.
+      const hookToolCallId =
+        typeof toolCallId === "string" && toolCallId.trim() ? toolCallId : `hook-${randomUUID()}`;
+      const startedAt = Date.now();
       const outcome = await runBeforeToolCallHook({
         toolName,
         params,
-        toolCallId,
-        ctx,
+        toolCallId: hookToolCallId,
+        ctx: {
+          ...ctx,
+          toolCallId: hookToolCallId,
+        },
       });
       if (outcome.blocked) {
+        await runAfterToolCallHook({
+          toolName,
+          params,
+          error: outcome.reason,
+          durationMs: Date.now() - startedAt,
+          toolCallId: hookToolCallId,
+          ctx: {
+            ...ctx,
+            toolCallId: hookToolCallId,
+          },
+        });
         throw new Error(outcome.reason);
       }
-      return await execute(toolCallId, outcome.params, signal, onUpdate);
+      try {
+        // Use the effective hook ID as canonical when upstream omitted one.
+        const result = await execute(hookToolCallId, outcome.params, signal, onUpdate);
+        await runAfterToolCallHook({
+          toolName,
+          params: outcome.params,
+          result,
+          durationMs: Date.now() - startedAt,
+          toolCallId: hookToolCallId,
+          ctx: {
+            ...ctx,
+            toolCallId: hookToolCallId,
+          },
+        });
+        return result;
+      } catch (err) {
+        await runAfterToolCallHook({
+          toolName,
+          params: outcome.params,
+          error: err instanceof Error ? err.message : String(err),
+          durationMs: Date.now() - startedAt,
+          toolCallId: hookToolCallId,
+          ctx: {
+            ...ctx,
+            toolCallId: hookToolCallId,
+          },
+        });
+        throw err;
+      }
     },
   };
 }
 
 export const __testing = {
   runBeforeToolCallHook,
+  runAfterToolCallHook,
   isPlainObject,
 };
