@@ -316,7 +316,25 @@ export class AsteriskAriProvider implements VoiceCallProvider {
     } else if (evt.type === "ChannelStateChange") {
       const chId = evt.channel?.id;
       const chState = evt.channel?.state?.toLowerCase();
-      if (!chId || chState !== "up") return;
+      if (!chId || !chState) return;
+
+      const endReason: EndReason | null =
+        chState === "busy"
+          ? "busy"
+          : chState === "congestion" || chState === "failed"
+            ? "failed"
+            : null;
+      if (endReason) {
+        for (const [providerCallId, state] of this.calls.entries()) {
+          if (state.sipChannelId === chId) {
+            await this.cleanup(providerCallId, endReason);
+            break;
+          }
+        }
+        return;
+      }
+
+      if (chState !== "up") return;
 
       for (const state of this.calls.values()) {
         if (state.sipChannelId === chId) {
