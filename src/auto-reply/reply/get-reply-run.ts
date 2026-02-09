@@ -201,7 +201,10 @@ export async function runPreparedReply(
     ((baseBodyTrimmedRaw.length === 0 && rawBodyTrimmed.length > 0) || isBareNewOrReset);
   const baseBodyFinal = isBareSessionReset ? BARE_SESSION_RESET_PROMPT : baseBody;
   const baseBodyTrimmed = baseBodyFinal.trim();
-  if (!baseBodyTrimmed) {
+  const hasMediaAttachment = Boolean(
+    sessionCtx.MediaPath || (sessionCtx.MediaPaths && sessionCtx.MediaPaths.length > 0),
+  );
+  if (!baseBodyTrimmed && !hasMediaAttachment) {
     await typing.onReplyStart();
     logVerbose("Inbound body empty after normalization; skipping agent run");
     typing.cleanup();
@@ -209,8 +212,11 @@ export async function runPreparedReply(
       text: "I didn't receive any text in your message. Please resend or add a caption.",
     };
   }
+  // When the user sends media without text, provide a minimal body so the agent
+  // run proceeds and the image/document is injected by the embedded runner.
+  const effectiveBaseBody = baseBodyTrimmed ? baseBodyFinal : "[User sent media without caption]";
   let prefixedBodyBase = await applySessionHints({
-    baseBody: baseBodyFinal,
+    baseBody: effectiveBaseBody,
     abortedLastRun,
     sessionEntry,
     sessionStore,
