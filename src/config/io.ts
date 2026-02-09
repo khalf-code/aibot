@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import type { OpenClawConfig, ConfigFileSnapshot, LegacyConfigIssue } from "./types.js";
 import { resolveRequiredHomeDir } from "../infra/home-dir.js";
+import { recordTrace } from "../infra/perf-trace.js";
 import {
   loadShellEnvFallback,
   resolveShellEnvFallbackTimeoutMs,
@@ -578,12 +579,27 @@ function shouldUseConfigCache(env: NodeJS.ProcessEnv): boolean {
   return resolveConfigCacheMs(env) > 0;
 }
 
+/** Cached ConfigIO singleton to avoid re-resolving paths on every loadConfig() call. */
+let cachedConfigIO: { io: ReturnType<typeof createConfigIO>; envSnapshot: string } | null = null;
+
+function getOrCreateConfigIO(): ReturnType<typeof createConfigIO> {
+  // Re-create if relevant env vars change (config path override, state dir).
+  const envSnapshot = `${process.env.OPENCLAW_CONFIG_PATH ?? ""}|${process.env.OPENCLAW_STATE_DIR ?? ""}|${process.env.CLAWDBOT_STATE_DIR ?? ""}`;
+  if (cachedConfigIO && cachedConfigIO.envSnapshot === envSnapshot) {
+    return cachedConfigIO.io;
+  }
+  const io = createConfigIO();
+  cachedConfigIO = { io, envSnapshot };
+  return io;
+}
+
 export function clearConfigCache(): void {
   configCache = null;
+  cachedConfigIO = null;
 }
 
 export function loadConfig(): OpenClawConfig {
-  const io = createConfigIO();
+  const io = getOrCreateConfigIO();
   const configPath = io.configPath;
   const now = Date.now();
   if (shouldUseConfigCache(process.env)) {
@@ -592,7 +608,9 @@ export function loadConfig(): OpenClawConfig {
       return cached.config;
     }
   }
+  const t0 = performance.now();
   const config = io.loadConfig();
+  recordTrace("config.loadConfig", performance.now() - t0);
   if (shouldUseConfigCache(process.env)) {
     const cacheMs = resolveConfigCacheMs(process.env);
     if (cacheMs > 0) {
