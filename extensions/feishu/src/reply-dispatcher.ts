@@ -181,10 +181,6 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
   let streamFlushCount = 0;
   let streamUpdateCount = 0;
   let streamEverUpdated = false;
-  let streamFirstPartialAt = 0;
-  let streamLastPartialAt = 0;
-  let streamFirstFlushAt = 0;
-  let streamFinalEnteredAt = 0;
 
   const applyMentions = (text: string): string => {
     if (!mentionTargets || mentionTargets.length === 0) {
@@ -350,14 +346,8 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
     }
 
     streamFlushCount += 1;
-    const now = Date.now();
-    if (!streamFirstFlushAt) {
-      streamFirstFlushAt = now;
-    }
-    const sinceLastPartialMs = streamLastPartialAt > 0 ? now - streamLastPartialAt : -1;
-    const sinceFirstPartialMs = streamFirstPartialAt > 0 ? now - streamFirstPartialAt : -1;
     params.runtime.log?.(
-      `feishu[${account.accountId}] stream flush #${streamFlushCount}: backend=${streamBackend}, textLen=${text.length}, sinceLastPartialMs=${sinceLastPartialMs}, sinceFirstPartialMs=${sinceFirstPartialMs}, finalEntered=${streamFinalEnteredAt > 0}`,
+      `feishu[${account.accountId}] stream flush #${streamFlushCount}: backend=${streamBackend}, textLen=${text.length}`,
     );
 
     streamInFlight = true;
@@ -414,10 +404,6 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       deliver: async (payload: ReplyPayload) => {
         const text = payload.text ?? "";
         streamFinalText = text;
-        streamFinalEnteredAt = Date.now();
-        params.runtime.log?.(
-          `feishu[${account.accountId}] deliver entered: partials=${streamPartialCount}, flushes=${streamFlushCount}, updates=${streamUpdateCount}, firstPartialAt=${streamFirstPartialAt || 0}, finalAt=${streamFinalEnteredAt}`,
-        );
 
         if (trueStreamingEnabled && text) {
           // Wait for any pending stream operations to complete
@@ -601,16 +587,8 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               return;
             }
             streamPartialCount += 1;
-            const now = Date.now();
-            if (!streamFirstPartialAt) {
-              streamFirstPartialAt = now;
-              params.runtime.log?.(
-                `feishu[${account.accountId}] first partial received: ts=${streamFirstPartialAt}, throttleMs=${STREAM_THROTTLE_MS}`,
-              );
-            }
-            streamLastPartialAt = now;
             params.runtime.log?.(
-              `feishu[${account.accountId}] onPartialReply #${streamPartialCount}: backend=${streamBackend}, textLen=${text.length}, method=${configuredStreamMethod}, ts=${now}`,
+              `feishu[${account.accountId}] onPartialReply #${streamPartialCount}: backend=${streamBackend}, textLen=${text.length}, method=${configuredStreamMethod}`,
             );
             queueStreamUpdate(text);
           }

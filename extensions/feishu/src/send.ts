@@ -363,14 +363,6 @@ function stringifyJson(value: unknown): string {
   }
 }
 
-function prettyJson(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
 function sanitizeStreamingContent(text: string): string {
   // Strip non-printable control chars except newline/tab/carriage return.
   return text.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
@@ -522,9 +514,6 @@ export async function createCardEntityFeishu(params: {
   }
 
   const client = createFeishuClient(account);
-  const emit = (message: string) => {
-    console.info(message);
-  };
 
   const variants = buildStreamingCardPayloadVariants(initialContent);
   let lastError: unknown;
@@ -535,12 +524,6 @@ export async function createCardEntityFeishu(params: {
       continue;
     }
     const data = JSON.stringify(variant.payload);
-    emit(
-      `feishu[${account.accountId}] card.create attempt ${i + 1}/${variants.length} variant=${variant.name}, cardJsonLen=${data.length}, initialTextLen=${initialContent.length}`,
-    );
-    emit(
-      `feishu[${account.accountId}] card.create request payload variant=${variant.name}: ${prettyJson({ type: "card_json", data: variant.payload })}`,
-    );
 
     try {
       const response = (await client.cardkit.v1.card.create({
@@ -551,25 +534,12 @@ export async function createCardEntityFeishu(params: {
       })) as { code?: number; msg?: string; data?: { card_id?: string }; log_id?: string };
 
       if (response.code === 0 && response.data?.card_id) {
-        emit(
-          `feishu[${account.accountId}] card.create success variant=${variant.name}, cardId=${response.data.card_id}`,
-        );
         return { cardId: response.data.card_id };
       }
 
       const msg = response.msg || `code ${response.code}`;
-      emit(
-        `feishu[${account.accountId}] card.create rejected variant=${variant.name}, code=${String(response.code)}, logId=${String(response.log_id ?? "")}, msg=${msg}`,
-      );
       lastError = new Error(`Feishu CardKit create failed: ${msg}`);
     } catch (err) {
-      const code = getNested(err, ["response", "data", "code"]);
-      const msg = getNested(err, ["response", "data", "msg"]);
-      const logId = getNested(err, ["response", "data", "log_id"]);
-      const details = getNested(err, ["response", "data"]);
-      emit(
-        `feishu[${account.accountId}] card.create error variant=${variant.name}, code=${String(code ?? "")}, logId=${String(logId ?? "")}, msg=${String(msg ?? String(err))}, details=${stringifyJson(details)}`,
-      );
       lastError = err;
     }
   }
@@ -654,20 +624,12 @@ export async function sendCardByCardIdFeishu(params: {
     },
   });
 
-  console.info(
-    `feishu[${account.accountId}] card.bind request: ${prettyJson({ endpoint: replyToMessageId ? "im.message.reply" : "im.message.create", receive_id_type: receiveIdType, receive_id: receiveId, reply_to_message_id: replyToMessageId ?? null, msg_type: "interactive", content: { type: "card", data: { card_id: cardId } } })}`,
-  );
-
   if (replyToMessageId) {
     try {
       const response = await client.im.message.reply({
         path: { message_id: replyToMessageId },
         data: { content, msg_type: "interactive" },
       });
-
-      console.info(
-        `feishu[${account.accountId}] card.bind reply response: ${prettyJson(response)}`,
-      );
 
       if (response.code !== 0) {
         throw new Error(`Feishu card-id reply failed: ${response.msg || `code ${response.code}`}`);
@@ -698,8 +660,6 @@ export async function sendCardByCardIdFeishu(params: {
         msg_type: "interactive",
       },
     });
-
-    console.info(`feishu[${account.accountId}] card.bind create response: ${prettyJson(response)}`);
 
     if (response.code !== 0) {
       throw new Error(`Feishu card-id send failed: ${response.msg || `code ${response.code}`}`);
