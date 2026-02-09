@@ -260,10 +260,6 @@ export async function sendCardFeishu(params: SendFeishuCardParams): Promise<Feis
 export function buildMarkdownCard(text: string): Record<string, unknown> {
   return {
     schema: "2.0",
-    header: {
-      title: { content: "", tag: "plain_text" },
-      template: "default",
-    },
     body: {
       elements: [
         {
@@ -343,18 +339,16 @@ export type CreateCardEntityResult = {
 };
 
 export function buildStreamingCardData(initialContent: string): string {
+  // Match the official Feishu streaming card example exactly:
+  // https://open.feishu.cn/document/uAjLw4CM/ukzMukzMukzM/feishu-cards/streaming-updates-openapi-overview
   return JSON.stringify({
     schema: "2.0",
-    header: {
-      title: { content: "", tag: "plain_text" },
-      template: "default",
-    },
     config: {
       streaming_mode: true,
       summary: { content: "" },
       streaming_config: {
-        print_step: { default: 1 },
-        print_frequency_ms: { default: 70 },
+        print_frequency_ms: { default: 70, android: 70, ios: 70, pc: 70 },
+        print_step: { default: 1, android: 1, ios: 1, pc: 1 },
         print_strategy: "fast",
       },
     },
