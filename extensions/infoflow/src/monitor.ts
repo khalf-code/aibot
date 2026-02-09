@@ -74,6 +74,12 @@ function registerInfoflowWebhookTarget(target: WebhookTarget): () => void {
  */
 function isInfoflowPath(requestPath: string): boolean {
   const normalized = normalizeWebhookPath(requestPath);
+  const core = getInfoflowRuntime();
+  const verbose = core.logging.shouldLogVerbose();
+  if (verbose) {
+    console.log('requestPath', requestPath)
+    console.log('webhookTargets', webhookTargets)
+  }
   return webhookTargets.has(normalized);
 }
 
