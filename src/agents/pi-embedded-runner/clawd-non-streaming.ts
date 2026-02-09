@@ -197,6 +197,17 @@ export function createNonStreamingOllamaFn(toolDefs: ToolDef[]): StreamFn {
           function: { name: t.name, description: t.description, parameters: t.parameters },
         }));
 
+        // Inject system prompt from context (OpenClaw passes it as context.systemPrompt, not in messages)
+        if (context.systemPrompt) {
+          const sysContent =
+            typeof context.systemPrompt === "string"
+              ? context.systemPrompt
+              : Array.isArray(context.systemPrompt)
+                ? (context.systemPrompt as any[]).map((b: any) => b.text ?? "").join("\n")
+                : String(context.systemPrompt);
+          messages.unshift({ role: "system", content: sysContent });
+        }
+
         const body: any = { model: model.id, messages, stream: false };
         if (tools.length > 0) {
           body.tools = tools;
@@ -207,13 +218,24 @@ export function createNonStreamingOllamaFn(toolDefs: ToolDef[]): StreamFn {
           console.error(
             `[CLAWD] non-streaming: model=${model.id} tools=${tools.length} msgs=${messages.length}`,
           );
-          // Dump system message content for debugging
-          const sysMsgs = messages.filter((m: any) => m.role === "system");
-          for (const sm of sysMsgs) {
-            const content =
-              typeof sm.content === "string" ? sm.content : JSON.stringify(sm.content);
+          // Dump context keys and system prompt for debugging
+          console.error(`[CLAWD] context keys: ${Object.keys(context).join(", ")}`);
+          if (context.system) {
+            const sys =
+              typeof context.system === "string" ? context.system : JSON.stringify(context.system);
+            console.error(`[CLAWD] context.system (${sys.length} chars): ${sys.slice(0, 500)}...`);
+          }
+          if (context.systemPrompt) {
             console.error(
-              `[CLAWD] system msg (${content.length} chars): ${content.slice(0, 500)}...`,
+              `[CLAWD] context.systemPrompt exists (${String(context.systemPrompt).length} chars)`,
+            );
+          }
+          // Also dump first few messages
+          for (let i = 0; i < Math.min(messages.length, 3); i++) {
+            const m = messages[i];
+            const c = typeof m.content === "string" ? m.content : JSON.stringify(m.content);
+            console.error(
+              `[CLAWD] msg[${i}] role=${m.role} (${c.length} chars): ${c.slice(0, 200)}...`,
             );
           }
         }
