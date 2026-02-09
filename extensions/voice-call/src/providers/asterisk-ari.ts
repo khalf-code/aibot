@@ -235,13 +235,20 @@ export class AsteriskAriProvider implements VoiceCallProvider {
 
   async playTts(input: PlayTtsInput): Promise<void> {
     const state = this.calls.get(input.providerCallId);
-    if (!state || !state.media) return;
+    if (!state) return;
 
     if (!this.ttsProvider) {
       console.warn("[ari] Telephony TTS provider not configured; skipping playback");
       return;
     }
     const mulaw = await this.ttsProvider.synthesizeForTelephony(input.text);
+
+    if (!state.media) {
+      state.pendingMulaw = mulaw;
+      state.pendingSpeakText = input.text ?? "";
+      console.warn("[ari] Media not ready; queued TTS until RTP starts flowing");
+      return;
+    }
 
     const rtpPeer = this.getRtpPeer(state);
     if (!rtpPeer) {
