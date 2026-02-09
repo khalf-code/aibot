@@ -492,7 +492,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         );
         typingCallbacks.onIdle?.();
       },
-      onIdle: typingCallbacks.onIdle,
+      onCleanup: typingCallbacks.onCleanup,
     });
 
   return {
