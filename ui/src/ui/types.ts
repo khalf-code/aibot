@@ -400,6 +400,10 @@ export type GatewaySessionRow = {
   model?: string;
   modelProvider?: string;
   contextTokens?: number;
+  persistent?: boolean;
+  userCreated?: boolean;
+  description?: string;
+  createdAt?: number;
 };
 
 export type SessionsListResult = {

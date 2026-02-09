@@ -247,16 +247,24 @@ function renderRow(
         ${canLink ? html`<a href=${chatUrl} class="session-link">${row.key}</a>` : row.key}
         ${showDisplayName ? html`<span class="muted session-key-display-name">${displayName}</span>` : nothing}
       </div>
-      <div>
+      <div style="display: flex; align-items: center; gap: 6px;">
         <input
           .value=${row.label ?? ""}
           ?disabled=${disabled}
           placeholder="(optional)"
+          style="flex: 1;"
           @change=${(e: Event) => {
             const value = (e.target as HTMLInputElement).value.trim();
             onPatch(row.key, { label: value || null });
           }}
         />
+        ${
+          row.persistent === true
+            ? html`
+                <span class="badge" title="Persistent session (won't reset on /new)">📌</span>
+              `
+            : nothing
+        }
       </div>
       <div>${row.kind}</div>
       <div>${updated}</div>
