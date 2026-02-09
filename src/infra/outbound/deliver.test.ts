@@ -39,6 +39,7 @@ describe("deliverOutboundPayloads", () => {
 
   afterEach(() => {
     setActivePluginRegistry(emptyRegistry);
+    mocks.getGlobalHookRunner.mockReturnValue(undefined);
   });
   it("chunks telegram markdown and passes through accountId", async () => {
     const sendTelegram = vi.fn().mockResolvedValue({ messageId: "m1", chatId: "c1" });
@@ -364,7 +365,6 @@ describe("deliverOutboundPayloads", () => {
         conversationId: "+1555",
       }),
     );
-    mocks.getGlobalHookRunner.mockReturnValue(null);
   });
 
   it("runMessageSent errors don't propagate to caller", async () => {
@@ -384,7 +384,6 @@ describe("deliverOutboundPayloads", () => {
 
     expect(results).toHaveLength(1);
     expect(mockRunMessageSent).toHaveBeenCalledTimes(1);
-    mocks.getGlobalHookRunner.mockReturnValue(null);
   });
 
   it("mirrors delivered output when mirror options are provided", async () => {
