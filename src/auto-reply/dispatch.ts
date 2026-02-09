@@ -21,14 +21,19 @@ export async function dispatchInboundMessage(params: {
   replyOptions?: Omit<GetReplyOptions, "onToolResult" | "onBlockReply">;
   replyResolver?: typeof import("./reply.js").getReplyFromConfig;
 }): Promise<DispatchInboundResult> {
+  console.log(
+    `[DIAG] dispatchInboundMessage: ENTRY - SessionKey=${params.ctx.SessionKey}, Provider=${params.ctx.Provider}`,
+  );
   const finalized = finalizeInboundContext(params.ctx);
-  return await dispatchReplyFromConfig({
+  const result = await dispatchReplyFromConfig({
     ctx: finalized,
     cfg: params.cfg,
     dispatcher: params.dispatcher,
     replyOptions: params.replyOptions,
     replyResolver: params.replyResolver,
   });
+  console.log(`[DIAG] dispatchInboundMessage: completed - queuedFinal=${result.queuedFinal}`);
+  return result;
 }
 
 export async function dispatchInboundMessageWithBufferedDispatcher(params: {

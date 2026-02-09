@@ -87,6 +87,9 @@ export async function dispatchReplyFromConfig(params: {
   replyResolver?: typeof getReplyFromConfig;
 }): Promise<DispatchFromConfigResult> {
   const { ctx, cfg, dispatcher } = params;
+  console.log(
+    `[DIAG] dispatchReplyFromConfig: ENTRY - SessionKey=${ctx.SessionKey}, Provider=${ctx.Provider}, Surface=${ctx.Surface}, OriginatingChannel=${ctx.OriginatingChannel}`,
+  );
   const diagnosticsEnabled = isDiagnosticsEnabled(cfg);
   const channel = String(ctx.Surface ?? ctx.Provider ?? "unknown").toLowerCase();
   const chatId = ctx.To ?? ctx.From;
@@ -141,6 +144,7 @@ export async function dispatchReplyFromConfig(params: {
   };
 
   if (shouldSkipDuplicateInbound(ctx)) {
+    console.log(`[DIAG] dispatchReplyFromConfig: SKIPPED - duplicate inbound`);
     recordProcessed("skipped", { reason: "duplicate" });
     return { queuedFinal: false, counts: dispatcher.getQueuedCounts() };
   }
@@ -250,7 +254,9 @@ export async function dispatchReplyFromConfig(params: {
 
   try {
     const fastAbort = await tryFastAbortFromMessage({ ctx, cfg });
+    console.log(`[DIAG] dispatchReplyFromConfig: fastAbort.handled=${fastAbort.handled}`);
     if (fastAbort.handled) {
+      console.log(`[DIAG] dispatchReplyFromConfig: handling fast abort, returning early`);
       const payload = {
         text: formatAbortReplyText(fastAbort.stoppedSubagents),
       } satisfies ReplyPayload;
@@ -294,6 +300,9 @@ export async function dispatchReplyFromConfig(params: {
 
     const shouldSendToolSummaries = ctx.ChatType !== "group" && ctx.CommandSource !== "native";
 
+    console.log(
+      `[DIAG] dispatchReplyFromConfig: calling getReplyFromConfig, shouldRouteToOriginating=${shouldRouteToOriginating}`,
+    );
     const replyResult = await (params.replyResolver ?? getReplyFromConfig)(
       ctx,
       {
@@ -319,6 +328,9 @@ export async function dispatchReplyFromConfig(params: {
             }
           : undefined,
         onBlockReply: (payload: ReplyPayload, context) => {
+          console.log(
+            `[DIAG] onBlockReply: called with text="${(payload.text ?? "").slice(0, 100)}...", shouldRouteToOriginating=${shouldRouteToOriginating}`,
+          );
           const run = async () => {
             // Accumulate block text for TTS generation after streaming
             if (payload.text) {
@@ -337,9 +349,12 @@ export async function dispatchReplyFromConfig(params: {
               ttsAuto: sessionTtsAuto,
             });
             if (shouldRouteToOriginating) {
+              console.log(`[DIAG] onBlockReply: routing to originating channel`);
               await sendPayloadAsync(ttsPayload, context?.abortSignal, false);
             } else {
-              dispatcher.sendBlockReply(ttsPayload);
+              console.log(`[DIAG] onBlockReply: calling dispatcher.sendBlockReply`);
+              const queued = dispatcher.sendBlockReply(ttsPayload);
+              console.log(`[DIAG] onBlockReply: dispatcher.sendBlockReply returned ${queued}`);
             }
           };
           return run();
@@ -348,11 +363,28 @@ export async function dispatchReplyFromConfig(params: {
       cfg,
     );
 
+    console.log(
+      `[DIAG] dispatchReplyFromConfig: getReplyFromConfig returned, replyResult=${replyResult ? "truthy" : "falsy"}, blockCount=${blockCount}`,
+    );
     const replies = replyResult ? (Array.isArray(replyResult) ? replyResult : [replyResult]) : [];
+    console.log(`[DIAG] dispatchReplyFromConfig: processing ${replies.length} final replies`);
+    logVerbose(
+      `dispatch-from-config: processing ${replies.length} final replies, ` +
+        `shouldRouteToOriginating=${shouldRouteToOriginating}, ` +
+        `originatingChannel=${originatingChannel ?? "none"}, ` +
+        `currentSurface=${currentSurface ?? "none"}`,
+    );
 
     let queuedFinal = false;
     let routedFinalCount = 0;
-    for (const reply of replies) {
+    for (let i = 0; i < replies.length; i++) {
+      const reply = replies[i];
+      console.log(
+        `[DIAG] dispatchReplyFromConfig: processing final reply ${i + 1}/${replies.length}, text="${(reply.text ?? "").slice(0, 100)}..."`,
+      );
+      logVerbose(
+        `dispatch-from-config: processing reply, text=${(reply.text ?? "").slice(0, 100)}...`,
+      );
       const ttsReply = await maybeApplyTtsToPayload({
         payload: reply,
         cfg,
@@ -363,6 +395,9 @@ export async function dispatchReplyFromConfig(params: {
       });
       if (shouldRouteToOriginating && originatingChannel && originatingTo) {
         // Route final reply to originating channel.
+        logVerbose(
+          `dispatch-from-config: routing reply to originating channel=${originatingChannel}, to=${originatingTo}`,
+        );
         const result = await routeReply({
           payload: ttsReply,
           channel: originatingChannel,
@@ -382,7 +417,18 @@ export async function dispatchReplyFromConfig(params: {
           routedFinalCount += 1;
         }
       } else {
-        queuedFinal = dispatcher.sendFinalReply(ttsReply) || queuedFinal;
+        console.log(
+          `[DIAG] dispatchReplyFromConfig: calling dispatcher.sendFinalReply, text="${(ttsReply.text ?? "").slice(0, 100)}..."`,
+        );
+        logVerbose(
+          `dispatch-from-config: sending final reply via dispatcher, text=${(ttsReply.text ?? "").slice(0, 100)}...`,
+        );
+        const didQueue = dispatcher.sendFinalReply(ttsReply);
+        console.log(
+          `[DIAG] dispatchReplyFromConfig: dispatcher.sendFinalReply returned ${didQueue}`,
+        );
+        logVerbose(`dispatch-from-config: dispatcher.sendFinalReply returned ${didQueue}`);
+        queuedFinal = didQueue || queuedFinal;
       }
     }
 
@@ -443,14 +489,19 @@ export async function dispatchReplyFromConfig(params: {
       }
     }
 
+    console.log(`[DIAG] dispatchReplyFromConfig: waiting for dispatcher idle...`);
     await dispatcher.waitForIdle();
 
     const counts = dispatcher.getQueuedCounts();
     counts.final += routedFinalCount;
+    console.log(
+      `[DIAG] dispatchReplyFromConfig: COMPLETED - queuedFinal=${queuedFinal}, counts=${JSON.stringify(counts)}, blockCount=${blockCount}`,
+    );
     recordProcessed("completed");
     markIdle("message_completed");
     return { queuedFinal, counts };
   } catch (err) {
+    console.log(`[DIAG] dispatchReplyFromConfig: ERROR - ${String(err)}`);
     recordProcessed("error", { error: String(err) });
     markIdle("message_error");
     throw err;

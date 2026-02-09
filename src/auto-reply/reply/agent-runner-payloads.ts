@@ -86,10 +86,16 @@ export function buildReplyPayloads(params: {
 
   // Drop final payloads only when block streaming succeeded end-to-end.
   // If streaming aborted (e.g., timeout), fall back to final payloads.
+  // External channels (Slack, Telegram, etc.) need the final payload returned
+  // for their dispatcher to deliver, since streaming only goes to webchat.
+  const needsDispatcherDelivery =
+    params.replyToChannel &&
+    !["webchat", "web", "api", "cli"].includes(params.replyToChannel.toLowerCase());
   const shouldDropFinalPayloads =
     params.blockStreamingEnabled &&
     Boolean(params.blockReplyPipeline?.didStream()) &&
-    !params.blockReplyPipeline?.isAborted();
+    !params.blockReplyPipeline?.isAborted() &&
+    !needsDispatcherDelivery;
   const messagingToolSentTexts = params.messagingToolSentTexts ?? [];
   const messagingToolSentTargets = params.messagingToolSentTargets ?? [];
   const suppressMessagingToolReplies = shouldSuppressMessagingToolReplies({

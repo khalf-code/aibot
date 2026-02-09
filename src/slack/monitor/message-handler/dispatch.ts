@@ -14,6 +14,9 @@ import { resolveSlackThreadTargets } from "../../threading.js";
 import { createSlackReplyDeliveryPlan, deliverReplies } from "../replies.js";
 
 export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessage) {
+  console.log(
+    `[DIAG] dispatchPreparedSlackMessage: ENTRY - channel=${prepared.message.channel}, user=${prepared.message.user}, replyTarget=${prepared.replyTarget}`,
+  );
   const { ctx, account, message, route } = prepared;
   const cfg = ctx.cfg;
   const runtime = ctx.runtime;
@@ -102,11 +105,21 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
     accountId: route.accountId,
   });
 
+  console.log(`[DIAG] dispatchPreparedSlackMessage: creating dispatcher...`);
   const { dispatcher, replyOptions, markDispatchIdle } = createReplyDispatcherWithTyping({
     ...prefixOptions,
     humanDelay: resolveHumanDelayConfig(cfg, route.agentId),
     deliver: async (payload) => {
+      console.log(
+        `[DIAG] slack dispatcher.deliver: CALLED - target=${prepared.replyTarget}, text="${(payload.text ?? "").slice(0, 100)}..."`,
+      );
+      logVerbose(
+        `slack dispatcher: deliver callback invoked for target=${prepared.replyTarget}, text=${(payload.text ?? "").slice(0, 100)}...`,
+      );
       const replyThreadTs = replyPlan.nextThreadTs();
+      console.log(
+        `[DIAG] slack dispatcher.deliver: calling deliverReplies, threadTs=${replyThreadTs}`,
+      );
       await deliverReplies({
         replies: [payload],
         target: prepared.replyTarget,
@@ -116,16 +129,26 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
         textLimit: ctx.textLimit,
         replyThreadTs,
       });
+      console.log(`[DIAG] slack dispatcher.deliver: deliverReplies completed`);
+      logVerbose(`slack dispatcher: deliverReplies completed for target=${prepared.replyTarget}`);
       replyPlan.markSent();
     },
     onError: (err, info) => {
+      console.log(`[DIAG] slack dispatcher.onError: kind=${info.kind}, error=${String(err)}`);
       runtime.error?.(danger(`slack ${info.kind} reply failed: ${String(err)}`));
       typingCallbacks.onIdle?.();
     },
     onReplyStart: typingCallbacks.onReplyStart,
     onIdle: typingCallbacks.onIdle,
   });
+  console.log(`[DIAG] dispatchPreparedSlackMessage: dispatcher created`);
 
+  const blockStreamingDisabled =
+    typeof account.config.blockStreaming === "boolean" ? !account.config.blockStreaming : undefined;
+  console.log(
+    `[DIAG] dispatchPreparedSlackMessage: calling dispatchInboundMessage, disableBlockStreaming=${blockStreamingDisabled}`,
+  );
+  logVerbose(`dispatchPreparedSlackMessage: calling dispatchInboundMessage...`);
   const { queuedFinal, counts } = await dispatchInboundMessage({
     ctx: prepared.ctxPayload,
     cfg,
@@ -134,13 +157,16 @@ export async function dispatchPreparedSlackMessage(prepared: PreparedSlackMessag
       ...replyOptions,
       skillFilter: prepared.channelConfig?.skills,
       hasRepliedRef,
-      disableBlockStreaming:
-        typeof account.config.blockStreaming === "boolean"
-          ? !account.config.blockStreaming
-          : undefined,
+      disableBlockStreaming: blockStreamingDisabled,
       onModelSelected,
     },
   });
+  console.log(
+    `[DIAG] dispatchPreparedSlackMessage: dispatchInboundMessage completed - queuedFinal=${queuedFinal}, counts=${JSON.stringify(counts)}`,
+  );
+  logVerbose(
+    `dispatchPreparedSlackMessage: dispatchInboundMessage completed - queuedFinal=${queuedFinal}, counts=${JSON.stringify(counts)}`,
+  );
   markDispatchIdle();
 
   const anyReplyDelivered = queuedFinal || (counts.block ?? 0) > 0 || (counts.final ?? 0) > 0;

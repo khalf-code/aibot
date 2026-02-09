@@ -129,8 +129,14 @@ export async function sendMessageSlack(
   message: string,
   opts: SlackSendOpts = {},
 ): Promise<SlackSendResult> {
+  console.log(
+    `[DIAG] sendMessageSlack: ENTRY - to=${to}, message="${message.slice(0, 100)}...", threadTs=${opts.threadTs}`,
+  );
+  logVerbose(`sendMessageSlack: called with to=${to}, message=${message.slice(0, 100)}...`);
   const trimmedMessage = message?.trim() ?? "";
   if (!trimmedMessage && !opts.mediaUrl) {
+    console.log(`[DIAG] sendMessageSlack: rejecting - no text or media`);
+    logVerbose(`sendMessageSlack: rejecting - no text or media`);
     throw new Error("Slack send requires text or media");
   }
   const cfg = loadConfig();
@@ -146,7 +152,10 @@ export async function sendMessageSlack(
   });
   const client = opts.client ?? createSlackWebClient(token);
   const recipient = parseRecipient(to);
+  logVerbose(`sendMessageSlack: resolving channel for recipient kind=${recipient.kind}`);
   const { channelId } = await resolveChannelId(client, recipient);
+  console.log(`[DIAG] sendMessageSlack: resolved channelId=${channelId}`);
+  logVerbose(`sendMessageSlack: resolved channelId=${channelId}`);
   const textLimit = resolveTextChunkLimit(cfg, "slack", account.accountId);
   const chunkLimit = Math.min(textLimit, SLACK_TEXT_LIMIT);
   const tableMode = resolveMarkdownTableMode({
@@ -190,16 +199,27 @@ export async function sendMessageSlack(
       lastMessageId = response.ts ?? lastMessageId;
     }
   } else {
+    console.log(`[DIAG] sendMessageSlack: posting ${chunks.length || 1} chunk(s) to ${channelId}`);
     for (const chunk of chunks.length ? chunks : [""]) {
+      console.log(
+        `[DIAG] sendMessageSlack: calling chat.postMessage, chunk="${chunk.slice(0, 50)}..."`,
+      );
       const response = await client.chat.postMessage({
         channel: channelId,
         text: chunk,
         thread_ts: opts.threadTs,
       });
       lastMessageId = response.ts ?? lastMessageId;
+      console.log(`[DIAG] sendMessageSlack: chat.postMessage success, ts=${response.ts}`);
     }
   }
 
+  console.log(
+    `[DIAG] sendMessageSlack: COMPLETED - messageId=${lastMessageId || "unknown"}, channelId=${channelId}`,
+  );
+  logVerbose(
+    `sendMessageSlack: completed, messageId=${lastMessageId || "unknown"}, channelId=${channelId}`,
+  );
   return {
     messageId: lastMessageId || "unknown",
     channelId,
