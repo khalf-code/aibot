@@ -308,7 +308,8 @@ export type PluginHookName =
   | "session_start"
   | "session_end"
   | "gateway_start"
-  | "gateway_stop";
+  | "gateway_stop"
+  | "before_model_select";
 
 // Agent context shared across agent hooks
 export type PluginHookAgentContext = {
@@ -470,6 +471,20 @@ export type PluginHookGatewayStopEvent = {
   reason?: string;
 };
 
+// before_model_select hook
+export type PluginHookBeforeModelSelectEvent = {
+  provider: string;
+  model: string;
+  sessionKey?: string;
+  allowedModelKeys: Set<string>;
+  prompt?: string;
+};
+
+export type PluginHookBeforeModelSelectResult = {
+  provider?: string;
+  model?: string;
+};
+
 // Hook handler types mapped by hook name
 export type PluginHookHandlerMap = {
   before_agent_start: (
@@ -525,6 +540,10 @@ export type PluginHookHandlerMap = {
     event: PluginHookGatewayStopEvent,
     ctx: PluginHookGatewayContext,
   ) => Promise<void> | void;
+  before_model_select: (
+    event: PluginHookBeforeModelSelectEvent,
+    ctx: PluginHookAgentContext,
+  ) => Promise<PluginHookBeforeModelSelectResult | void> | PluginHookBeforeModelSelectResult | void;
 };
 
 export type PluginHookRegistration<K extends PluginHookName = PluginHookName> = {
