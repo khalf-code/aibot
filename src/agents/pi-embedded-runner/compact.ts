@@ -13,6 +13,7 @@ import type { EmbeddedPiCompactResult } from "./types.js";
 import { resolveHeartbeatPrompt } from "../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../config/channel-capabilities.js";
 import { getMachineDisplayName } from "../../infra/machine-name.js";
+import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { type enqueueCommand, enqueueCommandInLane } from "../../process/command-queue.js";
 import { isSubagentSessionKey } from "../../routing/session-key.js";
 import { resolveSignalReactionLevel } from "../../signal/reaction-level.js";
@@ -436,7 +437,55 @@ export async function compactEmbeddedPiSessionDirect(
         if (limited.length > 0) {
           session.agent.replaceMessages(limited);
         }
+        // Run before_compaction hook — lets plugins flush memory, save state, etc.
+        const hookRunner = getGlobalHookRunner();
+        if (hookRunner?.hasHooks("before_compaction")) {
+          let tokensBefore: number | undefined;
+          try {
+            tokensBefore = 0;
+            for (const message of session.messages) {
+              tokensBefore += estimateTokens(message);
+            }
+          } catch {
+            tokensBefore = undefined;
+          }
+          try {
+            await hookRunner.runBeforeCompaction(
+              {
+                messageCount: session.messages.length,
+                tokenCount: tokensBefore,
+              },
+              {
+                sessionKey: params.sessionKey,
+                workspaceDir: resolvedWorkspace,
+              },
+            );
+          } catch (hookErr) {
+            log.warn(`before_compaction hook error (non-fatal): ${hookErr}`);
+          }
+        }
+
         const result = await session.compact(params.customInstructions);
+
+        // Run after_compaction hook
+        if (hookRunner?.hasHooks("after_compaction")) {
+          try {
+            await hookRunner.runAfterCompaction(
+              {
+                messageCount: session.messages.length,
+                tokenCount: undefined,
+                compactedCount: result.tokensBefore ?? 0,
+              },
+              {
+                sessionKey: params.sessionKey,
+                workspaceDir: resolvedWorkspace,
+              },
+            );
+          } catch (hookErr) {
+            log.warn(`after_compaction hook error (non-fatal): ${hookErr}`);
+          }
+        }
+
         // Estimate tokens after compaction by summing token estimates for remaining messages
         let tokensAfter: number | undefined;
         try {
