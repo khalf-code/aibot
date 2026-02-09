@@ -424,6 +424,83 @@ const RemindersTab: React.FC<{ isDark: boolean }> = ({ isDark }) => {
   );
 };
 
+// WhatsApp Setup Component
+const WhatsAppSetup: React.FC<{ isDark: boolean; onClose: () => void }> = ({ isDark, onClose }) => {
+  const [copied, setCopied] = useState(false);
+  
+  const copyCommand = () => {
+    navigator.clipboard.writeText("easyhub channels login");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className={`mt-4 p-4 rounded-xl border ${
+        isDark ? "bg-black/40 border-white/10" : "bg-gray-50 border-gray-200"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h4 className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+          Connect WhatsApp
+        </h4>
+        <button
+          onClick={onClose}
+          className={`p-1 rounded-lg ${isDark ? "hover:bg-white/10 text-gray-400" : "hover:bg-gray-200 text-gray-500"}`}
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className={`text-sm space-y-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+        <p>To connect WhatsApp, run this command in your terminal:</p>
+        
+        <div 
+          onClick={copyCommand}
+          className={`flex items-center justify-between p-3 rounded-lg font-mono text-sm cursor-pointer transition-colors ${
+            isDark 
+              ? "bg-black/60 border border-white/10 hover:border-[#2dd4bf]/50" 
+              : "bg-gray-100 border border-gray-200 hover:border-[#2dd4bf]"
+          }`}
+        >
+          <code className={isDark ? "text-[#2dd4bf]" : "text-[#0d9488]"}>
+            easyhub channels login
+          </code>
+          <span className={`text-xs ${copied ? "text-green-500" : isDark ? "text-gray-500" : "text-gray-400"}`}>
+            {copied ? "Copied!" : "Click to copy"}
+          </span>
+        </div>
+
+        <div className={`space-y-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+          <p className="font-medium">Then:</p>
+          <ol className="list-decimal list-inside space-y-1.5 ml-1">
+            <li>A QR code will appear in your terminal</li>
+            <li>Open WhatsApp on your phone</li>
+            <li>Go to <strong>Settings → Linked Devices → Link a Device</strong></li>
+            <li>Scan the QR code</li>
+          </ol>
+        </div>
+
+        <div className={`p-3 rounded-lg ${isDark ? "bg-[#2dd4bf]/10" : "bg-[#2dd4bf]/10"}`}>
+          <p className={`text-xs ${isDark ? "text-[#2dd4bf]" : "text-[#0d9488]"}`}>
+            💡 <strong>Tip:</strong> Use a separate phone number for EasyHub. Your personal WhatsApp 
+            can link multiple devices, but a dedicated number gives you cleaner routing.
+          </p>
+        </div>
+
+        <div className={`pt-2 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
+          <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}>
+            <strong>Multi-account:</strong> Use <code className={`px-1 py-0.5 rounded ${isDark ? "bg-white/10" : "bg-gray-200"}`}>easyhub channels login --account work</code> for additional accounts.
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 export const Integrations: React.FC<IntegrationsProps> = ({ isOpen, onClose, theme }) => {
   const isDark = theme === "dark";
   const [activeTab, setActiveTab] = useState<TabType>("channels");
@@ -433,6 +510,7 @@ export const Integrations: React.FC<IntegrationsProps> = ({ isOpen, onClose, the
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [showWhatsAppQR, setShowWhatsAppQR] = useState(false);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -658,21 +736,36 @@ export const Integrations: React.FC<IntegrationsProps> = ({ isOpen, onClose, the
                                 {/* QR Code pairing button for WhatsApp */}
                                 {channel.showQRButton && (
                                   <div className="mt-3">
-                                    <button
-                                      className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
-                                        isDark
-                                          ? "bg-[#2dd4bf]/20 text-[#2dd4bf] hover:bg-[#2dd4bf]/30"
-                                          : "bg-[#2dd4bf]/10 text-[#0d9488] hover:bg-[#2dd4bf]/20"
-                                      } transition-colors`}
-                                    >
-                                      <MessageSquare size={16} />
-                                      Scan QR Code to Connect
-                                    </button>
-                                    <p className={`text-xs mt-2 text-center ${
-                                      isDark ? "text-gray-500" : "text-gray-400"
-                                    }`}>
-                                      You'll need to scan a QR code with your WhatsApp mobile app
-                                    </p>
+                                    {!showWhatsAppQR ? (
+                                      <>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowWhatsAppQR(true);
+                                          }}
+                                          className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
+                                            isDark
+                                              ? "bg-[#2dd4bf]/20 text-[#2dd4bf] hover:bg-[#2dd4bf]/30"
+                                              : "bg-[#2dd4bf]/10 text-[#0d9488] hover:bg-[#2dd4bf]/20"
+                                          } transition-colors`}
+                                        >
+                                          <MessageSquare size={16} />
+                                          Scan QR Code to Connect
+                                        </button>
+                                        <p className={`text-xs mt-2 text-center ${
+                                          isDark ? "text-gray-500" : "text-gray-400"
+                                        }`}>
+                                          You'll need to scan a QR code with your WhatsApp mobile app
+                                        </p>
+                                      </>
+                                    ) : (
+                                      <AnimatePresence>
+                                        <WhatsAppSetup 
+                                          isDark={isDark} 
+                                          onClose={() => setShowWhatsAppQR(false)} 
+                                        />
+                                      </AnimatePresence>
+                                    )}
                                   </div>
                                 )}
                               </div>
