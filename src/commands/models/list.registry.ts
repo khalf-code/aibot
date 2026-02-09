@@ -52,14 +52,24 @@ export async function loadModelRegistry(cfg: OpenClawConfig) {
   const agentDir = resolveOpenClawAgentDir();
   const authStorage = discoverAuthStorage(agentDir);
   const registry = discoverModels(authStorage, agentDir);
-  const availableModels = registry.getAvailable();
-  const availableKeys = new Set(availableModels.map((model) => modelKey(model.provider, model.id)));
   const { models, synthesizedForwardCompatKey } = appendAntigravityForwardCompatModel(
     registry.getAll(),
     registry,
   );
-  if (synthesizedForwardCompatKey && hasAvailableAntigravityOpus45ThinkingTemplate(availableKeys)) {
-    availableKeys.add(synthesizedForwardCompatKey);
+  let availableKeys: Set<string> | undefined;
+  try {
+    const availableModels = registry.getAvailable();
+    availableKeys = new Set(availableModels.map((model) => modelKey(model.provider, model.id)));
+    if (
+      synthesizedForwardCompatKey &&
+      hasAvailableAntigravityOpus45ThinkingTemplate(availableKeys)
+    ) {
+      availableKeys.add(synthesizedForwardCompatKey);
+    }
+  } catch {
+    // Some providers rely on OpenClaw auth profiles and can report unreliable registry availability.
+    // Callers can fall back to auth heuristics when availability is undefined.
+    availableKeys = undefined;
   }
   return { registry, models, availableKeys };
 }

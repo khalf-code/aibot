@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadConfig = vi.fn();
 const ensureOpenClawModelsJson = vi.fn().mockResolvedValue(undefined);
@@ -16,6 +16,7 @@ const getCustomProviderApiKey = vi.fn().mockReturnValue(undefined);
 const modelRegistryState = {
   models: [] as Array<Record<string, unknown>>,
   available: [] as Array<Record<string, unknown>>,
+  throwOnGetAvailable: false,
 };
 
 vi.mock("../config/config.js", () => ({
@@ -67,6 +68,9 @@ vi.mock("@mariozechner/pi-coding-agent", async () => {
     }
 
     override getAvailable(): ReturnType<typeof actual.ModelRegistry.prototype.getAvailable> {
+      if (modelRegistryState.throwOnGetAvailable) {
+        throw new Error("getAvailable failed");
+      }
       return modelRegistryState.available as ReturnType<
         typeof actual.ModelRegistry.prototype.getAvailable
       >;
@@ -85,6 +89,11 @@ function makeRuntime() {
     error: vi.fn(),
   };
 }
+
+beforeEach(() => {
+  modelRegistryState.throwOnGetAvailable = false;
+  listProfilesForProvider.mockReturnValue([]);
+});
 
 describe("models list/status", () => {
   it("models status resolves z.ai alias to canonical zai", async () => {
@@ -391,7 +400,7 @@ describe("models list/status", () => {
         },
       },
     });
-    listProfilesForProvider.mockImplementation((provider: string) =>
+    listProfilesForProvider.mockImplementation((_: unknown, provider: string) =>
       provider === "google-antigravity"
         ? ([{ id: "profile-1" }] as Array<Record<string, unknown>>)
         : [],
@@ -422,5 +431,50 @@ describe("models list/status", () => {
     expect(payload.models[0]?.missing).toBe(false);
     expect(payload.models[0]?.available).toBe(false);
     listProfilesForProvider.mockReturnValue([]);
+  });
+
+  it("models list falls back to auth heuristics when registry availability is unavailable", async () => {
+    loadConfig.mockReturnValue({
+      agents: {
+        defaults: {
+          model: "google-antigravity/claude-opus-4-6-thinking",
+          models: {
+            "google-antigravity/claude-opus-4-6-thinking": {},
+          },
+        },
+      },
+    });
+    listProfilesForProvider.mockImplementation((_: unknown, provider: string) =>
+      provider === "google-antigravity"
+        ? ([{ id: "profile-1" }] as Array<Record<string, unknown>>)
+        : [],
+    );
+    modelRegistryState.throwOnGetAvailable = true;
+    const runtime = makeRuntime();
+
+    modelRegistryState.models = [
+      {
+        provider: "google-antigravity",
+        id: "claude-opus-4-5-thinking",
+        name: "Claude Opus 4.5 Thinking",
+        api: "google-gemini-cli",
+        input: ["text", "image"],
+        baseUrl: "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        contextWindow: 200000,
+        maxTokens: 64000,
+        reasoning: true,
+        cost: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+      },
+    ];
+    modelRegistryState.available = [];
+
+    const { modelsListCommand } = await import("./models/list.js");
+    await modelsListCommand({ json: true }, runtime);
+
+    expect(runtime.log).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(runtime.log.mock.calls[0]?.[0]));
+    expect(payload.models[0]?.key).toBe("google-antigravity/claude-opus-4-6-thinking");
+    expect(payload.models[0]?.missing).toBe(false);
+    expect(payload.models[0]?.available).toBe(true);
   });
 });
