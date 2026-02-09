@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, MessageSquare, Wrench, Bell, Check, ExternalLink, Eye, EyeOff, ChevronRight, Globe, Bot, Smartphone, Calendar, Search, Monitor, MapPin, Camera } from "lucide-react";
+import { X, MessageSquare, Wrench, Bell, Check, Eye, EyeOff, ChevronRight, Globe, Smartphone, Calendar, Search, Monitor, MapPin, Camera } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface IntegrationsProps {
@@ -15,64 +15,52 @@ const CHANNELS = [
   { 
     id: "telegram", 
     name: "Telegram", 
-    icon: "🤖",
     description: "Connect via Bot API",
     configFields: [
       { key: "botToken", label: "Bot Token", type: "password", placeholder: "123456:ABC-DEF..." }
     ],
-    docsUrl: "https://docs.openclaw.ai/channels/telegram"
   },
   { 
     id: "whatsapp", 
     name: "WhatsApp", 
-    icon: "💬",
     description: "QR code pairing required",
     configFields: [],
     requiresPairing: true,
-    docsUrl: "https://docs.openclaw.ai/channels/whatsapp"
   },
   { 
     id: "discord", 
     name: "Discord", 
-    icon: "🎮",
     description: "Discord Bot API",
     configFields: [
       { key: "botToken", label: "Bot Token", type: "password", placeholder: "Your Discord bot token" },
       { key: "applicationId", label: "Application ID", type: "text", placeholder: "Application ID" }
     ],
-    docsUrl: "https://docs.openclaw.ai/channels/discord"
   },
   { 
     id: "slack", 
     name: "Slack", 
-    icon: "📱",
     description: "Slack workspace app",
     configFields: [
       { key: "botToken", label: "Bot Token", type: "password", placeholder: "xoxb-..." },
       { key: "appToken", label: "App Token", type: "password", placeholder: "xapp-..." }
     ],
-    docsUrl: "https://docs.openclaw.ai/channels/slack"
   },
   { 
     id: "signal", 
     name: "Signal", 
-    icon: "🔒",
     description: "Privacy-focused messaging",
     configFields: [
       { key: "phoneNumber", label: "Phone Number", type: "text", placeholder: "+1234567890" }
     ],
-    docsUrl: "https://docs.openclaw.ai/channels/signal"
   },
   { 
     id: "imessage", 
     name: "iMessage", 
-    icon: "🍎",
     description: "macOS only via BlueBubbles",
     configFields: [
       { key: "serverUrl", label: "Server URL", type: "text", placeholder: "http://localhost:1234" },
       { key: "password", label: "Password", type: "password", placeholder: "BlueBubbles password" }
     ],
-    docsUrl: "https://docs.openclaw.ai/channels/bluebubbles"
   },
 ];
 
@@ -273,7 +261,15 @@ export const Integrations: React.FC<IntegrationsProps> = ({ isOpen, onClose, the
                       onClick={() => setExpandedChannel(isExpanded ? null : channel.id)}
                     >
                       <div className="flex items-center gap-4">
-                        <span className="text-2xl">{channel.icon}</span>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          isEnabled
+                            ? "bg-[#2dd4bf]/20 text-[#2dd4bf]"
+                            : isDark
+                              ? "bg-white/5 text-gray-500"
+                              : "bg-gray-100 text-gray-400"
+                        }`}>
+                          <MessageSquare size={20} />
+                        </div>
                         <div>
                           <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
                             {channel.name}
@@ -370,17 +366,6 @@ export const Integrations: React.FC<IntegrationsProps> = ({ isOpen, onClose, the
                               </div>
                             ) : null}
                             
-                            <a
-                              href={channel.docsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`inline-flex items-center gap-1 mt-3 text-xs ${
-                                isDark ? "text-[#2dd4bf]" : "text-[#0d9488]"
-                              } hover:underline`}
-                            >
-                              View documentation
-                              <ExternalLink size={12} />
-                            </a>
                           </div>
                         </motion.div>
                       )}
