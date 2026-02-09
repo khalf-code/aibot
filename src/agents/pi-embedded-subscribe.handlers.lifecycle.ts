@@ -6,11 +6,8 @@ import { createInlineCodeState } from "../markdown/code-spans.js";
 
 export function handleAgentStart(ctx: EmbeddedPiSubscribeContext) {
   ctx.log.debug(`embedded run agent start: runId=${ctx.params.runId}`);
-  emitDiagnosticEvent({
-    type: "run.started",
-    runId: ctx.params.runId,
-    sessionId: (ctx.params.session as { id?: string }).id,
-  });
+  // Note: run.started is emitted from cron jobs, not here, to avoid conflicting
+  // with message.queued which creates the root span for regular dispatch messages
   emitAgentEvent({
     runId: ctx.params.runId,
     stream: "lifecycle",

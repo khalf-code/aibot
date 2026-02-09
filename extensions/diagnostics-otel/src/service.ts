@@ -1,7 +1,15 @@
 import type { SeverityNumber } from "@opentelemetry/api-logs";
 import type { ExportResult } from "@opentelemetry/core";
 import type { DiagnosticEventPayload, OpenClawPluginService } from "openclaw/plugin-sdk";
-import { context, metrics, trace, SpanKind, SpanStatusCode, type Span } from "@opentelemetry/api";
+import {
+  context,
+  metrics,
+  trace,
+  SpanKind,
+  SpanStatusCode,
+  type Context,
+  type Span,
+} from "@opentelemetry/api";
 import { ExportResultCode, hrTimeToMilliseconds } from "@opentelemetry/core";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
@@ -19,6 +27,15 @@ import {
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import fs from "node:fs";
 import { onDiagnosticEvent, registerLogTransport } from "openclaw/plugin-sdk";
+
+interface ActiveTrace {
+  span: Span;
+  context: Context;
+  startedAt: number;
+  sessionKey?: string;
+  channel?: string;
+  agentId?: string;
+}
 
 const DEFAULT_SERVICE_NAME = "openclaw";
 const OTEL_DEBUG_ENV = "OPENCLAW_OTEL_DEBUG";
@@ -277,6 +294,37 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
 
       const meter = metrics.getMeter("openclaw");
       const tracer = trace.getTracer("openclaw");
+
+      // MLflow-specific attribute constants for UI compatibility
+      const MLFLOW_ATTRS = {
+        PROMPT: "gen_ai.prompt",
+        COMPLETION: "gen_ai.completion",
+        MLFLOW_SPAN_INPUTS: "mlflow.spanInputs",
+        MLFLOW_SPAN_OUTPUTS: "mlflow.spanOutputs",
+        MLFLOW_TRACE_SESSION: "mlflow.trace.session",
+        MLFLOW_TRACE_USER: "mlflow.trace.user",
+        SESSION_ID: "session.id", // OTEL semconv for session identification
+        USER_ID: "enduser.id", // OTEL semconv for user identification
+      };
+
+      // Global trace context registry for W3C Trace Context propagation
+      // Stores pre-formatted headers to avoid requiring @opentelemetry/api in main package
+      const TRACE_CONTEXT_REGISTRY_KEY = Symbol.for("openclaw.diagnostics-otel.trace-headers");
+
+      type TraceHeaders = {
+        traceparent: string;
+        tracestate?: string;
+      };
+
+      function getTraceHeadersRegistry(): Map<string, TraceHeaders> {
+        const globalStore = globalThis as {
+          [TRACE_CONTEXT_REGISTRY_KEY]?: Map<string, TraceHeaders>;
+        };
+        if (!globalStore[TRACE_CONTEXT_REGISTRY_KEY]) {
+          globalStore[TRACE_CONTEXT_REGISTRY_KEY] = new Map();
+        }
+        return globalStore[TRACE_CONTEXT_REGISTRY_KEY];
+      }
 
       const tokensCounter = meter.createCounter("openclaw.tokens", {
         unit: "1",
@@ -592,6 +640,10 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
         if (params.sessionKey) {
           spanAttrs["openclaw.sessionKey"] = params.sessionKey;
           spanAttrs["gen_ai.conversation.id"] = params.sessionKey;
+          spanAttrs[MLFLOW_ATTRS.SESSION_ID] = params.sessionKey;
+          spanAttrs[MLFLOW_ATTRS.MLFLOW_TRACE_SESSION] = params.sessionKey;
+          const agentId = params.sessionKey.split(":")[1] || "unknown";
+          spanAttrs[MLFLOW_ATTRS.USER_ID] = agentId;
         }
         if (params.sessionId) {
           spanAttrs["openclaw.sessionId"] = params.sessionId;
@@ -609,12 +661,29 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
           context.active(),
         );
         runSpans.set(runId, { span, createdAt: Date.now() });
+
+        // Store W3C trace headers for propagation to downstream LLM providers
+        if (params.sessionKey) {
+          const spanContext = span.spanContext();
+          if (spanContext.traceId && spanContext.spanId) {
+            const traceparent = `00-${spanContext.traceId}-${spanContext.spanId}-${spanContext.traceFlags
+              .toString(16)
+              .padStart(2, "0")}`;
+            const traceHeaders: TraceHeaders = {
+              traceparent,
+              ...(spanContext.traceState && { tracestate: spanContext.traceState.serialize() }),
+            };
+            getTraceHeadersRegistry().set(params.sessionKey, traceHeaders);
+          }
+        }
+
         if (debugExports) {
           ctx.logger.info(`diagnostics-otel: span created openclaw.agent.turn`);
         }
         return span;
       };
 
+      const activeTraces = new Map<string, ActiveTrace>();
       const runSpans = new Map<string, { span: Span; createdAt: number }>();
       const RUN_SPAN_TTL_MS = 10 * 60 * 1000;
       const inferenceSpans = new Map<string, { span: Span; createdAt: number }>();
@@ -793,8 +862,32 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
           finalRunSpan.setAttribute("openclaw.error", evt.error);
         }
 
+        // MLflow UI populates Request/Response columns from ROOT SPAN attributes
+        if (evt.prompt) {
+          finalRunSpan.setAttribute(MLFLOW_ATTRS.PROMPT, evt.prompt);
+          finalRunSpan.setAttribute(
+            MLFLOW_ATTRS.MLFLOW_SPAN_INPUTS,
+            JSON.stringify({ role: "user", content: evt.prompt }),
+          );
+        }
+        if (evt.completion) {
+          finalRunSpan.setAttribute(MLFLOW_ATTRS.COMPLETION, evt.completion);
+          finalRunSpan.setAttribute(
+            MLFLOW_ATTRS.MLFLOW_SPAN_OUTPUTS,
+            JSON.stringify({ role: "assistant", content: evt.completion }),
+          );
+        }
+        if (evt.sessionKey) {
+          finalRunSpan.setAttribute(MLFLOW_ATTRS.MLFLOW_TRACE_SESSION, evt.sessionKey);
+        }
+
         finalRunSpan.end();
         runSpans.delete(evt.runId);
+
+        // Clean up trace headers from registry
+        if (evt.sessionKey) {
+          getTraceHeadersRegistry().delete(evt.sessionKey);
+        }
       };
 
       const recordRunStarted = (evt: Extract<DiagnosticEventPayload, { type: "run.started" }>) => {
@@ -1099,6 +1192,63 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
         if (typeof evt.queueDepth === "number") {
           queueDepthHistogram.record(evt.queueDepth, attrs);
         }
+
+        // Create root span for nested trace hierarchy (message → llm → tools)
+        if (tracesEnabled && evt.sessionKey) {
+          try {
+            const agentId = evt.sessionKey?.split(":")[1] || "unknown";
+
+            const rootSpan = tracer.startSpan("message.process", {
+              kind: SpanKind.SERVER,
+              attributes: {
+                "openclaw.sessionKey": evt.sessionKey,
+                "openclaw.channel": evt.channel || "unknown",
+                "openclaw.source": evt.source,
+                "openclaw.queueDepth": evt.queueDepth || 0,
+                "openclaw.agentId": agentId,
+
+                // OTEL semantic conventions for session/user identification
+                [MLFLOW_ATTRS.SESSION_ID]: evt.sessionKey,
+                [MLFLOW_ATTRS.USER_ID]: agentId,
+
+                // CRITICAL: MLflow UI reads these for Session/User columns
+                [MLFLOW_ATTRS.MLFLOW_TRACE_SESSION]: evt.sessionKey,
+                [MLFLOW_ATTRS.MLFLOW_TRACE_USER]: agentId,
+              },
+            });
+
+            // Create context with root span as active for W3C trace propagation
+            const traceContext = trace.setSpan(context.active(), rootSpan);
+
+            activeTraces.set(evt.sessionKey, {
+              span: rootSpan,
+              context: traceContext,
+              startedAt: evt.ts || Date.now(),
+              sessionKey: evt.sessionKey,
+              agentId,
+              channel: evt.channel,
+            });
+
+            // Store trace context for W3C propagation
+            getTraceHeadersRegistry().set(evt.sessionKey, {
+              traceparent: `00-${rootSpan.spanContext().traceId}-${rootSpan.spanContext().spanId}-${rootSpan
+                .spanContext()
+                .traceFlags.toString(16)
+                .padStart(2, "0")}`,
+              ...(rootSpan.spanContext().traceState && {
+                tracestate: rootSpan.spanContext().traceState.serialize(),
+              }),
+            });
+
+            if (debugExports) {
+              ctx.logger.info(
+                `diagnostics-otel: created root span for sessionKey=${evt.sessionKey}`,
+              );
+            }
+          } catch (error) {
+            ctx.logger.warn(`Failed to create root trace: ${String(error)}`);
+          }
+        }
       };
 
       const recordMessageProcessed = (
@@ -1112,33 +1262,37 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
         if (typeof evt.durationMs === "number") {
           messageDurationHistogram.record(evt.durationMs, attrs);
         }
-        if (!tracesEnabled) {
-          return;
+
+        // End root trace span
+        if (tracesEnabled) {
+          const activeTrace = evt.sessionKey ? activeTraces.get(evt.sessionKey) : null;
+          if (activeTrace) {
+            try {
+              if (evt.outcome === "error" && evt.error) {
+                activeTrace.span.setStatus({
+                  code: SpanStatusCode.ERROR,
+                  message: evt.error,
+                });
+              } else {
+                activeTrace.span.setStatus({ code: SpanStatusCode.OK });
+              }
+
+              activeTrace.span.end();
+              activeTraces.delete(evt.sessionKey!);
+              getTraceHeadersRegistry().delete(evt.sessionKey!);
+
+              if (debugExports) {
+                ctx.logger.info(`diagnostics-otel: ended root span for session=${evt.sessionKey}`);
+              }
+            } catch (error) {
+              ctx.logger.warn(`Failed to end root trace: ${String(error)}`);
+            }
+          } else if (debugExports) {
+            ctx.logger.info(
+              `diagnostics-otel: message.processed but no active trace for sessionKey=${evt.sessionKey}`,
+            );
+          }
         }
-        const spanAttrs: Record<string, string | number> = { ...attrs };
-        if (evt.sessionKey) {
-          spanAttrs["openclaw.sessionKey"] = evt.sessionKey;
-        }
-        if (evt.sessionId) {
-          spanAttrs["openclaw.sessionId"] = evt.sessionId;
-        }
-        if (evt.chatId !== undefined) {
-          spanAttrs["openclaw.chatId"] = String(evt.chatId);
-        }
-        if (evt.messageId !== undefined) {
-          spanAttrs["openclaw.messageId"] = String(evt.messageId);
-        }
-        if (evt.reason) {
-          spanAttrs["openclaw.reason"] = evt.reason;
-        }
-        const span = spanWithDuration("openclaw.message.processed", spanAttrs, evt.durationMs);
-        if (evt.outcome === "error") {
-          span.setStatus({ code: SpanStatusCode.ERROR, message: evt.error });
-        }
-        if (debugExports) {
-          ctx.logger.info(`diagnostics-otel: span created openclaw.message.processed`);
-        }
-        span.end();
       };
 
       const recordLaneEnqueue = (
@@ -1208,12 +1362,28 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
         if (!tracesEnabled) {
           return;
         }
+
+        // Nest tool span under root message.process span (via activeTraces)
+        // or fallback to run/inference spans if activeTrace not found
+        const activeTrace = evt.sessionKey ? activeTraces.get(evt.sessionKey) : null;
+        if (activeTrace) {
+          createToolSpan(evt, activeTrace.context);
+          return;
+        }
+
+        // Fallback: try run/inference spans
         const runId = evt.runId;
         const inferenceSpan = runId ? activeInferenceSpanByRunId.get(runId) : undefined;
         const runEntry = runId ? runSpans.get(runId) : undefined;
         const parentSpan = inferenceSpan ?? runEntry?.span;
         const parentCtx = parentSpan ? trace.setSpan(context.active(), parentSpan) : undefined;
         createToolSpan(evt, parentCtx);
+
+        if (debugExports && !activeTrace && !parentCtx) {
+          ctx.logger.info(
+            `diagnostics-otel: no active trace for tool.execution sessionKey=${evt.sessionKey} tool=${evt.toolName}`,
+          );
+        }
       };
 
       const recordHeartbeat = (
@@ -1295,6 +1465,16 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
         await logProvider.shutdown().catch(() => undefined);
         logProvider = null;
       }
+      // Clean up active traces and trace headers registry
+      for (const trace of activeTraces.values()) {
+        try {
+          trace.span.end();
+        } catch {
+          // ignore
+        }
+      }
+      activeTraces.clear();
+      getTraceHeadersRegistry().clear();
       if (sdk) {
         await sdk.shutdown().catch(() => undefined);
         sdk = null;
