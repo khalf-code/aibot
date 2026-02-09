@@ -591,6 +591,9 @@ describe("context-pruning", () => {
       hardClearedCount: 0,
       toolNames: ["exec"],
     });
+    expect(event?.context?.prunedAt).toBeTypeOf("string");
+    expect(event?.timestamp).toBeInstanceOf(Date);
+    expect(event?.timestamp.toISOString()).toBe(event?.context?.prunedAt);
   });
 
   it("does not emit session:prune when session identity is missing", async () => {

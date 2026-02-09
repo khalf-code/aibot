@@ -275,7 +275,7 @@ export async function pruneContextMessages(params: {
   const trimmedSessionKey = params.sessionKey?.trim();
   const hookSessionKey =
     trimmedSessionKey || (params.sessionId ? `session:${params.sessionId}` : undefined);
-  const emitPruneHook = async () => {
+  const emitPruneHook = async (prunedAt: Date) => {
     if (!hookSessionKey || (softTrimmedCount === 0 && hardClearedCount === 0)) {
       return;
     }
@@ -287,7 +287,9 @@ export async function pruneContextMessages(params: {
         softTrimmedCount,
         hardClearedCount,
         toolNames: prunedToolNames.size > 0 ? Array.from(prunedToolNames) : undefined,
+        prunedAt: prunedAt.toISOString(),
       });
+      hookEvent.timestamp = prunedAt;
       await triggerInternalHook(hookEvent).catch(() => {
         // Best-effort only; pruning should never fail due to hooks.
       });
@@ -334,11 +336,11 @@ export async function pruneContextMessages(params: {
   const outputAfterSoftTrim = next ?? messages;
   ratio = totalChars / charWindow;
   if (ratio < settings.hardClearRatio) {
-    await emitPruneHook();
+    await emitPruneHook(new Date());
     return outputAfterSoftTrim;
   }
   if (!settings.hardClear.enabled) {
-    await emitPruneHook();
+    await emitPruneHook(new Date());
     return outputAfterSoftTrim;
   }
 
@@ -351,7 +353,7 @@ export async function pruneContextMessages(params: {
     prunableToolChars += estimateMessageChars(msg);
   }
   if (prunableToolChars < settings.minPrunableToolChars) {
-    await emitPruneHook();
+    await emitPruneHook(new Date());
     return outputAfterSoftTrim;
   }
 
@@ -382,6 +384,6 @@ export async function pruneContextMessages(params: {
     }
   }
 
-  await emitPruneHook();
+  await emitPruneHook(new Date());
   return next ?? messages;
 }
