@@ -3,6 +3,11 @@ import type { CambClientWrapper } from "../client.js";
 import type { CambAiConfig } from "../config.js";
 import { createSoundGenerateTool } from "./sound-generate.js";
 
+// Mock the media module
+vi.mock("../media.js", () => ({
+  saveAudioFile: vi.fn().mockResolvedValue("/tmp/camb-ai/sound_mock.wav"),
+}));
+
 function createConfig(overrides: Partial<CambAiConfig> = {}): CambAiConfig {
   return {
     enabled: true,
@@ -21,17 +26,16 @@ function createConfig(overrides: Partial<CambAiConfig> = {}): CambAiConfig {
   };
 }
 
-function createMockClientWrapper(
-  taskId = "sound-task-123",
-  audioUrl = "https://example.com/audio.mp3",
-): CambClientWrapper {
+function createMockClientWrapper(taskId = "sound-task-123"): CambClientWrapper {
+  const mockAudioResponse = {
+    arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4]).buffer),
+  };
+
   const mockClient = {
     textToAudio: {
       createTextToAudio: vi.fn().mockResolvedValue({ task_id: taskId }),
       getTextToAudioStatus: vi.fn().mockResolvedValue({ status: "SUCCESS", run_id: 42 }),
-      getTextToSoundResults: vi.fn().mockResolvedValue({
-        "42": { audio_url: audioUrl },
-      }),
+      getTextToAudioResult: vi.fn().mockResolvedValue(mockAudioResponse),
     },
   };
 
@@ -103,23 +107,7 @@ describe("camb_sound_generate tool", () => {
       expect(details.success).toBe(true);
       expect(details.task_id).toBe("task-abc");
       expect(details.prompt).toBe("thunderstorm with rain");
-      expect(details.duration).toBe(10); // Default
-      expect(details.audio_type).toBe("sound"); // Default
-    });
-
-    it("generates music when audio_type is music", async () => {
-      const wrapper = createMockClientWrapper();
-      const config = createConfig();
-      const tool = createSoundGenerateTool(wrapper, config);
-
-      const result = await tool.execute("call-1", {
-        prompt: "upbeat electronic track",
-        audio_type: "music",
-      });
-      const details = (result as any).details;
-
-      expect(details.success).toBe(true);
-      expect(details.audio_type).toBe("music");
+      expect(details.duration).toBe(10);
     });
 
     it("uses custom duration when provided", async () => {
@@ -139,12 +127,15 @@ describe("camb_sound_generate tool", () => {
 
     it("calls API with correct parameters", async () => {
       const createTextToAudioMock = vi.fn().mockResolvedValue({ task_id: "sound-task-123" });
+      const mockAudioResponse = {
+        arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([1, 2]).buffer),
+      };
       const wrapper = {
         getClient: vi.fn().mockReturnValue({
           textToAudio: {
             createTextToAudio: createTextToAudioMock,
             getTextToAudioStatus: vi.fn().mockResolvedValue({ status: "SUCCESS", run_id: 42 }),
-            getTextToSoundResults: vi.fn().mockResolvedValue({ "42": { audio_url: "test.mp3" } }),
+            getTextToAudioResult: vi.fn().mockResolvedValue(mockAudioResponse),
           },
         }),
         pollForCompletion: vi.fn().mockImplementation(async (_check, getResult) => getResult(42)),
@@ -155,35 +146,34 @@ describe("camb_sound_generate tool", () => {
       await tool.execute("call-1", {
         prompt: "ocean waves",
         duration: 15,
-        audio_type: "sound",
       });
 
       expect(createTextToAudioMock).toHaveBeenCalledWith({
         prompt: "ocean waves",
         duration: 15,
-        audio_type: "sound",
       });
     });
 
-    it("defaults to sound type for invalid audio_type", async () => {
+    it("clamps duration to valid range", async () => {
       const wrapper = createMockClientWrapper();
       const config = createConfig();
       const tool = createSoundGenerateTool(wrapper, config);
 
       const result = await tool.execute("call-1", {
         prompt: "test",
-        audio_type: "invalid",
+        duration: 100,
       });
       const details = (result as any).details;
 
-      expect(details.audio_type).toBe("sound");
+      expect(details.success).toBe(true);
+      expect(details.duration).toBe(30);
     });
 
     it("handles task creation failure", async () => {
       const wrapper = {
         getClient: vi.fn().mockReturnValue({
           textToAudio: {
-            createTextToAudio: vi.fn().mockResolvedValue({}), // No task_id
+            createTextToAudio: vi.fn().mockResolvedValue({}),
           },
         }),
         pollForCompletion: vi.fn(),
@@ -219,8 +209,8 @@ describe("camb_sound_generate tool", () => {
       expect(details.error).toBe("Rate limit exceeded");
     });
 
-    it("includes result from polling completion", async () => {
-      const wrapper = createMockClientWrapper("task-xyz", "https://cdn.camb.ai/generated.mp3");
+    it("returns file path and audio info on success", async () => {
+      const wrapper = createMockClientWrapper("task-xyz");
       const config = createConfig();
       const tool = createSoundGenerateTool(wrapper, config);
 
@@ -230,8 +220,9 @@ describe("camb_sound_generate tool", () => {
       const details = (result as any).details;
 
       expect(details.success).toBe(true);
-      expect(details.result).toBeDefined();
-      expect(details.result.audio_url).toBe("https://cdn.camb.ai/generated.mp3");
+      expect(details.file_path).toBeDefined();
+      expect(details.audio_size_bytes).toBeGreaterThan(0);
+      expect(details.play_command).toBeDefined();
     });
   });
 });

@@ -25,7 +25,6 @@ export function isContextOverflowError(errorMessage?: string): boolean {
     lower.includes("exceeds model context window") ||
     (hasRequestSizeExceeds && hasContextWindow) ||
     lower.includes("context overflow:") ||
-    lower.includes("context overflow") ||
     (lower.includes("413") && lower.includes("too large"))
   );
 }
@@ -51,7 +50,10 @@ export function isCompactionFailureError(errorMessage?: string): boolean {
   if (!errorMessage) {
     return false;
   }
-  if (!isContextOverflowError(errorMessage)) {
+  if (
+    !isContextOverflowError(errorMessage) &&
+    !errorMessage.toLowerCase().includes("context overflow")
+  ) {
     return false;
   }
   const lower = errorMessage.toLowerCase();

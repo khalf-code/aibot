@@ -3,6 +3,11 @@ import type { CambClientWrapper } from "../client.js";
 import type { CambAiConfig } from "../config.js";
 import { createTtsTool } from "./tts.js";
 
+// Mock the media module
+vi.mock("../media.js", () => ({
+  saveAudioFile: vi.fn().mockResolvedValue("/tmp/camb-ai/tts_mock.mp3"),
+}));
+
 function createConfig(overrides: Partial<CambAiConfig> = {}): CambAiConfig {
   return {
     enabled: true,
@@ -21,10 +26,9 @@ function createConfig(overrides: Partial<CambAiConfig> = {}): CambAiConfig {
   };
 }
 
-function createMockClientWrapper(ttsResponse?: unknown): CambClientWrapper {
-  // BinaryResponse has arrayBuffer() method that returns the audio data
-  const mockResponse = ttsResponse ?? {
-    arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([72, 101, 108, 108, 111]).buffer), // "Hello" bytes
+function createMockClientWrapper(): CambClientWrapper {
+  const mockResponse = {
+    arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([72, 101, 108, 108, 111]).buffer),
   };
 
   return {
@@ -101,7 +105,7 @@ describe("camb_tts tool", () => {
       expect(details.model).toBe("mars-pro");
       expect(details.text_length).toBe(11);
       expect(details.audio_size_bytes).toBeGreaterThan(0);
-      expect(details.audio_base64).toBeDefined();
+      expect(details.file_path).toBeDefined();
     });
 
     it("uses default voice_id from config", async () => {
@@ -180,17 +184,6 @@ describe("camb_tts tool", () => {
       const details = (result as any).details;
 
       expect(details.error).toBe("API rate limit exceeded");
-    });
-
-    it("returns base64 encoded audio", async () => {
-      const wrapper = createMockClientWrapper();
-      const config = createConfig();
-      const tool = createTtsTool(wrapper, config);
-
-      const result = await tool.execute("call-1", { text: "Hello", voice_id: 123 });
-      const details = (result as any).details;
-
-      expect(details.audio_base64).toBe(Buffer.from("Hello").toString("base64"));
     });
   });
 });
