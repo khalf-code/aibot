@@ -40,13 +40,15 @@ Use a stable `guestSessionId` per user/session (e.g. `openclaw_<userId>` or `ope
 
 ## Request/Response Reference
 
-**Resolve agent (GET)**  
-- URL: `https://www.fone.me/api/ai-agents/url/{slug}`  
+**Resolve agent (GET)**
+
+- URL: `https://www.fone.me/api/ai-agents/url/{slug}`
 - Response: `{ "id": number, "name": string, "customUrl": string, ... }`
 
-**Send message (POST)**  
-- URL: `https://www.fone.me/api/ai-agent/message`  
-- Body: `{ "agentId": number, "message": string, "guestSessionId": string, "guestName"?: string }`  
+**Send message (POST)**
+
+- URL: `https://www.fone.me/api/ai-agent/message`
+- Body: `{ "agentId": number, "message": string, "guestSessionId": string, "guestName"?: string }`
 - Response: `{ "response": string, "conversationId": number, "messageId": number }`
 
 ## Notes
