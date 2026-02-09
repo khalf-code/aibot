@@ -40,7 +40,7 @@ export async function monitorMSTeamsProvider(
   let cfg = opts.cfg;
   let msteamsCfg = cfg.channels?.msteams;
   if (!msteamsCfg?.enabled) {
-    log.debug("msteams provider disabled");
+    log.debug?.("msteams provider disabled");
     return { app: null, shutdown: async () => {} };
   }
 
@@ -258,7 +258,7 @@ export async function monitorMSTeamsProvider(
     expressApp.post("/api/messages", messageHandler);
   }
 
-  log.debug("listening on paths", {
+  log.debug?.("listening on paths", {
     primary: configuredPath,
     fallback: "/api/messages",
   });
@@ -277,7 +277,7 @@ export async function monitorMSTeamsProvider(
     return new Promise<void>((resolve) => {
       httpServer.close((err) => {
         if (err) {
-          log.debug("msteams server close error", { error: String(err) });
+          log.debug?.("msteams server close error", { error: String(err) });
         }
         resolve();
       });

@@ -35,8 +35,13 @@ const discordMessageActions: ChannelMessageActionAdapter = {
     getDiscordRuntime().channel.discord.messageActions?.listActions?.(ctx) ?? [],
   extractToolSend: (ctx) =>
     getDiscordRuntime().channel.discord.messageActions?.extractToolSend?.(ctx) ?? null,
-  handleAction: async (ctx) =>
-    await getDiscordRuntime().channel.discord.messageActions!.handleAction!(ctx),
+  handleAction: async (ctx) => {
+    const ma = getDiscordRuntime().channel.discord.messageActions;
+    if (!ma?.handleAction) {
+      throw new Error("Discord message actions not available");
+    }
+    return ma.handleAction(ctx);
+  },
 };
 
 export const discordPlugin: ChannelPlugin<ResolvedDiscordAccount> = {

@@ -55,7 +55,7 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
     if (!core.logging.shouldLogVerbose()) {
       return;
     }
-    logger.debug(message);
+    logger.debug?.(message);
   };
 
   const normalizeUserEntry = (raw: string) =>
@@ -314,7 +314,7 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
         logger.info("matrix: device verification requested - please verify in another client");
       }
     } catch (err) {
-      logger.debug("Device verification request failed (may already be verified)", {
+      logger.debug?.("Device verification request failed (may already be verified)", {
         error: String(err),
       });
     }
