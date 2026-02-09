@@ -479,7 +479,7 @@ export async function compactEmbeddedPiSessionDirect(
               },
               {
                 agentId: sessionAgentId,
-                sessionKey: params.sessionKey,
+                sessionKey: hookSessionKey,
                 workspaceDir: effectiveWorkspace,
                 messageProvider: params.messageProvider,
               },
@@ -542,7 +542,7 @@ export async function compactEmbeddedPiSessionDirect(
               },
               {
                 agentId: sessionAgentId,
-                sessionKey: params.sessionKey,
+                sessionKey: hookSessionKey,
                 workspaceDir: effectiveWorkspace,
                 messageProvider: params.messageProvider,
               },
