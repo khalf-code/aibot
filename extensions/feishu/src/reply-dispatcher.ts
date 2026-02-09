@@ -13,9 +13,7 @@ import { getFeishuRuntime } from "./runtime.js";
 import {
   sendMessageFeishu,
   sendMarkdownCardFeishu,
-  updateCardFeishu,
   editMessageFeishu,
-  buildMarkdownCard,
   createCardEntityFeishu,
   sendCardByCardIdFeishu,
   updateCardElementContentFeishu,
@@ -43,7 +41,6 @@ const STREAM_THROTTLE_MS = 350;
 type StreamingBackend =
   | "none" // Initial state, not yet determined
   | "cardkit" // Using CardKit API (cardkit.v1.card.create + cardElement.content)
-  | "legacy-card" // Using legacy im.message.patch for card updates
   | "raw" // Using im.message.update for text edits
   | "stopped"; // Failed, stop trying to stream
 
@@ -173,14 +170,6 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
           });
           // Only commit sequence after successful update
           streamSequence = nextSequence;
-        } else if (streamBackend === "legacy-card" && streamMessageId) {
-          // Legacy fallback using im.message.patch
-          await updateCardFeishu({
-            cfg,
-            messageId: streamMessageId,
-            card: buildMarkdownCard(applyMentions(text)),
-            accountId,
-          });
         } else if (streamBackend === "none") {
           // First partial: try CardKit first
           try {
@@ -207,20 +196,11 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               `feishu[${account.accountId}] CardKit stream initialized: cardId=${entity.cardId}, msgId=${result.messageId}`,
             );
           } catch (cardKitErr) {
-            // CardKit unavailable — fall back to inline card with im.message.patch
+            // CardKit unavailable — stop streaming, deliver will send final message
             params.runtime.log?.(
-              `feishu[${account.accountId}] CardKit create failed, falling back to legacy-card: ${String(cardKitErr)}`,
+              `feishu[${account.accountId}] CardKit create failed, streaming unavailable: ${String(cardKitErr)}`,
             );
-            const result = await sendMarkdownCardFeishu({
-              cfg,
-              to: chatId,
-              text,
-              replyToMessageId,
-              mentions: mentionTargets,
-              accountId,
-            });
-            streamMessageId = result.messageId;
-            streamBackend = "legacy-card";
+            streamBackend = "stopped";
           }
         }
         // If backend is "stopped", do nothing
@@ -352,7 +332,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         const useCard = renderMode === "card" || (renderMode === "auto" && shouldUseCard(text));
 
         // Card mode with block streaming: accumulate text and update via CardKit
-        if (useCard && blockStreamingEnabled) {
+        if (useCard && blockStreamingEnabled && streamBackend !== "stopped") {
           if (streamingCardId) {
             accumulatedCardText += "\n\n" + text;
             params.runtime.log?.(
@@ -372,33 +352,9 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
                 streamSequence = nextSequence;
               } catch (err) {
                 params.runtime.log?.(
-                  `feishu[${account.accountId}] deliver: CardKit update failed, switching to legacy: ${String(err)}`,
+                  `feishu[${account.accountId}] deliver: CardKit update failed: ${String(err)}`,
                 );
-                streamBackend = "legacy-card";
-              }
-            }
-
-            // If not in cardkit mode (or just switched), use legacy update
-            if (streamBackend === "legacy-card" && streamMessageId) {
-              try {
-                await updateCardFeishu({
-                  cfg,
-                  messageId: streamMessageId,
-                  card: buildMarkdownCard(accumulatedCardText),
-                  accountId,
-                });
-              } catch (err) {
-                params.runtime.log?.(
-                  `feishu[${account.accountId}] deliver: card update failed, sending new card: ${String(err)}`,
-                );
-                const result = await sendMarkdownCardFeishu({
-                  cfg,
-                  to: chatId,
-                  text: accumulatedCardText,
-                  mentions: mentionTargets,
-                  accountId,
-                });
-                streamingCardId = result.messageId;
+                streamBackend = "stopped";
               }
             }
           } else {
@@ -426,11 +382,12 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
               streamBackend = "cardkit";
               streamSequence = 1;
             } catch (cardKitErr) {
-              // CardKit unavailable — fall back to inline card
+              // CardKit unavailable — send as regular card, no block streaming
               params.runtime.log?.(
-                `feishu[${account.accountId}] deliver: CardKit create failed, using inline card: ${String(cardKitErr)}`,
+                `feishu[${account.accountId}] deliver: CardKit create failed: ${String(cardKitErr)}`,
               );
-              const result = await sendMarkdownCardFeishu({
+              streamBackend = "stopped";
+              await sendMarkdownCardFeishu({
                 cfg,
                 to: chatId,
                 text,
@@ -438,8 +395,6 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
                 mentions: mentionTargets,
                 accountId,
               });
-              streamingCardId = result.messageId;
-              streamBackend = "legacy-card";
             }
           }
           return;
