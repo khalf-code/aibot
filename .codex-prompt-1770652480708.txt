@@ -1,0 +1,25 @@
+Fix the following code review issues:
+
+GREPTILE FEEDBACK (Score: null/5):
+
+
+SPECIFIC ISSUES TO FIX:
+1. *`src/agents/bash-tools.exec.ts`**
+2. *Temp script deleted too early**
+3. *Temp script deleted too early**
+4. *`src/agents/bash-tools.exec.ts`**
+5. *Temp file leaks when backgrounded**
+6. *Temp file leaks when backgrounded**
+
+FILES TO MODIFY:
+src/agents/bash-process-registry.ts
+src/agents/bash-tools.exec.ts
+
+Instructions:
+1. Read the feedback carefully and understand all issues
+2. Make minimal, focused changes to fix each issue
+3. Ensure code compiles and tests pass
+4. Write clean, maintainable code
+5. Do NOT over-fix - only address the specific issues mentioned
+
+After making changes, verify the fixes are correct.
