@@ -30,6 +30,7 @@ import { formatUserTime, resolveUserTimeFormat, resolveUserTimezone } from "../d
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "../defaults.js";
 import { resolveOpenClawDocsPath } from "../docs-path.js";
 import { getApiKeyForModel, resolveModelAuthMode } from "../model-auth.js";
+import { parseModelRef } from "../model-selection.js";
 import { ensureOpenClawModelsJson } from "../models-config.js";
 import {
   ensureSessionHeader,
@@ -122,9 +123,27 @@ export async function compactEmbeddedPiSessionDirect(
   const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
   const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
   await ensureOpenClawModelsJson(params.config, agentDir);
+
+  // Override with compaction-specific model if configured and enabled
+  const compactionOverrideEnabled =
+    params.config?.agents?.defaults?.compaction?.overrideModel ?? false;
+  const compactionModelRef = compactionOverrideEnabled
+    ? params.config?.agents?.defaults?.compaction?.model?.trim()
+    : undefined;
+  let effectiveProvider = provider;
+  let effectiveModelId = modelId;
+  if (compactionModelRef) {
+    const parsed = parseModelRef(compactionModelRef, provider);
+    if (parsed) {
+      effectiveProvider = parsed.provider;
+      effectiveModelId = parsed.model;
+      log.info(`compaction: using override model ${effectiveProvider}/${effectiveModelId}`);
+    }
+  }
+
   const { model, error, authStorage, modelRegistry } = resolveModel(
-    provider,
-    modelId,
+    effectiveProvider,
+    effectiveModelId,
     agentDir,
     params.config,
   );
@@ -132,7 +151,7 @@ export async function compactEmbeddedPiSessionDirect(
     return {
       ok: false,
       compacted: false,
-      reason: error ?? `Unknown model: ${provider}/${modelId}`,
+      reason: error ?? `Unknown model: ${effectiveProvider}/${effectiveModelId}`,
     };
   }
   try {
@@ -399,12 +418,19 @@ export async function compactEmbeddedPiSessionDirect(
         sandboxEnabled: !!sandbox?.enabled,
       });
 
+      // Disable reasoning for compaction sessions. The SDK's generateSummary()
+      // hardcodes reasoning: "high" which triggers extended thinking on
+      // reasoning-capable models. Extended thinking adds significant latency
+      // and token cost (16K+ budget) to summarization with marginal quality
+      // benefit, and not all API-compatible providers support thinking params.
+      const compactionModel = model.reasoning ? { ...model, reasoning: false } : model;
+
       const { session } = await createAgentSession({
         cwd: resolvedWorkspace,
         agentDir,
         authStorage,
         modelRegistry,
-        model,
+        model: compactionModel,
         thinkingLevel: mapThinkingLevel(params.thinkLevel),
         tools: builtInTools,
         customTools,
@@ -436,7 +462,42 @@ export async function compactEmbeddedPiSessionDirect(
         if (limited.length > 0) {
           session.agent.replaceMessages(limited);
         }
-        const result = await session.compact(params.customInstructions);
+        const compactionTimeoutMs =
+          params.config?.agents?.defaults?.compaction?.timeoutMs ?? 120_000;
+        const compactionStartMs = Date.now();
+        let compactionTimedOut = false;
+
+        const timeoutHandle = setTimeout(() => {
+          compactionTimedOut = true;
+          session.abortCompaction();
+        }, compactionTimeoutMs);
+        timeoutHandle.unref();
+
+        log.info(
+          `compaction: start sessionId=${params.sessionId} ` +
+            `model=${effectiveProvider}/${effectiveModelId} timeoutMs=${compactionTimeoutMs}`,
+        );
+
+        let result: Awaited<ReturnType<typeof session.compact>>;
+        try {
+          result = await session.compact(params.customInstructions);
+        } catch (err) {
+          clearTimeout(timeoutHandle);
+          if (compactionTimedOut) {
+            log.warn(
+              `compaction: timeout sessionId=${params.sessionId} ` +
+                `timeoutMs=${compactionTimeoutMs} elapsedMs=${Date.now() - compactionStartMs}`,
+            );
+            return {
+              ok: false,
+              compacted: false,
+              reason: `compaction_timeout (${compactionTimeoutMs}ms)`,
+            };
+          }
+          throw err;
+        }
+        clearTimeout(timeoutHandle);
+
         // Estimate tokens after compaction by summing token estimates for remaining messages
         let tokensAfter: number | undefined;
         try {
@@ -452,6 +513,14 @@ export async function compactEmbeddedPiSessionDirect(
           // If estimation fails, leave tokensAfter undefined
           tokensAfter = undefined;
         }
+
+        log.info(
+          `compaction: done sessionId=${params.sessionId} ` +
+            `model=${effectiveProvider}/${effectiveModelId} ` +
+            `tokensBefore=${result.tokensBefore} tokensAfter=${tokensAfter ?? "?"} ` +
+            `durationMs=${Date.now() - compactionStartMs}`,
+        );
+
         return {
           ok: true,
           compacted: true,
@@ -471,6 +540,10 @@ export async function compactEmbeddedPiSessionDirect(
       await sessionLock.release();
     }
   } catch (err) {
+    log.warn(
+      `compaction: error sessionId=${params.sessionId} ` +
+        `reason=${describeUnknownError(err).slice(0, 200)}`,
+    );
     return {
       ok: false,
       compacted: false,
