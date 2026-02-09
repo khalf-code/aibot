@@ -55,6 +55,7 @@ export async function loadModelRegistry(cfg: OpenClawConfig) {
   const registry = discoverModels(authStorage, agentDir);
   let models: Model<Api>[] = [];
   let synthesizedForwardCompatKey: string | undefined;
+  let modelDiscoveryUnavailable = false;
   let availableKeys: Set<string> | undefined;
   let availabilityErrorMessage: string | undefined;
 
@@ -71,28 +72,31 @@ export async function loadModelRegistry(cfg: OpenClawConfig) {
     // Availability falls back to auth heuristics in the caller.
     models = [];
     synthesizedForwardCompatKey = undefined;
+    modelDiscoveryUnavailable = true;
     availabilityErrorMessage = formatErrorWithStack(err);
   }
 
-  try {
-    const availableModels = registry.getAvailable();
-    availableKeys = new Set(availableModels.map((model) => modelKey(model.provider, model.id)));
-    if (
-      synthesizedForwardCompatKey &&
-      hasAvailableAntigravityOpus45ThinkingTemplate(availableKeys)
-    ) {
-      availableKeys.add(synthesizedForwardCompatKey);
-    }
-  } catch (err) {
-    if (!shouldFallbackToAuthHeuristics(err)) {
-      throw err;
-    }
+  if (!modelDiscoveryUnavailable) {
+    try {
+      const availableModels = registry.getAvailable();
+      availableKeys = new Set(availableModels.map((model) => modelKey(model.provider, model.id)));
+      if (
+        synthesizedForwardCompatKey &&
+        hasAvailableAntigravityOpus45ThinkingTemplate(availableKeys)
+      ) {
+        availableKeys.add(synthesizedForwardCompatKey);
+      }
+    } catch (err) {
+      if (!shouldFallbackToAuthHeuristics(err)) {
+        throw err;
+      }
 
-    // Some providers can report model-level availability as unavailable.
-    // Callers can fall back to auth heuristics when availability is undefined.
-    availableKeys = undefined;
-    if (!availabilityErrorMessage) {
-      availabilityErrorMessage = formatErrorWithStack(err);
+      // Some providers can report model-level availability as unavailable.
+      // Callers can fall back to auth heuristics when availability is undefined.
+      availableKeys = undefined;
+      if (!availabilityErrorMessage) {
+        availabilityErrorMessage = formatErrorWithStack(err);
+      }
     }
   }
   return { registry, models, availableKeys, availabilityErrorMessage };

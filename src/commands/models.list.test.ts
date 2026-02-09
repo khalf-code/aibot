@@ -576,4 +576,30 @@ describe("models list/status", () => {
     expect(payload.models[0]?.key).toBe("google-antigravity/claude-opus-4-6-thinking");
     expect(payload.models[0]?.missing).toBe(true);
   });
+
+  it("loadModelRegistry keeps availability undefined when discovery is unavailable", async () => {
+    modelRegistryState.getAllError = Object.assign(new Error("model discovery unavailable"), {
+      code: "MODEL_AVAILABILITY_UNAVAILABLE",
+    });
+    modelRegistryState.available = [
+      {
+        provider: "google-antigravity",
+        id: "claude-opus-4-5-thinking",
+        name: "Claude Opus 4.5 Thinking",
+        api: "google-gemini-cli",
+        input: ["text", "image"],
+        baseUrl: "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        contextWindow: 200000,
+        maxTokens: 64000,
+        reasoning: true,
+        cost: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+      },
+    ];
+
+    const { loadModelRegistry } = await import("./models/list.registry.js");
+    const loaded = await loadModelRegistry({});
+
+    expect(loaded.availableKeys).toBeUndefined();
+    expect(loaded.availabilityErrorMessage).toContain("model discovery unavailable");
+  });
 });
