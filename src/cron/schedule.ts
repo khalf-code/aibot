@@ -57,5 +57,11 @@ export function computeNextRunAtMs(schedule: CronSchedule, nowMs: number): numbe
     return undefined;
   }
   const nextMs = next.getTime();
-  return Number.isFinite(nextMs) && nextMs >= nowMs ? nextMs : undefined;
+  if (!Number.isFinite(nextMs)) {
+    return undefined;
+  }
+  // For cron schedules, if croner returns a past time (e.g. after a gateway
+  // restart or clock skew), return nowMs so the job fires on the next tick
+  // instead of getting stuck with nextRunAtMs=undefined forever (#12025).
+  return nextMs >= nowMs ? nextMs : nowMs;
 }
