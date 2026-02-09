@@ -1,6 +1,7 @@
 import type { HeartbeatRunResult } from "../../infra/heartbeat-wake.js";
 import type { CronJob } from "../types.js";
 import type { CronEvent, CronServiceState } from "./state.js";
+import { recordTrace } from "../../infra/perf-trace.js";
 import { resolveCronDeliveryPlan } from "../delivery.js";
 import {
   computeJobNextRunAtMs,
@@ -177,10 +178,13 @@ export function armTimer(state: CronServiceState) {
   // when the process was paused or wall-clock time jumps.
   const clampedDelay = Math.min(delay, MAX_TIMER_DELAY_MS);
   state.timer = setTimeout(async () => {
+    const t0 = performance.now();
     try {
       await onTimer(state);
     } catch (err) {
       state.deps.log.error({ err: String(err) }, "cron: timer tick failed");
+    } finally {
+      recordTrace("cron.onTimer", performance.now() - t0);
     }
   }, clampedDelay);
   state.deps.log.debug(

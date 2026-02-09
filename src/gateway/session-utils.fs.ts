@@ -4,6 +4,7 @@ import path from "node:path";
 import type { SessionPreviewItem } from "./session-utils.types.js";
 import { resolveSessionTranscriptPath } from "../config/sessions.js";
 import { resolveRequiredHomeDir } from "../infra/home-dir.js";
+import { recordTrace } from "../infra/perf-trace.js";
 import { extractToolCallNames, hasToolCall } from "../utils/transcript-tools.js";
 import { stripEnvelope } from "./chat-sanitize.js";
 
@@ -15,6 +16,17 @@ import { stripEnvelope } from "./chat-sanitize.js";
 const SESSION_MESSAGES_TAIL_BYTES = 2 * 1024 * 1024;
 
 export function readSessionMessages(
+  sessionId: string,
+  storePath: string | undefined,
+  sessionFile?: string,
+): unknown[] {
+  const t0 = performance.now();
+  const result = readSessionMessagesImpl(sessionId, storePath, sessionFile);
+  recordTrace("gateway.readSessionMessages", performance.now() - t0);
+  return result;
+}
+
+function readSessionMessagesImpl(
   sessionId: string,
   storePath: string | undefined,
   sessionFile?: string,
@@ -52,7 +64,7 @@ export function readSessionMessages(
     const messages: unknown[] = [];
     for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i];
-      if (!line.trim()) {
+      if (line.length === 0 || (line.charCodeAt(0) <= 32 && !line.trim())) {
         continue;
       }
       try {
