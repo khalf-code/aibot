@@ -554,13 +554,13 @@ export function resolveSessionModelRef(
   return { provider, model };
 }
 
-function scanDeletedSessions(params: { cfg: OpenClawConfig; storePath: string }): Array<{
+function scanDeletedSessions(params: { storePath: string; agentId: string }): Array<{
   key: string;
   sessionId: string;
   deletedAt: string | undefined;
   metadata: SessionEntry;
 }> {
-  const { cfg, storePath } = params;
+  const { storePath, agentId: callerAgentId } = params;
   // storePath is the sessions directory
   const sessionsDir = storePath;
 
@@ -617,8 +617,7 @@ function scanDeletedSessions(params: { cfg: OpenClawConfig; storePath: string })
 
         // Determine the correct session key format
         const isNamedSession = metadata.userCreated === true;
-        const parsedAgent = parseAgentSessionKey(storePath);
-        const agentId = normalizeAgentId(parsedAgent?.agentId ?? resolveDefaultAgentId(cfg));
+        const agentId = normalizeAgentId(callerAgentId);
 
         let key: string;
         if (isNamedSession) {
@@ -784,22 +783,32 @@ export function listSessionsFromStore(params: {
   if (includeDeleted) {
     // Get the sessions directory - handle both single and combined mode
     let sessionsDir: string;
+    let deletedAgentId: string;
 
     if (storePath === "(multiple)") {
       // Combined mode - use default agent's sessions directory
-      const defaultAgentId = normalizeAgentId(resolveDefaultAgentId(cfg));
-      const agentDir = resolveAgentDir(cfg, defaultAgentId);
+      deletedAgentId = normalizeAgentId(resolveDefaultAgentId(cfg));
+      const agentDir = resolveAgentDir(cfg, deletedAgentId);
       const agentScope = path.dirname(agentDir);
       sessionsDir = path.join(agentScope, "sessions");
     } else if (storePath.endsWith("sessions.json")) {
-      // Single agent mode with full path to sessions.json
+      // Single agent mode — derive agentId from the path
+      // Path: {stateDir}/agents/{agentId}/sessions/sessions.json
       sessionsDir = path.dirname(storePath);
+      const parentDir = path.basename(path.dirname(sessionsDir));
+      deletedAgentId = normalizeAgentId(
+        parentDir !== "agents" ? parentDir : resolveDefaultAgentId(cfg),
+      );
     } else {
       // Fallback - storePath might already be the sessions directory
       sessionsDir = storePath;
+      deletedAgentId = normalizeAgentId(resolveDefaultAgentId(cfg));
     }
 
-    const deletedSessions = scanDeletedSessions({ cfg, storePath: sessionsDir });
+    const deletedSessions = scanDeletedSessions({
+      storePath: sessionsDir,
+      agentId: deletedAgentId,
+    });
     const deletedRows = deletedSessions.map(({ key, sessionId, deletedAt, metadata }) => {
       const entry = metadata;
       const updatedAt = entry.updatedAt ?? null;
