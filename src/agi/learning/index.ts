@@ -13,7 +13,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
-import { getDatabase, jsonToSql, sqlToJson } from "../shared/db.js";
+import { getDatabase } from "../shared/db.js";
 
 const log = createSubsystemLogger("agi:learning");
 

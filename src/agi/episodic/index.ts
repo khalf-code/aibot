@@ -558,14 +558,15 @@ function cosineSimilarity(a: number[], b: number[]): number {
 function extractEntities(events: SessionEvent[]): string[] {
   const entities = new Set<string>();
   for (const event of events) {
-    if (event.metadata?.entity) {
-      entities.add(String(event.metadata.entity));
+    const meta = event.metadata;
+    if (meta?.entity && typeof meta.entity === "string") {
+      entities.add(meta.entity);
     }
-    if (event.metadata?.file) {
-      entities.add(String(event.metadata.file));
+    if (meta?.file && typeof meta.file === "string") {
+      entities.add(meta.file);
     }
-    if (event.metadata?.tool) {
-      entities.add(String(event.metadata.tool));
+    if (meta?.tool && typeof meta.tool === "string") {
+      entities.add(meta.tool);
     }
   }
   return Array.from(entities);

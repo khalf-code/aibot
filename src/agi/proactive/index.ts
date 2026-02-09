@@ -319,6 +319,9 @@ export class ProactiveManager {
         return false;
       }
 
+      // Safely coerce to string for comparison
+      const actualStr = typeof actual === "string" ? actual : JSON.stringify(actual);
+
       // Support simple operators: ">" "< " ">=" "<=" "!="
       if (typeof expected === "string" && expected.startsWith(">")) {
         const threshold = Number(expected.slice(1));
@@ -332,17 +335,18 @@ export class ProactiveManager {
         }
       } else if (typeof expected === "string" && expected.startsWith("!=")) {
         const compare = expected.slice(2);
-        if (String(actual) === compare) {
+        if (actualStr === compare) {
           return false;
         }
       } else if (typeof expected === "string" && expected.startsWith("contains:")) {
         const substring = expected.slice("contains:".length);
-        if (!String(actual).includes(substring)) {
+        if (!actualStr.includes(substring)) {
           return false;
         }
       } else {
         // Exact match
-        if (String(actual) !== String(expected)) {
+        const expectedStr = typeof expected === "string" ? expected : JSON.stringify(expected);
+        if (actualStr !== expectedStr) {
           return false;
         }
       }
@@ -372,7 +376,8 @@ export class ProactiveManager {
     }
 
     const [, key, op, value] = match;
-    const actual = String(event.data[key] ?? "");
+    const rawVal = event.data[key] ?? "";
+    const actual = typeof rawVal === "string" ? rawVal : JSON.stringify(rawVal);
 
     if (op === "==") {
       return actual === value;

@@ -290,6 +290,90 @@ function estimateContextChars(messages: AgentMessage[]): number {
   return messages.reduce((sum, m) => sum + estimateMessageChars(m), 0);
 }
 
+/**
+ * Creates a fingerprint for a tool result to detect duplicates.
+ * Compares tool name, parameters (if available), and result content.
+ *
+ * @param msg - Tool result message to fingerprint
+ * @returns String fingerprint or null if not a tool result
+ */
+function getToolResultFingerprint(msg: AgentMessage): string | null {
+  if (msg.role !== "toolResult") {
+    return null;
+  }
+
+  const toolName = msg.toolName ?? "unknown";
+
+  // Extract content preview for fingerprinting
+  let contentPreview = "";
+  if (Array.isArray(msg.content)) {
+    contentPreview = msg.content
+      .filter((b) => b?.type === "text")
+      .map((b) => b.text?.slice(0, 200)) // First 200 chars of text content
+      .join("");
+  }
+
+  // Include tool_use_id if available for more accurate deduplication
+  const toolUseId = (msg as unknown as { toolUseId?: string }).toolUseId ?? "";
+
+  return `${toolName}:${toolUseId}:${contentPreview.slice(0, 100)}`;
+}
+
+/**
+ * Deduplicates tool results by keeping only the most recent occurrence
+ * of identical tool calls. This prevents the same tool result from
+ * consuming context window multiple times.
+ *
+ * @param messages - Array of messages to deduplicate
+ * @returns Deduplicated message array
+ */
+export function deduplicateToolResults(messages: AgentMessage[]): AgentMessage[] {
+  const seen = new Map<string, number>(); // fingerprint -> last index
+  const toRemove = new Set<number>();
+
+  // First pass: identify duplicates (keep last occurrence)
+  for (let i = 0; i < messages.length; i++) {
+    const fingerprint = getToolResultFingerprint(messages[i]);
+    if (fingerprint) {
+      if (seen.has(fingerprint)) {
+        // Mark previous occurrence for removal
+        toRemove.add(seen.get(fingerprint)!);
+      }
+      // Update to current index (keep most recent)
+      seen.set(fingerprint, i);
+    }
+  }
+
+  // Second pass: build result array excluding duplicates
+  return messages.filter((_, i) => !toRemove.has(i));
+}
+
+/**
+ * Checks if a message is a tool result that can be safely removed
+ * without losing critical context. Used for smart pruning decisions.
+ *
+ * @param msg - Message to check
+ * @returns True if the message is a non-critical tool result
+ */
+function isNonCriticalToolResult(msg: AgentMessage): boolean {
+  if (msg.role !== "toolResult") {
+    return false;
+  }
+
+  // Tool results with errors are considered critical
+  const hasError = (msg as unknown as { isError?: boolean }).isError ?? false;
+  if (hasError) {
+    return false;
+  }
+
+  // Tool results with images are critical (can't be regenerated)
+  if (Array.isArray(msg.content) && msg.content.some((b) => b?.type === "image")) {
+    return false;
+  }
+
+  return true;
+}
+
 function findAssistantCutoffIndex(
   messages: AgentMessage[],
   keepLastAssistants: number,
@@ -447,31 +531,35 @@ export function pruneContextMessages(params: {
     return messages;
   }
 
-  const cutoffIndex = findAssistantCutoffIndex(messages, settings.keepLastAssistants);
+  // Phase 0 - Deduplication: Remove duplicate tool results before pruning
+  // This prevents identical tool calls from consuming unnecessary context space
+  const deduplicatedMessages = deduplicateToolResults(messages);
+
+  const cutoffIndex = findAssistantCutoffIndex(deduplicatedMessages, settings.keepLastAssistants);
   if (cutoffIndex === null) {
-    return messages;
+    return deduplicatedMessages;
   }
 
   // Bootstrap safety: never prune anything before the first user message. This protects initial
   // "identity" reads (SOUL.md, USER.md, etc.) which typically happen before the first inbound user
   // message exists in the session transcript.
-  const firstUserIndex = findFirstUserIndex(messages);
-  const pruneStartIndex = firstUserIndex === null ? messages.length : firstUserIndex;
+  const firstUserIndex = findFirstUserIndex(deduplicatedMessages);
+  const pruneStartIndex = firstUserIndex === null ? deduplicatedMessages.length : firstUserIndex;
 
   const isToolPrunable = params.isToolPrunable ?? makeToolPrunablePredicate(settings.tools);
 
-  const totalCharsBefore = estimateContextChars(messages);
+  const totalCharsBefore = estimateContextChars(deduplicatedMessages);
   let totalChars = totalCharsBefore;
   let ratio = totalChars / charWindow;
   if (ratio < settings.softTrimRatio) {
-    return messages;
+    return deduplicatedMessages;
   }
 
   const prunableToolIndexes: number[] = [];
   let next: AgentMessage[] | null = null;
 
   for (let i = pruneStartIndex; i < cutoffIndex; i++) {
-    const msg = messages[i];
+    const msg = deduplicatedMessages[i];
     if (!msg || msg.role !== "toolResult") {
       continue;
     }
@@ -495,12 +583,12 @@ export function pruneContextMessages(params: {
     const afterChars = estimateMessageChars(updated as unknown as AgentMessage);
     totalChars += afterChars - beforeChars;
     if (!next) {
-      next = messages.slice();
+      next = deduplicatedMessages.slice();
     }
     next[i] = updated as unknown as AgentMessage;
   }
 
-  const outputAfterSoftTrim = next ?? messages;
+  const outputAfterSoftTrim = next ?? deduplicatedMessages;
   ratio = totalChars / charWindow;
   if (ratio < settings.hardClearRatio) {
     return outputAfterSoftTrim;

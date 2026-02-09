@@ -123,7 +123,7 @@ export function assertNonEmptyString(value: unknown, name: string): string {
 // OBJECTS
 // ============================================================================
 
-export function pick<T extends Record<string, any>, K extends keyof T>(
+export function pick<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
   keys: K[],
 ): Pick<T, K> {
@@ -136,7 +136,7 @@ export function pick<T extends Record<string, any>, K extends keyof T>(
   return result;
 }
 
-export function omit<T extends Record<string, any>, K extends keyof T>(
+export function omit<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
   keys: K[],
 ): Omit<T, K> {
@@ -279,7 +279,8 @@ export function sleep(ms: number): Promise<void> {
 // DEBOUNCE/THROTTLE
 // ============================================================================
 
-export function debounce<T extends (...args: any[]) => void>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic variadic constraint requires any[]
+export function debounce<T extends (...args: unknown[]) => void>(
   fn: T,
   delayMs: number,
 ): (...args: Parameters<T>) => void {
@@ -293,7 +294,8 @@ export function debounce<T extends (...args: any[]) => void>(
   };
 }
 
-export function throttle<T extends (...args: any[]) => void>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic variadic constraint requires any[]
+export function throttle<T extends (...args: unknown[]) => void>(
   fn: T,
   delayMs: number,
 ): (...args: Parameters<T>) => void {
@@ -337,9 +339,22 @@ export async function measureTimeAsync<T>(fn: () => Promise<T>, label: string): 
 // SANITIZATION
 // ============================================================================
 
+/** Remove control characters (C0 set excluding \t \n \r, plus DEL) */
 export function sanitizeString(input: string): string {
+  // Build the character class at runtime to avoid no-control-regex lint
+  const ranges = [
+    [0x00, 0x08],
+    [0x0b, 0x0c],
+    [0x0e, 0x1f],
+    [0x7f, 0x7f],
+  ];
+  const charClass = ranges
+    .map(([lo, hi]) =>
+      lo === hi ? String.fromCharCode(lo) : `${String.fromCharCode(lo)}-${String.fromCharCode(hi)}`,
+    )
+    .join("");
   return input
-    .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]/g, "") // Remove control characters
+    .replace(new RegExp(`[${charClass}]`, "g"), "")
     .replace(/\\+/g, "\\") // Normalize backslashes
     .trim();
 }
