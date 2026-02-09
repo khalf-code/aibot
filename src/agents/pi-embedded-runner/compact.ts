@@ -436,9 +436,7 @@ export async function compactEmbeddedPiSessionDirect(
         const hookSessionKey = params.sessionKey?.trim() || `compact:${params.sessionId}`;
         const hookRunner = getGlobalHookRunner();
         const messageCountOriginal = originalMessages.length;
-        const messageCountBefore = originalMessages.length;
         let tokenCountOriginal: number | undefined;
-        let tokenCountBefore: number | undefined;
         try {
           tokenCountOriginal = 0;
           for (const message of originalMessages) {
@@ -447,6 +445,15 @@ export async function compactEmbeddedPiSessionDirect(
         } catch {
           tokenCountOriginal = undefined;
         }
+        const limited = limitHistoryTurns(
+          validated,
+          getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
+        );
+        if (limited.length > 0) {
+          session.agent.replaceMessages(limited);
+        }
+        const messageCountBefore = session.messages.length;
+        let tokenCountBefore: number | undefined;
         try {
           tokenCountBefore = 0;
           for (const message of session.messages) {
@@ -487,13 +494,6 @@ export async function compactEmbeddedPiSessionDirect(
           } catch (err) {
             log.warn(`before_compaction hook failed: ${String(err)}`);
           }
-        }
-        const limited = limitHistoryTurns(
-          validated,
-          getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
-        );
-        if (limited.length > 0) {
-          session.agent.replaceMessages(limited);
         }
         const messageCountCompactionInput = session.messages.length;
         const result = await session.compact(params.customInstructions);
