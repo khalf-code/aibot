@@ -4,6 +4,8 @@ pre-commit:
     lint:
       run: pnpm tsgo && pnpm lint
       stage_fixed: true
+    changeset-check:
+      run: bash .claude/scripts/check-changeset.sh
 
 commit-msg:
   commands:

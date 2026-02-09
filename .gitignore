@@ -76,6 +76,9 @@ memory/
 .agent/*.json
 !.agent/workflows/
 
+# Similar search index (generated)
+.claude/similar-index.json
+
 # Team Share
 share/logs/
 share/inbox/
