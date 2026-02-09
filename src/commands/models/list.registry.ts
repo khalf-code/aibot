@@ -52,22 +52,28 @@ export async function loadModelRegistry(cfg: OpenClawConfig) {
   const agentDir = resolveOpenClawAgentDir();
   const authStorage = discoverAuthStorage(agentDir);
   const registry = discoverModels(authStorage, agentDir);
-  const models = appendAntigravityForwardCompatModel(registry.getAll(), registry);
   const availableModels = registry.getAvailable();
   const availableKeys = new Set(availableModels.map((model) => modelKey(model.provider, model.id)));
+  const { models, synthesizedForwardCompatKey } = appendAntigravityForwardCompatModel(
+    registry.getAll(),
+    registry,
+  );
+  if (synthesizedForwardCompatKey && hasAvailableAntigravityOpus45ThinkingTemplate(availableKeys)) {
+    availableKeys.add(synthesizedForwardCompatKey);
+  }
   return { registry, models, availableKeys };
 }
 
 function appendAntigravityForwardCompatModel(
   models: Model<Api>[],
   modelRegistry: ModelRegistry,
-): Model<Api>[] {
+): { models: Model<Api>[]; synthesizedForwardCompatKey?: string } {
   const forwardCompatKey = modelKey("google-antigravity", "claude-opus-4-6-thinking");
   const hasForwardCompat = models.some(
     (model) => modelKey(model.provider, model.id) === forwardCompatKey,
   );
   if (hasForwardCompat) {
-    return models;
+    return { models };
   }
 
   const fallback = resolveForwardCompatModel(
@@ -76,10 +82,25 @@ function appendAntigravityForwardCompatModel(
     modelRegistry,
   );
   if (!fallback) {
-    return models;
+    return { models };
   }
 
-  return [...models, fallback];
+  return {
+    models: [...models, fallback],
+    synthesizedForwardCompatKey: forwardCompatKey,
+  };
+}
+
+function hasAvailableAntigravityOpus45ThinkingTemplate(availableKeys: Set<string>): boolean {
+  for (const key of availableKeys) {
+    if (
+      key.startsWith("google-antigravity/claude-opus-4-5-thinking") ||
+      key.startsWith("google-antigravity/claude-opus-4.5-thinking")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function toModelRow(params: {
@@ -107,10 +128,11 @@ export function toModelRow(params: {
 
   const input = model.input.join("+") || "text";
   const local = isLocalBaseUrl(model.baseUrl);
+  const availableFromRegistry = availableKeys?.has(modelKey(model.provider, model.id)) ?? false;
+  const availableFromAuth =
+    cfg && authStore ? hasAuthForProvider(model.provider, cfg, authStore) : false;
   const available =
-    cfg && authStore
-      ? hasAuthForProvider(model.provider, cfg, authStore)
-      : (availableKeys?.has(modelKey(model.provider, model.id)) ?? false);
+    cfg && authStore ? availableFromRegistry || availableFromAuth : availableFromRegistry;
   const aliasTags = aliases.length > 0 ? [`alias:${aliases.join(",")}`] : [];
   const mergedTags = new Set(tags);
   if (aliasTags.length > 0) {
