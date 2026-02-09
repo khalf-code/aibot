@@ -1,0 +1,7 @@
+{
+  "name": "defi-scout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DeFi yield scanner and opportunity brief generator",
+  "type": "module"
+}
