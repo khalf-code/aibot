@@ -15,7 +15,6 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
-- OTel: migrate `diagnostics-otel` resource/log provider wiring to OpenTelemetry v2-compatible APIs so the plugin starts successfully again. (#3201)
 - Errors: prevent false positive context overflow detection when conversation mentions "context overflow" topic. (#2078) Thanks @sbking.
 - Model failover: treat HTTP 400 errors as failover-eligible, enabling automatic model fallback when providers return bad request errors. (#1879) Thanks @orenyomtov.
 - Exec approvals: format forwarded command text as inline/fenced monospace for safer approval scanning across channels. (#11937)
