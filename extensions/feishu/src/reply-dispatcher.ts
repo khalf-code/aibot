@@ -87,12 +87,21 @@ export type CreateFeishuReplyDispatcherParams = {
   mentionTargets?: MentionTarget[];
   /** Account ID for multi-account support */
   accountId?: string;
+  disableBlockStreaming?: boolean;
   enableThinkingCard?: boolean;
 };
 
 export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherParams) {
   const core = getFeishuRuntime();
-  const { cfg, agentId, chatId, replyToMessageId, mentionTargets, accountId } = params;
+  const {
+    cfg,
+    agentId,
+    chatId,
+    replyToMessageId,
+    mentionTargets,
+    accountId,
+    disableBlockStreaming,
+  } = params;
 
   // Resolve account for config access
   const account = resolveFeishuAccount({ cfg, accountId });
@@ -150,7 +159,8 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
   });
 
   const feishuCfg = account.config;
-  const blockStreamingEnabled = feishuCfg?.blockStreaming !== false;
+  const blockStreamingConfigured = feishuCfg?.blockStreaming !== false;
+  const blockStreamingEnabled = blockStreamingConfigured && disableBlockStreaming !== true;
   const trueStreamingEnabled = feishuCfg?.streaming !== false;
   const renderMode = feishuCfg?.renderMode ?? "auto";
   const streamRenderMode = renderMode === "raw" ? "raw" : "card";
@@ -162,7 +172,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
     : "disabled";
 
   params.runtime.log?.(
-    `feishu[${account.accountId}] streaming config: enabled=${trueStreamingEnabled}, renderMode=${renderMode}, streamRenderMode=${streamRenderMode}, blockStreaming=${blockStreamingEnabled}, method=${configuredStreamMethod}`,
+    `feishu[${account.accountId}] streaming config: enabled=${trueStreamingEnabled}, renderMode=${renderMode}, streamRenderMode=${streamRenderMode}, blockStreamingConfigured=${blockStreamingConfigured}, blockStreamingEnabled=${blockStreamingEnabled}, method=${configuredStreamMethod}`,
   );
 
   // Block streaming state: accumulate blocks into a single card.

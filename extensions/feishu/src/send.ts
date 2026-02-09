@@ -1,4 +1,4 @@
-import type { ClawdbotConfig } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import type { MentionTarget } from "./mention.js";
 import type { FeishuSendResult } from "./types.js";
 import { resolveFeishuAccount } from "./accounts.js";
@@ -22,7 +22,7 @@ export type FeishuMessageInfo = {
  * Useful for fetching quoted/replied message content.
  */
 export async function getMessageFeishu(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   messageId: string;
   accountId?: string;
 }): Promise<FeishuMessageInfo | null> {
@@ -91,7 +91,7 @@ export async function getMessageFeishu(params: {
 }
 
 export type SendFeishuMessageParams = {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   to: string;
   text: string;
   replyToMessageId?: string;
@@ -192,7 +192,7 @@ export async function sendMessageFeishu(
 }
 
 export type SendFeishuCardParams = {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   to: string;
   card: Record<string, unknown>;
   replyToMessageId?: string;
@@ -276,7 +276,7 @@ export function buildMarkdownCard(text: string): Record<string, unknown> {
  * This renders markdown properly in Feishu (code blocks, tables, bold/italic, etc.)
  */
 export async function sendMarkdownCardFeishu(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   to: string;
   text: string;
   replyToMessageId?: string;
@@ -299,7 +299,7 @@ export async function sendMarkdownCardFeishu(params: {
  * Note: Feishu only allows editing messages within 24 hours.
  */
 export async function editMessageFeishu(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   messageId: string;
   text: string;
   accountId?: string;
@@ -503,7 +503,7 @@ export function buildStreamingCardData(initialContent: string, summaryText?: str
 }
 
 export async function createCardEntityFeishu(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   initialContent?: string;
   accountId?: string;
 }): Promise<CreateCardEntityResult> {
@@ -553,7 +553,7 @@ export async function createCardEntityFeishu(params: {
 }
 
 export async function updateCardSummaryFeishu(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   cardId: string;
   summaryText: string;
   content: string;
@@ -597,7 +597,7 @@ export async function updateCardSummaryFeishu(params: {
 }
 
 export async function sendCardByCardIdFeishu(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   to: string;
   cardId: string;
   replyToMessageId?: string;
@@ -683,7 +683,7 @@ export async function sendCardByCardIdFeishu(params: {
 
 /** @param sequence Strictly increasing per card (1, 2, 3, …). */
 export async function updateCardElementContentFeishu(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   cardId: string;
   content: string;
   sequence: number;

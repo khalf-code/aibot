@@ -552,6 +552,8 @@ export async function handleFeishuMessage(params: {
   // Resolve account with merged config
   const account = resolveFeishuAccount({ cfg, accountId });
   const feishuCfg = account.config;
+  const disableBlockStreamingFromConfig =
+    typeof feishuCfg?.blockStreaming === "boolean" ? !feishuCfg.blockStreaming : undefined;
 
   const log = runtime?.log ?? console.log;
   const error = runtime?.error ?? console.error;
@@ -811,6 +813,7 @@ export async function handleFeishuMessage(params: {
         chatId: ctx.chatId,
         replyToMessageId: ctx.messageId,
         accountId: account.accountId,
+        disableBlockStreaming: disableBlockStreamingFromConfig,
         enableThinkingCard: false,
       });
 
@@ -891,6 +894,7 @@ export async function handleFeishuMessage(params: {
         replyToMessageId: ctx.messageId,
         mentionTargets: ctx.mentionTargets,
         accountId: account.accountId,
+        disableBlockStreaming: disableBlockStreamingFromConfig,
       });
 
     log(`feishu[${account.accountId}]: dispatching to agent (session=${route.sessionKey})`);
@@ -904,10 +908,7 @@ export async function handleFeishuMessage(params: {
           replyOptions: {
             ...replyOptions,
             disableBlockStreaming:
-              replyOptions.disableBlockStreaming ??
-              (typeof feishuCfg?.blockStreaming === "boolean"
-                ? !feishuCfg.blockStreaming
-                : undefined),
+              replyOptions.disableBlockStreaming ?? disableBlockStreamingFromConfig,
           },
         });
       } finally {
