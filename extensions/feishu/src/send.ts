@@ -366,9 +366,13 @@ export type CreateCardEntityResult = {
 export function buildStreamingCardData(initialContent: string): string {
   return JSON.stringify({
     schema: "2.0",
+    header: {
+      title: { content: "", tag: "plain_text" },
+      template: "default",
+    },
     config: {
-      update_multi: true,
       streaming_mode: true,
+      summary: { content: "" },
       streaming_config: {
         print_step: { default: 1 },
         print_frequency_ms: { default: 70 },
