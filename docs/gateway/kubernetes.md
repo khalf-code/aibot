@@ -14,6 +14,71 @@ title: "Kubernetes"
 
 ---
 
+## Quick Start
+
+### Option A: Raw Manifests
+
+```bash
+# Build and load the OpenClaw image
+docker build -t localhost/openclaw:local .
+# For K3s: sudo k3s ctr images import <(docker save localhost/openclaw:local)
+# For Kind: kind load docker-image localhost/openclaw:local
+
+# Create namespace and generate gateway token
+kubectl apply -f deploy/k8s/namespace.yaml
+kubectl -n openclaw create secret generic openclaw-gateway-token \
+  --from-literal=token="$(openssl rand -hex 32)"
+
+# Deploy all components
+kubectl apply -f deploy/k8s/
+
+# Verify deployment
+kubectl -n openclaw get pods -w
+```
+
+### Option B: Helm Chart
+
+```bash
+# Install with default values
+helm install openclaw deploy/helm/openclaw -n openclaw --create-namespace
+
+# Or customize with your values
+helm install openclaw deploy/helm/openclaw -n openclaw --create-namespace \
+  -f deploy/helm/openclaw/values-local.yaml \
+  --set gateway.token="$(openssl rand -hex 32)"
+
+# Upgrade after changes
+helm upgrade openclaw deploy/helm/openclaw -n openclaw
+```
+
+### Verify Deployment
+
+```bash
+# Check all pods are running
+kubectl -n openclaw get pods
+
+# Watch worker scaling
+kubectl -n openclaw get hpa -w
+
+# View gateway logs
+kubectl -n openclaw logs -f statefulset/openclaw-gateway
+
+# Port-forward to access Control UI
+kubectl -n openclaw port-forward svc/openclaw-gateway 18789:18789
+```
+
+### Scale Workers
+
+```bash
+# Manual scale
+kubectl -n openclaw scale deployment/openclaw-worker --replicas=5
+
+# Or let HPA handle it based on CPU (default: 70% threshold)
+kubectl -n openclaw get hpa openclaw-worker
+```
+
+---
+
 ## Design Principles
 
 1. **No shared secrets** - Use K8s-native identity (ServiceAccount tokens)
@@ -152,632 +217,83 @@ flowchart TD
 
 ---
 
+## Manifest Files
+
+All Kubernetes manifests are in [`deploy/k8s/`](https://github.com/openclaw/openclaw/tree/main/deploy/k8s):
+
+| File | Description |
+|------|-------------|
+| [namespace.yaml](https://github.com/openclaw/openclaw/blob/main/deploy/k8s/namespace.yaml) | `openclaw` namespace |
+| [rbac.yaml](https://github.com/openclaw/openclaw/blob/main/deploy/k8s/rbac.yaml) | ServiceAccounts + ClusterRole for TokenReview |
+| [gateway-config.yaml](https://github.com/openclaw/openclaw/blob/main/deploy/k8s/gateway-config.yaml) | ConfigMap with k8sTrust config + Secret template |
+| [gateway.yaml](https://github.com/openclaw/openclaw/blob/main/deploy/k8s/gateway.yaml) | Gateway StatefulSet + Service |
+| [worker.yaml](https://github.com/openclaw/openclaw/blob/main/deploy/k8s/worker.yaml) | Worker Deployment + HPA |
+| [networkpolicy.yaml](https://github.com/openclaw/openclaw/blob/main/deploy/k8s/networkpolicy.yaml) | Network isolation rules |
+
+For Helm chart, see [`deploy/helm/openclaw/`](https://github.com/openclaw/openclaw/tree/main/deploy/helm/openclaw).
+
+---
+
 ## Implementation
 
-### Gateway Config
+Source code for K8s SA Trust authentication:
 
-```yaml
-# openclaw.json
+| File | Description |
+|------|-------------|
+| [src/gateway/k8s-auth.ts](https://github.com/openclaw/openclaw/blob/main/src/gateway/k8s-auth.ts) | `K8sAuthenticator` class - TokenReview API calls |
+| [src/config/types.gateway.ts](https://github.com/openclaw/openclaw/blob/main/src/config/types.gateway.ts) | K8sTrust config type definitions |
+
+### CLI Usage
+
+Workers connect with the `--k8s-trust` flag:
+
+```bash
+openclaw node run --host openclaw-gateway --port 18789 --k8s-trust
+```
+
+---
+
+## Configuration
+
+Gateway config with K8s SA Trust enabled (see [gateway-config.yaml](https://github.com/openclaw/openclaw/blob/main/deploy/k8s/gateway-config.yaml)):
+
+```json
 {
-  "gateway":
-    {
-      "mode": "local",
-      "port": 18789,
-      "bind": "lan",
-      "auth": { "mode": "token", "token": "${OPENCLAW_GATEWAY_TOKEN}" },
-      "k8sAuth":
-        {
-          "enabled": true,
-          "apiServer": "https://kubernetes.default.svc",
-          "caCertPath": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-          "tokenPath": "/var/run/secrets/kubernetes.io/serviceaccount/token",
-          "allowedIdentities":
-            [
-              {
-                "namespace": "openclaw",
-                "serviceAccount": "openclaw-worker",
-                "allowedRoles": ["node"],
-              },
-            ],
-          "ephemeralSessions": true,
-          "auditLog": true,
-        },
-    },
-}
-```
-
-### Code: Gateway K8s Auth Module
-
-```typescript
-// src/gateway/k8s-auth.ts
-
-import { readFileSync } from "fs";
-
-interface K8sAuthConfig {
-  enabled: boolean;
-  apiServer: string;
-  caCertPath: string;
-  tokenPath: string;
-  allowedIdentities: AllowedIdentity[];
-  ephemeralSessions?: boolean;
-  auditLog?: boolean;
-}
-
-interface AllowedIdentity {
-  namespace: string;
-  serviceAccount: string;
-  allowedRoles: string[];
-}
-
-interface TokenReviewResult {
-  authenticated: boolean;
-  namespace?: string;
-  serviceAccount?: string;
-  podUid?: string;
-  error?: string;
-}
-
-export class K8sAuthenticator {
-  private config: K8sAuthConfig;
-  private caCert: string;
-  private gatewayToken: string;
-
-  constructor(config: K8sAuthConfig) {
-    this.config = config;
-    this.caCert = readFileSync(config.caCertPath, "utf8");
-    this.gatewayToken = readFileSync(config.tokenPath, "utf8").trim();
-  }
-
-  async validateToken(saToken: string): Promise<TokenReviewResult> {
-    const response = await fetch(
-      `${this.config.apiServer}/apis/authentication.k8s.io/v1/tokenreviews`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.gatewayToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          apiVersion: "authentication.k8s.io/v1",
-          kind: "TokenReview",
-          spec: { token: saToken },
-        }),
-        // In real impl, configure CA cert for TLS
-      },
-    );
-
-    const result = await response.json();
-
-    if (!result.status?.authenticated) {
-      return { authenticated: false, error: "Token not authenticated" };
-    }
-
-    // Parse username: "system:serviceaccount:NAMESPACE:SA_NAME"
-    const username = result.status.user?.username || "";
-    const parts = username.split(":");
-
-    if (parts.length !== 4 || parts[0] !== "system" || parts[1] !== "serviceaccount") {
-      return { authenticated: false, error: "Not a ServiceAccount token" };
-    }
-
-    return {
-      authenticated: true,
-      namespace: parts[2],
-      serviceAccount: parts[3],
-      podUid: result.status.user?.uid,
-    };
-  }
-
-  isIdentityAllowed(namespace: string, serviceAccount: string, requestedRole: string): boolean {
-    return this.config.allowedIdentities.some(
-      (identity) =>
-        identity.namespace === namespace &&
-        identity.serviceAccount === serviceAccount &&
-        identity.allowedRoles.includes(requestedRole),
-    );
-  }
-}
-```
-
-### Code: Connection Handler Integration
-
-```typescript
-// src/gateway/server/ws-connection/message-handler.ts
-
-async function handleConnect(req: ConnectRequest, ctx: ConnectionContext) {
-  // K8s ServiceAccount authentication
-  if (req.authMode === "k8s-sa" && config.k8sAuth?.enabled) {
-    const k8sAuth = getK8sAuthenticator();
-
-    // Validate JWT with K8s API
-    const tokenResult = await k8sAuth.validateToken(req.saToken);
-
-    if (!tokenResult.authenticated) {
-      return rejectConnection(ctx, "k8s-auth-failed", tokenResult.error);
-    }
-
-    // Check if this identity is allowed
-    if (!k8sAuth.isIdentityAllowed(tokenResult.namespace!, tokenResult.serviceAccount!, req.role)) {
-      return rejectConnection(
-        ctx,
-        "k8s-identity-not-allowed",
-        `${tokenResult.namespace}:${tokenResult.serviceAccount} not allowed for role ${req.role}`,
-      );
-    }
-
-    // Audit log
-    if (config.k8sAuth.auditLog) {
-      logger.info("k8s-auth-success", {
-        namespace: tokenResult.namespace,
-        serviceAccount: tokenResult.serviceAccount,
-        podUid: tokenResult.podUid,
-        role: req.role,
-        remoteIp: ctx.remoteAddress,
-      });
-    }
-
-    // Create ephemeral session (not persisted to devices/*.json)
-    return createEphemeralSession(ctx, {
-      identity: `k8s:${tokenResult.namespace}:${tokenResult.serviceAccount}:${tokenResult.podUid}`,
-      role: req.role,
-      displayName: req.displayName || `Worker ${tokenResult.podUid?.slice(0, 8)}`,
-    });
-  }
-
-  // Fall through to existing device pairing for non-K8s clients
-  // ...
-}
-```
-
-### Code: Node Client Changes
-
-```typescript
-// src/node-host/runner.ts
-
-interface NodeRunOptions {
-  host: string;
-  port: number;
-  displayName?: string;
-  // NEW
-  k8sAuth?: boolean;
-  saTokenPath?: string;
-}
-
-async function runNodeHost(options: NodeRunOptions) {
-  let authConfig: AuthConfig;
-
-  if (options.k8sAuth) {
-    // Read ServiceAccount token from mounted path
-    const saTokenPath =
-      options.saTokenPath || "/var/run/secrets/kubernetes.io/serviceaccount/token";
-    const saToken = readFileSync(saTokenPath, "utf8").trim();
-
-    authConfig = {
-      mode: "k8s-sa",
-      saToken,
-    };
-  } else {
-    // Existing device identity auth
-    authConfig = {
-      mode: "device",
-      deviceIdentity: await loadOrCreateDeviceIdentity(),
-    };
-  }
-
-  const client = new GatewayClient({
-    url: `ws://${options.host}:${options.port}`,
-    role: "node",
-    displayName: options.displayName,
-    auth: authConfig,
-  });
-
-  // Token refresh loop (K8s rotates tokens)
-  if (options.k8sAuth) {
-    setInterval(
-      async () => {
-        const newToken = readFileSync(saTokenPath, "utf8").trim();
-        client.updateAuthToken(newToken);
-      },
-      5 * 60 * 1000,
-    ); // Refresh every 5 minutes
-  }
-
-  await client.start();
-}
-```
-
-### CLI Changes
-
-```typescript
-// src/commands/node.ts
-
-.command('run')
-.option('--host <host>', 'Gateway host')
-.option('--port <port>', 'Gateway port')
-.option('--display-name <name>', 'Worker display name')
-// NEW
-.option('--k8s-auth', 'Use Kubernetes ServiceAccount authentication')
-.option('--sa-token-path <path>', 'Path to ServiceAccount token',
-  '/var/run/secrets/kubernetes.io/serviceaccount/token')
-```
-
----
-
-## Kubernetes Manifests
-
-### Namespace
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: openclaw
-  labels:
-    name: openclaw # For NetworkPolicy selectors
-```
-
-### ServiceAccounts
-
-```yaml
-# Gateway ServiceAccount (needs TokenReview permissions)
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: openclaw-gateway
-  namespace: openclaw
----
-# Worker ServiceAccount (minimal permissions)
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: openclaw-worker
-  namespace: openclaw
-```
-
-### RBAC: Gateway Permissions
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: openclaw-token-reviewer
-rules:
-  - apiGroups: ["authentication.k8s.io"]
-    resources: ["tokenreviews"]
-    verbs: ["create"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: openclaw-gateway-token-reviewer
-subjects:
-  - kind: ServiceAccount
-    name: openclaw-gateway
-    namespace: openclaw
-roleRef:
-  kind: ClusterRole
-  name: openclaw-token-reviewer
-  apiGroup: rbac.authorization.k8s.io
-```
-
-### Gateway StatefulSet
-
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: openclaw-gateway
-  namespace: openclaw
-spec:
-  serviceName: openclaw-gateway
-  replicas: 1
-  selector:
-    matchLabels:
-      app: openclaw-gateway
-  template:
-    metadata:
-      labels:
-        app: openclaw-gateway
-    spec:
-      serviceAccountName: openclaw-gateway
-      containers:
-        - name: gateway
-          image: openclaw:latest
-          args:
-            - gateway
-            - --bind
-            - lan
-            - --port
-            - "18789"
-          env:
-            - name: OPENCLAW_GATEWAY_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: openclaw-user-auth
-                  key: token
-          ports:
-            - containerPort: 18789
-              name: gateway
-          volumeMounts:
-            - name: config
-              mountPath: /home/node/.openclaw/openclaw.json
-              subPath: openclaw.json
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 18789
-            initialDelaySeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 18789
-            initialDelaySeconds: 5
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
-        - name: config
-          configMap:
-            name: openclaw-gateway-config
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 1Gi
-```
-
-### Worker Deployment + HPA
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: openclaw-workers
-  namespace: openclaw
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: openclaw-worker
-  template:
-    metadata:
-      labels:
-        app: openclaw-worker
-    spec:
-      serviceAccountName: openclaw-worker
-      containers:
-        - name: worker
-          image: openclaw:latest
-          args:
-            - node
-            - run
-            - --host
-            - openclaw-gateway
-            - --port
-            - "18789"
-            - --k8s-auth
-            - --display-name
-            - "$(POD_NAME)"
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: OPENCLAW_GATEWAY_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: openclaw-user-auth
-                  key: token
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 1000m
-              memory: 1Gi
-      # Pod anti-affinity for HA
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app: openclaw-worker
-                topologyKey: kubernetes.io/hostname
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: openclaw-workers
-  namespace: openclaw
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: openclaw-workers
-  minReplicas: 2
-  maxReplicas: 50
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300 # 5 min cooldown
-      policies:
-        - type: Percent
-          value: 10
-          periodSeconds: 60
-    scaleUp:
-      stabilizationWindowSeconds: 0 # Scale up immediately
-      policies:
-        - type: Percent
-          value: 100
-          periodSeconds: 15
-```
-
-### Service
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: openclaw-gateway
-  namespace: openclaw
-spec:
-  selector:
-    app: openclaw-gateway
-  ports:
-    - port: 18789
-      targetPort: 18789
-      name: gateway
-  type: ClusterIP
-```
-
-### ConfigMap
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: openclaw-gateway-config
-  namespace: openclaw
-data:
-  openclaw.json: |
-    {
-      "gateway": {
-        "mode": "local",
-        "port": 18789,
-        "bind": "lan",
-        "auth": {
-          "mode": "token"
-        },
-        "k8sAuth": {
-          "enabled": true,
-          "apiServer": "https://kubernetes.default.svc",
-          "caCertPath": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-          "tokenPath": "/var/run/secrets/kubernetes.io/serviceaccount/token",
-          "allowedIdentities": [
-            {
-              "namespace": "openclaw",
-              "serviceAccount": "openclaw-worker",
-              "allowedRoles": ["node"]
-            }
-          ],
-          "ephemeralSessions": true,
-          "auditLog": true
-        }
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "bind": "lan",
+    "auth": {
+      "mode": "token",
+      "k8sTrust": {
+        "enabled": true,
+        "allowedIdentities": [
+          {
+            "namespace": "openclaw",
+            "serviceAccount": "openclaw-worker",
+            "allowedRoles": ["node"]
+          }
+        ],
+        "ephemeralSessions": true,
+        "auditLog": true
       }
     }
+  }
+}
 ```
 
-### NetworkPolicy
+### Configuration Options
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: openclaw-gateway-ingress
-  namespace: openclaw
-spec:
-  podSelector:
-    matchLabels:
-      app: openclaw-gateway
-  policyTypes:
-    - Ingress
-  ingress:
-    # Allow from workers in same namespace
-    - from:
-        - podSelector:
-            matchLabels:
-              app: openclaw-worker
-      ports:
-        - protocol: TCP
-          port: 18789
-    # Allow from ingress controller (for external access)
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
-      ports:
-        - protocol: TCP
-          port: 18789
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: openclaw-worker-egress
-  namespace: openclaw
-spec:
-  podSelector:
-    matchLabels:
-      app: openclaw-worker
-  policyTypes:
-    - Egress
-  egress:
-    # Allow to gateway
-    - to:
-        - podSelector:
-            matchLabels:
-              app: openclaw-gateway
-      ports:
-        - protocol: TCP
-          port: 18789
-    # Allow DNS
-    - to:
-        - namespaceSelector: {}
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
-        - protocol: UDP
-          port: 53
-```
-
-### User Auth Secret (for external clients)
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: openclaw-user-auth
-  namespace: openclaw
-type: Opaque
-stringData:
-  token: "your-secure-gateway-token-here"
-```
+| Option | Type | Description |
+|--------|------|-------------|
+| `enabled` | boolean | Enable K8s SA Trust authentication |
+| `allowedIdentities` | array | List of namespace/serviceAccount/roles allowed to connect |
+| `ephemeralSessions` | boolean | Don't persist device records for K8s workers |
+| `auditLog` | boolean | Log all K8s auth events |
 
 ---
 
 ## Monitoring & Observability
-
-### Prometheus Metrics (Gateway)
-
-```typescript
-// Metrics to expose
-const k8sAuthAttempts = new Counter({
-  name: "openclaw_k8s_auth_attempts_total",
-  help: "K8s auth attempts",
-  labelNames: ["namespace", "service_account", "result"],
-});
-
-const activeK8sSessions = new Gauge({
-  name: "openclaw_k8s_sessions_active",
-  help: "Active K8s-authenticated sessions",
-  labelNames: ["namespace", "service_account"],
-});
-```
 
 ### Grafana Dashboard Queries
 
@@ -864,6 +380,70 @@ graph LR
 
 ---
 
+## Troubleshooting
+
+### Error 1008: Token Mismatch
+
+**Symptom:** Control UI shows "token mismatch" error after Helm deploy/upgrade.
+
+**Root Cause:** Helm doesn't overwrite existing secrets by default. If you manually generate a token during deploy but the secret already exists, the displayed token won't match the actual secret.
+
+**Solution:** Get the actual token from the secret:
+
+```bash
+kubectl -n <namespace> get secret <release>-openclaw-gateway-token \
+  -o jsonpath='{.data.token}' | base64 -d && echo
+```
+
+**Prevention:** Use the deploy script which automatically reads existing tokens on upgrade:
+
+```bash
+# Fresh install: generates new token
+# Upgrade: reads existing token from secret
+./deploy-helm.sh <name>
+```
+
+**Force Token Rotation:** Delete the secret before deploying:
+
+```bash
+kubectl -n <namespace> delete secret <release>-openclaw-gateway-token
+./deploy-helm.sh <name>
+```
+
+### ImagePullBackOff
+
+**Symptom:** Pods stuck in `ImagePullBackOff` or `ErrImagePull`.
+
+**Cause:** Default Helm values expect a public image, but for local development you need the local image.
+
+**Solution:** Use local values or set image explicitly:
+
+```bash
+# Option A: Use local values file
+helm upgrade <name> deploy/helm/openclaw -n <namespace> \
+  -f deploy/helm/openclaw/values-local.yaml
+
+# Option B: Set image directly
+helm upgrade <name> deploy/helm/openclaw -n <namespace> \
+  --set image.repository=localhost/openclaw \
+  --set image.tag=local \
+  --set image.pullPolicy=Never
+```
+
+### Workers CrashLoopBackOff
+
+**Symptom:** Workers restart repeatedly with `ECONNREFUSED`.
+
+**Cause:** Workers started before gateway was ready.
+
+**Solution:** Wait for gateway to be ready, workers will auto-recover:
+
+```bash
+kubectl -n <namespace> rollout status statefulset/<release>-openclaw-gateway
+```
+
+---
+
 ## Summary
 
 **K8s ServiceAccount Trust is the production-recommended approach for Kubernetes deployments because:**
@@ -875,6 +455,3 @@ graph LR
 5. ✅ **Zero-touch scaling** - HPA works without any manual steps
 6. ✅ **K8s-native** - Leverages existing RBAC and identity infrastructure
 7. ✅ **Defense in depth** - NetworkPolicy + JWT + namespace + SA + role
-
-**Implementation effort:** ~200 lines of code + K8s manifests  
-**Time to production:** Ready for workers in 3-15 seconds after scale event

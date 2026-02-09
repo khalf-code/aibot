@@ -2,10 +2,10 @@
    kubectl -n {{ .Release.Namespace }} get secret {{ include "openclaw.gateway.secretName" . }} -o jsonpath='{.data.token}' | base64 -d; echo
 
 2. Port-forward the gateway:
-   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "openclaw.gateway.serviceName" . }} 19000:{{ .Values.gateway.service.port }}
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "openclaw.gateway.serviceName" . }} {{ .Values.gateway.service.port }}:{{ .Values.gateway.service.port }}
 
 3. Open the Control UI:
-   http://localhost:19000/ui/overview?token=<TOKEN_FROM_STEP_1>
+   http://localhost:{{ .Values.gateway.service.port }}/overview?token=<TOKEN_FROM_STEP_1>
 
 4. Check worker status:
    kubectl -n {{ .Release.Namespace }} get pods -l {{ (include "openclaw.worker.selectorLabels" .) | replace ": " "=" }}

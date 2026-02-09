@@ -4,11 +4,11 @@ fullnameOverride: ""
 
 image:
   # -- Container image repository
-  repository: openclaw
+  repository: localhost/openclaw
   # -- Image tag (defaults to .Chart.AppVersion)
-  tag: ""
+  tag: "local"
   # -- Image pull policy (use Never for local K3s with imported images)
-  pullPolicy: IfNotPresent
+  pullPolicy: Never
 
 imagePullSecrets: []
 
