@@ -41,6 +41,7 @@ const bluebubblesAccountSchema = z.object({
   chunkMode: z.enum(["length", "newline"]).optional(),
   mediaMaxMb: z.number().int().positive().optional(),
   sendReadReceipts: z.boolean().optional(),
+  maxMessageAgeMs: z.number().int().min(0).optional(),
   blockStreaming: z.boolean().optional(),
   groups: z.object({}).catchall(bluebubblesGroupConfigSchema).optional(),
 });

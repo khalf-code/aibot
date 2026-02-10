@@ -47,6 +47,8 @@ export type BlueBubblesAccountConfig = {
   mediaMaxMb?: number;
   /** Send read receipts for incoming messages (default: true). */
   sendReadReceipts?: boolean;
+  /** Max age (ms) of inbound messages before they are dropped as stale (default: 300000 = 5 min). */
+  maxMessageAgeMs?: number;
   /** Per-group configuration keyed by chat GUID or identifier. */
   groups?: Record<string, BlueBubblesGroupConfig>;
 };

@@ -39,6 +39,7 @@ export type BlueBubblesMonitorOptions = {
 
 const DEFAULT_WEBHOOK_PATH = "/bluebubbles-webhook";
 const DEFAULT_TEXT_LIMIT = 4000;
+const DEFAULT_MAX_MESSAGE_AGE_MS = 5 * 60 * 1000;
 const invalidAckReactions = new Set<string>();
 
 const REPLY_CACHE_MAX = 2000;
@@ -1642,6 +1643,17 @@ async function processMessage(
     // Cache from-me messages so reply context can resolve sender/body.
     cacheInboundMessage();
     return;
+  }
+
+  const maxMessageAgeMs = account.config.maxMessageAgeMs ?? DEFAULT_MAX_MESSAGE_AGE_MS;
+  if (typeof message.timestamp === "number" && maxMessageAgeMs > 0) {
+    const ageMs = Date.now() - message.timestamp;
+    if (ageMs < 0 || ageMs > maxMessageAgeMs) {
+      runtime.log?.(
+        `[bluebubbles] drop stale message: age=${Math.round(ageMs / 1000)}s limit=${Math.round(maxMessageAgeMs / 1000)}s sender=${message.senderId} id=${message.messageId ?? ""}`,
+      );
+      return;
+    }
   }
 
   if (!rawBody) {

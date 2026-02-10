@@ -1388,6 +1388,199 @@ describe("BlueBubbles webhook monitor", () => {
     });
   });
 
+  describe("staleness protection", () => {
+    it("drops inbound messages with a stale timestamp", async () => {
+      const account = createMockAccount({ dmPolicy: "open" });
+      const config: OpenClawConfig = {};
+      const core = createMockRuntime();
+      setBlueBubblesRuntime(core);
+
+      unregister = registerBlueBubblesWebhookTarget({
+        account,
+        config,
+        runtime: { log: vi.fn(), error: vi.fn() },
+        core,
+        path: "/bluebubbles-webhook",
+      });
+
+      // Simulate a webhook replayed 17 hours later (well past the 5min default)
+      const staleTimestamp = Date.now() - 17 * 60 * 60 * 1000;
+      const payload = {
+        type: "new-message",
+        data: {
+          text: "stale hello from yesterday",
+          handle: { address: "+15559998888" },
+          isGroup: false,
+          isFromMe: false,
+          guid: "stale-msg-1",
+          date: staleTimestamp,
+        },
+      };
+
+      const req = createMockRequest("POST", "/bluebubbles-webhook", payload);
+      const res = createMockResponse();
+
+      await handleBlueBubblesWebhookRequest(req, res);
+      await flushAsync();
+
+      // The stale message should NOT be dispatched
+      expect(mockDispatchReplyWithBufferedBlockDispatcher).not.toHaveBeenCalled();
+    });
+
+    it("processes messages with a recent timestamp normally", async () => {
+      const account = createMockAccount({ dmPolicy: "open" });
+      const config: OpenClawConfig = {};
+      const core = createMockRuntime();
+      setBlueBubblesRuntime(core);
+
+      unregister = registerBlueBubblesWebhookTarget({
+        account,
+        config,
+        runtime: { log: vi.fn(), error: vi.fn() },
+        core,
+        path: "/bluebubbles-webhook",
+      });
+
+      // Message from 10 seconds ago — well within the default window
+      const recentTimestamp = Date.now() - 10_000;
+      const payload = {
+        type: "new-message",
+        data: {
+          text: "fresh hello",
+          handle: { address: "+15559998888" },
+          isGroup: false,
+          isFromMe: false,
+          guid: "fresh-msg-1",
+          date: recentTimestamp,
+        },
+      };
+
+      const req = createMockRequest("POST", "/bluebubbles-webhook", payload);
+      const res = createMockResponse();
+
+      await handleBlueBubblesWebhookRequest(req, res);
+      await flushAsync();
+
+      // Fresh message should be dispatched
+      expect(mockDispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
+    });
+
+    it("processes messages with no timestamp (graceful fallback)", async () => {
+      const account = createMockAccount({ dmPolicy: "open" });
+      const config: OpenClawConfig = {};
+      const core = createMockRuntime();
+      setBlueBubblesRuntime(core);
+
+      unregister = registerBlueBubblesWebhookTarget({
+        account,
+        config,
+        runtime: { log: vi.fn(), error: vi.fn() },
+        core,
+        path: "/bluebubbles-webhook",
+      });
+
+      // Webhook with no timestamp field at all
+      const payload = {
+        type: "new-message",
+        data: {
+          text: "no timestamp message",
+          handle: { address: "+15559998888" },
+          isGroup: false,
+          isFromMe: false,
+          guid: "no-ts-msg-1",
+        },
+      };
+
+      const req = createMockRequest("POST", "/bluebubbles-webhook", payload);
+      const res = createMockResponse();
+
+      await handleBlueBubblesWebhookRequest(req, res);
+      await flushAsync();
+
+      // Messages without timestamps should still be processed (no false positives)
+      expect(mockDispatchReplyWithBufferedBlockDispatcher).toHaveBeenCalledTimes(1);
+    });
+
+    it("respects configurable maxMessageAgeMs", async () => {
+      // Set a very short max age of 2 seconds
+      const account = createMockAccount({
+        dmPolicy: "open",
+        maxMessageAgeMs: 2000,
+      } as Partial<ResolvedBlueBubblesAccount["config"]>);
+      const config: OpenClawConfig = {};
+      const core = createMockRuntime();
+      setBlueBubblesRuntime(core);
+
+      unregister = registerBlueBubblesWebhookTarget({
+        account,
+        config,
+        runtime: { log: vi.fn(), error: vi.fn() },
+        core,
+        path: "/bluebubbles-webhook",
+      });
+
+      // Message from 5 seconds ago — within default but outside custom 2s window
+      const payload = {
+        type: "new-message",
+        data: {
+          text: "slightly old message",
+          handle: { address: "+15559998888" },
+          isGroup: false,
+          isFromMe: false,
+          guid: "custom-age-msg-1",
+          date: Date.now() - 5000,
+        },
+      };
+
+      const req = createMockRequest("POST", "/bluebubbles-webhook", payload);
+      const res = createMockResponse();
+
+      await handleBlueBubblesWebhookRequest(req, res);
+      await flushAsync();
+
+      // Should be dropped because 5s > 2s maxMessageAgeMs
+      expect(mockDispatchReplyWithBufferedBlockDispatcher).not.toHaveBeenCalled();
+    });
+
+    it("drops messages with future timestamps (clock skew protection)", async () => {
+      const account = createMockAccount({ dmPolicy: "open" });
+      const config: OpenClawConfig = {};
+      const core = createMockRuntime();
+      setBlueBubblesRuntime(core);
+
+      unregister = registerBlueBubblesWebhookTarget({
+        account,
+        config,
+        runtime: { log: vi.fn(), error: vi.fn() },
+        core,
+        path: "/bluebubbles-webhook",
+      });
+
+      // Message timestamped 1 hour in the future (clock skew or server bug)
+      const futureTimestamp = Date.now() + 60 * 60 * 1000;
+      const payload = {
+        type: "new-message",
+        data: {
+          text: "future message",
+          handle: { address: "+15559998888" },
+          isGroup: false,
+          isFromMe: false,
+          guid: "future-msg-1",
+          date: futureTimestamp,
+        },
+      };
+
+      const req = createMockRequest("POST", "/bluebubbles-webhook", payload);
+      const res = createMockResponse();
+
+      await handleBlueBubblesWebhookRequest(req, res);
+      await flushAsync();
+
+      // Future-dated messages should be dropped (negative ageMs indicates clock skew)
+      expect(mockDispatchReplyWithBufferedBlockDispatcher).not.toHaveBeenCalled();
+    });
+  });
+
   describe("reply metadata", () => {
     it("surfaces reply fields in ctx when provided", async () => {
       const account = createMockAccount({ dmPolicy: "open" });
