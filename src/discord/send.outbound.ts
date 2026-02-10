@@ -31,6 +31,7 @@ type DiscordSendOpts = {
   replyTo?: string;
   retry?: RetryConfig;
   embeds?: unknown[];
+  components?: unknown[];
 };
 
 /** Discord thread names are capped at 100 characters. */
@@ -180,7 +181,23 @@ export async function sendMessageDiscord(
 
   let result: { id: string; channel_id: string } | { id: string | null; channel_id: string };
   try {
-    if (opts.mediaUrl) {
+    if (
+      !textWithTables.trim() &&
+      !opts.mediaUrl &&
+      (opts.embeds?.length || opts.components?.length)
+    ) {
+      // Rich message: embeds/components only, no text content required.
+      result = (await request(
+        () =>
+          rest.post(Routes.channelMessages(channelId), {
+            body: {
+              embeds: opts.embeds?.length ? opts.embeds : undefined,
+              components: opts.components?.length ? opts.components : undefined,
+            },
+          }) as Promise<{ id: string; channel_id: string }>,
+        "rich",
+      )) as { id: string; channel_id: string };
+    } else if (opts.mediaUrl) {
       result = await sendDiscordMedia(
         rest,
         channelId,
