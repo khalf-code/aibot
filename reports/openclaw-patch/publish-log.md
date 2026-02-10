@@ -56,5 +56,5 @@ To avoid local pack/object negotiation corruption, a clean clone was used:
 
 ## Notes
 
-- Original working branch in `/projects/openclaw` now includes an additional documentation commit for this task (`8d7fa14bc docs(openclaw-patch): add safe_call reports and README notes`).
+- Original working branch in `/projects/openclaw` now includes additional documentation commits for this task (`8d7fa14bc docs(openclaw-patch): add safe_call reports and README notes`, `d725709ed docs(openclaw-patch): finalize report files`).
 - Publish succeeded using a clean-clone transport workaround due repeated remote unpack failures from the original local repository.
