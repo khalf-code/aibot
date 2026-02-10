@@ -21,7 +21,7 @@ import { tryRouteCli } from "./route.js";
  * avoids directory scanning, manifest reads, and jiti dynamic imports on the
  * critical path.
  */
-const BUILTIN_COMMANDS = new Set([
+export const BUILTIN_COMMANDS = new Set([
   // command-registry.ts core commands
   "setup",
   "onboard",
