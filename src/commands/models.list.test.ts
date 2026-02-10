@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadConfig = vi.fn();
 const ensureOpenClawModelsJson = vi.fn().mockResolvedValue(undefined);
@@ -19,6 +19,7 @@ const modelRegistryState = {
   getAllError: undefined as unknown,
   getAvailableError: undefined as unknown,
 };
+let previousExitCode: number | undefined;
 
 vi.mock("../config/config.js", () => ({
   CONFIG_PATH: "/tmp/openclaw.json",
@@ -95,9 +96,15 @@ function makeRuntime() {
 }
 
 beforeEach(() => {
+  previousExitCode = process.exitCode;
+  process.exitCode = undefined;
   modelRegistryState.getAllError = undefined;
   modelRegistryState.getAvailableError = undefined;
   listProfilesForProvider.mockReturnValue([]);
+});
+
+afterEach(() => {
+  process.exitCode = previousExitCode;
 });
 
 describe("models list/status", () => {
@@ -612,6 +619,7 @@ describe("models list/status", () => {
     expect(runtime.error.mock.calls[0]?.[0]).toContain("model discovery failed");
     expect(runtime.error.mock.calls[0]?.[0]).not.toContain("configured models may appear missing");
     expect(runtime.log).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
   });
 
   it("models list fails fast when registry model discovery is unavailable", async () => {
@@ -645,6 +653,7 @@ describe("models list/status", () => {
     expect(runtime.error.mock.calls[0]?.[0]).toContain("Model registry unavailable:");
     expect(runtime.error.mock.calls[0]?.[0]).toContain("model discovery unavailable");
     expect(runtime.log).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
   });
 
   it("loadModelRegistry throws when model discovery is unavailable", async () => {
@@ -668,5 +677,30 @@ describe("models list/status", () => {
 
     const { loadModelRegistry } = await import("./models/list.registry.js");
     await expect(loadModelRegistry({})).rejects.toThrow("model discovery unavailable");
+  });
+
+  it("toModelRow does not crash without cfg/authStore when availability is undefined", async () => {
+    const { toModelRow } = await import("./models/list.registry.js");
+
+    const row = toModelRow({
+      model: {
+        provider: "google-antigravity",
+        id: "claude-opus-4-6-thinking",
+        name: "Claude Opus 4.6 Thinking",
+        api: "google-gemini-cli",
+        input: ["text", "image"],
+        baseUrl: "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        contextWindow: 200000,
+        maxTokens: 64000,
+        reasoning: true,
+        cost: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+      },
+      key: "google-antigravity/claude-opus-4-6-thinking",
+      tags: [],
+      availableKeys: undefined,
+    });
+
+    expect(row.missing).toBe(false);
+    expect(row.available).toBe(false);
   });
 });

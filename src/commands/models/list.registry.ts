@@ -36,7 +36,14 @@ const isLocalBaseUrl = (baseUrl: string) => {
   }
 };
 
-const hasAuthForProvider = (provider: string, cfg: OpenClawConfig, authStore: AuthProfileStore) => {
+const hasAuthForProvider = (
+  provider: string,
+  cfg?: OpenClawConfig,
+  authStore?: AuthProfileStore,
+) => {
+  if (!cfg || !authStore) {
+    return false;
+  }
   if (listProfilesForProvider(authStore, provider).length > 0) {
     return true;
   }
