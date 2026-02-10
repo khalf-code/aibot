@@ -56,6 +56,11 @@ describe("isCronRunSessionKey", () => {
   it("does not match regular session keys", () => {
     expect(isCronRunSessionKey("agent:main:telegram:dm:123")).toBe(false);
   });
+
+  it("does not match non-canonical cron-like keys", () => {
+    expect(isCronRunSessionKey("agent:main:slack:cron:job:run:uuid")).toBe(false);
+    expect(isCronRunSessionKey("cron:job:run:uuid")).toBe(false);
+  });
 });
 
 describe("sweepCronRunSessions", () => {

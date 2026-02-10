@@ -12,7 +12,7 @@ import { parseDurationMs } from "../cli/parse-duration.js";
 import { updateSessionStore } from "../config/sessions.js";
 
 const DEFAULT_RETENTION_MS = 24 * 3_600_000; // 24 hours
-const CRON_RUN_KEY_PATTERN = /:cron:[^:]+:run:/;
+const CRON_RUN_KEY_PATTERN = /^agent:[^:]+:cron:[^:]+:run:[^:]+$/;
 
 /** Minimum interval between reaper sweeps (avoid running every timer tick). */
 const MIN_SWEEP_INTERVAL_MS = 5 * 60_000; // 5 minutes
@@ -73,6 +73,7 @@ export async function sweepCronRunSessions(params: {
 
   const retentionMs = resolveRetentionMs(params.cronConfig);
   if (retentionMs === null) {
+    lastSweepAtMsByStore.set(storePath, now);
     return { swept: false, pruned: 0 };
   }
 

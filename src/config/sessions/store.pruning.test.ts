@@ -365,7 +365,9 @@ describe("Integration: saveSessionStore with pruning", () => {
 
   it("saveSessionStore prunes stale entries on write", async () => {
     mockLoadConfig.mockReturnValue({
-      session: { maintenance: { pruneDays: 7, maxEntries: 500, rotateBytes: 10_485_760 } },
+      session: {
+        maintenance: { mode: "enforce", pruneDays: 7, maxEntries: 500, rotateBytes: 10_485_760 },
+      },
     });
 
     const now = Date.now();
@@ -383,7 +385,9 @@ describe("Integration: saveSessionStore with pruning", () => {
 
   it("saveSessionStore caps entries over limit", async () => {
     mockLoadConfig.mockReturnValue({
-      session: { maintenance: { pruneDays: 30, maxEntries: 5, rotateBytes: 10_485_760 } },
+      session: {
+        maintenance: { mode: "enforce", pruneDays: 30, maxEntries: 5, rotateBytes: 10_485_760 },
+      },
     });
 
     const now = Date.now();
@@ -406,7 +410,9 @@ describe("Integration: saveSessionStore with pruning", () => {
 
   it("saveSessionStore rotates file when over size limit and creates .bak", async () => {
     mockLoadConfig.mockReturnValue({
-      session: { maintenance: { pruneDays: 30, maxEntries: 500, rotateBytes: 100 } },
+      session: {
+        maintenance: { mode: "enforce", pruneDays: 30, maxEntries: 500, rotateBytes: 100 },
+      },
     });
 
     const now = Date.now();
@@ -435,7 +441,9 @@ describe("Integration: saveSessionStore with pruning", () => {
 
   it("saveSessionStore applies both pruning and capping together", async () => {
     mockLoadConfig.mockReturnValue({
-      session: { maintenance: { pruneDays: 10, maxEntries: 3, rotateBytes: 10_485_760 } },
+      session: {
+        maintenance: { mode: "enforce", pruneDays: 10, maxEntries: 3, rotateBytes: 10_485_760 },
+      },
     });
 
     const now = Date.now();
@@ -483,14 +491,16 @@ describe("Integration: saveSessionStore with pruning", () => {
 
   it("resolveMaintenanceConfig reads from loadConfig().session.maintenance", async () => {
     mockLoadConfig.mockReturnValue({
-      session: { maintenance: { pruneDays: 7, maxEntries: 100, rotateBytes: 5_000_000 } },
+      session: {
+        maintenance: { pruneDays: 7, maxEntries: 100, rotateBytes: 5_000_000 },
+      },
     });
 
     const { resolveMaintenanceConfig } = await import("./store.js");
     const config = resolveMaintenanceConfig();
 
     expect(config).toEqual({
-      mode: "enforce",
+      mode: "warn",
       pruneDays: 7,
       maxEntries: 100,
       rotateBytes: 5_000_000,
@@ -504,7 +514,7 @@ describe("Integration: saveSessionStore with pruning", () => {
     const config = resolveMaintenanceConfig();
 
     expect(config).toEqual({
-      mode: "enforce",
+      mode: "warn",
       pruneDays: 14,
       maxEntries: 500,
       rotateBytes: 10_485_760,

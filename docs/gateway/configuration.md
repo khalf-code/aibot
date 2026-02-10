@@ -2768,7 +2768,7 @@ Controls session scoping, reset policy, reset triggers, and where the session st
     // You can override with {agentId} templating:
     store: "~/.openclaw/agents/{agentId}/sessions/sessions.json",
     maintenance: {
-      mode: "enforce",
+      mode: "warn",
       pruneDays: 30,
       maxEntries: 500,
       rotateBytes: 10_485_760,
@@ -2810,7 +2810,7 @@ Fields:
 - `sendPolicy.default`: `allow` or `deny` fallback when no rule matches.
 - `sendPolicy.rules[]`: match by `channel`, `chatType` (`direct|group|room`), or `keyPrefix` (e.g. `cron:`). First deny wins; otherwise allow.
 - `maintenance`: session store maintenance settings for pruning, capping, and rotation.
-  - `mode`: `"enforce"` (default) applies maintenance, `"warn"` logs when limits are exceeded without pruning or rotating.
+  - `mode`: `"warn"` (default) logs when the active session would be evicted without enforcing maintenance. `"enforce"` applies pruning and rotation.
   - `pruneDays`: remove entries older than this many days (default 30).
   - `maxEntries`: cap the number of session entries kept (default 500).
   - `rotateBytes`: rotate `sessions.json` when it exceeds this size in bytes (default 10485760).

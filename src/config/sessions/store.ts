@@ -207,7 +207,7 @@ export function readSessionUpdatedAt(params: {
 const DEFAULT_SESSION_PRUNE_DAYS = 30;
 const DEFAULT_SESSION_MAX_ENTRIES = 500;
 const DEFAULT_SESSION_ROTATE_BYTES = 10_485_760; // 10 MB
-const DEFAULT_SESSION_MAINTENANCE_MODE: SessionMaintenanceMode = "enforce";
+const DEFAULT_SESSION_MAINTENANCE_MODE: SessionMaintenanceMode = "warn";
 
 /**
  * Resolve maintenance settings from openclaw.json (`session.maintenance`).
@@ -258,6 +258,10 @@ export function pruneStaleEntries(
  * Entries without `updatedAt` are sorted last (removed first when over limit).
  * Mutates `store` in-place.
  */
+function getEntryUpdatedAt(entry?: SessionEntry): number {
+  return entry?.updatedAt ?? Number.NEGATIVE_INFINITY;
+}
+
 export function capEntryCount(
   store: Record<string, SessionEntry>,
   overrideMax?: number,
@@ -271,8 +275,8 @@ export function capEntryCount(
 
   // Sort by updatedAt descending; entries without updatedAt go to the end (removed first).
   const sorted = keys.toSorted((a, b) => {
-    const aTime = store[a]?.updatedAt ?? 0;
-    const bTime = store[b]?.updatedAt ?? 0;
+    const aTime = getEntryUpdatedAt(store[a]);
+    const bTime = getEntryUpdatedAt(store[b]);
     return bTime - aTime;
   });
 
@@ -357,6 +361,8 @@ export async function rotateSessionFile(
 type SaveSessionStoreOptions = {
   /** Skip pruning, capping, and rotation (e.g. during one-time migrations). */
   skipMaintenance?: boolean;
+  /** Active session key for warn-only maintenance. */
+  activeSessionKey?: string;
 };
 
 async function saveSessionStoreUnlocked(
@@ -375,23 +381,29 @@ async function saveSessionStoreUnlocked(
     const shouldWarnOnly = maintenance.mode === "warn";
 
     if (shouldWarnOnly) {
-      const preview = structuredClone(store);
-      const pruned = pruneStaleEntries(preview, maintenance.pruneDays, { log: false });
-      const capped = capEntryCount(preview, maintenance.maxEntries, { log: false });
-      const fileSize = await getSessionFileSize(storePath);
-      const rotate =
-        typeof fileSize === "number" ? fileSize > maintenance.rotateBytes : false;
+      const activeSessionKey = opts?.activeSessionKey?.trim();
+      const activeEntry = activeSessionKey ? store[activeSessionKey] : undefined;
+      if (activeSessionKey && activeEntry) {
+        const cutoffMs = Date.now() - maintenance.pruneDays * 24 * 60 * 60 * 1000;
+        const wouldPrune =
+          activeEntry.updatedAt != null && activeEntry.updatedAt < cutoffMs;
+        const keys = Object.keys(store);
+        const wouldCap =
+          keys.length > maintenance.maxEntries &&
+          keys
+            .toSorted((a, b) => getEntryUpdatedAt(store[b]) - getEntryUpdatedAt(store[a]))
+            .slice(maintenance.maxEntries)
+            .includes(activeSessionKey);
 
-      if (pruned > 0 || capped > 0 || rotate) {
-        log.warn("session maintenance thresholds exceeded; skipping enforcement", {
-          pruned,
-          capped,
-          rotate,
-          fileSize,
-          pruneDays: maintenance.pruneDays,
-          maxEntries: maintenance.maxEntries,
-          rotateBytes: maintenance.rotateBytes,
-        });
+        if (wouldPrune || wouldCap) {
+          log.warn("session maintenance would evict active session; skipping enforcement", {
+            activeSessionKey,
+            wouldPrune,
+            wouldCap,
+            pruneDays: maintenance.pruneDays,
+            maxEntries: maintenance.maxEntries,
+          });
+        }
       }
     } else {
       // Prune stale entries and cap total count before serializing.
@@ -475,12 +487,13 @@ export async function saveSessionStore(
 export async function updateSessionStore<T>(
   storePath: string,
   mutator: (store: Record<string, SessionEntry>) => Promise<T> | T,
+  opts?: SaveSessionStoreOptions,
 ): Promise<T> {
   return await withSessionStoreLock(storePath, async () => {
     // Always re-read inside the lock to avoid clobbering concurrent writers.
     const store = loadSessionStore(storePath, { skipCache: true });
     const result = await mutator(store);
-    await saveSessionStoreUnlocked(storePath, store);
+    await saveSessionStoreUnlocked(storePath, store, opts);
     return result;
   });
 }
@@ -581,7 +594,7 @@ export async function updateSessionStoreEntry(params: {
     }
     const next = mergeSessionEntry(existing, patch);
     store[sessionKey] = next;
-    await saveSessionStoreUnlocked(storePath, store);
+    await saveSessionStoreUnlocked(storePath, store, { activeSessionKey: sessionKey });
     return next;
   });
 }
@@ -595,7 +608,9 @@ export async function recordSessionMetaFromInbound(params: {
 }): Promise<SessionEntry | null> {
   const { storePath, sessionKey, ctx } = params;
   const createIfMissing = params.createIfMissing ?? true;
-  return await updateSessionStore(storePath, (store) => {
+  return await updateSessionStore(
+    storePath,
+    (store) => {
     const existing = store[sessionKey];
     const patch = deriveSessionMetaPatch({
       ctx,
@@ -612,7 +627,9 @@ export async function recordSessionMetaFromInbound(params: {
     const next = mergeSessionEntry(existing, patch);
     store[sessionKey] = next;
     return next;
-  });
+    },
+    { activeSessionKey: sessionKey },
+  );
 }
 
 export async function updateLastRoute(params: {
@@ -688,7 +705,7 @@ export async function updateLastRoute(params: {
       metaPatch ? { ...basePatch, ...metaPatch } : basePatch,
     );
     store[sessionKey] = next;
-    await saveSessionStoreUnlocked(storePath, store);
+    await saveSessionStoreUnlocked(storePath, store, { activeSessionKey: sessionKey });
     return next;
   });
 }

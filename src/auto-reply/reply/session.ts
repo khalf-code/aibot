@@ -347,10 +347,14 @@ export async function initSessionState(params: {
   }
   // Preserve per-session overrides while resetting compaction state on /new.
   sessionStore[sessionKey] = { ...sessionStore[sessionKey], ...sessionEntry };
-  await updateSessionStore(storePath, (store) => {
-    // Preserve per-session overrides while resetting compaction state on /new.
-    store[sessionKey] = { ...store[sessionKey], ...sessionEntry };
-  });
+  await updateSessionStore(
+    storePath,
+    (store) => {
+      // Preserve per-session overrides while resetting compaction state on /new.
+      store[sessionKey] = { ...store[sessionKey], ...sessionEntry };
+    },
+    { activeSessionKey: sessionKey },
+  );
 
   const sessionCtx: TemplateContext = {
     ...ctx,
