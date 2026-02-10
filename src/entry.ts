@@ -6,6 +6,18 @@ import { applyCliProfileEnv, parseCliProfileArgs } from "./cli/profile.js";
 import { isTruthyEnvValue, normalizeEnv } from "./infra/env.js";
 import { installProcessWarningFilter } from "./infra/warning-filter.js";
 import { attachChildProcessBridge } from "./process/child-process-bridge.js";
+import { VERSION } from "./version.js";
+
+const VERSION_FLAGS = new Set(["-v", "-V", "--version"]);
+
+export function hasVersionFlag(argv: string[]): boolean {
+  return argv.some((arg) => VERSION_FLAGS.has(arg));
+}
+
+if (hasVersionFlag(process.argv)) {
+  console.log(VERSION);
+  process.exit(0);
+}
 
 process.title = "openclaw";
 installProcessWarningFilter();
