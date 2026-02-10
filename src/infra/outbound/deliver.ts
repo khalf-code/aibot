@@ -230,6 +230,8 @@ export async function deliverOutboundPayloads(params: {
 
   const sendTextChunks = async (text: string) => {
     throwIfAborted(abortSignal);
+    text = text.trim();
+    if (!text) return;
     if (!handler.chunker || textLimit === undefined) {
       results.push(await handler.sendText(text));
       return;

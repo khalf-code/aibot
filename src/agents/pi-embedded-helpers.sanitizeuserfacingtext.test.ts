@@ -69,4 +69,11 @@ describe("sanitizeUserFacingText", () => {
     const text = "Hello there!\n\nDifferent line.";
     expect(sanitizeUserFacingText(text)).toBe(text);
   });
+
+  it("trims leading and trailing whitespace", () => {
+    expect(sanitizeUserFacingText("\n\nHello there!")).toBe("Hello there!");
+    expect(sanitizeUserFacingText("Hello there!\n\n")).toBe("Hello there!");
+    expect(sanitizeUserFacingText("\n\nHello there!\n\n")).toBe("Hello there!");
+    expect(sanitizeUserFacingText("  Hello there!  ")).toBe("Hello there!");
+  });
 });
