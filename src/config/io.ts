@@ -753,7 +753,9 @@ export async function writeConfigFile(cfg: OpenClawConfig): Promise<void> {
   const envSnap = _moduleEnvSnapshots.get(io.configPath);
   if (envSnap) {
     io.setEnvSnapshot(envSnap);
-    _moduleEnvSnapshots.delete(io.configPath); // consume once
+    // Keep the snapshot — subsequent writes from the same read cycle should
+    // also use the read-time env state.  The snapshot is overwritten by the
+    // next readConfigFileSnapshot() call, so staleness is bounded.
   }
   await io.writeConfigFile(cfg);
 }
