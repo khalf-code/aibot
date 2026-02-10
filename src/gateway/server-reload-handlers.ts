@@ -184,9 +184,7 @@ export function createGatewayReloadHandlers(params: {
         const elapsed = Date.now() - startTime;
 
         if (currentTotalActive === 0) {
-          params.logReload.info(
-            "all operations and replies completed; restarting gateway now",
-          );
+          params.logReload.info("all operations and replies completed; restarting gateway now");
           authorizeGatewaySigusr1Restart();
           process.emit("SIGUSR1");
         } else if (elapsed >= maxWaitMs) {
