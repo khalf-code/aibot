@@ -10,9 +10,9 @@ import type { CronConfig } from "../config/types.cron.js";
 import type { Logger } from "./service/state.js";
 import { parseDurationMs } from "../cli/parse-duration.js";
 import { updateSessionStore } from "../config/sessions.js";
+import { isCronRunSessionKey } from "../sessions/session-key-utils.js";
 
 const DEFAULT_RETENTION_MS = 24 * 3_600_000; // 24 hours
-const CRON_RUN_KEY_PATTERN = /^agent:[^:]+:cron:[^:]+:run:[^:]+$/;
 
 /** Minimum interval between reaper sweeps (avoid running every timer tick). */
 const MIN_SWEEP_INTERVAL_MS = 5 * 60_000; // 5 minutes
@@ -32,10 +32,6 @@ export function resolveRetentionMs(cronConfig?: CronConfig): number | null {
     }
   }
   return DEFAULT_RETENTION_MS;
-}
-
-export function isCronRunSessionKey(key: string): boolean {
-  return CRON_RUN_KEY_PATTERN.test(key);
 }
 
 export type ReaperResult = {

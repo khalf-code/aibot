@@ -6,9 +6,9 @@ import type { Logger } from "./service/state.js";
 import {
   sweepCronRunSessions,
   resolveRetentionMs,
-  isCronRunSessionKey,
   resetReaperThrottle,
 } from "./session-reaper.js";
+import { isCronRunSessionKey } from "../sessions/session-key-utils.js";
 
 function createTestLogger(): Logger {
   return {
