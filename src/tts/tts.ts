@@ -602,7 +602,10 @@ function parseTtsDirectives(
   const blockRegex = /\[\[tts:text\]\]([\s\S]*?)\[\[\/tts:text\]\]/gi;
   cleanedText = cleanedText.replace(blockRegex, (_match, inner: string) => {
     hasDirective = true;
-    if (policy.enabled && policy.allowText && overrides.ttsText == null) {
+    if (!policy.enabled) {
+      return _match;
+    }
+    if (policy.allowText && overrides.ttsText == null) {
       overrides.ttsText = inner.trim();
     }
     return "";
@@ -610,8 +613,11 @@ function parseTtsDirectives(
 
   // Handle bare [[tts]] tag (no parameters) - just signals TTS should be used
   const bareTtsRegex = /\[\[tts\]\]/gi;
-  cleanedText = cleanedText.replace(bareTtsRegex, () => {
+  cleanedText = cleanedText.replace(bareTtsRegex, (_match) => {
     hasDirective = true;
+    if (!policy.enabled) {
+      return _match;
+    }
     return "";
   });
 
@@ -619,7 +625,7 @@ function parseTtsDirectives(
   cleanedText = cleanedText.replace(directiveRegex, (_match, body: string) => {
     hasDirective = true;
     if (!policy.enabled) {
-      return "";
+      return _match;
     }
     const tokens = body.split(/\s+/).filter(Boolean);
     for (const token of tokens) {
