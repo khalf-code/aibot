@@ -9,7 +9,15 @@ export function emitMessageSent(
 ): void {
   const runner = getGlobalHookRunner();
   if (!runner?.hasHooks("message_sent")) {
+    if (process.env.DEBUG_HOOKS) {
+      const hookCount = runner?.getHookCount("message_sent") ?? 0;
+      console.log(
+        `[emit-hooks] message_sent: no hooks (runner=${!!runner}, count=${hookCount}, to=${event.to})`,
+      );
+    }
     return;
   }
-  void runner.runMessageSent(event, ctx);
+  void runner.runMessageSent(event, ctx).catch((err) => {
+    console.error(`[emit-hooks] message_sent hook failed: ${String(err)}`);
+  });
 }
