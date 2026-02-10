@@ -1,7 +1,6 @@
 import { execSync } from "node:child_process";
-import * as os from "node:os";
 import { describe, expect, it, vi } from "vitest";
-import { isKeychainReference, resolveSecret } from "./keychain.js";
+import { isKeychainReference, resolveKeychainSecret } from "./keychain.js";
 
 vi.mock("node:child_process", () => ({
   execSync: vi.fn(),
@@ -21,15 +20,15 @@ describe("keychain", () => {
     });
   });
 
-  describe("resolveSecret", () => {
+  describe("resolveKeychainSecret", () => {
     it("returns plain strings as-is", () => {
-      expect(resolveSecret("sk-123")).toBe("sk-123");
+      expect(resolveKeychainSecret("sk-123")).toBe("sk-123");
     });
 
     it("resolves @keychain reference via system command", () => {
       vi.mocked(execSync).mockReturnValue("real-api-key\n");
 
-      const result = resolveSecret("@keychain:my-service");
+      const result = resolveKeychainSecret("@keychain:my-service");
       expect(result).toBe("real-api-key");
       expect(execSync).toHaveBeenCalledWith(
         expect.stringContaining("security find-generic-password -s 'my-service' -w"),
@@ -42,7 +41,7 @@ describe("keychain", () => {
         throw new Error("Not found");
       });
 
-      const result = resolveSecret("@keychain:non-existent");
+      const result = resolveKeychainSecret("@keychain:non-existent");
       expect(result).toBe("@keychain:non-existent");
     });
   });

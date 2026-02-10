@@ -52,7 +52,7 @@ export function isKeychainReference(value: string | undefined): boolean {
 /**
  * Resolve a potential keychain reference.
  */
-export function resolveSecret(value: string | undefined): string | undefined {
+export function resolveKeychainSecret(value: string | undefined): string | undefined {
   if (!value || !isKeychainReference(value)) {
     return value;
   }

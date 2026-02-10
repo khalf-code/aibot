@@ -43,11 +43,9 @@ const PERMISSION_PATTERNS: Record<PermissionKind, RegExp> = {
 export function auditSkill(entry: SkillEntry): SkillAuditResult {
   const permissions = new Set<PermissionKind>();
   const requiredBins = entry.metadata?.requires?.bins ?? [];
-  const searchableText = [
-    entry.skill.name,
-    entry.skill.description ?? "",
-    ...requiredBins,
-  ].join(" ");
+  const searchableText = [entry.skill.name, entry.skill.description ?? "", ...requiredBins].join(
+    " ",
+  );
 
   for (const [kind, pattern] of Object.entries(PERMISSION_PATTERNS)) {
     if (pattern.test(searchableText)) {
