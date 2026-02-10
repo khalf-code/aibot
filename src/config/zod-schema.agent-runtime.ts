@@ -187,7 +187,7 @@ export const ToolsWebSearchSchema = z
       .optional(),
     grok: z
       .object({
-        apiKey: z.string().optional(),
+        apiKey: z.string().optional().register(sensitive),
         model: z.string().optional(),
         inlineCitations: z.boolean().optional(),
       })
