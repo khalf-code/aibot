@@ -2,9 +2,9 @@ import { z } from "zod";
 import { CHANNEL_IDS } from "../channels/registry.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { VERSION } from "../version.js";
-import { FIELD_HELP } from "./schema.help.ts";
-import { FIELD_LABELS } from "./schema.labels.ts";
-import { FIELD_PLACEHOLDERS } from "./schema.placeholders.ts";
+import { FIELD_HELP } from "./schema.help.js";
+import { FIELD_LABELS } from "./schema.labels.js";
+import { FIELD_PLACEHOLDERS } from "./schema.placeholders.js";
 import { OpenClawSchema } from "./zod-schema.js";
 import { sensitive } from "./zod-schema.sensitive.js";
 
