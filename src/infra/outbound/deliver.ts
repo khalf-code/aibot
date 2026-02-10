@@ -21,6 +21,7 @@ import {
   appendAssistantMessageToSessionTranscript,
   resolveMirroredTranscriptText,
 } from "../../config/sessions.js";
+import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { markdownToSignalTextChunks, type SignalTextStyleRange } from "../../signal/format.js";
 import { sendMessageSignal } from "../../signal/send.js";
 import { throwIfAborted } from "./abort.js";
@@ -313,7 +314,9 @@ export async function deliverOutboundPayloads(params: {
     };
   };
   const normalizedPayloads = normalizeReplyPayloadsForDelivery(payloads);
-  for (const payload of normalizedPayloads) {
+  const deliveredPayloadIndices: number[] = [];
+  for (let payloadIdx = 0; payloadIdx < normalizedPayloads.length; payloadIdx++) {
+    const payload = normalizedPayloads[payloadIdx]!;
     const payloadSummary: NormalizedOutboundPayload = {
       text: payload.text ?? "",
       mediaUrls: payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []),
@@ -324,6 +327,7 @@ export async function deliverOutboundPayloads(params: {
       params.onPayload?.(payloadSummary);
       if (handler.sendPayload && payload.channelData) {
         results.push(await handler.sendPayload(payload));
+        deliveredPayloadIndices.push(payloadIdx);
         continue;
       }
       if (payloadSummary.mediaUrls.length === 0) {
@@ -332,6 +336,7 @@ export async function deliverOutboundPayloads(params: {
         } else {
           await sendTextChunks(payloadSummary.text);
         }
+        deliveredPayloadIndices.push(payloadIdx);
         continue;
       }
 
@@ -346,6 +351,7 @@ export async function deliverOutboundPayloads(params: {
           results.push(await handler.sendMedia(caption, url));
         }
       }
+      deliveredPayloadIndices.push(payloadIdx);
     } catch (err) {
       if (!params.bestEffort) {
         throw err;
@@ -366,5 +372,36 @@ export async function deliverOutboundPayloads(params: {
       });
     }
   }
+
+  // Fire message_sent hook only for successfully delivered payloads.
+  // When bestEffort is enabled, some payloads may fail — only report
+  // text from payloads that produced delivery results.
+  const hookRunner = getGlobalHookRunner();
+  if (hookRunner && results.length > 0) {
+    const deliveredText = deliveredPayloadIndices
+      .map((i) => normalizedPayloads[i]?.text ?? "")
+      .filter(Boolean)
+      .join("\n");
+    if (deliveredText) {
+      const ctx = {
+        channelId: channel,
+        accountId: accountId ?? undefined,
+        conversationId: to,
+      };
+      void hookRunner
+        .runMessageSent(
+          {
+            to,
+            content: deliveredText,
+            success: true,
+          },
+          ctx,
+        )
+        .catch(() => {
+          // Fire-and-forget — don't break delivery on hook errors
+        });
+    }
+  }
+
   return results;
 }
