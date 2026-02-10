@@ -1,10 +1,16 @@
 import { execSync } from "node:child_process";
+import * as os from "node:os";
 import { describe, expect, it, vi } from "vitest";
 import { isKeychainReference, resolveSecret } from "./keychain.js";
 
 vi.mock("node:child_process", () => ({
   execSync: vi.fn(),
 }));
+
+vi.mock("node:os", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:os")>();
+  return { ...actual, platform: vi.fn(() => "darwin") };
+});
 
 describe("keychain", () => {
   describe("isKeychainReference", () => {
@@ -21,7 +27,7 @@ describe("keychain", () => {
     });
 
     it("resolves @keychain reference via system command", () => {
-      vi.mocked(execSync).mockReturnValue(Buffer.from("real-api-key\n"));
+      vi.mocked(execSync).mockReturnValue("real-api-key\n");
 
       const result = resolveSecret("@keychain:my-service");
       expect(result).toBe("real-api-key");

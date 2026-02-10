@@ -42,11 +42,11 @@ const PERMISSION_PATTERNS: Record<PermissionKind, RegExp> = {
  */
 export function auditSkill(entry: SkillEntry): SkillAuditResult {
   const permissions = new Set<PermissionKind>();
-  const tools = entry.skill.tools.map((t) => t.name);
+  const requiredBins = entry.metadata?.requires?.bins ?? [];
   const searchableText = [
     entry.skill.name,
     entry.skill.description ?? "",
-    ...entry.skill.tools.flatMap((t) => [t.name, t.description ?? ""]),
+    ...requiredBins,
   ].join(" ");
 
   for (const [kind, pattern] of Object.entries(PERMISSION_PATTERNS)) {
@@ -83,7 +83,7 @@ export function auditSkill(entry: SkillEntry): SkillAuditResult {
     skillName: entry.skill.name,
     emoji: entry.metadata?.emoji,
     permissions: Array.from(permissions),
-    tools,
+    tools: requiredBins,
     riskLevel,
     riskReason,
   };
