@@ -315,7 +315,7 @@ export async function deliverOutboundPayloads(params: {
   };
   const normalizedPayloads = normalizeReplyPayloadsForDelivery(payloads);
   for (const payload of normalizedPayloads) {
-    const scrubbedText = scrubPIIWithConfig(payload.text ?? \"\");
+    const scrubbedText = scrubPIIWithConfig(payload.text ?? "");
     const payloadSummary: NormalizedOutboundPayload = {
       text: scrubbedText,
       mediaUrls: payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []),
