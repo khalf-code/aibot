@@ -2,6 +2,12 @@
 
 Docs: https://docs.openclaw.ai
 
+## Unreleased
+
+### Added
+
+- CLI: add `openclaw guide` command for new user onboarding checklist. (#12024)
+
 ## 2026.2.6-4
 
 ### Added

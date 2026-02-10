@@ -75,6 +75,16 @@ Check your Node version with `node --version` if you are unsure.
 If the Control UI loads, your Gateway is ready for use.
 </Check>
 
+## Check Your Progress
+
+Run the interactive setup checklist anytime:
+
+```bash
+openclaw guide
+```
+
+It tracks your onboarding progress: model setup, channel connection, identity creation, skill installation, and first message.
+
 ## Optional checks and extras
 
 <AccordionGroup>

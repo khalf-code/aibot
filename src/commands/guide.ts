@@ -8,6 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
 import { readConfigFileSnapshot } from "../config/config.js";
+import { resolveSessionTranscriptsDir } from "../config/sessions/paths.js";
 import { resolveUserPath } from "../utils.js";
 
 export interface GuideTask {
@@ -41,15 +42,16 @@ const GUIDE_TASKS: GuideTask[] = [
       if (!config?.channels) {
         return false;
       }
-      const channels = ["telegram", "discord", "whatsapp", "slack", "signal"] as const;
-      return channels.some((ch) => {
-        const channelConfig = config.channels?.[ch];
-        return (
-          channelConfig &&
-          typeof channelConfig === "object" &&
-          Object.keys(channelConfig).length > 0
-        );
-      });
+      return Object.keys(config.channels)
+        .filter((ch) => ch !== "defaults")
+        .some((ch) => {
+          const channelConfig = config.channels?.[ch];
+          return (
+            channelConfig &&
+            typeof channelConfig === "object" &&
+            Object.keys(channelConfig).length > 0
+          );
+        });
     },
   },
   {
@@ -63,8 +65,27 @@ const GUIDE_TASKS: GuideTask[] = [
         return false;
       }
       const content = fs.readFileSync(identityPath, "utf-8");
-      // Check if it's been customized (not just the template)
-      return content.length > 100 && !content.includes("_(待确认)_");
+      // Check if the Name field has been filled in (not empty and not template text)
+      const nameMatch = content.match(/-\s*\*\*Name:\*\*(.*)(?:\r?\n([^\r\n]*))?/);
+      if (!nameMatch) {
+        return false;
+      }
+
+      const inlineName = nameMatch[1]?.trim() ?? "";
+      const nextLineName = nameMatch[2]?.trim() ?? "";
+      const nameValue = inlineName || nextLineName;
+
+      if (!nameValue) {
+        return false;
+      }
+      if (nameValue.startsWith("_(")) {
+        return false;
+      }
+      if (nameValue.startsWith("- **")) {
+        return false;
+      }
+
+      return true;
     },
   },
   {
@@ -82,9 +103,9 @@ const GUIDE_TASKS: GuideTask[] = [
     id: "first-message",
     title: "Send your first message",
     description: "Say hello to your agent!",
-    check: (_config, workspacePath) => {
+    check: (_config, _workspacePath) => {
       // Check if any session transcript exists
-      const sessionsPath = path.join(workspacePath, "..", "sessions");
+      const sessionsPath = resolveSessionTranscriptsDir();
       if (!fs.existsSync(sessionsPath)) {
         return false;
       }
