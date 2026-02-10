@@ -13,6 +13,58 @@ import { enableConsoleCapture } from "../logging.js";
 import { getPrimaryCommand, hasHelpOrVersion } from "./argv.js";
 import { tryRouteCli } from "./route.js";
 
+/**
+ * Commands that never require plugin CLI registration.
+ * These are either core commands (from command-registry.ts), subcli commands
+ * that handle their own plugin loading (pairing, plugins), or fast-routed
+ * commands (health, status, sessions).  Skipping plugin discovery for these
+ * avoids directory scanning, manifest reads, and jiti dynamic imports on the
+ * critical path.
+ */
+export const BUILTIN_COMMANDS = new Set([
+  // command-registry.ts core commands
+  "setup",
+  "onboard",
+  "configure",
+  "config",
+  "maintenance",
+  "message",
+  "memory",
+  "agent",
+  "browser",
+  // subcli commands
+  "acp",
+  "gateway",
+  "daemon",
+  "logs",
+  "system",
+  "models",
+  "approvals",
+  "nodes",
+  "devices",
+  "node",
+  "sandbox",
+  "tui",
+  "cron",
+  "dns",
+  "docs",
+  "hooks",
+  "webhooks",
+  "channels",
+  "directory",
+  "security",
+  "skills",
+  "update",
+  // completion is intentionally excluded — it needs plugin commands for complete shell scripts
+  // subcli commands that load plugins themselves (idempotent loader)
+  "pairing",
+  "plugins",
+  // fast-routed (already skip this path, but included for completeness)
+  "health",
+  "status",
+  "sessions",
+]);
+
 export function rewriteUpdateFlagArgv(argv: string[]): string[] {
   const index = argv.indexOf("--update");
   if (index === -1) {
@@ -60,7 +112,8 @@ export async function runCli(argv: string[] = process.argv) {
     await registerSubCliByName(program, primary);
   }
 
-  const shouldSkipPluginRegistration = !primary && hasHelpOrVersion(parseArgv);
+  const shouldSkipPluginRegistration =
+    (!primary && hasHelpOrVersion(parseArgv)) || (primary != null && BUILTIN_COMMANDS.has(primary));
   if (!shouldSkipPluginRegistration) {
     // Register plugin CLI commands before parsing
     const { registerPluginCliCommands } = await import("../plugins/cli.js");
