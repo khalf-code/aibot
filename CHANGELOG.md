@@ -17,6 +17,10 @@ Docs: https://docs.openclaw.ai
 - Agents: auto-select `zai/glm-4.6v` for image understanding when ZAI is primary provider. (#10267) Thanks @liuy.
 - Paths: add `OPENCLAW_HOME` for overriding the home directory used by internal path resolution. (#12091) Thanks @sebslight.
 
+### Changes
+
+- Android: add timeout constant and exponential backoff to gateway discovery; prevents freezes when gateways are offline. (#9744) Thanks @hubertusgbecker.
+
 ### Fixes
 
 - Discord: add exec approval cleanup option to delete DMs after approval/denial/timeout. (#13205) Thanks @thewilloftheshadow.
