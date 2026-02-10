@@ -451,7 +451,12 @@ async function runGeminiSearch(params: {
     throw new Error(`Gemini API error (${res.status}): ${safeDetail}`);
   }
 
-  const data = (await res.json()) as GeminiGroundingResponse;
+  let data: GeminiGroundingResponse;
+  try {
+    data = (await res.json()) as GeminiGroundingResponse;
+  } catch {
+    throw new Error(`Gemini API error: response was not valid JSON (status ${res.status})`);
+  }
 
   if (data.error) {
     const rawMsg = data.error.message || data.error.status || "unknown";

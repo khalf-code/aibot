@@ -193,6 +193,7 @@ Search the web using your configured provider.
 - API key for your chosen provider:
   - **Brave**: `BRAVE_API_KEY` or `tools.web.search.apiKey`
   - **Perplexity**: `OPENROUTER_API_KEY`, `PERPLEXITY_API_KEY`, or `tools.web.search.perplexity.apiKey`
+  - **Gemini**: `GEMINI_API_KEY` or `tools.web.search.gemini.apiKey`
 
 ### Config
 
