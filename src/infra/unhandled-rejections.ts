@@ -63,9 +63,9 @@ export function isAbortError(err: unknown): boolean {
     return true;
   }
   // Check for abort messages from Node's undici and other sources
-  const message =
-    "message" in err && typeof err.message === "string" ? err.message.toLowerCase() : "";
-  return message.includes("aborted");
+  // Only match the exact undici message, not any message containing "aborted"
+  const message = "message" in err && typeof err.message === "string" ? err.message : "";
+  return message === "This operation was aborted";
 }
 
 function isFatalError(err: unknown): boolean {
