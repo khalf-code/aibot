@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../../config/config.js", () => ({
+  loadConfig: vi.fn(() => ({
+    agents: {
+      list: [{ id: "ops", default: true }],
+    },
+    session: {},
+  })),
+}));
+
 vi.mock("../../infra/session-cost-usage.js", async () => {
   const actual = await vi.importActual<typeof import("../../infra/session-cost-usage.js")>(
     "../../infra/session-cost-usage.js",
@@ -17,7 +26,7 @@ vi.mock("../../infra/session-cost-usage.js", async () => {
 });
 
 import { loadCostUsageSummary } from "../../infra/session-cost-usage.js";
-import { __test } from "./usage.js";
+import { __test, usageHandlers } from "./usage.js";
 
 describe("gateway usage helpers", () => {
   beforeEach(() => {
@@ -78,5 +87,36 @@ describe("gateway usage helpers", () => {
     expect(a.totals.totalTokens).toBe(1);
     expect(b.totals.totalTokens).toBe(1);
     expect(vi.mocked(loadCostUsageSummary)).toHaveBeenCalledTimes(1);
+  });
+
+  it("usage.cost resolves agentId from request key", async () => {
+    const respond = vi.fn();
+    await usageHandlers["usage.cost"]({
+      respond,
+      params: {
+        days: 7,
+        key: "agent:qa:main",
+      },
+    } as unknown as Parameters<(typeof usageHandlers)["usage.cost"]>[0]);
+
+    expect(vi.mocked(loadCostUsageSummary)).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "qa" }),
+    );
+    expect(respond).toHaveBeenCalledWith(true, expect.any(Object), undefined);
+  });
+
+  it("usage.cost falls back to configured default agent when no key is provided", async () => {
+    const respond = vi.fn();
+    await usageHandlers["usage.cost"]({
+      respond,
+      params: {
+        days: 7,
+      },
+    } as unknown as Parameters<(typeof usageHandlers)["usage.cost"]>[0]);
+
+    expect(vi.mocked(loadCostUsageSummary)).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "ops" }),
+    );
+    expect(respond).toHaveBeenCalledWith(true, expect.any(Object), undefined);
   });
 });
