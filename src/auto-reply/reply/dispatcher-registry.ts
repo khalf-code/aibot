@@ -51,5 +51,8 @@ export function getTotalPendingReplies(): number {
  * WARNING: Only use this in test cleanup!
  */
 export function clearAllDispatchers(): void {
+  if (!process.env.VITEST) {
+    throw new Error("clearAllDispatchers() is only available in test environments");
+  }
   activeDispatchers.clear();
 }
