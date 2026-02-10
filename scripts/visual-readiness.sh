@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Visual readiness probe for OpenClaw (macOS).
+# - If Peekaboo permissions are missing, prints exact steps to fix.
+# - If permissions are granted, captures a small snapshot bundle under /tmp.
+
+if ! command -v peekaboo >/dev/null 2>&1; then
+  echo "Peekaboo is not installed. Install with:"
+  echo "  brew install steipete/tap/peekaboo"
+  exit 1
+fi
+
+echo "== Peekaboo permissions =="
+perm_out="$(peekaboo permissions 2>&1 || true)"
+echo "$perm_out"
+
+print_report_stub() {
+  # Keep this pasteable in chat surfaces: no fenced blocks.
+  cat <<'EOF'
+
+== Report stub (Mermaid + timeline) ==
+Mermaid (flowchart):
+flowchart TD
+  A[Start: need OpenClaw UI visibility] --> B{Peekaboo installed?}
+  B -- No --> C[Install Peekaboo]
+  B -- Yes --> D{Screen Recording granted?}
+  D -- No --> E[Grant Screen Recording + restart Terminal/iTerm]
+  D -- Yes --> F{Accessibility granted?}
+  F -- No --> G[Grant Accessibility + restart Terminal/iTerm]
+  F -- Yes --> H[Capture frontmost + UI map]
+  H --> I[Save bundle under /tmp + share path]
+
+Timeline (example):
+- T+0m: Checked peekaboo permissions
+- T+2m: Granted missing macOS privacy permissions + restarted Terminal/iTerm
+- T+4m: Captured frontmost.png + ui-map.png
+- T+5m: Shared bundle path
+EOF
+}
+
+sr_line="$(printf "%s\n" "$perm_out" | grep -i "screen recording" | head -n 1 || true)"
+if printf "%s\n" "$sr_line" | grep -Eiq '(not granted|denied|not determined)'; then
+  cat <<'EOF'
+
+== Fix: grant Screen Recording (exact macOS steps) ==
+1) Open System Settings
+2) Privacy & Security → Screen Recording
+3) Enable:
+   - The terminal app you ran this from (Terminal or iTerm)
+   - Peekaboo (and/or Peekaboo Bridge), if it appears
+4) Quit & reopen the terminal app (permission is per running instance)
+5) If Peekaboo Bridge is running, quit & relaunch it too
+6) Re-run: peekaboo permissions
+
+Once Screen Recording is enabled, Peekaboo can:
+- Capture screenshots (whole screen, frontmost window)
+- Generate annotated UI maps with element IDs (peekaboo see --annotate)
+- Inspect window/app state visually (list windows + see snapshot IDs)
+EOF
+  print_report_stub
+  exit 2
+fi
+
+ax_line="$(printf "%s\n" "$perm_out" | grep -i "accessibility" | head -n 1 || true)"
+if printf "%s\n" "$ax_line" | grep -Eiq '(not granted|denied|not determined)'; then
+  cat <<'EOF'
+
+== Fix: grant Accessibility (exact macOS steps) ==
+1) Open System Settings
+2) Privacy & Security → Accessibility
+3) Enable:
+   - The terminal app you ran this from (Terminal or iTerm)
+   - Peekaboo (and/or Peekaboo Bridge), if it appears
+4) Quit & reopen the terminal app
+5) If Peekaboo Bridge is running, quit & relaunch it too
+6) Re-run: peekaboo permissions
+
+Once Accessibility is enabled, Peekaboo can:
+- Click/type/press keys reliably (click/type/press/hotkey)
+- Drive menus/menubar and focus windows (menu/menubar/window)
+- Interact with specific UI elements by ID (from the annotated UI map)
+EOF
+  print_report_stub
+  exit 3
+fi
+
+ts="$(date +%Y%m%d-%H%M%S)"
+out="/tmp/openclaw-ui-snapshot-$ts"
+mkdir -p "$out"
+
+# Persist permissions state alongside the visual artifacts (helps debug "blank" captures).
+printf "%s\n" "$perm_out" > "$out/peekaboo-permissions.txt"
+
+echo ""
+echo "== Capturing snapshot bundle =="
+# Peekaboo’s menubar command is `peekaboo menubar list` (not `peekaboo list menubar`).
+peekaboo menubar list --json > "$out/menubar.json" || true
+
+# Capture all windows too (OpenClaw may not be the active/frontmost app).
+peekaboo list windows --include-details bounds,ids --json > "$out/windows-all.json" || true
+
+# Best-effort: list windows for the active app (if we can detect it).
+active_bundle_id="$(
+  (peekaboo app list --json 2>/dev/null || true) | python3 -c '
+import json,sys
+s=sys.stdin.read().strip()
+if not s:
+  raise SystemExit(0)
+j=json.loads(s)
+apps=(j.get("data") or {}).get("apps") or []
+for a in apps:
+  if a.get("is_active") and a.get("bundle_id"):
+    print(a["bundle_id"])
+    break
+'
+)"
+if [ -n "${active_bundle_id:-}" ]; then
+  peekaboo list windows --app "$active_bundle_id" --include-details bounds,ids --json > "$out/windows.json" || true
+else
+  : > "$out/windows.json"
+fi
+
+# Fast/high-signal artifacts for debugging state.
+peekaboo image --mode frontmost --retina --path "$out/frontmost.png"
+peekaboo see --mode screen --screen-index 0 --annotate --path "$out/ui-map.png"
+
+# Optional: whole screen (bigger, but sometimes useful).
+peekaboo image --mode screen --screen-index 0 --retina --path "$out/screen.png" || true
+
+echo "Saved: $out"
