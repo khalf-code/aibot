@@ -126,10 +126,15 @@ export class CallManager {
 
     const callId = crypto.randomUUID();
     const from =
-      this.config.fromNumber || (this.provider?.name === "mock" ? "+15550000000" : undefined);
+      this.config.fromNumber ||
+      (this.provider?.name === "mock" || this.provider?.name === "asterisk-ari"
+        ? "+15550000000"
+        : undefined);
     if (!from) {
       return { callId: "", success: false, error: "fromNumber not configured" };
     }
+
+    const fromName = typeof opts.fromName === "string" ? opts.fromName.trim() : "";
 
     // Create call record with mode in metadata
     const callRecord: CallRecord = {
@@ -164,6 +169,7 @@ export class CallManager {
       const result = await this.provider.initiateCall({
         callId,
         from,
+        ...(fromName ? { fromName } : {}),
         to,
         webhookUrl: this.webhookUrl,
         inlineTwiml,
@@ -480,7 +486,9 @@ export class CallManager {
           console.log("[voice-call] Inbound call rejected: missing caller ID");
           return false;
         }
+
         const allowed = isAllowlistedCaller(normalized, allowFrom);
+
         const status = allowed ? "accepted" : "rejected";
         console.log(
           `[voice-call] Inbound call ${status}: ${from} ${allowed ? "is in" : "not in"} allowlist`,
@@ -526,6 +534,45 @@ export class CallManager {
   /**
    * Look up a call by either internal callId or providerCallId.
    */
+  ensureInboundCall(params: {
+    providerCallId?: string;
+    from?: string;
+    to?: string;
+  }): CallRecord | undefined {
+    if (!params.providerCallId) return undefined;
+
+    let call = this.getCallByProviderCallId(params.providerCallId);
+    if (call) return call;
+
+    if (!this.shouldAcceptInbound(params.from)) {
+      if (this.provider && params.providerCallId) {
+        // Early-reject happens before an internal callId exists; hang up by providerCallId.
+        void this.provider
+          .hangupCall({
+            callId: params.providerCallId,
+            providerCallId: params.providerCallId,
+            reason: "hangup-bot",
+          })
+          .catch((err) => {
+            console.warn(
+              `[voice-call] Failed to reject inbound call ${params.providerCallId}: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          });
+      }
+      return undefined;
+    }
+
+    call = this.createInboundCall(
+      params.providerCallId,
+      params.from || "unknown",
+      params.to || this.config.fromNumber || "unknown",
+    );
+
+    return call;
+  }
+
   private findCall(callIdOrProviderCallId: string): CallRecord | undefined {
     // Try direct lookup by internal callId
     const directCall = this.activeCalls.get(callIdOrProviderCallId);
@@ -553,7 +600,22 @@ export class CallManager {
     if (!call && event.direction === "inbound" && event.providerCallId) {
       // Check if we should accept this inbound call
       if (!this.shouldAcceptInbound(event.from)) {
-        void this.rejectInboundCall(event);
+        // Reject inbound call at provider level to avoid leaving callers ringing/connected.
+        if (this.provider && event.providerCallId) {
+          void this.provider
+            .hangupCall({
+              callId: event.providerCallId ?? event.callId,
+              providerCallId: event.providerCallId,
+              reason: "hangup-bot",
+            })
+            .catch((err) => {
+              console.warn(
+                `[voice-call] Failed to reject inbound call ${event.providerCallId}: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+            });
+        }
         return;
       }
 
@@ -563,9 +625,11 @@ export class CallManager {
         event.from || "unknown",
         event.to || this.config.fromNumber || "unknown",
       );
+    }
 
-      // Update the event's callId to use our internal ID
-      event.callId = call.callId;
+    let evt = event;
+    if (call && call.callId !== event.callId) {
+      evt = { ...event, callId: call.callId };
     }
 
     if (!call) {
@@ -574,10 +638,10 @@ export class CallManager {
     }
 
     // Update provider call ID if we got it
-    if (event.providerCallId && event.providerCallId !== call.providerCallId) {
+    if (evt.providerCallId && evt.providerCallId !== call.providerCallId) {
       const previousProviderCallId = call.providerCallId;
-      call.providerCallId = event.providerCallId;
-      this.providerCallIdMap.set(event.providerCallId, call.callId);
+      call.providerCallId = evt.providerCallId;
+      this.providerCallIdMap.set(evt.providerCallId, call.callId);
       if (previousProviderCallId) {
         const mapped = this.providerCallIdMap.get(previousProviderCallId);
         if (mapped === call.callId) {
@@ -587,10 +651,10 @@ export class CallManager {
     }
 
     // Track processed event
-    call.processedEventIds.push(event.id);
+    call.processedEventIds.push(evt.id);
 
     // Process event based on type
-    switch (event.type) {
+    switch (evt.type) {
       case "call.initiated":
         this.transitionState(call, "initiated");
         break;
@@ -600,7 +664,7 @@ export class CallManager {
         break;
 
       case "call.answered":
-        call.answeredAt = event.timestamp;
+        call.answeredAt = evt.timestamp;
         this.transitionState(call, "answered");
         // Start max duration timer when call is answered
         this.startMaxDurationTimer(call.callId);
@@ -618,19 +682,19 @@ export class CallManager {
         break;
 
       case "call.speech":
-        if (event.isFinal) {
-          this.addTranscriptEntry(call, "user", event.transcript);
-          this.resolveTranscriptWaiter(call.callId, event.transcript);
+        if (evt.isFinal) {
+          this.addTranscriptEntry(call, "user", evt.transcript);
+          this.resolveTranscriptWaiter(call.callId, evt.transcript);
         }
         this.transitionState(call, "listening");
         break;
 
       case "call.ended":
-        call.endedAt = event.timestamp;
-        call.endReason = event.reason;
-        this.transitionState(call, event.reason as CallState);
+        call.endedAt = evt.timestamp;
+        call.endReason = evt.reason;
+        this.transitionState(call, evt.reason as CallState);
         this.clearMaxDurationTimer(call.callId);
-        this.rejectTranscriptWaiter(call.callId, `Call ended: ${event.reason}`);
+        this.rejectTranscriptWaiter(call.callId, `Call ended: ${evt.reason}`);
         this.activeCalls.delete(call.callId);
         if (call.providerCallId) {
           this.providerCallIdMap.delete(call.providerCallId);
@@ -638,12 +702,12 @@ export class CallManager {
         break;
 
       case "call.error":
-        if (!event.retryable) {
-          call.endedAt = event.timestamp;
+        if (!evt.retryable) {
+          call.endedAt = evt.timestamp;
           call.endReason = "error";
           this.transitionState(call, "error");
           this.clearMaxDurationTimer(call.callId);
-          this.rejectTranscriptWaiter(call.callId, `Call error: ${event.error}`);
+          this.rejectTranscriptWaiter(call.callId, `Call error: ${evt.error}`);
           this.activeCalls.delete(call.callId);
           if (call.providerCallId) {
             this.providerCallIdMap.delete(call.providerCallId);
@@ -653,25 +717,6 @@ export class CallManager {
     }
 
     this.persistCallRecord(call);
-  }
-
-  private async rejectInboundCall(event: NormalizedEvent): Promise<void> {
-    if (!this.provider || !event.providerCallId) {
-      return;
-    }
-    const callId = event.callId || event.providerCallId;
-    try {
-      await this.provider.hangupCall({
-        callId,
-        providerCallId: event.providerCallId,
-        reason: "hangup-bot",
-      });
-    } catch (err) {
-      console.warn(
-        `[voice-call] Failed to reject inbound call ${event.providerCallId}:`,
-        err instanceof Error ? err.message : err,
-      );
-    }
   }
 
   private maybeSpeakInitialMessageOnAnswered(call: CallRecord): void {
@@ -727,6 +772,18 @@ export class CallManager {
    */
   getActiveCalls(): CallRecord[] {
     return Array.from(this.activeCalls.values());
+  }
+
+  /**
+   * Update metadata for an active call (best-effort).
+   */
+  updateCallMetadata(callId: CallId, patch: Record<string, unknown>): void {
+    const call = this.activeCalls.get(callId);
+    if (!call) {
+      return;
+    }
+    call.metadata = { ...(call.metadata ?? {}), ...patch };
+    this.persistCallRecord(call);
   }
 
   /**
