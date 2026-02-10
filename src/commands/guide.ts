@@ -110,8 +110,8 @@ const GUIDE_TASKS: GuideTask[] = [
         return false;
       }
       try {
-        const files = fs.readdirSync(sessionsPath);
-        return files.some((f) => f.endsWith(".jsonl"));
+        const entries = fs.readdirSync(sessionsPath, { withFileTypes: true });
+        return entries.some((entry) => entry.isFile() && entry.name.endsWith(".jsonl"));
       } catch {
         return false;
       }

@@ -89,7 +89,12 @@ describe("checkGuideTasks - first-message (session transcripts)", () => {
       if (String(p) === "/mock-state/agents/main/sessions") return true;
       return false;
     });
-    mockedFs.readdirSync.mockReturnValue(["abc123.jsonl"] as unknown as fs.Dirent[]);
+    mockedFs.readdirSync.mockReturnValue([
+      {
+        name: "abc123.jsonl",
+        isFile: () => true,
+      },
+    ] as unknown as fs.Dirent[]);
 
     const result = checkGuideTasks(makeConfig(), "/workspace");
     const firstMsg = result.tasks.find((t) => t.task.id === "first-message");
