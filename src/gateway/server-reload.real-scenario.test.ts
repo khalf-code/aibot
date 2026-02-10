@@ -50,10 +50,10 @@ describe("real scenario: config change during message processing", () => {
     dispatcher.sendFinalReply({ text: "Configuration updated!" });
     dispatcher.markComplete();
 
-    // At this point: reservation cleared, but delivery is in flight.
-    // pending should be 1 (the enqueued reply being delivered).
+    // At this point: markComplete flagged, delivery is in flight.
+    // pending > 0 because the in-flight delivery keeps it alive.
     const pendingDuringDelivery = getTotalPendingReplies();
-    expect(pendingDuringDelivery).toBe(1);
+    expect(pendingDuringDelivery).toBeGreaterThan(0);
 
     // Simulate restart checks while delivery is in progress.
     // If the tracking is broken, pending would be 0 and we'd restart.

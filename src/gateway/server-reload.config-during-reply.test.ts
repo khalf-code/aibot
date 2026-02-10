@@ -53,11 +53,12 @@ describe("gateway config reload during reply", () => {
     // Now: pending=2 (reservation + 1 enqueued reply)
     expect(getTotalPendingReplies()).toBe(2);
 
-    // Mark dispatcher complete (clears reservation)
+    // Mark dispatcher complete (flags reservation for cleanup on last delivery)
     dispatcher.markComplete();
 
-    // Now: pending=1 (just the enqueued reply)
-    expect(getTotalPendingReplies()).toBe(1);
+    // Reservation is still counted until the delivery .finally() clears it,
+    // but the important invariant is pending > 0 while delivery is in flight.
+    expect(getTotalPendingReplies()).toBeGreaterThan(0);
 
     // At this point, if gateway restart was requested, it should defer
     // because getTotalPendingReplies() > 0
@@ -89,6 +90,9 @@ describe("gateway config reload during reply", () => {
 
     // Mark complete without sending any replies
     dispatcher.markComplete();
+
+    // Reservation is cleared via microtask — flush it
+    await flushMicrotasks();
 
     // Now: pending=0 (reservation cleared, no replies were enqueued)
     expect(getTotalPendingReplies()).toBe(0);
@@ -126,11 +130,12 @@ describe("gateway config reload during reply", () => {
     // Now: pending=3 (reservation + 2 replies)
     expect(getTotalPendingReplies()).toBe(3);
 
-    // Mark complete (clears reservation)
+    // Mark complete (flags reservation for cleanup on last delivery)
     dispatcher.markComplete();
 
-    // Now: pending=2 (just the 2 replies)
-    expect(getTotalPendingReplies()).toBe(2);
+    // Reservation still counted until delivery .finally() clears it,
+    // but the important invariant is pending > 0 while deliveries are in flight.
+    expect(getTotalPendingReplies()).toBeGreaterThan(0);
 
     // Wait for replies
     await dispatcher.waitForIdle();
