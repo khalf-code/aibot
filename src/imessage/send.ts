@@ -104,7 +104,7 @@ export async function sendMessageIMessage(
   }
 
   const params: Record<string, unknown> = {
-    text: message,
+    text: message.trim(),
     service: service || "auto",
     region,
   };
