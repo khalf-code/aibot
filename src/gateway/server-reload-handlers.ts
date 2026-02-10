@@ -141,6 +141,8 @@ export function createGatewayReloadHandlers(params: {
     params.setState(nextState);
   };
 
+  let restartPending = false;
+
   const requestGatewayRestart = (
     plan: GatewayReloadPlan,
     nextConfig: ReturnType<typeof loadConfig>,
@@ -161,6 +163,14 @@ export function createGatewayReloadHandlers(params: {
     const totalActive = queueSize + pendingReplies;
 
     if (totalActive > 0) {
+      // Avoid spinning up duplicate polling loops from repeated config changes.
+      if (restartPending) {
+        params.logReload.info(
+          `config change requires gateway restart (${reasons}) — already waiting for operations to complete`,
+        );
+        return;
+      }
+      restartPending = true;
       const details = [];
       if (queueSize > 0) {
         details.push(`${queueSize} queued operation(s)`);

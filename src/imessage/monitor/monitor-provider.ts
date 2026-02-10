@@ -247,10 +247,6 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
   });
 
   async function handleMessageNow(message: IMessagePayload) {
-    await handleMessageNowImpl(message);
-  }
-
-  async function handleMessageNowImpl(message: IMessagePayload) {
     const senderRaw = message.sender ?? "";
     const sender = senderRaw.trim();
     if (!sender) {

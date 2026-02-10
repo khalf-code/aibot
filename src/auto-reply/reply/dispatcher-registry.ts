@@ -3,7 +3,7 @@
  * Used to ensure gateway restart waits for all replies to complete.
  */
 
-export type TrackedDispatcher = {
+type TrackedDispatcher = {
   readonly id: string;
   readonly pending: () => number;
   readonly waitForIdle: () => Promise<void>;
@@ -36,18 +36,6 @@ export function registerDispatcher(dispatcher: {
 }
 
 /**
- * Check if any registered dispatchers have pending replies.
- */
-export function hasActiveDispatchers(): boolean {
-  for (const dispatcher of activeDispatchers) {
-    if (dispatcher.pending() > 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Get the total number of pending replies across all dispatchers.
  */
 export function getTotalPendingReplies(): number {
@@ -56,21 +44,6 @@ export function getTotalPendingReplies(): number {
     total += dispatcher.pending();
   }
   return total;
-}
-
-/**
- * Wait for all registered dispatchers to become idle.
- */
-export async function waitForAllDispatchersIdle(): Promise<void> {
-  const dispatchers = Array.from(activeDispatchers);
-  await Promise.all(dispatchers.map((d) => d.waitForIdle()));
-}
-
-/**
- * Get the count of registered dispatchers (for diagnostics).
- */
-export function getDispatcherCount(): number {
-  return activeDispatchers.size;
 }
 
 /**

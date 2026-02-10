@@ -39,7 +39,7 @@ describe("real scenario: config change during message processing", () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
         deliveredReplies.push(payload.text ?? "");
       },
-      onError: (err) => {
+      onError: () => {
         // Swallow delivery errors so the test can assert on replyErrors
       },
     });
