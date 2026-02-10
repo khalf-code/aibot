@@ -59,6 +59,8 @@ Bootstrap files are trimmed and appended under **Project Context** so the model 
 - `USER.md`
 - `HEARTBEAT.md`
 - `BOOTSTRAP.md` (only on brand-new workspaces)
+- `MEMORY.md` (optional, when present)
+- `memory.md` (optional fallback when `MEMORY.md` is absent)
 
 Large files are truncated with a marker. The max per-file size is controlled by
 `agents.defaults.bootstrapMaxChars` (default: 20000). Missing files inject a
@@ -66,6 +68,8 @@ short missing-file marker.
 
 Internal hooks can intercept this step via `agent:bootstrap` to mutate or replace
 the injected bootstrap files (for example swapping `SOUL.md` for an alternate persona).
+
+For sub-agent sessions, injection is intentionally reduced to `AGENTS.md` + `TOOLS.md` only.
 
 To inspect how much each injected file contributes (raw vs injected, truncation, plus tool schema overhead), use `/context list` or `/context detail`. See [Context](/concepts/context).
 
