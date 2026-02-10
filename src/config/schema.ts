@@ -226,6 +226,7 @@ const FIELD_LABELS: Record<string, string> = {
   "agents.defaults.memorySearch.enabled": "Enable Memory Search",
   "agents.defaults.memorySearch.sources": "Memory Search Sources",
   "agents.defaults.memorySearch.extraPaths": "Extra Memory Paths",
+  "agents.defaults.memorySearch.ignorePaths": "Ignore Paths (Glob Patterns)",
   "agents.defaults.memorySearch.experimental.sessionMemory":
     "Memory Search Session Index (Experimental)",
   "agents.defaults.memorySearch.provider": "Memory Search Provider",
@@ -341,6 +342,7 @@ const FIELD_LABELS: Record<string, string> = {
   "channels.telegram.retry.maxDelayMs": "Telegram Retry Max Delay (ms)",
   "channels.telegram.retry.jitter": "Telegram Retry Jitter",
   "channels.telegram.network.autoSelectFamily": "Telegram autoSelectFamily",
+  "channels.telegram.network.dnsResultOrder": "Telegram DNS Result Order",
   "channels.telegram.timeoutSeconds": "Telegram API Timeout (seconds)",
   "channels.telegram.capabilities.inlineButtons": "Telegram Inline Buttons",
   "channels.whatsapp.dmPolicy": "WhatsApp DM Policy",
@@ -544,6 +546,8 @@ const FIELD_HELP: Record<string, string> = {
     'Sources to index for memory search (default: ["memory"]; add "sessions" to include session transcripts).',
   "agents.defaults.memorySearch.extraPaths":
     "Extra paths to include in memory search (directories or .md files; relative paths resolved from workspace).",
+  "agents.defaults.memorySearch.ignorePaths":
+    "Glob patterns to exclude from memory search (merged with defaults: node_modules, .git, .venv, etc).",
   "agents.defaults.memorySearch.experimental.sessionMemory":
     "Enable experimental session transcript indexing for memory search (default: false).",
   "agents.defaults.memorySearch.provider":
@@ -731,6 +735,8 @@ const FIELD_HELP: Record<string, string> = {
   "channels.telegram.retry.jitter": "Jitter factor (0-1) applied to Telegram retry delays.",
   "channels.telegram.network.autoSelectFamily":
     "Override Node autoSelectFamily for Telegram (true=enable, false=disable).",
+  "channels.telegram.network.dnsResultOrder":
+    'DNS result order for Telegram requests ("ipv4first" | "verbatim"). Default: "ipv4first" on Node 22+ to avoid IPv6 issues.',
   "channels.telegram.timeoutSeconds":
     "Max seconds before Telegram API requests are aborted (default: 500 per grammY).",
   "channels.whatsapp.dmPolicy":
