@@ -54,6 +54,7 @@ import {
   resolveTelegramForumThreadId,
   resolveTelegramThreadSpec,
 } from "./bot/helpers.js";
+import { verifyGroupMembership } from "./group-membership-cache.js";
 import { buildInlineKeyboard } from "./send.js";
 
 const EMPTY_RESPONSE_FALLBACK = "No response generated. Please try again.";
@@ -202,7 +203,13 @@ async function resolveTelegramCommandAuth(params: {
 
   if (isGroup && useAccessGroups) {
     const defaultGroupPolicy = cfg.channels?.defaults?.groupPolicy;
-    const groupPolicy = telegramCfg.groupPolicy ?? defaultGroupPolicy ?? "open";
+    const groupPolicy =
+      firstDefined(
+        topicConfig?.groupPolicy,
+        groupConfig?.groupPolicy,
+        telegramCfg.groupPolicy,
+        defaultGroupPolicy,
+      ) ?? "open";
     if (groupPolicy === "disabled") {
       await withTelegramApiErrorLogging({
         operation: "sendMessage",
@@ -210,7 +217,7 @@ async function resolveTelegramCommandAuth(params: {
       });
       return null;
     }
-    if (groupPolicy === "allowlist" && requireAuth) {
+    if ((groupPolicy === "allowlist" || groupPolicy === "members") && requireAuth) {
       if (
         senderIdRaw == null ||
         !isSenderAllowed({
@@ -226,6 +233,21 @@ async function resolveTelegramCommandAuth(params: {
         return null;
       }
     }
+    if (groupPolicy === "members" && requireAuth) {
+      const memberCheck = await verifyGroupMembership({
+        chatId,
+        api: bot.api,
+        botId: bot.botInfo.id,
+        allowFrom: effectiveGroupAllow,
+      });
+      if (!memberCheck.trusted) {
+        await withTelegramApiErrorLogging({
+          operation: "sendMessage",
+          fn: () => bot.api.sendMessage(chatId, "This group has untrusted members."),
+        });
+        return null;
+      }
+    }
     const groupAllowlist = resolveGroupPolicy(chatId);
     if (groupAllowlist.allowlistEnabled && !groupAllowlist.allowed) {
       await withTelegramApiErrorLogging({
@@ -236,26 +258,31 @@ async function resolveTelegramCommandAuth(params: {
     }
   }
 
-  const dmAllow = normalizeAllowFromWithStore({
-    allowFrom: allowFrom,
-    storeAllowFrom,
-  });
-  const senderAllowed = isSenderAllowed({
-    allow: dmAllow,
-    senderId,
-    senderUsername,
-  });
-  const commandAuthorized = resolveCommandAuthorizedFromAuthorizers({
-    useAccessGroups,
-    authorizers: [{ configured: dmAllow.hasEntries, allowed: senderAllowed }],
-    modeWhenAccessGroupsOff: "configured",
-  });
-  if (requireAuth && !commandAuthorized) {
-    await withTelegramApiErrorLogging({
-      operation: "sendMessage",
-      fn: () => bot.api.sendMessage(chatId, "You are not authorized to use this command."),
+  // For non-group (DM) messages, check the DM allowlist.
+  // Group messages are already authorized by the group policy checks above.
+  let commandAuthorized = true;
+  if (!isGroup) {
+    const dmAllow = normalizeAllowFromWithStore({
+      allowFrom: allowFrom,
+      storeAllowFrom,
     });
-    return null;
+    const senderAllowed = isSenderAllowed({
+      allow: dmAllow,
+      senderId,
+      senderUsername,
+    });
+    commandAuthorized = resolveCommandAuthorizedFromAuthorizers({
+      useAccessGroups,
+      authorizers: [{ configured: dmAllow.hasEntries, allowed: senderAllowed }],
+      modeWhenAccessGroupsOff: "configured",
+    });
+    if (requireAuth && !commandAuthorized) {
+      await withTelegramApiErrorLogging({
+        operation: "sendMessage",
+        fn: () => bot.api.sendMessage(chatId, "You are not authorized to use this command."),
+      });
+      return null;
+    }
   }
 
   return {
