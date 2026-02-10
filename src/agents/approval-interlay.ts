@@ -164,8 +164,28 @@ export async function pauseAndPromptApproval(params: {
   const isTestEnv = process.env.NODE_ENV === "test" || typeof process?.send !== "function";
 
   return new Promise((resolve) => {
-    const timeoutHandle = setTimeout(
+    let settled = false;
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    let messageHandler: NodeJS.MessageListener | undefined;
+
+    const cleanup = () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = undefined;
+      }
+      if (messageHandler && typeof process?.removeListener === "function") {
+        process.removeListener("message", messageHandler);
+        messageHandler = undefined;
+      }
+    };
+
+    timeoutHandle = setTimeout(
       () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
         console.log("[ApprovalInterlay] Approval timeout. Auto-proceeding with proposed model.");
         resolve("timeout");
       },
@@ -174,16 +194,18 @@ export async function pauseAndPromptApproval(params: {
 
     // Only listen for messages if we have process communication
     if (typeof process?.send === "function" && typeof process?.on === "function") {
-      const messageHandler = (msg: Record<string, unknown>) => {
-        if (msg.type === "approval-response") {
-          clearTimeout(timeoutHandle);
-          if (typeof process?.removeListener === "function") {
-            process.removeListener("message", messageHandler as NodeJS.MessageListener);
-          }
-          resolve(msg.decision as DivergenceDecision);
+      messageHandler = (msg: unknown) => {
+        if (settled) {
+          return;
+        }
+        const message = msg as Record<string, unknown>;
+        if (message.type === "approval-response") {
+          settled = true;
+          cleanup();
+          resolve(message.decision as DivergenceDecision);
         }
       };
-      process.on("message", messageHandler as NodeJS.MessageListener);
+      process.on("message", messageHandler);
     }
   });
 }

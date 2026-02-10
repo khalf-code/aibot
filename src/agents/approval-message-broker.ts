@@ -16,8 +16,23 @@ export interface ApprovalMessage {
   messageTs?: string; // Slack message timestamp (set when posted)
 }
 
-// In-memory store of pending approvals (would be in a real DB)
+// In-memory store of pending approvals with TTL cleanup
 const pendingApprovals = new Map<string, ApprovalMessage>();
+const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Periodic cleanup of stale approvals
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, approval] of pendingApprovals) {
+      const age = now - new Date(approval.timestamp).getTime();
+      if (age > APPROVAL_TTL_MS) {
+        pendingApprovals.delete(key);
+      }
+    }
+  },
+  60 * 60 * 1000,
+); // Run every hour
 
 /**
  * Register approval message broker routes with the OpenClaw gateway.
@@ -146,12 +161,27 @@ export async function postApprovalViaMessageSystem(params: {
     // Send to gateway via process IPC
     if (typeof process?.send === "function") {
       return new Promise((resolve) => {
+        let settled = false;
+        let timeoutHandle: NodeJS.Timeout | undefined;
+
+        const cleanup = () => {
+          if (timeoutHandle) {
+            clearTimeout(timeoutHandle);
+            timeoutHandle = undefined;
+          }
+          if (typeof process?.removeListener === "function") {
+            process.removeListener("message", handler);
+          }
+        };
+
         const handler: NodeJS.MessageListener = (msg: unknown) => {
+          if (settled) {
+            return;
+          }
           const message = msg as Record<string, unknown>;
           if (message.type === "message-posted" && message.sessionKey === params.sessionKey) {
-            if (typeof process?.removeListener === "function") {
-              process.removeListener("message", handler);
-            }
+            settled = true;
+            cleanup();
             resolve({ messageTs: message.ts as string });
           }
         };
@@ -171,11 +201,13 @@ export async function postApprovalViaMessageSystem(params: {
           });
         }
 
-        // Timeout after 5s
-        setTimeout(() => {
-          if (typeof process?.removeListener === "function") {
-            process.removeListener("message", handler);
+        // Timeout after 5s - ensure cleanup happens exactly once
+        timeoutHandle = setTimeout(() => {
+          if (settled) {
+            return;
           }
+          settled = true;
+          cleanup();
           resolve({});
         }, 5000);
       });
