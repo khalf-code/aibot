@@ -209,6 +209,16 @@ const DEFAULT_SESSION_MAX_ENTRIES = 500;
 const DEFAULT_SESSION_ROTATE_BYTES = 10_485_760; // 10 MB
 const DEFAULT_SESSION_MAINTENANCE_MODE: SessionMaintenanceMode = "warn";
 
+export type SessionMaintenanceWarning = {
+  activeSessionKey: string;
+  activeUpdatedAt?: number;
+  totalEntries: number;
+  pruneDays: number;
+  maxEntries: number;
+  wouldPrune: boolean;
+  wouldCap: boolean;
+};
+
 /**
  * Resolve maintenance settings from openclaw.json (`session.maintenance`).
  * Falls back to built-in defaults when config is missing or unset.
@@ -260,6 +270,48 @@ export function pruneStaleEntries(
  */
 function getEntryUpdatedAt(entry?: SessionEntry): number {
   return entry?.updatedAt ?? Number.NEGATIVE_INFINITY;
+}
+
+export function getActiveSessionMaintenanceWarning(params: {
+  store: Record<string, SessionEntry>;
+  activeSessionKey: string;
+  pruneDays: number;
+  maxEntries: number;
+  nowMs?: number;
+}): SessionMaintenanceWarning | null {
+  const activeSessionKey = params.activeSessionKey.trim();
+  if (!activeSessionKey) {
+    return null;
+  }
+  const activeEntry = params.store[activeSessionKey];
+  if (!activeEntry) {
+    return null;
+  }
+  const now = params.nowMs ?? Date.now();
+  const cutoffMs = now - params.pruneDays * 24 * 60 * 60 * 1000;
+  const wouldPrune =
+    activeEntry.updatedAt != null ? activeEntry.updatedAt < cutoffMs : false;
+  const keys = Object.keys(params.store);
+  const wouldCap =
+    keys.length > params.maxEntries &&
+    keys
+      .toSorted((a, b) => getEntryUpdatedAt(params.store[b]) - getEntryUpdatedAt(params.store[a]))
+      .slice(params.maxEntries)
+      .includes(activeSessionKey);
+
+  if (!wouldPrune && !wouldCap) {
+    return null;
+  }
+
+  return {
+    activeSessionKey,
+    activeUpdatedAt: activeEntry.updatedAt,
+    totalEntries: keys.length,
+    pruneDays: params.pruneDays,
+    maxEntries: params.maxEntries,
+    wouldPrune,
+    wouldCap,
+  };
 }
 
 export function capEntryCount(
@@ -363,6 +415,8 @@ type SaveSessionStoreOptions = {
   skipMaintenance?: boolean;
   /** Active session key for warn-only maintenance. */
   activeSessionKey?: string;
+  /** Optional callback for warn-only maintenance. */
+  onWarn?: (warning: SessionMaintenanceWarning) => void | Promise<void>;
 };
 
 async function saveSessionStoreUnlocked(
@@ -382,27 +436,22 @@ async function saveSessionStoreUnlocked(
 
     if (shouldWarnOnly) {
       const activeSessionKey = opts?.activeSessionKey?.trim();
-      const activeEntry = activeSessionKey ? store[activeSessionKey] : undefined;
-      if (activeSessionKey && activeEntry) {
-        const cutoffMs = Date.now() - maintenance.pruneDays * 24 * 60 * 60 * 1000;
-        const wouldPrune =
-          activeEntry.updatedAt != null && activeEntry.updatedAt < cutoffMs;
-        const keys = Object.keys(store);
-        const wouldCap =
-          keys.length > maintenance.maxEntries &&
-          keys
-            .toSorted((a, b) => getEntryUpdatedAt(store[b]) - getEntryUpdatedAt(store[a]))
-            .slice(maintenance.maxEntries)
-            .includes(activeSessionKey);
-
-        if (wouldPrune || wouldCap) {
+      if (activeSessionKey) {
+        const warning = getActiveSessionMaintenanceWarning({
+          store,
+          activeSessionKey,
+          pruneDays: maintenance.pruneDays,
+          maxEntries: maintenance.maxEntries,
+        });
+        if (warning) {
           log.warn("session maintenance would evict active session; skipping enforcement", {
-            activeSessionKey,
-            wouldPrune,
-            wouldCap,
-            pruneDays: maintenance.pruneDays,
-            maxEntries: maintenance.maxEntries,
+            activeSessionKey: warning.activeSessionKey,
+            wouldPrune: warning.wouldPrune,
+            wouldCap: warning.wouldCap,
+            pruneDays: warning.pruneDays,
+            maxEntries: warning.maxEntries,
           });
+          await opts?.onWarn?.(warning);
         }
       }
     } else {

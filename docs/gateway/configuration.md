@@ -2810,7 +2810,7 @@ Fields:
 - `sendPolicy.default`: `allow` or `deny` fallback when no rule matches.
 - `sendPolicy.rules[]`: match by `channel`, `chatType` (`direct|group|room`), or `keyPrefix` (e.g. `cron:`). First deny wins; otherwise allow.
 - `maintenance`: session store maintenance settings for pruning, capping, and rotation.
-  - `mode`: `"warn"` (default) logs when the active session would be evicted without enforcing maintenance. `"enforce"` applies pruning and rotation.
+  - `mode`: `"warn"` (default) warns the active session (best-effort delivery) when it would be evicted without enforcing maintenance. `"enforce"` applies pruning and rotation.
   - `pruneDays`: remove entries older than this many days (default 30).
   - `maxEntries`: cap the number of session entries kept (default 500).
   - `rotateBytes`: rotate `sessions.json` when it exceeds this size in bytes (default 10485760).

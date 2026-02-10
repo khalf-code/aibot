@@ -26,6 +26,7 @@ import {
   type SessionScope,
   updateSessionStore,
 } from "../../config/sessions.js";
+import { deliverSessionMaintenanceWarning } from "../../infra/session-maintenance-warning.js";
 import { normalizeMainKey } from "../../routing/session-key.js";
 import { normalizeSessionDeliveryFields } from "../../utils/delivery-context.js";
 import { resolveCommandAuthorization } from "../command-auth.js";
@@ -353,7 +354,16 @@ export async function initSessionState(params: {
       // Preserve per-session overrides while resetting compaction state on /new.
       store[sessionKey] = { ...store[sessionKey], ...sessionEntry };
     },
-    { activeSessionKey: sessionKey },
+    {
+      activeSessionKey: sessionKey,
+      onWarn: (warning) =>
+        deliverSessionMaintenanceWarning({
+          cfg,
+          sessionKey,
+          entry: sessionEntry,
+          warning,
+        }),
+    },
   );
 
   const sessionCtx: TemplateContext = {
