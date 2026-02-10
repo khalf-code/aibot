@@ -22,6 +22,7 @@ export type AuthChoiceGroupId =
   | "minimax"
   | "synthetic"
   | "venice"
+  | "aliyun-bailian"
   | "qwen"
   | "together"
   | "qianfan"
@@ -87,6 +88,12 @@ const AUTH_CHOICE_GROUP_DEFS: {
     label: "Qwen",
     hint: "OAuth",
     choices: ["qwen-portal"],
+  },
+  {
+    value: "aliyun-bailian",
+    label: "Aliyun Bailian (Qwen)",
+    hint: "API key",
+    choices: ["aliyun-bailian-api-key"],
   },
   {
     value: "zai",
@@ -234,6 +241,7 @@ export function buildAuthChoiceOptions(params: {
     hint: "Oauth plugin for MiniMax",
   });
   options.push({ value: "qwen-portal", label: "Qwen OAuth" });
+  options.push({ value: "aliyun-bailian-api-key", label: "Aliyun Bailian API key" });
   options.push({
     value: "copilot-proxy",
     label: "Copilot Proxy (local)",
