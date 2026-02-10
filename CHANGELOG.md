@@ -6,6 +6,7 @@ Docs: https://docs.openclaw.ai
 
 ### Added
 
+- Sessions: add named persistent sessions via `sessions.create` API and `/session new` command; persistent sessions won't reset on `/new` and display with 📌 badge in UI. (#4627, #6784)
 - iOS: alpha node app + setup-code onboarding. (#11756) Thanks @mbelinky.
 - Channels: comprehensive BlueBubbles and channel cleanup. (#11093) Thanks @tyler6204.
 - Plugins: device pairing + phone control plugins (Telegram `/pair`, iOS/Android node controls). (#11755) Thanks @mbelinky.
