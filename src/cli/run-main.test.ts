@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { rewriteUpdateFlagArgv } from "./run-main.js";
 
 describe("rewriteUpdateFlagArgv", () => {
@@ -32,5 +32,30 @@ describe("rewriteUpdateFlagArgv", () => {
       "update",
       "--json",
     ]);
+  });
+});
+
+describe("runCli process.exit on success", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls process.exit(0) after routed command completes", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("EXIT_0");
+    });
+
+    vi.mock("./route.js", () => ({
+      tryRouteCli: vi.fn().mockResolvedValue(true),
+    }));
+    vi.mock("../infra/dotenv.js", () => ({ loadDotEnv: vi.fn() }));
+    vi.mock("../infra/env.js", () => ({ normalizeEnv: vi.fn() }));
+    vi.mock("../infra/path-env.js", () => ({ ensureOpenClawCliOnPath: vi.fn() }));
+    vi.mock("../infra/runtime-guard.js", () => ({ assertSupportedRuntime: vi.fn() }));
+
+    const { runCli } = await import("./run-main.js");
+
+    await expect(runCli(["node", "entry.js", "gateway", "restart"])).rejects.toThrow("EXIT_0");
+    expect(exitSpy).toHaveBeenCalledWith(0);
   });
 });
