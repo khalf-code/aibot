@@ -75,6 +75,17 @@ describe("extractAssistantText", () => {
     expect(result).toBe("This is a normal response without any tool calls.");
   });
 
+  it("extracts output_text blocks as assistant text", () => {
+    const msg: AssistantMessage = {
+      role: "assistant",
+      content: [{ type: "output_text", text: "Output text block" }],
+      timestamp: Date.now(),
+    };
+
+    const result = extractAssistantText(msg);
+    expect(result).toBe("Output text block");
+  });
+
   it("strips Minimax tool invocations with extra attributes", () => {
     const msg: AssistantMessage = {
       role: "assistant",
