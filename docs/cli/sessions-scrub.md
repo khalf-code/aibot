@@ -4,7 +4,7 @@ Scrub secrets (API keys, tokens, passwords) from session transcript files.
 
 ## Overview
 
-Session transcripts (`.jsonl` files in `~/.openclaw/agents/*/sessions/`) may contain sensitive data from tool calls—especially from early versions before runtime redaction was implemented, or from `config.get` calls that exposed credentials.
+Session transcripts (`.jsonl` files) may contain sensitive data from tool calls—especially from early versions before runtime redaction was implemented, or from `config.get` calls that exposed credentials.
 
 The `sessions scrub` command provides **at-rest scrubbing**: it scans all session files and redacts secrets using the same patterns as runtime redaction, then overwrites the files.
 
@@ -46,7 +46,7 @@ By default, the command creates a backup of each modified file with a `.bak` ext
 
 ## How it works
 
-1. **Finds all session files**: Scans `~/.openclaw/agents/*/sessions/*.jsonl`
+1. **Finds all session files**: Scans `~/.openclaw/agents/*/sessions/*.jsonl`, `${stateDir}/sessions/*.jsonl`, and legacy `~/.openclaw/sessions/*.jsonl`
 2. **Applies redaction patterns**: Uses the same patterns from `src/logging/redact.ts` that are used at runtime
 3. **Creates backups**: Copies original files to `.bak` (unless `--no-backup` is used)
 4. **Overwrites**: Writes the scrubbed content back to the original file
@@ -185,7 +185,7 @@ openclaw sessions scrub --no-backup
 
 ## Technical details
 
-- **Location**: Session files are in `~/.openclaw/agents/*/sessions/*.jsonl`
+- **Location**: Session files are discovered in `~/.openclaw/agents/*/sessions/*.jsonl`, `${stateDir}/sessions/*.jsonl`, and legacy `~/.openclaw/sessions/*.jsonl`
 - **Patterns**: Uses `redactSensitiveText()` from `src/logging/redact.ts`
 - **Scope**: Processes all agents' sessions
 - **Performance**: Processes files sequentially; may take a few seconds for hundreds of sessions

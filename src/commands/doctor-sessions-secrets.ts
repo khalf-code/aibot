@@ -55,7 +55,7 @@ export async function noteSessionSecretsWarnings(_cfg?: OpenClawConfig): Promise
   let totalSecrets = 0;
   let readErrors = 0;
 
-  // Scan all files if <=200, otherwise sample 200 randomly to avoid long delays
+  // Scan all files if <=200, otherwise deterministically sample 200 (sorted, first N) to avoid long delays
   const sampled = files.length > 200 ? deterministicSample(files, 200) : files;
   const sampleSize = sampled.length;
 
