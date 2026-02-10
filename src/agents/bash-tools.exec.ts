@@ -928,12 +928,16 @@ export function createExecTool(
       }
       const configuredHost = defaults?.host ?? "sandbox";
       const requestedHost = normalizeExecHost(params.host) ?? null;
-      let host: ExecHost = requestedHost ?? configuredHost;
+      // CLAWD PATCH: When a host is explicitly configured, always use it.
+      // Local models (Ollama/vLLM) often pass random host values in tool call args.
+      // The configured host is the source of truth; the allowlist is the security boundary.
+      let host: ExecHost = configuredHost;
       if (!elevatedRequested && requestedHost && requestedHost !== configuredHost) {
-        throw new Error(
-          `exec host not allowed (requested ${renderExecHostLabel(requestedHost)}; ` +
-            `configure tools.exec.host=${renderExecHostLabel(configuredHost)} to allow).`,
-        );
+        if (process.env.CLAWDBOT_DEBUG_TOOLS) {
+          console.error(
+            `[CLAWD PATCH] exec: ignoring model-requested host=${renderExecHostLabel(requestedHost)}, using configured host=${renderExecHostLabel(configuredHost)}`,
+          );
+        }
       }
       if (elevatedRequested) {
         host = "gateway";
