@@ -20,6 +20,7 @@ export const isNixMode = resolveIsNixMode();
 const LEGACY_STATE_DIRNAMES = [".clawdbot", ".moltbot", ".moldbot"] as const;
 const NEW_STATE_DIRNAME = ".openclaw";
 const CONFIG_FILENAME = "openclaw.json";
+const CONFIG_BACKUP_DIRNAME = "backups";
 const LEGACY_CONFIG_FILENAMES = ["clawdbot.json", "moltbot.json", "moldbot.json"] as const;
 
 function resolveDefaultHomeDir(): string {
@@ -120,6 +121,14 @@ export function resolveCanonicalConfigPath(
     return resolveUserPath(override, env, envHomedir(env));
   }
   return path.join(stateDir, CONFIG_FILENAME);
+}
+
+export function resolveConfigBackupDir(configPath: string): string {
+  return path.join(path.dirname(configPath), CONFIG_BACKUP_DIRNAME);
+}
+
+export function resolveConfigBackupBasePath(configPath: string): string {
+  return path.join(resolveConfigBackupDir(configPath), `${path.basename(configPath)}.bak`);
 }
 
 /**
