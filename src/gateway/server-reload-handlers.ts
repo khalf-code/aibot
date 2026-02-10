@@ -3,10 +3,6 @@ import type { loadConfig } from "../config/config.js";
 import type { HeartbeatRunner } from "../infra/heartbeat-runner.js";
 import type { ChannelKind, GatewayReloadPlan } from "./config-reload.js";
 import { getTotalPendingReplies } from "../auto-reply/reply/dispatcher-registry.js";
-import {
-  getActiveInboundHandlerCount,
-  getActiveHandlersByChannel,
-} from "../channels/inbound-handler-registry.js";
 import { resolveAgentMaxConcurrent, resolveSubagentMaxConcurrent } from "../config/agent-limits.js";
 import { startGmailWatcher, stopGmailWatcher } from "../hooks/gmail-watcher.js";
 import { isTruthyEnvValue } from "../infra/env.js";
@@ -159,11 +155,10 @@ export function createGatewayReloadHandlers(params: {
       return;
     }
 
-    // Check if there are active operations (commands in queue, pending replies, or active message handlers)
+    // Check if there are active operations (commands in queue or pending replies)
     const queueSize = getTotalQueueSize();
     const pendingReplies = getTotalPendingReplies();
-    const activeHandlers = getActiveInboundHandlerCount();
-    const totalActive = queueSize + pendingReplies + activeHandlers;
+    const totalActive = queueSize + pendingReplies;
 
     if (totalActive > 0) {
       const details = [];
@@ -172,13 +167,6 @@ export function createGatewayReloadHandlers(params: {
       }
       if (pendingReplies > 0) {
         details.push(`${pendingReplies} pending reply(ies)`);
-      }
-      if (activeHandlers > 0) {
-        const byChannel = getActiveHandlersByChannel();
-        const channelSummary = Object.entries(byChannel)
-          .map(([channel, count]) => `${count} ${channel}`)
-          .join(", ");
-        details.push(`${activeHandlers} active handler(s): ${channelSummary}`);
       }
       params.logReload.warn(
         `config change requires gateway restart (${reasons}) — deferring until ${details.join(", ")} complete`,
@@ -192,13 +180,12 @@ export function createGatewayReloadHandlers(params: {
       const checkAndRestart = () => {
         const currentQueueSize = getTotalQueueSize();
         const currentPendingReplies = getTotalPendingReplies();
-        const currentActiveHandlers = getActiveInboundHandlerCount();
-        const currentTotalActive = currentQueueSize + currentPendingReplies + currentActiveHandlers;
+        const currentTotalActive = currentQueueSize + currentPendingReplies;
         const elapsed = Date.now() - startTime;
 
         if (currentTotalActive === 0) {
           params.logReload.info(
-            "all operations, replies, and handlers completed; restarting gateway now",
+            "all operations and replies completed; restarting gateway now",
           );
           authorizeGatewaySigusr1Restart();
           process.emit("SIGUSR1");
@@ -209,13 +196,6 @@ export function createGatewayReloadHandlers(params: {
           }
           if (currentPendingReplies > 0) {
             remainingDetails.push(`${currentPendingReplies} reply(ies)`);
-          }
-          if (currentActiveHandlers > 0) {
-            const byChannel = getActiveHandlersByChannel();
-            const channelSummary = Object.entries(byChannel)
-              .map(([channel, count]) => `${count} ${channel}`)
-              .join(", ");
-            remainingDetails.push(`${currentActiveHandlers} handler(s): ${channelSummary}`);
           }
           params.logReload.warn(
             `restart timeout after ${elapsed}ms with ${remainingDetails.join(", ")} still active; restarting anyway`,

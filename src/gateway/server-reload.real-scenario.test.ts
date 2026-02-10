@@ -16,15 +16,11 @@ describe("real scenario: config change during message processing", () => {
     vi.restoreAllMocks();
     // Wait for any pending microtasks (from markComplete()) to complete
     await Promise.resolve();
-    const { clearAllHandlers } = await import("../channels/inbound-handler-registry.js");
     const { clearAllDispatchers } = await import("../auto-reply/reply/dispatcher-registry.js");
-    clearAllHandlers();
     clearAllDispatchers();
   });
 
   it("should NOT restart gateway before replies are sent", async () => {
-    const { registerInboundHandler, getActiveInboundHandlerCount } =
-      await import("../channels/inbound-handler-registry.js");
     const { createReplyDispatcher } = await import("../auto-reply/reply/reply-dispatcher.js");
     const { getTotalPendingReplies } = await import("../auto-reply/reply/dispatcher-registry.js");
 
@@ -37,14 +33,8 @@ describe("real scenario: config change during message processing", () => {
     let rpcConnected = true;
     const deliveredReplies: string[] = [];
 
-    // Step 1: Message received
+    // Step 1: Message received — create dispatcher (registers with pending=1)
     log("message-received");
-    const { unregister } = registerInboundHandler({
-      channel: "imessage",
-      handlerId: "test-msg",
-    });
-
-    // Step 2: Create dispatcher (simulates monitor creating dispatcher)
     const dispatcher = createReplyDispatcher({
       deliver: async (payload) => {
         log(`deliver-called: rpc=${rpcConnected}`);
@@ -64,11 +54,9 @@ describe("real scenario: config change during message processing", () => {
       },
     });
 
-    log(
-      `initial-state: handlers=${getActiveInboundHandlerCount()} pending=${getTotalPendingReplies()}`,
-    );
+    log(`initial-state: pending=${getTotalPendingReplies()}`);
 
-    // Step 3: Simulate command processing (async, like real agent)
+    // Step 2: Simulate command processing (async, like real agent)
     const processCommand = async () => {
       log("command-start");
       // Simulate agent thinking time
@@ -84,26 +72,22 @@ describe("real scenario: config change during message processing", () => {
     // Start command processing (don't await yet - it runs in background)
     const commandPromise = processCommand();
 
-    // Step 4: Simulate config change DURING command processing
+    // Step 3: Simulate config change DURING command processing
     await new Promise((resolve) => setTimeout(resolve, 200));
-    log(
-      `config-change-detected: handlers=${getActiveInboundHandlerCount()} pending=${getTotalPendingReplies()}`,
-    );
+    log(`config-change-detected: pending=${getTotalPendingReplies()}`);
 
-    // Step 5: Simulate restart deferral check
+    // Step 4: Simulate restart deferral check
     const checkRestart = () => {
-      const handlers = getActiveInboundHandlerCount();
       const pending = getTotalPendingReplies();
-      const total = handlers + pending;
-      log(`restart-check: handlers=${handlers} pending=${pending} total=${total}`);
-      return total;
+      log(`restart-check: pending=${pending}`);
+      return pending;
     };
 
-    // THIS IS THE CRITICAL CHECK - if total becomes 0 before replies sent, restart proceeds
+    // THIS IS THE CRITICAL CHECK - if pending becomes 0 before replies sent, restart proceeds
     let totalActive = checkRestart();
     expect(totalActive).toBeGreaterThan(0); // MUST be > 0 to defer restart
 
-    // Step 6: Simulate periodic restart checks (500ms intervals)
+    // Step 5: Simulate periodic restart checks (500ms intervals)
     const checkInterval = 500;
     const maxChecks = 5;
     for (let i = 0; i < maxChecks; i++) {
@@ -118,19 +102,15 @@ describe("real scenario: config change during message processing", () => {
       }
     }
 
-    // Step 7: Wait for command to finish
+    // Step 6: Wait for command to finish
     await commandPromise;
 
-    // Step 8: Mark complete and wait for idle
+    // Step 7: Mark complete and wait for idle
     dispatcher.markComplete();
     log(`after-markComplete: pending=${getTotalPendingReplies()}`);
 
     await dispatcher.waitForIdle();
     log(`after-waitForIdle: pending=${getTotalPendingReplies()}`);
-
-    // Step 9: Unregister handler
-    unregister();
-    log(`handler-unregistered: handlers=${getActiveInboundHandlerCount()}`);
 
     // ASSERTIONS
     console.log("\n=== Event Timeline ===");
@@ -142,15 +122,6 @@ describe("real scenario: config change during message processing", () => {
     // CRITICAL: No reply errors should occur
     expect(replyErrors).toEqual([]);
     expect(deliveredReplies).toEqual(["Configuration updated!"]);
-
-    // If this fails, it means the gateway restarted before replies were sent
-    if (replyErrors.length > 0) {
-      throw new Error(
-        `FAILURE: Gateway restarted before replies sent!\n` +
-          `Errors: ${replyErrors.join(", ")}\n` +
-          `This is exactly what happens in production with "imsg rpc not running"`,
-      );
-    }
   });
 
   it("should keep pending > 0 until reply is actually enqueued", async () => {

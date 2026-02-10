@@ -182,7 +182,7 @@ export function createReplyDispatcher(options: ReplyDispatcherOptions): ReplyDis
     // If no replies were enqueued (pending is still 1 = just the reservation),
     // schedule clearing the reservation after current microtasks complete.
     // This gives any in-flight enqueue() calls a chance to increment pending.
-    Promise.resolve().then(() => {
+    void Promise.resolve().then(() => {
       if (pending === 1 && completeCalled) {
         // Still just the reservation, no replies were enqueued
         pending -= 1;
