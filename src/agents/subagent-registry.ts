@@ -425,6 +425,17 @@ export function listSubagentRunsForRequester(requesterSessionKey: string): Subag
   return [...subagentRuns.values()].filter((entry) => entry.requesterSessionKey === key);
 }
 
+export function findSubagentRunByChildSessionKey(
+  childSessionKey: string,
+): SubagentRunRecord | undefined {
+  for (const entry of subagentRuns.values()) {
+    if (entry.childSessionKey === childSessionKey) {
+      return entry;
+    }
+  }
+  return undefined;
+}
+
 export function initSubagentRegistry() {
   restoreSubagentRunsOnce();
 }

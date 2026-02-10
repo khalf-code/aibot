@@ -44,6 +44,7 @@ import {
   type SessionEntry,
   updateSessionStore,
 } from "../config/sessions.js";
+import { callGateway } from "../gateway/call.js";
 import {
   clearAgentRunContext,
   emitAgentEvent,
@@ -468,6 +469,32 @@ export async function agentCommand(
       fallbackProvider = fallbackResult.provider;
       fallbackModel = fallbackResult.model;
       if (!lifecycleEnded) {
+        // CLI-backed runs don't write to the gateway chat store, so
+        // downstream consumers (readLatestAssistantReply, chat.history)
+        // find nothing. Inject the CLI output before emitting the
+        // lifecycle event so it's available by the time announce flows run.
+        // Cap at 100 KB to avoid bloating the session transcript.
+        const MAX_INJECT_BYTES = 100_000;
+        let cliReplyText = (result.payloads ?? [])
+          .map((p) => p.text)
+          .filter(Boolean)
+          .join("\n")
+          .trim();
+        if (cliReplyText.length > MAX_INJECT_BYTES) {
+          cliReplyText = `${cliReplyText.slice(0, MAX_INJECT_BYTES)}\n\n[truncated — output exceeded ${MAX_INJECT_BYTES} bytes]`;
+        }
+        if (cliReplyText && sessionKey) {
+          try {
+            await callGateway({
+              method: "chat.inject",
+              params: { sessionKey, message: cliReplyText },
+              timeoutMs: 5_000,
+            });
+          } catch {
+            // Best-effort; announce flow will fall back to "(no output)".
+          }
+        }
+
         emitAgentEvent({
           runId,
           stream: "lifecycle",
