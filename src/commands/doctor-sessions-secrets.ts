@@ -22,11 +22,14 @@ async function scanFileForSecrets(
     const content = await fs.promises.readFile(filePath, "utf-8");
     let count = 0;
     for (const pattern of patterns) {
+      if (!pattern.source) {
+        continue; // skip empty patterns
+      }
       const matches = content.match(
         new RegExp(pattern.source, pattern.flags.replace("g", "") + "g"),
       );
       if (matches) {
-        count += matches.length;
+        count += matches.filter((m) => m.length > 0).length;
       }
     }
     return { matchCount: count };
