@@ -192,11 +192,11 @@ export async function startGatewayContainer(opts: GatewayContainerOptions): Prom
   // Add bind mounts for tools/skills
   for (const bind of opts.binds || []) {
     // Validate bind mount format
-    if (bind.includes(":")) {
+    if (/^[^:]+:[^:]+(:(ro|rw))?$/.test(bind)) {
       args.push("-v", bind);
       logger.info(`Adding bind mount: ${bind}`);
     } else {
-      logger.warn(`Invalid bind mount format (expected host:container[:ro]): ${bind}`);
+      logger.warn(`Invalid bind mount format (expected host:container[:ro|rw]): ${bind}`);
     }
   }
 

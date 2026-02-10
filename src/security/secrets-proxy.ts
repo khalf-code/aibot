@@ -124,8 +124,7 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
       limitHit = true;
       return true;
     }
-    count++;
-    if (count > PLACEHOLDER_LIMITS.maxReplacements) {
+    if (count >= PLACEHOLDER_LIMITS.maxReplacements) {
       logger.warn(`Placeholder replacement limit reached (${PLACEHOLDER_LIMITS.maxReplacements})`);
       limitHit = true;
       return true;
@@ -138,6 +137,7 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
     if (checkLimits()) {
       return match;
     }
+    count++;
     const value = resolveConfigPath(path, registry);
     if (value === null || value === undefined) {
       logger.warn(`Config secret not found: ${path}`);
@@ -153,6 +153,7 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
     if (checkLimits()) {
       break;
     }
+    count++;
     const profileId = match[1];
     const token = await resolveOAuthToken(registry, profileId);
     if (token) {
@@ -168,6 +169,7 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
     if (checkLimits()) {
       return match;
     }
+    count++;
     const cred = registry.authStore.profiles[profileId];
     if (cred?.type !== "oauth" || !cred?.refresh) {
       logger.warn(`OAuth refresh token not found for profile: ${profileId}`);
@@ -181,6 +183,7 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
     if (checkLimits()) {
       return match;
     }
+    count++;
     const key = registry.apiKeys.get(profileId);
     if (!key) {
       logger.warn(`API key not found for profile: ${profileId}`);
@@ -194,6 +197,7 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
     if (checkLimits()) {
       return match;
     }
+    count++;
     const token = registry.tokens.get(profileId);
     if (!token) {
       logger.warn(`Token not found for profile: ${profileId}`);
@@ -207,6 +211,7 @@ async function replacePlaceholders(text: string, registry: SecretRegistry): Prom
     if (checkLimits()) {
       return match;
     }
+    count++;
     return process.env[name] ?? registry.envVars[name] ?? "";
   });
 
