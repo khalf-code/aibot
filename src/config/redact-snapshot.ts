@@ -217,7 +217,7 @@ export function restoreRedactedValues(
   if (hints) {
     const lookup = buildRedactionLookup(hints);
     if (lookup.has("")) {
-      return restoreRedactedValuesWithLookup(incoming, original, buildRedactionLookup(hints), "");
+      return restoreRedactedValuesWithLookup(incoming, original, lookup, "");
     } else {
       return incoming;
     }
