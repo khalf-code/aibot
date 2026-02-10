@@ -399,9 +399,8 @@ export const matrixPlugin: ChannelPlugin<ResolvedMatrixAccount> = {
       probe: snapshot.probe,
       lastProbeAt: snapshot.lastProbeAt ?? null,
     }),
-    probeAccount: async ({ timeoutMs, cfg, accountId }) => {
+    probeAccount: async ({ account, timeoutMs, cfg }) => {
       try {
-        const account = resolveMatrixAccount({ cfg: cfg as CoreConfig, accountId });
         const env = account.accountId === DEFAULT_ACCOUNT_ID ? process.env : {};
         const auth = await resolveMatrixAuth({ accountConfig: account.config, env });
         return await probeMatrix({

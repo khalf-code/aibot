@@ -20,7 +20,7 @@ export function resolveMatrixConfig(
   env: NodeJS.ProcessEnv | Record<string, never> = process.env,
 ): MatrixResolvedConfig {
   // Support both a flat MatrixAccountConfig and the legacy CoreConfig shape.
-  const matrix: MatrixAccountConfig =
+  const matrix: MatrixAccountConfig & Record<string, unknown> =
     "channels" in configOrCfg ? ((configOrCfg as CoreConfig).channels?.matrix ?? {}) : configOrCfg;
 
   const homeserver = clean(matrix.homeserver) || clean(env.MATRIX_HOMESERVER);

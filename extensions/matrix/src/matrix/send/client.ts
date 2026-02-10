@@ -65,7 +65,9 @@ export async function resolveMatrixClient(opts: {
   if (auth.encryption && client.crypto) {
     try {
       const joinedRooms = await client.getJoinedRooms();
-      await client.crypto.prepare(joinedRooms);
+      await (client.crypto as { prepare: (rooms?: string[]) => Promise<void> }).prepare(
+        joinedRooms,
+      );
     } catch {
       // Ignore crypto prep failures for one-off sends; normal sync will retry.
     }

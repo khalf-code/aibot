@@ -1,4 +1,5 @@
-export type { DmPolicy, GroupPolicy } from "openclaw/plugin-sdk";
+import type { DmPolicy, GroupPolicy } from "openclaw/plugin-sdk";
+export type { DmPolicy, GroupPolicy };
 
 export type ReplyToMode = "off" | "first" | "all";
 
@@ -104,10 +105,8 @@ export type MatrixConfig = {
 export type CoreConfig = {
   channels?: {
     matrix?: MatrixConfig;
-    /** Shared channel defaults (e.g. groupPolicy). */
     defaults?: {
       groupPolicy?: "open" | "allowlist" | "disabled";
-      [key: string]: unknown;
     };
   };
   commands?: {
@@ -120,11 +119,5 @@ export type CoreConfig = {
     ackReaction?: string;
     ackReactionScope?: "group-mentions" | "group-all" | "direct" | "all";
   };
-  /** Agent routing bindings. */
-  bindings?: Array<{
-    agentId?: string;
-    match?: { channel?: string; accountId?: string; [key: string]: unknown };
-    [key: string]: unknown;
-  }>;
   [key: string]: unknown;
 };

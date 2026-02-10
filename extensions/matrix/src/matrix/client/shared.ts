@@ -75,7 +75,9 @@ async function ensureSharedClientStarted(params: {
       try {
         const joinedRooms = await client.getJoinedRooms();
         if (client.crypto) {
-          await client.crypto.prepare(joinedRooms);
+          await (client.crypto as { prepare: (rooms?: string[]) => Promise<void> }).prepare(
+            joinedRooms,
+          );
           params.state.cryptoReady = true;
         }
       } catch (err) {

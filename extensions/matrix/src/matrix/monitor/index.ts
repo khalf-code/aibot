@@ -7,9 +7,9 @@ import {
   type RuntimeEnv,
 } from "openclaw/plugin-sdk";
 import type { CoreConfig, MatrixAccountConfig, ReplyToMode } from "../../types.js";
-import { mergeMatrixAccountConfig } from "../accounts.js";
 import { resolveMatrixTargets } from "../../resolve-targets.js";
 import { getMatrixRuntime } from "../../runtime.js";
+import { mergeMatrixAccountConfig } from "../accounts.js";
 import { setActiveMatrixClient } from "../active-client.js";
 import {
   isBunRuntime,
@@ -80,7 +80,7 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
     if (!core.logging.shouldLogVerbose()) {
       return;
     }
-    logger.debug(message);
+    logger.debug?.(message);
   };
 
   const normalizeUserEntry = (raw: string) =>
@@ -100,7 +100,7 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
   ): Promise<string[]> => {
     let allowList = list ?? [];
     if (allowList.length === 0) {
-      return [];
+      return allowList.map(String);
     }
     const entries = allowList
       .map((entry) => normalizeUserEntry(String(entry)))
@@ -143,12 +143,12 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
         `${label} entries must be full Matrix IDs (example: @user:server). Unresolved entries are ignored.`,
       );
     }
-    return allowList;
+    return allowList.map(String);
   };
 
   const allowlistOnly = mergedAccount.allowlistOnly === true;
-  let allowFrom = mergedAccount.dm?.allowFrom ?? [];
-  let groupAllowFrom = mergedAccount.groupAllowFrom ?? [];
+  let allowFrom: string[] = (mergedAccount.dm?.allowFrom ?? []).map(String);
+  let groupAllowFrom: string[] = (mergedAccount.groupAllowFrom ?? []).map(String);
   let roomsConfig = mergedAccount.groups ?? mergedAccount.rooms;
 
   allowFrom = await resolveUserAllowlist(`matrix[${accountId}] dm allowlist`, allowFrom);
@@ -342,17 +342,18 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
   if (auth.encryption && client.crypto) {
     try {
       // Request verification from other sessions
-      const verificationRequest = await client.crypto.requestOwnUserVerification();
+      const verificationRequest = await (
+        client.crypto as { requestOwnUserVerification?: () => Promise<unknown> }
+      ).requestOwnUserVerification?.();
       if (verificationRequest) {
         logger.info(
           `matrix[${accountId}]: device verification requested - please verify in another client`,
         );
       }
     } catch (err) {
-      logger.debug(
-        { error: String(err) },
-        "Device verification request failed (may already be verified)",
-      );
+      logger.debug?.("Device verification request failed (may already be verified)", {
+        error: String(err),
+      });
     }
   }
 
