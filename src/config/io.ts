@@ -67,6 +67,7 @@ const loggedInvalidConfigs = new Set<string>();
 // the exported wrappers (which create separate createConfigIO instances)
 // rather than reusing a single IO instance.
 const _moduleEnvSnapshots = new Map<string, Record<string, string | undefined>>();
+const MODULE_ENV_SNAPSHOTS_MAX = 16;
 
 export type ParseConfigJson5Result = { ok: true; parsed: unknown } | { ok: false; error: string };
 
@@ -678,6 +679,14 @@ export async function readConfigFileSnapshot(): Promise<ConfigFileSnapshot> {
   // call (which creates its own IO instance) can use the read-time env state.
   const envSnap = io.getEnvSnapshot();
   if (envSnap) {
+    // Evict oldest entry if at capacity to prevent unbounded growth
+    // in long-lived processes that read many different config paths.
+    if (_moduleEnvSnapshots.size >= MODULE_ENV_SNAPSHOTS_MAX) {
+      const oldest = _moduleEnvSnapshots.keys().next().value;
+      if (oldest !== undefined) {
+        _moduleEnvSnapshots.delete(oldest);
+      }
+    }
     _moduleEnvSnapshots.set(io.configPath, envSnap);
   }
   return snapshot;
