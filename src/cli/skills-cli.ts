@@ -5,6 +5,8 @@ import {
   type SkillStatusEntry,
   type SkillStatusReport,
 } from "../agents/skills-status.js";
+import { loadWorkspaceSkillEntries } from "../agents/skills/workspace.js";
+import { auditSkill, formatAuditReport } from "../commands/skill-audit.js";
 import { loadConfig } from "../config/config.js";
 import { defaultRuntime } from "../runtime.js";
 import { formatDocsLink } from "../terminal/links.js";
@@ -394,6 +396,22 @@ export function registerSkillsCli(program: Command) {
         const workspaceDir = resolveAgentWorkspaceDir(config, resolveDefaultAgentId(config));
         const report = buildWorkspaceSkillStatus(workspaceDir, { config });
         defaultRuntime.log(formatSkillsCheck(report, opts));
+      } catch (err) {
+        defaultRuntime.error(String(err));
+        defaultRuntime.exit(1);
+      }
+    });
+
+  skills
+    .command("audit")
+    .description("Audit installed skills for permissions and capabilities")
+    .action(async () => {
+      try {
+        const config = loadConfig();
+        const workspaceDir = resolveAgentWorkspaceDir(config, resolveDefaultAgentId(config));
+        const entries = loadWorkspaceSkillEntries(workspaceDir, { config });
+        const results = entries.map((entry) => auditSkill(entry));
+        defaultRuntime.log(formatAuditReport(results));
       } catch (err) {
         defaultRuntime.error(String(err));
         defaultRuntime.exit(1);
