@@ -103,7 +103,11 @@ export type SessionConfig = {
   maintenance?: SessionMaintenanceConfig;
 };
 
+export type SessionMaintenanceMode = "enforce" | "warn";
+
 export type SessionMaintenanceConfig = {
+  /** Whether to enforce maintenance or warn only. Default: "enforce". */
+  mode?: SessionMaintenanceMode;
   /** Remove session entries older than this many days. Default: 30. */
   pruneDays?: number;
   /** Maximum number of session entries to keep. Default: 500. */

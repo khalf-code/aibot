@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { MsgContext } from "../../auto-reply/templating.js";
-import type { SessionMaintenanceConfig } from "../types.base.js";
+import type { SessionMaintenanceConfig, SessionMaintenanceMode } from "../types.base.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import {
   deliveryContextFromSession,
@@ -207,6 +207,7 @@ export function readSessionUpdatedAt(params: {
 const DEFAULT_SESSION_PRUNE_DAYS = 30;
 const DEFAULT_SESSION_MAX_ENTRIES = 500;
 const DEFAULT_SESSION_ROTATE_BYTES = 10_485_760; // 10 MB
+const DEFAULT_SESSION_MAINTENANCE_MODE: SessionMaintenanceMode = "enforce";
 
 /**
  * Resolve maintenance settings from openclaw.json (`session.maintenance`).
@@ -220,6 +221,7 @@ export function resolveMaintenanceConfig(): Required<SessionMaintenanceConfig> {
     // Config may not be available (e.g. in tests). Use defaults.
   }
   return {
+    mode: maintenance?.mode ?? DEFAULT_SESSION_MAINTENANCE_MODE,
     pruneDays: maintenance?.pruneDays ?? DEFAULT_SESSION_PRUNE_DAYS,
     maxEntries: maintenance?.maxEntries ?? DEFAULT_SESSION_MAX_ENTRIES,
     rotateBytes: maintenance?.rotateBytes ?? DEFAULT_SESSION_ROTATE_BYTES,
@@ -234,6 +236,7 @@ export function resolveMaintenanceConfig(): Required<SessionMaintenanceConfig> {
 export function pruneStaleEntries(
   store: Record<string, SessionEntry>,
   overrideDays?: number,
+  opts: { log?: boolean } = {},
 ): number {
   const maxAgeDays = overrideDays ?? resolveMaintenanceConfig().pruneDays;
   const cutoffMs = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
@@ -244,7 +247,7 @@ export function pruneStaleEntries(
       pruned++;
     }
   }
-  if (pruned > 0) {
+  if (pruned > 0 && opts.log !== false) {
     log.info("pruned stale session entries", { pruned, maxAgeDays });
   }
   return pruned;
@@ -255,7 +258,11 @@ export function pruneStaleEntries(
  * Entries without `updatedAt` are sorted last (removed first when over limit).
  * Mutates `store` in-place.
  */
-export function capEntryCount(store: Record<string, SessionEntry>, overrideMax?: number): number {
+export function capEntryCount(
+  store: Record<string, SessionEntry>,
+  overrideMax?: number,
+  opts: { log?: boolean } = {},
+): number {
   const maxEntries = overrideMax ?? resolveMaintenanceConfig().maxEntries;
   const keys = Object.keys(store);
   if (keys.length <= maxEntries) {
@@ -273,8 +280,19 @@ export function capEntryCount(store: Record<string, SessionEntry>, overrideMax?:
   for (const key of toRemove) {
     delete store[key];
   }
-  log.info("capped session entry count", { removed: toRemove.length, maxEntries });
+  if (opts.log !== false) {
+    log.info("capped session entry count", { removed: toRemove.length, maxEntries });
+  }
   return toRemove.length;
+}
+
+async function getSessionFileSize(storePath: string): Promise<number | null> {
+  try {
+    const stat = await fs.promises.stat(storePath);
+    return stat.size;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -288,12 +306,9 @@ export async function rotateSessionFile(
 ): Promise<boolean> {
   const maxBytes = overrideBytes ?? resolveMaintenanceConfig().rotateBytes;
 
-  // Check current file size synchronously (file may not exist yet).
-  let fileSize: number;
-  try {
-    const stat = fs.statSync(storePath);
-    fileSize = stat.size;
-  } catch {
+  // Check current file size (file may not exist yet).
+  const fileSize = await getSessionFileSize(storePath);
+  if (fileSize == null) {
     return false;
   }
 
@@ -357,13 +372,35 @@ async function saveSessionStoreUnlocked(
   if (!opts?.skipMaintenance) {
     // Resolve maintenance config once (avoids repeated loadConfig() calls).
     const maintenance = resolveMaintenanceConfig();
+    const shouldWarnOnly = maintenance.mode === "warn";
 
-    // Prune stale entries and cap total count before serializing.
-    pruneStaleEntries(store, maintenance.pruneDays);
-    capEntryCount(store, maintenance.maxEntries);
+    if (shouldWarnOnly) {
+      const preview = structuredClone(store);
+      const pruned = pruneStaleEntries(preview, maintenance.pruneDays, { log: false });
+      const capped = capEntryCount(preview, maintenance.maxEntries, { log: false });
+      const fileSize = await getSessionFileSize(storePath);
+      const rotate =
+        typeof fileSize === "number" ? fileSize > maintenance.rotateBytes : false;
 
-    // Rotate the on-disk file if it exceeds the size threshold.
-    await rotateSessionFile(storePath, maintenance.rotateBytes);
+      if (pruned > 0 || capped > 0 || rotate) {
+        log.warn("session maintenance thresholds exceeded; skipping enforcement", {
+          pruned,
+          capped,
+          rotate,
+          fileSize,
+          pruneDays: maintenance.pruneDays,
+          maxEntries: maintenance.maxEntries,
+          rotateBytes: maintenance.rotateBytes,
+        });
+      }
+    } else {
+      // Prune stale entries and cap total count before serializing.
+      pruneStaleEntries(store, maintenance.pruneDays);
+      capEntryCount(store, maintenance.maxEntries);
+
+      // Rotate the on-disk file if it exceeds the size threshold.
+      await rotateSessionFile(storePath, maintenance.rotateBytes);
+    }
   }
 
   await fs.promises.mkdir(path.dirname(storePath), { recursive: true });

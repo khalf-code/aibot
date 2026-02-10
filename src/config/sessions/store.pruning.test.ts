@@ -460,6 +460,27 @@ describe("Integration: saveSessionStore with pruning", () => {
     expect(loaded.fresh4).toBeUndefined();
   });
 
+  it("saveSessionStore skips enforcement when maintenance mode is warn", async () => {
+    mockLoadConfig.mockReturnValue({
+      session: {
+        maintenance: { mode: "warn", pruneDays: 7, maxEntries: 1, rotateBytes: 10_485_760 },
+      },
+    });
+
+    const now = Date.now();
+    const store: Record<string, SessionEntry> = {
+      stale: makeEntry(now - 30 * DAY_MS),
+      fresh: makeEntry(now),
+    };
+
+    await saveSessionStore(storePath, store);
+
+    const loaded = loadSessionStore(storePath);
+    expect(loaded.stale).toBeDefined();
+    expect(loaded.fresh).toBeDefined();
+    expect(Object.keys(loaded)).toHaveLength(2);
+  });
+
   it("resolveMaintenanceConfig reads from loadConfig().session.maintenance", async () => {
     mockLoadConfig.mockReturnValue({
       session: { maintenance: { pruneDays: 7, maxEntries: 100, rotateBytes: 5_000_000 } },
@@ -469,6 +490,7 @@ describe("Integration: saveSessionStore with pruning", () => {
     const config = resolveMaintenanceConfig();
 
     expect(config).toEqual({
+      mode: "enforce",
       pruneDays: 7,
       maxEntries: 100,
       rotateBytes: 5_000_000,
@@ -482,6 +504,7 @@ describe("Integration: saveSessionStore with pruning", () => {
     const config = resolveMaintenanceConfig();
 
     expect(config).toEqual({
+      mode: "enforce",
       pruneDays: 14,
       maxEntries: 500,
       rotateBytes: 10_485_760,

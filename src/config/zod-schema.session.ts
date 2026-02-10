@@ -92,6 +92,7 @@ export const SessionSchema = z
       .optional(),
     maintenance: z
       .object({
+        mode: z.enum(["enforce", "warn"]).optional(),
         pruneDays: z.number().int().positive().optional(),
         maxEntries: z.number().int().positive().optional(),
         rotateBytes: z.number().int().positive().optional(),
