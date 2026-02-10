@@ -194,6 +194,7 @@ export function createGatewayReloadHandlers(params: {
         const elapsed = Date.now() - startTime;
 
         if (currentTotalActive === 0) {
+          restartPending = false;
           params.logReload.info("all operations and replies completed; restarting gateway now");
           authorizeGatewaySigusr1Restart();
           process.emit("SIGUSR1");
@@ -205,6 +206,7 @@ export function createGatewayReloadHandlers(params: {
           if (currentPendingReplies > 0) {
             remainingDetails.push(`${currentPendingReplies} reply(ies)`);
           }
+          restartPending = false;
           params.logReload.warn(
             `restart timeout after ${elapsed}ms with ${remainingDetails.join(", ")} still active; restarting anyway`,
           );
