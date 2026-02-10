@@ -1,6 +1,6 @@
 ---
 title: CI Pipeline
-description: How the OpenClaw CI pipeline works and why jobs are ordered the way they are. Latest changes: Feb 09, 2026
+description: How the OpenClaw CI pipeline works
 ---
 
 # CI Pipeline
@@ -24,62 +24,25 @@ The CI runs on every push to `main` and every pull request. It uses smart scopin
 | `macos`           | Swift lint/build/test + TS tests                | PRs with macos changes    |
 | `android`         | Gradle build + tests                            | Non-docs, android changes |
 
-## Code-Size Gate
+## Fail-Fast Order
 
-The `code-size` job runs `scripts/analyze_code_files.py` on PRs to catch:
+Jobs are ordered so cheap checks fail before expensive ones run:
 
-1. **Threshold crossings** — files that grew past 1000 lines in the PR
-2. **Already-large files growing** — files already over 1000 lines that got bigger
-3. **Duplicate function regressions** — new duplicate functions introduced by the PR
+1. `docs-scope` + `code-analysis` + `check` (parallel, ~1-2 min)
+2. `build-artifacts` (blocked on above)
+3. `checks`, `checks-windows`, `macos`, `android` (blocked on build)
 
-When `--strict` is set, any violation fails the job and blocks all downstream
-work. On push to `main`, the code-size steps are skipped (the job passes as a
-no-op) so pushes still run the full test suite.
+## Code Analysis
 
-### Excluded Directories
+The `code-analysis` job runs `scripts/analyze_code_files.py` on PRs to enforce code quality:
 
-The analysis skips: `node_modules`, `dist`, `vendor`, `.git`, `coverage`,
-`Swabble`, `skills`, `.pi` and other non-source directories. See the
-`SKIP_DIRS` set in `scripts/analyze_code_files.py` for the full list.
+- **LOC threshold**: Files that grow past 1000 lines fail the build
+- **Delta-only**: Only checks files changed in the PR, not the entire codebase
+- **Push to main**: Skipped (job passes as no-op) so merges aren't blocked
 
-## Fail-Fast Behavior
+When `--strict` is set, violations block all downstream jobs. This catches bloated files early before expensive tests run.
 
-**Bad PR (formatting violations):**
-
-- `check-format` fails at ~43 s
-- `check-lint`, `code-size`, and all downstream jobs never start
-- Total cost: ~1 runner-minute
-
-**Bad PR (lint or LOC violations, good format):**
-
-- `check-format` passes → `check-lint` and `code-size` run in parallel
-- One or both fail → all downstream jobs skipped
-- Total cost: ~3 runner-minutes
-
-**Good PR:**
-
-- Critical path: `check-format` (43 s) → `check-lint` (1m 46 s) → `build-artifacts` → `checks`
-- `code-size` runs in parallel with `check-lint`, adding no latency
-
-## Composite Action
-
-The `setup-node-env` composite action (`.github/actions/setup-node-env/`)
-handles the shared setup boilerplate:
-
-- Submodule checkout with retry (5 attempts)
-- Node.js 22 setup
-- pnpm via corepack + store cache
-- Optional Bun install
-- `pnpm install` with retry
-
-This eliminates ~40 lines of duplicated YAML per job.
-
-## Push vs PR Behavior
-
-| Trigger        | `code-size`                   | Downstream jobs       |
-| -------------- | ----------------------------- | --------------------- |
-| Push to `main` | Steps skipped (job passes)    | Run normally          |
-| Pull request   | Full analysis with `--strict` | Blocked on violations |
+Excluded directories: `node_modules`, `dist`, `vendor`, `.git`, `coverage`, `Swabble`, `skills`, `.pi`
 
 ## Runners
 
