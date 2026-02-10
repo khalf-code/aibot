@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import type { CronJob } from "../types.js";
 import { computeJobNextRunAtMs } from "./jobs.js";
 
