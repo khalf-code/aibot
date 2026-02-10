@@ -16,8 +16,7 @@ import { createSessionsHistoryTool } from "./tools/sessions-history-tool.js";
 import { createSessionsListTool } from "./tools/sessions-list-tool.js";
 import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
-import { createGemini3ProImageTool } from "./tools/shengsuanyun/gemini3pro-image-preview.ts";
-import { createZImageTurboTool } from "./tools/shengsuanyun/zimage-turbo.js";
+import { createGenerateTools } from "./tools/shengsuanyun/generate.js";
 import { createTtsTool } from "./tools/tts-tool.js";
 import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
 
@@ -68,11 +67,8 @@ export function createOpenClawTools(options?: {
         modelHasVision: options?.modelHasVision,
       })
     : null;
-  const ZImageTurboTool = options?.agentDir?.trim()
-    ? createZImageTurboTool({ config: options?.config })
-    : null;
-  const Gemini3ProImageTool = options?.agentDir?.trim()
-    ? createGemini3ProImageTool({ config: options?.config })
+  const ShengSuanYunTools = options?.agentDir?.trim()
+    ? createGenerateTools({ config: options?.config })
     : null;
   const webSearchTool = createWebSearchTool({
     config: options?.config,
@@ -154,8 +150,7 @@ export function createOpenClawTools(options?: {
     ...(webSearchTool ? [webSearchTool] : []),
     ...(webFetchTool ? [webFetchTool] : []),
     ...(imageTool ? [imageTool] : []),
-    ...(ZImageTurboTool ? [ZImageTurboTool] : []),
-    ...(Gemini3ProImageTool ? [Gemini3ProImageTool] : []),
+    ...(ShengSuanYunTools ? ShengSuanYunTools : []),
   ];
 
   const pluginTools = resolvePluginTools({

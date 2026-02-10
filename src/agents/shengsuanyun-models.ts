@@ -10,30 +10,27 @@ export const SHENGSUANYUN_DEFAULT_COST = {
   cacheWrite: 0,
 };
 
-// ShengSuanYun API response types for LLM models
-interface ShengSuanYunModel {
+export interface ShengSuanYunModel {
   id: string;
   company: string;
+  api?: ModelApi;
   name: string;
   api_name: string;
-  api?: ModelApi;
   description: string;
   max_tokens: number;
   context_window: number;
   supports_prompt_cache: boolean;
   architecture: {
-    input?: string;
-    output?: string;
-    modality?: string;
-    tokenizer?: string;
-    instruct_type?: string | null;
+    input: string;
+    output: string;
+    tokenizer: string;
   };
   pricing: {
-    prompt: string;
-    completion: string;
-    request: string;
-    image?: string;
-    tts?: string;
+    prompt: number;
+    completion: number;
+    cache: number;
+    image: number;
+    request: number;
   };
   support_apis: string[];
 }
@@ -44,35 +41,59 @@ interface ShengSuanYunModelsResponse {
   success: boolean;
 }
 
-// ShengSuanYun multimodal API response types
-interface ShengSuanYunModalityModel {
-  id: number;
-  model_name?: string;
-  name?: string;
-  company_name?: string;
-  class_name?: string;
-  class_names?: string[];
-  input?: string[];
-  output?: string[];
-  desc?: string;
-  preview_img?: string;
-  preview_video?: string;
-  usage?: number;
-  pricing?: {
-    input_price: number;
-    output_price: number;
-    currency: string;
-  };
-  key?: unknown;
-}
-
 interface ShengSuanYunModalitiesResponse {
   code: number;
   data: {
-    infos: ShengSuanYunModalityModel[];
+    infos: { id: number }[];
   };
 }
 
+export type MModel = {
+  id: number;
+  api?: ModelApi;
+  company_name: string;
+  model_name: string;
+  api_name: string;
+  class_names: Array<string>;
+  desc: string;
+  input_schema: string;
+  output_schema: string;
+  example: {
+    input: string;
+    output: string;
+    logs: string;
+    predict_time: number;
+  };
+  pricing: {
+    price: number;
+    input_price: number;
+    output_price: number;
+    other_price: string;
+    currency: string;
+    price_schema: string;
+  };
+};
+export type MMRes = {
+  code: number;
+  data?: MModel;
+  msg: string;
+};
+
+export interface TaskRes {
+  code?: string;
+  message?: string;
+  data?: {
+    progress?: string;
+    request_id?: string;
+    status?: string;
+    fail_reason?: string;
+    data?: {
+      image_urls?: string[];
+      progress?: number;
+      error?: string;
+    };
+  };
+}
 /**
  * Determine if a model supports reasoning based on its name and description.
  */
@@ -104,30 +125,7 @@ function supportsVision(model: ShengSuanYunModel): boolean {
   );
 }
 
-/**
- * Build a ModelDefinitionConfig from a ShengSuanYun API model.
- */
-function buildShengSuanYunModelDefinition(model: ShengSuanYunModel): ModelDefinitionConfig {
-  const hasVision = supportsVision(model);
-  const reasoning = isReasoningModel(model);
-
-  return {
-    id: model.id,
-    name: model.name,
-    reasoning,
-    api: model.api,
-    input: hasVision ? ["text", "image"] : ["text"],
-    cost: SHENGSUANYUN_DEFAULT_COST,
-    contextWindow: model.context_window || 128000,
-    maxTokens: model.max_tokens || 8192,
-  };
-}
-
-/**
- * Discover models from ShengSuanYun API.
- * The /models endpoint is public and doesn't require authentication.
- */
-export async function discoverShengSuanYunModels(): Promise<ModelDefinitionConfig[]> {
+export async function getShengSuanYunModels(): Promise<ModelDefinitionConfig[]> {
   // Skip API discovery in test environment
   if (process.env.NODE_ENV === "test" || process.env.VITEST) {
     return [];
@@ -135,85 +133,46 @@ export async function discoverShengSuanYunModels(): Promise<ModelDefinitionConfi
 
   try {
     const res = await fetch(`${SHENGSUANYUN_BASE_URL}/models`, {
-      signal: AbortSignal.timeout(10000), // 10s timeout for large model list
+      signal: AbortSignal.timeout(30000),
     });
-
     if (!res.ok) {
-      // console.warn(
-      //   `[shengsuanyun-models] Failed to discover models: HTTP ${response.status}`,
-      // );
       return [];
     }
-
     const data = (await res.json()) as ShengSuanYunModelsResponse;
-
     if (!data.success || !Array.isArray(data.data) || data.data.length === 0) {
-      // console.warn("[shengsuanyun-models] No models found from API");
       return [];
     }
 
     const models: ModelDefinitionConfig[] = [];
     for (const apiModel of data.data) {
-      // Only include models that support at least one compatible API
       const supportApis = apiModel.support_apis;
       if (!Array.isArray(supportApis)) {
         continue;
       }
-      // ShengSuanYun only reliably supports /v1/chat/completions API
-      // The /v1/responses endpoint returns 400 errors
       if (!supportApis.includes("/v1/chat/completions")) {
         continue;
       }
-      models.push(buildShengSuanYunModelDefinition({ ...apiModel, api: "openai-completions" }));
+      const hasVision = supportsVision(apiModel);
+      const reasoning = isReasoningModel(apiModel);
+      models.push({
+        id: apiModel.id,
+        name: apiModel.name,
+        reasoning,
+        api: "openai-completions",
+        input: hasVision ? ["text", "image"] : ["text"],
+        cost: SHENGSUANYUN_DEFAULT_COST,
+        contextWindow: apiModel.context_window || 128000,
+        maxTokens: apiModel.max_tokens || 8192,
+      });
     }
-
-    // console.log(`[shengsuanyun-models] Discovered ${models.length} LLM models`);
     return models;
-  } catch {
-    // console.warn(`[shengsuanyun-models] Discovery failed: ${String(error)}`);
+  } catch (error) {
+    console.warn(`[shengsuanyun-models] failed: ${String(error)}`);
     return [];
   }
 }
 
-/**
- * Determine modality input types from class names.
- */
-function getModalityIOTypes(classNames: string[]): string[][] {
-  const kv: { [key: string]: string } = {
-    文本: "text",
-    图像: "image",
-    视频: "video",
-    音频: "audio",
-  };
-  const io = classNames.map((it) => it.split("->").map((k) => kv[k]));
-  return io;
-}
-
-async function buildModalityModel(
-  model: ShengSuanYunModalityModel,
-): Promise<ShengSuanYunModalityModel | null> {
-  const res = await fetch(`${SHENGSUANYUN_MODALITIES_BASE_URL}/info?model_id=${model.id}`, {
-    signal: AbortSignal.timeout(10000), // 10s timeout
-  });
-  if (!res.ok) {
-    return null;
-  }
-  const data = await res.json();
-  if (data.code !== 0 || !data.data) {
-    return null;
-  }
-  const ios = getModalityIOTypes(data.data.class_names);
-  return {
-    id: data.data.api_name,
-    name: data.data.model_name,
-    input: ios.map((it) => it[0]),
-    output: ios.map((it) => it[1]),
-    key: model.id,
-  };
-}
-
-export async function discoverShengSuanYunModalityModels(): Promise<ShengSuanYunModalityModel[]> {
-  // Skip API discovery in test environment
+export async function getShengSuanYunModalityModels(): Promise<MModel[]> {
   if (process.env.NODE_ENV === "test" || process.env.VITEST) {
     return [];
   }
@@ -221,27 +180,65 @@ export async function discoverShengSuanYunModalityModels(): Promise<ShengSuanYun
     const res = await fetch(
       `${SHENGSUANYUN_MODALITIES_BASE_URL}/modalities/list?page=1&page_size=200`,
       {
-        signal: AbortSignal.timeout(10000), // 10s timeout
+        signal: AbortSignal.timeout(30000),
       },
     );
     if (!res.ok) {
+      console.log(
+        `[shengsuanyun-models] Modalities list fetch failed: ${res.status} ${res.statusText}`,
+      );
       return [];
     }
     const data = (await res.json()) as ShengSuanYunModalitiesResponse;
     if (data.code !== 0 || !Array.isArray(data.data.infos) || data.data.infos.length === 0) {
+      console.log(
+        `[shengsuanyun-models] Invalid response: code=${data.code}, infos=${data.data?.infos?.length ?? 0}`,
+      );
       return [];
     }
-    const mdps = data.data.infos.map((model) => buildModalityModel(model));
-    const results = await Promise.all(mdps);
-    return results.filter((m) => m !== null);
-  } catch {
+    const batchSize = 10;
+    const results: MModel[] = [];
+
+    for (let i = 0; i < data.data.infos.length; i += batchSize) {
+      const batch = data.data.infos.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (model: { id: number }): Promise<MModel | null> => {
+        try {
+          const res = await fetch(
+            `${SHENGSUANYUN_MODALITIES_BASE_URL}/modalities/info?model_id=${model.id}`,
+            {
+              signal: AbortSignal.timeout(60000),
+            },
+          );
+          if (!res.ok) {
+            return null;
+          }
+          const data = await res.json();
+          if (data.code !== 0 || !data.data) {
+            return null;
+          }
+          return { ...data.data, api: "shengsuanyun-modality" } as MModel;
+        } catch (err) {
+          console.error(`[shengsuanyun-models] Failed to fetch model ${model.id}:`, err);
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      const filtered = batchResults.filter((m): m is MModel => m !== null);
+      results.push(...filtered);
+      if (i + batchSize < data.data.infos.length) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+
+    console.log(`[shengsuanyun-models] Loaded ${results.length} modality models total`);
+    return results;
+  } catch (err) {
+    console.error("[shengsuanyun-models] Error fetching modality models:", err);
     return [];
   }
 }
 
-/**
- * Discover all ShengSuanYun models (LLM + multimodal).
- */
 export async function discoverAllShengSuanYunModels(): Promise<ModelDefinitionConfig[]> {
-  return await discoverShengSuanYunModels();
+  return await getShengSuanYunModels();
 }

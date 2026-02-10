@@ -4,7 +4,7 @@ import type { AnyAgentTool } from "../common.js";
 import { loadConfig } from "../../../config/config.js";
 import { resolveApiKeyForProvider } from "../../model-auth.ts";
 import { SHENGSUANYUN_BASE_URL } from "../../shengsuanyun-models.ts";
-import { readStringParam } from "../common.js";
+import { readStringArrayParam, readStringParam } from "../common.js";
 import { APP_HEADERS, TaskResponse } from "./zimage-turbo.ts";
 
 const ImageGenSchema = Type.Object({
@@ -17,6 +17,11 @@ const ImageGenSchema = Type.Object({
       enum: ["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
     }),
   ),
+  images: Type.Optional(
+    Type.Array(Type.String(), {
+      description: "Material or pictureUrl array that needs to be edited",
+    }),
+  ),
   size: Type.Optional(
     Type.String({
       description: "Resolution size. Defaults to 1K.",
@@ -27,6 +32,7 @@ const ImageGenSchema = Type.Object({
 
 async function generateImage(params: {
   aspect_ratio: string;
+  images?: string[];
   prompt: string;
   size: string;
   apiKey?: string;
@@ -41,6 +47,7 @@ async function generateImage(params: {
       body: JSON.stringify({
         model: "ali/gemini-3-pro-image-preview",
         prompt: params.prompt,
+        images: params.images,
         aspect_ratio: params.aspect_ratio,
         size: params.size,
       }),
@@ -110,6 +117,7 @@ export function createGemini3ProImageTool(opts?: { config?: OpenClawConfig }): A
       const prompt = readStringParam(params, "prompt", { required: true });
       const aspectRatio = readStringParam(params, "aspect_ratio") ?? "1:1";
       const size = readStringParam(params, "size") ?? "1K";
+      const images = readStringArrayParam(params, "images") ?? undefined;
       const cfg = opts?.config ?? loadConfig();
       const resolved = await resolveApiKeyForProvider({ provider: "shengsuanyun", cfg });
       if (!resolved.apiKey) {
@@ -117,6 +125,7 @@ export function createGemini3ProImageTool(opts?: { config?: OpenClawConfig }): A
       }
       const result = await generateImage({
         prompt,
+        images,
         aspect_ratio: aspectRatio,
         size,
         apiKey: resolved.apiKey,
