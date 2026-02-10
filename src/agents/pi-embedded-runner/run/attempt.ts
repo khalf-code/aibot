@@ -8,6 +8,7 @@ import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types
 import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
+import { scrubPIIInMessages } from "../../../infra/privacy.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
 import { isSubagentSessionKey, normalizeAgentId } from "../../../routing/session-key.js";
@@ -560,9 +561,10 @@ export async function runEmbeddedAttempt(
           validated,
           getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
         );
-        cacheTrace?.recordStage("session:limited", { messages: limited });
-        if (limited.length > 0) {
-          activeSession.agent.replaceMessages(limited);
+        const scrubbed = scrubPIIInMessages(limited);
+        cacheTrace?.recordStage("session:limited", { messages: scrubbed });
+        if (scrubbed.length > 0) {
+          activeSession.agent.replaceMessages(scrubbed);
         }
       } catch (err) {
         sessionManager.flushPendingToolResults?.();
