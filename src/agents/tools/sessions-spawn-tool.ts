@@ -240,6 +240,7 @@ export function createSessionsSpawnTool(opts?: {
         childSessionKey,
         label: label || undefined,
         task,
+        resumable: cleanup === "keep",
       });
 
       const childIdem = crypto.randomUUID();
