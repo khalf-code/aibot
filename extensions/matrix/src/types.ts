@@ -1,5 +1,4 @@
-import type { DmPolicy, GroupPolicy } from "openclaw/plugin-sdk";
-export type { DmPolicy, GroupPolicy };
+export type { DmPolicy, GroupPolicy } from "openclaw/plugin-sdk";
 
 export type ReplyToMode = "off" | "first" | "all";
 
@@ -39,10 +38,11 @@ export type MatrixActionConfig = {
   channelInfo?: boolean;
 };
 
-export type MatrixConfig = {
+/** Per-account config fields. Top-level `MatrixConfig` doubles as the default account. */
+export type MatrixAccountConfig = {
   /** Optional display name for this account (used in CLI/UI lists). */
   name?: string;
-  /** If false, do not start Matrix. Default: true. */
+  /** If false, do not start this account. Default: true. */
   enabled?: boolean;
   /** Matrix homeserver URL (https://matrix.example.org). */
   homeserver?: string;
@@ -90,11 +90,24 @@ export type MatrixConfig = {
   actions?: MatrixActionConfig;
 };
 
+/**
+ * Top-level Matrix channel config.
+ *
+ * Base fields serve as defaults for all accounts and as the "default" account
+ * config when no `accounts` map is present.
+ */
+export type MatrixConfig = {
+  /** Multi-account map. Keys are account IDs; values override base fields. */
+  accounts?: Record<string, MatrixAccountConfig>;
+} & MatrixAccountConfig;
+
 export type CoreConfig = {
   channels?: {
     matrix?: MatrixConfig;
+    /** Shared channel defaults (e.g. groupPolicy). */
     defaults?: {
       groupPolicy?: "open" | "allowlist" | "disabled";
+      [key: string]: unknown;
     };
   };
   commands?: {
@@ -107,5 +120,11 @@ export type CoreConfig = {
     ackReaction?: string;
     ackReactionScope?: "group-mentions" | "group-all" | "direct" | "all";
   };
+  /** Agent routing bindings. */
+  bindings?: Array<{
+    agentId?: string;
+    match?: { channel?: string; accountId?: string; [key: string]: unknown };
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };

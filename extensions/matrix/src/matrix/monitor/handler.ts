@@ -6,13 +6,10 @@ import {
   logInboundDrop,
   logTypingFailure,
   resolveControlCommandGate,
-  type PluginRuntime,
   type RuntimeEnv,
-  type RuntimeLogger,
 } from "openclaw/plugin-sdk";
-import type { CoreConfig, MatrixRoomConfig, ReplyToMode } from "../../types.js";
+import type { CoreConfig, ReplyToMode } from "../../types.js";
 import type { MatrixRawEvent, RoomMessageEventContent } from "./types.js";
-import { fetchEventSummary } from "../actions/summary.js";
 import {
   formatPollAsText,
   isPollStartType,
@@ -40,14 +37,36 @@ import { EventType, RelationType } from "./types.js";
 
 export type MatrixMonitorHandlerParams = {
   client: MatrixClient;
-  core: PluginRuntime;
+  core: {
+    logging: {
+      shouldLogVerbose: () => boolean;
+    };
+    channel: (typeof import("openclaw/plugin-sdk"))["channel"];
+    system: {
+      enqueueSystemEvent: (
+        text: string,
+        meta: { sessionKey?: string | null; contextKey?: string | null },
+      ) => void;
+    };
+  };
   cfg: CoreConfig;
   runtime: RuntimeEnv;
-  logger: RuntimeLogger;
+  logger: {
+    info: (message: string | Record<string, unknown>, ...meta: unknown[]) => void;
+    warn: (meta: Record<string, unknown>, message: string) => void;
+  };
   logVerboseMessage: (message: string) => void;
+  /** Account ID for this handler instance (used for agent route matching). */
+  accountId: string;
   allowFrom: string[];
-  roomsConfig: Record<string, MatrixRoomConfig> | undefined;
-  mentionRegexes: ReturnType<PluginRuntime["channel"]["mentions"]["buildMentionRegexes"]>;
+  roomsConfig: CoreConfig["channels"] extends { matrix?: infer MatrixConfig }
+    ? MatrixConfig extends { groups?: infer Groups }
+      ? Groups
+      : Record<string, unknown> | undefined
+    : Record<string, unknown> | undefined;
+  mentionRegexes: ReturnType<
+    (typeof import("openclaw/plugin-sdk"))["channel"]["mentions"]["buildMentionRegexes"]
+  >;
   groupPolicy: "open" | "allowlist" | "disabled";
   replyToMode: ReplyToMode;
   threadReplies: "off" | "inbound" | "always";
@@ -78,6 +97,7 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
     runtime,
     logger,
     logVerboseMessage,
+    accountId,
     allowFrom,
     roomsConfig,
     mentionRegexes,
@@ -104,7 +124,7 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
       }
 
       const isPollEvent = isPollStartType(eventType);
-      const locationContent = event.content as unknown as LocationMessageEventContent;
+      const locationContent = event.content as LocationMessageEventContent;
       const isLocationEvent =
         eventType === EventType.Location ||
         (eventType === EventType.RoomMessage && locationContent.msgtype === EventType.Location);
@@ -142,9 +162,9 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
       const roomName = roomInfo.name;
       const roomAliases = [roomInfo.canonicalAlias ?? "", ...roomInfo.altAliases].filter(Boolean);
 
-      let content = event.content as unknown as RoomMessageEventContent;
+      let content = event.content as RoomMessageEventContent;
       if (isPollEvent) {
-        const pollStartContent = event.content as unknown as PollStartContent;
+        const pollStartContent = event.content as PollStartContent;
         const pollSummary = parsePollStartContent(pollStartContent);
         if (pollSummary) {
           pollSummary.eventId = event.event_id ?? "";
@@ -418,7 +438,7 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
         hasControlCommandInMessage;
       const canDetectMention = mentionRegexes.length > 0 || hasExplicitMention;
       if (isRoom && shouldRequireMention && !wasMentioned && !shouldBypassMention) {
-        logger.info("skipping room message", { roomId, reason: "no-mention" });
+        logger.info({ roomId, reason: "no-mention" }, "skipping room message");
         return;
       }
 
@@ -432,65 +452,17 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
         isThreadRoot: false, // @vector-im/matrix-bot-sdk doesn't have this info readily available
       });
 
-      const baseRoute = core.channel.routing.resolveAgentRoute({
+      const route = core.channel.routing.resolveAgentRoute({
         cfg,
         channel: "matrix",
+        accountId,
         peer: {
           kind: isDirectMessage ? "direct" : "channel",
           id: isDirectMessage ? senderId : roomId,
         },
       });
-
-      const route = {
-        ...baseRoute,
-        sessionKey: threadRootId
-          ? `${baseRoute.sessionKey}:thread:${threadRootId}`
-          : baseRoute.sessionKey,
-      };
-
-      let threadStarterBody: string | undefined;
-      let threadLabel: string | undefined;
-      let parentSessionKey: string | undefined;
-
-      if (threadRootId) {
-        const existingSession = core.channel.session.readSessionUpdatedAt({
-          storePath: core.channel.session.resolveStorePath(cfg.session?.store, {
-            agentId: baseRoute.agentId,
-          }),
-          sessionKey: route.sessionKey,
-        });
-
-        if (existingSession === undefined) {
-          try {
-            const rootEvent = await fetchEventSummary(client, roomId, threadRootId);
-            if (rootEvent?.body) {
-              const rootSenderName = rootEvent.sender
-                ? await getMemberDisplayName(roomId, rootEvent.sender)
-                : undefined;
-
-              threadStarterBody = core.channel.reply.formatAgentEnvelope({
-                channel: "Matrix",
-                from: rootSenderName ?? rootEvent.sender ?? "Unknown",
-                timestamp: rootEvent.timestamp,
-                envelope: core.channel.reply.resolveEnvelopeFormatOptions(cfg),
-                body: rootEvent.body,
-              });
-
-              threadLabel = `Matrix thread in ${roomName ?? roomId}`;
-              parentSessionKey = baseRoute.sessionKey;
-            }
-          } catch (err) {
-            logVerboseMessage(
-              `matrix: failed to fetch thread root ${threadRootId}: ${String(err)}`,
-            );
-          }
-        }
-      }
-
       const envelopeFrom = isDirectMessage ? senderName : (roomName ?? roomId);
-      const textWithId = threadRootId
-        ? `${bodyText}\n[matrix event id: ${messageId} room: ${roomId} thread: ${threadRootId}]`
-        : `${bodyText}\n[matrix event id: ${messageId} room: ${roomId}]`;
+      const textWithId = `${bodyText}\n[matrix event id: ${messageId} room: ${roomId}]`;
       const storePath = core.channel.session.resolveStorePath(cfg.session?.store, {
         agentId: route.agentId,
       });
@@ -517,7 +489,7 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
         To: `room:${roomId}`,
         SessionKey: route.sessionKey,
         AccountId: route.accountId,
-        ChatType: threadRootId ? "thread" : isDirectMessage ? "direct" : "channel",
+        ChatType: isDirectMessage ? "direct" : "channel",
         ConversationLabel: envelopeFrom,
         SenderName: senderName,
         SenderId: senderId,
@@ -540,9 +512,6 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
         CommandSource: "text" as const,
         OriginatingChannel: "matrix" as const,
         OriginatingTo: `room:${roomId}`,
-        ThreadStarterBody: threadStarterBody,
-        ThreadLabel: threadLabel,
-        ParentSessionKey: parentSessionKey,
       });
 
       await core.channel.session.recordInboundSession({
@@ -558,11 +527,14 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
             }
           : undefined,
         onRecordError: (err) => {
-          logger.warn("failed updating session meta", {
-            error: String(err),
-            storePath,
-            sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
-          });
+          logger.warn(
+            {
+              error: String(err),
+              storePath,
+              sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+            },
+            "failed updating session meta",
+          );
         },
       });
 
