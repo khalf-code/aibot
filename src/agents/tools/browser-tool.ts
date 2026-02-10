@@ -23,6 +23,7 @@ import { resolveBrowserConfig } from "../../browser/config.js";
 import { DEFAULT_AI_SNAPSHOT_MAX_CHARS } from "../../browser/constants.js";
 import { loadConfig } from "../../config/config.js";
 import { saveMediaBuffer } from "../../media/store.js";
+import { replaceMarkers, wrapExternalContent } from "../../security/external-content.js";
 import { BrowserToolSchema } from "./browser-tool.schema.js";
 import { type AnyAgentTool, imageResultFromFile, jsonResult, readStringParam } from "./common.js";
 import { callGatewayTool } from "./gateway.js";
@@ -40,6 +41,38 @@ type BrowserProxyResult = {
 };
 
 const DEFAULT_BROWSER_PROXY_TIMEOUT_MS = 20_000;
+const BROWSER_RESULT_TEXT_KEYS = new Set(["text", "snapshot", "content", "output"]);
+
+type BrowserOutputSource = "snapshot" | "console" | "evaluate" | "act";
+
+function wrapBrowserOutput(text: string, source: BrowserOutputSource): string {
+  const sanitized = replaceMarkers(text);
+  return wrapExternalContent(sanitized, {
+    source: `browser:${source}`,
+    includeWarning: true,
+  });
+}
+
+function wrapBrowserResultText<T>(result: T, source: BrowserOutputSource): T {
+  const visit = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map((entry) => visit(entry));
+    }
+    if (!value || typeof value !== "object") {
+      return value;
+    }
+    const wrapped: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof entry === "string" && BROWSER_RESULT_TEXT_KEYS.has(key)) {
+        wrapped[key] = wrapBrowserOutput(entry, source);
+        continue;
+      }
+      wrapped[key] = entry && typeof entry === "object" ? visit(entry) : entry;
+    }
+    return wrapped;
+  };
+  return visit(result) as T;
+}
 
 type BrowserNodeTarget = {
   nodeId: string;
@@ -495,20 +528,21 @@ export function createBrowserTool(opts?: {
                 profile,
               });
           if (snapshot.format === "ai") {
+            const wrappedSnapshot = wrapBrowserResultText(snapshot, "snapshot");
             if (labels && snapshot.imagePath) {
               return await imageResultFromFile({
                 label: "browser:snapshot",
                 path: snapshot.imagePath,
-                extraText: snapshot.snapshot,
-                details: snapshot,
+                extraText: wrappedSnapshot.snapshot,
+                details: wrappedSnapshot,
               });
             }
             return {
-              content: [{ type: "text", text: snapshot.snapshot }],
-              details: snapshot,
+              content: [{ type: "text", text: wrappedSnapshot.snapshot }],
+              details: wrappedSnapshot,
             };
           }
-          return jsonResult(snapshot);
+          return jsonResult(wrapBrowserResultText(snapshot, "snapshot"));
         }
         case "screenshot": {
           const targetId = readStringParam(params, "targetId");
@@ -581,9 +615,14 @@ export function createBrowserTool(opts?: {
                 targetId,
               },
             });
-            return jsonResult(result);
+            return jsonResult(wrapBrowserResultText(result, "console"));
           }
-          return jsonResult(await browserConsoleMessages(baseUrl, { level, targetId, profile }));
+          return jsonResult(
+            wrapBrowserResultText(
+              await browserConsoleMessages(baseUrl, { level, targetId, profile }),
+              "console",
+            ),
+          );
         }
         case "pdf": {
           const targetId = typeof params.targetId === "string" ? params.targetId.trim() : undefined;
@@ -689,7 +728,9 @@ export function createBrowserTool(opts?: {
               : await browserAct(baseUrl, request as Parameters<typeof browserAct>[1], {
                   profile,
                 });
-            return jsonResult(result);
+            const resultSource: BrowserOutputSource =
+              request.kind === "evaluate" ? "evaluate" : "act";
+            return jsonResult(wrapBrowserResultText(result, resultSource));
           } catch (err) {
             const msg = String(err);
             if (msg.includes("404:") && msg.includes("tab not found") && profile === "chrome") {

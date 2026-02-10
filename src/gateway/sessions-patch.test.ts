@@ -127,4 +127,58 @@ describe("gateway sessions patch", () => {
     expect(res.entry.authProfileOverrideSource).toBeUndefined();
     expect(res.entry.authProfileOverrideCompactionCount).toBeUndefined();
   });
+
+  test("persists modelFallbacksOverride", async () => {
+    const store: Record<string, SessionEntry> = {};
+    const res = await applySessionsPatchToStore({
+      cfg: {} as OpenClawConfig,
+      store,
+      storeKey: "agent:main:main",
+      patch: { modelFallbacksOverride: ["anthropic/claude-sonnet-4-5", "openai/gpt-5.2"] },
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) {
+      return;
+    }
+    expect(res.entry.modelFallbacksOverride).toEqual([
+      "anthropic/claude-sonnet-4-5",
+      "openai/gpt-5.2",
+    ]);
+  });
+
+  test("supports empty modelFallbacksOverride to disable defaults", async () => {
+    const store: Record<string, SessionEntry> = {};
+    const res = await applySessionsPatchToStore({
+      cfg: {} as OpenClawConfig,
+      store,
+      storeKey: "agent:main:main",
+      patch: { modelFallbacksOverride: [] },
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) {
+      return;
+    }
+    expect(res.entry.modelFallbacksOverride).toEqual([]);
+  });
+
+  test("clears modelFallbacksOverride when null", async () => {
+    const store: Record<string, SessionEntry> = {
+      "agent:main:main": {
+        sessionId: "sess",
+        updatedAt: 1,
+        modelFallbacksOverride: ["anthropic/claude-sonnet-4-5"],
+      } as SessionEntry,
+    };
+    const res = await applySessionsPatchToStore({
+      cfg: {} as OpenClawConfig,
+      store,
+      storeKey: "agent:main:main",
+      patch: { modelFallbacksOverride: null },
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) {
+      return;
+    }
+    expect(res.entry.modelFallbacksOverride).toBeUndefined();
+  });
 });

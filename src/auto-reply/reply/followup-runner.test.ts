@@ -7,9 +7,8 @@ import { loadSessionStore, saveSessionStore, type SessionEntry } from "../../con
 import { createMockTypingController } from "./test-helpers.js";
 
 const runEmbeddedPiAgentMock = vi.fn();
-
-vi.mock("../../agents/model-fallback.js", () => ({
-  runWithModelFallback: async ({
+const runWithModelFallbackMock = vi.fn(
+  async ({
     provider,
     model,
     run,
@@ -22,6 +21,10 @@ vi.mock("../../agents/model-fallback.js", () => ({
     provider,
     model,
   }),
+);
+
+vi.mock("../../agents/model-fallback.js", () => ({
+  runWithModelFallback: (params: unknown) => runWithModelFallbackMock(params),
 }));
 
 vi.mock("../../agents/pi-embedded.js", () => ({
@@ -130,6 +133,43 @@ describe("createFollowupRunner compaction", () => {
     expect(onBlockReply).toHaveBeenCalled();
     expect(onBlockReply.mock.calls[0][0].text).toContain("Auto-compaction complete");
     expect(sessionStore.main.compactionCount).toBe(1);
+  });
+});
+
+describe("createFollowupRunner fallback overrides", () => {
+  it("prefers session modelFallbacksOverride over queued fallback list", async () => {
+    runWithModelFallbackMock.mockClear();
+    runEmbeddedPiAgentMock.mockResolvedValueOnce({ payloads: [{ text: "ok" }], meta: {} });
+
+    const sessionKey = "main";
+    const sessionEntry: SessionEntry = {
+      sessionId: "session",
+      updatedAt: Date.now(),
+      modelFallbacksOverride: ["anthropic/claude-sonnet-4-5", "openai/gpt-5.2"],
+    };
+    const sessionStore: Record<string, SessionEntry> = { [sessionKey]: sessionEntry };
+
+    const queued = baseQueuedRun();
+    queued.run.fallbacksOverride = ["openai/gpt-4.1-mini"];
+
+    const onBlockReply = vi.fn(async () => {});
+    const runner = createFollowupRunner({
+      opts: { onBlockReply },
+      typing: createMockTypingController(),
+      typingMode: "instant",
+      sessionEntry,
+      sessionStore,
+      sessionKey,
+      defaultModel: "anthropic/claude-opus-4-5",
+    });
+
+    await runner(queued);
+
+    expect(runWithModelFallbackMock).toHaveBeenCalled();
+    const firstCall = runWithModelFallbackMock.mock.calls[0]?.[0] as
+      | { fallbacksOverride?: string[] }
+      | undefined;
+    expect(firstCall?.fallbacksOverride).toEqual(["anthropic/claude-sonnet-4-5", "openai/gpt-5.2"]);
   });
 });
 

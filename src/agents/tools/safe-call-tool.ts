@@ -10,6 +10,12 @@ import {
 
 const DEFAULT_MAX_CHARS = 2000;
 const TRUNCATION_HINT = "提示: 用 offset 翻页查看更多";
+const BLOCKED_FIELD_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
+
+type SafeCallPolicy = {
+  allowWrapping?: boolean;
+  allowedParams?: Set<string>;
+};
 
 const SafeCallToolSchema = Type.Object({
   tool: Type.String(),
@@ -36,10 +42,55 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function createNullProtoRecord(): Record<string, unknown> {
+  return Object.create(null) as Record<string, unknown>;
+}
+
+function parseFieldPath(field: string): string[] {
+  const path = field
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (path.length === 0) {
+    return [];
+  }
+  const blockedSegment = path.find((segment) => BLOCKED_FIELD_SEGMENTS.has(segment));
+  if (blockedSegment) {
+    throw new Error(`Unsafe field path segment: ${blockedSegment}`);
+  }
+  return path;
+}
+
+function normalizeFields(fields: string[] | undefined): { names: string[]; paths: string[][] } {
+  if (!fields || fields.length === 0) {
+    return { names: [], paths: [] };
+  }
+
+  const names: string[] = [];
+  const paths: string[][] = [];
+  const seen = new Set<string>();
+
+  for (const field of fields) {
+    const path = parseFieldPath(field);
+    if (path.length === 0) {
+      continue;
+    }
+    const normalized = path.join(".");
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    names.push(normalized);
+    paths.push(path);
+  }
+
+  return { names, paths };
+}
+
 function getPathValue(source: unknown, path: string[]): unknown {
   let current: unknown = source;
   for (const segment of path) {
-    if (!isRecord(current) || !(segment in current)) {
+    if (!isRecord(current) || !Object.hasOwn(current, segment)) {
       return undefined;
     }
     current = current[segment];
@@ -51,7 +102,7 @@ function setPathValue(target: Record<string, unknown>, path: string[], value: un
   let current: Record<string, unknown> = target;
   for (let index = 0; index < path.length; index += 1) {
     const key = path[index];
-    if (!key) {
+    if (!key || BLOCKED_FIELD_SEGMENTS.has(key)) {
       return;
     }
     const isLeaf = index === path.length - 1;
@@ -59,24 +110,21 @@ function setPathValue(target: Record<string, unknown>, path: string[], value: un
       current[key] = value;
       return;
     }
+
     const existing = current[key];
     if (!isRecord(existing)) {
-      current[key] = {};
+      const nextRecord = createNullProtoRecord();
+      current[key] = nextRecord;
+      current = nextRecord;
+      continue;
     }
-    current = current[key] as Record<string, unknown>;
+    current = existing;
   }
 }
 
-function pickFieldsFromRecord(value: Record<string, unknown>, fields: string[]) {
-  const picked: Record<string, unknown> = {};
-  for (const field of fields) {
-    const path = field
-      .split(".")
-      .map((segment) => segment.trim())
-      .filter(Boolean);
-    if (path.length === 0) {
-      continue;
-    }
+function pickFieldsFromRecord(value: Record<string, unknown>, fieldPaths: string[][]) {
+  const picked = createNullProtoRecord();
+  for (const path of fieldPaths) {
     const selected = getPathValue(value, path);
     if (selected === undefined) {
       continue;
@@ -86,23 +134,21 @@ function pickFieldsFromRecord(value: Record<string, unknown>, fields: string[]) 
   return picked;
 }
 
-function applyFields(value: unknown, fields: string[] | undefined): unknown {
-  if (!fields || fields.length === 0) {
+function applyFieldsToValue(value: unknown, fieldPaths: string[][]): unknown {
+  if (fieldPaths.length === 0) {
     return value;
-  }
-  const normalized = Array.from(new Set(fields.map((field) => field.trim()).filter(Boolean)));
-  if (normalized.length === 0) {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((entry) =>
-      isRecord(entry) ? pickFieldsFromRecord(entry, normalized) : entry,
-    );
   }
   if (isRecord(value)) {
-    return pickFieldsFromRecord(value, normalized);
+    return pickFieldsFromRecord(value, fieldPaths);
   }
   return value;
+}
+
+function applyFieldsToArrayWindow(items: unknown[], fieldPaths: string[][]): unknown[] {
+  if (fieldPaths.length === 0) {
+    return items;
+  }
+  return items.map((entry) => (isRecord(entry) ? pickFieldsFromRecord(entry, fieldPaths) : entry));
 }
 
 function paginateArray(items: unknown[], offset: number, limit?: number): PageResult {
@@ -119,18 +165,53 @@ function paginateArray(items: unknown[], offset: number, limit?: number): PageRe
   };
 }
 
+function lineBreakLength(raw: string, index: number): number {
+  const code = raw.charCodeAt(index);
+  if (code === 0x0d) {
+    return raw.charCodeAt(index + 1) === 0x0a ? 2 : 1;
+  }
+  if (code === 0x0a) {
+    return 1;
+  }
+  return 0;
+}
+
 function paginateLines(raw: string, offset: number, limit?: number): PageResult {
-  const lines = raw.split(/\r?\n/);
-  const totalItems = lines.length;
-  const end = typeof limit === "number" ? offset + limit : totalItems;
-  const sliced = lines.slice(offset, end).join("\n");
-  const hasMore = end < totalItems;
+  const end = typeof limit === "number" ? offset + limit : Number.POSITIVE_INFINITY;
+  const pageLines: string[] = [];
+
+  let totalItems = 0;
+  let lineStart = 0;
+
+  for (let index = 0; index <= raw.length; ) {
+    const atEnd = index === raw.length;
+    const breakLen = atEnd ? 0 : lineBreakLength(raw, index);
+    if (!atEnd && breakLen === 0) {
+      index += 1;
+      continue;
+    }
+
+    if (totalItems >= offset && totalItems < end) {
+      pageLines.push(raw.slice(lineStart, index));
+    }
+    totalItems += 1;
+
+    if (atEnd) {
+      break;
+    }
+
+    index += breakLen;
+    lineStart = index;
+  }
+
+  const boundedEnd = Number.isFinite(end) ? end : totalItems;
+  const hasMore = boundedEnd < totalItems;
   return {
     mode: "lines",
     totalItems,
     hasMore,
-    nextOffset: hasMore ? end : undefined,
-    output: sliced,
+    nextOffset: hasMore ? boundedEnd : undefined,
+    output: pageLines.join("\n"),
   };
 }
 
@@ -143,6 +224,29 @@ function serializeOutput(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function isHighSurrogate(codePoint: number): boolean {
+  return codePoint >= 0xd800 && codePoint <= 0xdbff;
+}
+
+function isLowSurrogate(codePoint: number): boolean {
+  return codePoint >= 0xdc00 && codePoint <= 0xdfff;
+}
+
+function sliceTailUtf16Safe(text: string, maxChars: number): string {
+  if (maxChars <= 0) {
+    return "";
+  }
+  let start = Math.max(0, text.length - maxChars);
+  if (start > 0 && start < text.length) {
+    const previous = text.charCodeAt(start - 1);
+    const current = text.charCodeAt(start);
+    if (isHighSurrogate(previous) && isLowSurrogate(current)) {
+      start += 1;
+    }
+  }
+  return text.slice(start);
 }
 
 function truncateWithHeadTail(
@@ -166,7 +270,7 @@ function truncateWithHeadTail(
 
   const edge = Math.max(1, Math.floor((maxChars - divider.length) / 2));
   const head = truncateUtf16Safe(text, edge);
-  const tail = truncateUtf16Safe(text.slice(Math.max(0, text.length - edge)), edge);
+  const tail = truncateUtf16Safe(sliceTailUtf16Safe(text, edge), edge);
   let output = `${head}${divider}${tail}`;
   if (output.length > maxChars) {
     output = truncateUtf16Safe(output, maxChars);
@@ -178,7 +282,7 @@ function extractPayload(result: unknown): unknown {
   if (!isRecord(result)) {
     return result;
   }
-  if ("details" in result && result.details !== undefined) {
+  if ("details" in result && result.details != null) {
     return result.details;
   }
 
@@ -193,6 +297,45 @@ function extractPayload(result: unknown): unknown {
   }
 
   return result;
+}
+
+function readSafeCallPolicy(tool: AnyAgentTool): SafeCallPolicy {
+  const toolRecord = tool as unknown as Record<string, unknown>;
+  const policyRaw = toolRecord.safeCall;
+  if (!isRecord(policyRaw)) {
+    return {};
+  }
+
+  const allowWrapping =
+    typeof policyRaw.allowWrapping === "boolean" ? policyRaw.allowWrapping : undefined;
+
+  const allowedParamsRaw = policyRaw.allowedParams;
+  const allowedParams = Array.isArray(allowedParamsRaw)
+    ? new Set(
+        allowedParamsRaw
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      )
+    : undefined;
+
+  return { allowWrapping, allowedParams };
+}
+
+function selectTargetParams(
+  params: Record<string, unknown>,
+  allowedParams: Set<string> | undefined,
+): Record<string, unknown> {
+  if (!allowedParams || allowedParams.size === 0) {
+    return params;
+  }
+  const selected = createNullProtoRecord();
+  for (const key of allowedParams) {
+    if (Object.hasOwn(params, key)) {
+      selected[key] = params[key];
+    }
+  }
+  return selected;
 }
 
 export function createSafeCallTool(options: SafeCallToolOptions): AnyAgentTool {
@@ -214,12 +357,22 @@ export function createSafeCallTool(options: SafeCallToolOptions): AnyAgentTool {
         throw new Error(`Unknown tool: ${toolName}`);
       }
 
+      const policy = readSafeCallPolicy(target);
+      if (policy.allowWrapping === false) {
+        throw new Error(`Tool does not allow safe_call wrapping: ${toolName}`);
+      }
+
       const targetParamsRaw = params.params;
-      const targetParams = isRecord(targetParamsRaw) ? targetParamsRaw : {};
+      const targetParamsSource = isRecord(targetParamsRaw) ? targetParamsRaw : {};
+      // Security boundary: safe_call forwards tool-specific params by default; target tools may
+      // opt into stricter wrapping via `safeCall.allowWrapping` and `safeCall.allowedParams`.
+      const targetParams = selectTargetParams(targetParamsSource, policy.allowedParams);
+
       const requestedOffset = readNumberParam(params, "offset", { integer: true }) ?? 0;
       const requestedLimit = readNumberParam(params, "limit", { integer: true });
       const requestedMaxChars = readNumberParam(params, "maxChars", { integer: true });
-      const fields = readStringArrayParam(params, "fields");
+      const requestedFields = readStringArrayParam(params, "fields");
+      const normalizedFields = normalizeFields(requestedFields);
 
       const offset = Math.max(0, requestedOffset);
       const limit =
@@ -235,10 +388,20 @@ export function createSafeCallTool(options: SafeCallToolOptions): AnyAgentTool {
         `${toolCallId}:safe_call:${toolName}`,
         targetParams,
       );
-      const selected = applyFields(extractPayload(targetResult), fields);
-      const page = Array.isArray(selected)
-        ? paginateArray(selected, offset, limit)
-        : paginateLines(serializeOutput(selected), offset, limit);
+      const payload = extractPayload(targetResult);
+
+      let page: PageResult;
+      if (Array.isArray(payload)) {
+        const paged = paginateArray(payload, offset, limit);
+        page = {
+          ...paged,
+          output: applyFieldsToArrayWindow(paged.output as unknown[], normalizedFields.paths),
+        };
+      } else {
+        const selected = applyFieldsToValue(payload, normalizedFields.paths);
+        page = paginateLines(serializeOutput(selected), offset, limit);
+      }
+
       const serialized = serializeOutput(page.output);
       const truncated = truncateWithHeadTail(serialized, maxChars);
 
@@ -251,7 +414,7 @@ export function createSafeCallTool(options: SafeCallToolOptions): AnyAgentTool {
         offset,
         limit: limit ?? null,
         maxChars,
-        fields: fields ?? [],
+        fields: normalizedFields.names,
         truncated: truncated.truncated,
         output: truncated.output,
       });

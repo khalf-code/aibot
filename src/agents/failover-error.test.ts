@@ -9,6 +9,7 @@ describe("failover-error", () => {
   it("infers failover reason from HTTP status", () => {
     expect(resolveFailoverReasonFromError({ status: 402 })).toBe("billing");
     expect(resolveFailoverReasonFromError({ statusCode: "429" })).toBe("rate_limit");
+    expect(resolveFailoverReasonFromError({ status: 503 })).toBe("rate_limit");
     expect(resolveFailoverReasonFromError({ status: 403 })).toBe("auth");
     expect(resolveFailoverReasonFromError({ status: 408 })).toBe("timeout");
     expect(resolveFailoverReasonFromError({ status: 400 })).toBe("format");

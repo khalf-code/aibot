@@ -40,6 +40,7 @@ import {
 } from "../plugins/commands.js";
 import { resolveAgentRoute } from "../routing/resolve-route.js";
 import { resolveThreadSessionKeys } from "../routing/session-key.js";
+import { buildUntrustedChannelMetadata } from "../security/channel-metadata.js";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
 import { firstDefined, isSenderAllowed, normalizeAllowFromWithStore } from "./bot-access.js";
 import { TelegramUpdateKeyContext } from "./bot-updates.js";
@@ -57,8 +58,13 @@ import {
 import { buildInlineKeyboard } from "./send.js";
 
 const EMPTY_RESPONSE_FALLBACK = "No response generated. Please try again.";
+// Telegram command menu currently rejects payloads above 37 commands in production.
+const TELEGRAM_MAX_MENU_COMMANDS = 37;
+const TELEGRAM_DEFAULT_COMMAND_SCOPE = { type: "default" } as const;
+const TELEGRAM_ALL_PRIVATE_CHATS_COMMAND_SCOPE = { type: "all_private_chats" } as const;
 
 type TelegramNativeCommandContext = Context & { match?: string };
+type TelegramMenuCommand = { command: string; description: string };
 
 type TelegramCommandAuthResult = {
   chatId: number;
@@ -71,6 +77,46 @@ type TelegramCommandAuthResult = {
   topicConfig?: TelegramTopicConfig;
   commandAuthorized: boolean;
 };
+
+type BuildTelegramMenuCommandsParams = {
+  commands: TelegramMenuCommand[];
+  skillCommandNames: Set<string>;
+  runtime: RuntimeEnv;
+  scopeType: "default" | "all_private_chats";
+};
+
+function buildTelegramMenuCommands({
+  commands,
+  skillCommandNames,
+  runtime,
+  scopeType,
+}: BuildTelegramMenuCommandsParams): TelegramMenuCommand[] {
+  if (commands.length <= TELEGRAM_MAX_MENU_COMMANDS) {
+    return commands;
+  }
+
+  // Telegram rejects setMyCommands when more than 37 commands are registered.
+  // Keep built-in/plugin/custom commands first, then fill remaining slots with skills.
+  const nonSkillCommands = commands.filter(
+    (command) => !skillCommandNames.has(command.command.toLowerCase()),
+  );
+  const remainingSlots = Math.max(0, TELEGRAM_MAX_MENU_COMMANDS - nonSkillCommands.length);
+  const skillOnlyCommands = commands.filter((command) =>
+    skillCommandNames.has(command.command.toLowerCase()),
+  );
+  const limited = [...nonSkillCommands, ...skillOnlyCommands.slice(0, remainingSlots)].slice(
+    0,
+    TELEGRAM_MAX_MENU_COMMANDS,
+  );
+
+  runtime.error?.(
+    danger(
+      `Telegram ${scopeType} command menu generated ${commands.length} commands; API limit is ${TELEGRAM_MAX_MENU_COMMANDS}. ` +
+        `Keeping ${limited.length} commands (built-in/plugin/custom first).`,
+    ),
+  );
+  return limited;
+}
 
 export type RegisterTelegramHandlerParams = {
   cfg: OpenClawConfig;
@@ -300,6 +346,11 @@ export const registerTelegramNativeCommands = ({
     nativeEnabled && nativeSkillsEnabled
       ? listSkillCommandsForAgents(boundAgentIds ? { cfg, agentIds: boundAgentIds } : { cfg })
       : [];
+  const coreNativeCommands = nativeEnabled
+    ? listNativeCommandSpecsForConfig(cfg, {
+        provider: "telegram",
+      })
+    : [];
   const nativeCommands = nativeEnabled
     ? listNativeCommandSpecsForConfig(cfg, {
         skillCommands,
@@ -358,7 +409,15 @@ export const registerTelegramNativeCommands = ({
     existingCommands.add(normalized);
     pluginCommands.push({ command: normalized, description });
   }
-  const allCommandsFull: Array<{ command: string; description: string }> = [
+  const defaultScopeCandidates: TelegramMenuCommand[] = [
+    ...coreNativeCommands.map((command) => ({
+      command: command.name,
+      description: command.description,
+    })),
+    ...pluginCommands,
+    ...customCommands,
+  ];
+  const privateScopeCandidates: TelegramMenuCommand[] = [
     ...nativeCommands.map((command) => ({
       command: command.name,
       description: command.description,
@@ -366,39 +425,101 @@ export const registerTelegramNativeCommands = ({
     ...pluginCommands,
     ...customCommands,
   ];
-  // Telegram Bot API limits commands to 100 per scope.
-  // Truncate with a warning rather than failing with BOT_COMMANDS_TOO_MUCH.
-  const TELEGRAM_MAX_COMMANDS = 100;
-  if (allCommandsFull.length > TELEGRAM_MAX_COMMANDS) {
-    runtime.log?.(
-      `telegram: truncating ${allCommandsFull.length} commands to ${TELEGRAM_MAX_COMMANDS} (Telegram Bot API limit)`,
-    );
-  }
-  const allCommands = allCommandsFull.slice(0, TELEGRAM_MAX_COMMANDS);
+  const skillCommandNames = new Set(skillCommands.map((command) => command.name.toLowerCase()));
+  const defaultScopeCommands = buildTelegramMenuCommands({
+    commands: defaultScopeCandidates,
+    skillCommandNames,
+    runtime,
+    scopeType: TELEGRAM_DEFAULT_COMMAND_SCOPE.type,
+  });
+  const privateScopeCommands = buildTelegramMenuCommands({
+    commands: privateScopeCandidates,
+    skillCommandNames,
+    runtime,
+    scopeType: TELEGRAM_ALL_PRIVATE_CHATS_COMMAND_SCOPE.type,
+  });
+  const allCommands = privateScopeCandidates;
+
+  const logCommandSyncFailures = (
+    operation: "deleteMyCommands" | "setMyCommands",
+    results: PromiseSettledResult<unknown>[],
+  ) => {
+    const failed = results.filter((result) => result.status === "rejected").length;
+    if (failed > 0) {
+      runtime.error?.(
+        danger(
+          `telegram ${operation} failed for ${failed} scope(s) during command auto-registration.`,
+        ),
+      );
+    }
+  };
 
   // Clear stale commands before registering new ones to prevent
   // leftover commands from deleted skills persisting across restarts (#5717).
   // Chain delete → set so a late-resolving delete cannot wipe newly registered commands.
   const registerCommands = () => {
-    if (allCommands.length > 0) {
-      withTelegramApiErrorLogging({
-        operation: "setMyCommands",
-        runtime,
-        fn: () => bot.api.setMyCommands(allCommands),
-      }).catch(() => {});
+    const setRequests: Promise<unknown>[] = [];
+    if (defaultScopeCommands.length > 0) {
+      setRequests.push(
+        withTelegramApiErrorLogging({
+          operation: "setMyCommands",
+          runtime,
+          fn: () =>
+            bot.api.setMyCommands(defaultScopeCommands, {
+              scope: TELEGRAM_DEFAULT_COMMAND_SCOPE,
+            }),
+        }),
+      );
     }
+    if (privateScopeCommands.length > 0) {
+      setRequests.push(
+        withTelegramApiErrorLogging({
+          operation: "setMyCommands",
+          runtime,
+          fn: () =>
+            bot.api.setMyCommands(privateScopeCommands, {
+              scope: TELEGRAM_ALL_PRIVATE_CHATS_COMMAND_SCOPE,
+            }),
+        }),
+      );
+    }
+    if (setRequests.length === 0) {
+      return Promise.resolve();
+    }
+    return Promise.allSettled(setRequests).then((results) => {
+      logCommandSyncFailures("setMyCommands", results);
+    });
   };
   if (typeof bot.api.deleteMyCommands === "function") {
-    withTelegramApiErrorLogging({
-      operation: "deleteMyCommands",
-      runtime,
-      fn: () => bot.api.deleteMyCommands(),
-    })
-      .catch(() => {})
-      .then(registerCommands)
-      .catch(() => {});
+    void Promise.allSettled([
+      withTelegramApiErrorLogging({
+        operation: "deleteMyCommands",
+        runtime,
+        fn: () =>
+          bot.api.deleteMyCommands({
+            scope: TELEGRAM_DEFAULT_COMMAND_SCOPE,
+          }),
+      }),
+      withTelegramApiErrorLogging({
+        operation: "deleteMyCommands",
+        runtime,
+        fn: () =>
+          bot.api.deleteMyCommands({
+            scope: TELEGRAM_ALL_PRIVATE_CHATS_COMMAND_SCOPE,
+          }),
+      }),
+    ])
+      .then((results) => {
+        logCommandSyncFailures("deleteMyCommands", results);
+        return registerCommands();
+      })
+      .catch((err) => {
+        runtime.error?.(danger(`telegram command auto-registration aborted: ${String(err)}`));
+      });
   } else {
-    registerCommands();
+    void registerCommands().catch((err) => {
+      runtime.error?.(danger(`telegram command auto-registration aborted: ${String(err)}`));
+    });
   }
 
   if (allCommands.length > 0) {
@@ -504,7 +625,7 @@ export const registerTelegramNativeCommands = ({
             channel: "telegram",
             accountId,
             peer: {
-              kind: isGroup ? "group" : "direct",
+              kind: isGroup ? "group" : "dm",
               id: isGroup ? buildTelegramGroupPeerId(chatId, resolvedThreadId) : String(chatId),
             },
             parentPeer,
@@ -548,6 +669,22 @@ export const registerTelegramNativeCommands = ({
             ConversationLabel: conversationLabel,
             GroupSubject: isGroup ? (msg.chat.title ?? undefined) : undefined,
             GroupSystemPrompt: isGroup ? groupSystemPrompt : undefined,
+            UntrustedContext: isGroup
+              ? (() => {
+                  const topicName = msg.reply_to_message?.forum_topic_created?.name ?? undefined;
+                  const metadata = buildUntrustedChannelMetadata({
+                    source: "telegram",
+                    label: "Telegram group metadata",
+                    entries: [
+                      msg.chat.title ?? undefined,
+                      topicName,
+                      buildSenderName(msg),
+                      senderUsername || undefined,
+                    ],
+                  });
+                  return metadata ? [metadata] : undefined;
+                })()
+              : undefined,
             SenderName: buildSenderName(msg),
             SenderId: senderId || undefined,
             SenderUsername: senderUsername || undefined,
@@ -684,10 +821,6 @@ export const registerTelegramNativeCommands = ({
             isForum,
             messageThreadId,
           });
-          const from = isGroup
-            ? buildTelegramGroupFrom(chatId, threadSpec.id)
-            : `telegram:${chatId}`;
-          const to = `telegram:${chatId}`;
 
           const result = await executePluginCommand({
             command: match.command,
@@ -697,10 +830,6 @@ export const registerTelegramNativeCommands = ({
             isAuthorizedSender: commandAuthorized,
             commandBody,
             config: cfg,
-            from,
-            to,
-            accountId,
-            messageThreadId: threadSpec.id,
           });
           const tableMode = resolveMarkdownTableMode({
             cfg,
@@ -726,10 +855,32 @@ export const registerTelegramNativeCommands = ({
       }
     }
   } else if (nativeDisabledExplicit) {
-    withTelegramApiErrorLogging({
-      operation: "setMyCommands",
-      runtime,
-      fn: () => bot.api.setMyCommands([]),
-    }).catch(() => {});
+    void Promise.allSettled([
+      withTelegramApiErrorLogging({
+        operation: "setMyCommands",
+        runtime,
+        fn: () =>
+          bot.api.setMyCommands([], {
+            scope: TELEGRAM_DEFAULT_COMMAND_SCOPE,
+          }),
+      }),
+      withTelegramApiErrorLogging({
+        operation: "setMyCommands",
+        runtime,
+        fn: () =>
+          bot.api.setMyCommands([], {
+            scope: TELEGRAM_ALL_PRIVATE_CHATS_COMMAND_SCOPE,
+          }),
+      }),
+    ]).then((results) => {
+      const failed = results.filter((result) => result.status === "rejected").length;
+      if (failed > 0) {
+        runtime.error?.(
+          danger(
+            `telegram setMyCommands failed for ${failed} scope(s) while clearing command menu.`,
+          ),
+        );
+      }
+    });
   }
 };

@@ -80,6 +80,105 @@ describe("openclaw-tools: subagents", () => {
       model: "opencode/claude",
     });
   });
+  it("sessions_spawn preserves subagent fallback overrides when configured", async () => {
+    resetSubagentRegistryForTests();
+    callGatewayMock.mockReset();
+    configOverride = {
+      session: { mainKey: "main", scope: "per-sender" },
+      agents: {
+        defaults: {
+          subagents: {
+            model: {
+              primary: "openai/gpt-5.3-codex-high",
+              fallbacks: ["anthropic/claude-sonnet-4-5", "anthropic/claude-opus-4-6"],
+            },
+          },
+        },
+      },
+    };
+    const calls: Array<{ method?: string; params?: unknown }> = [];
+
+    callGatewayMock.mockImplementation(async (opts: unknown) => {
+      const request = opts as { method?: string; params?: unknown };
+      calls.push(request);
+      if (request.method === "sessions.patch") {
+        return { ok: true };
+      }
+      if (request.method === "agent") {
+        return { runId: "run-model-fallbacks", status: "accepted" };
+      }
+      return {};
+    });
+
+    const tool = createOpenClawTools({
+      agentSessionKey: "agent:main:main",
+      agentChannel: "discord",
+    }).find((candidate) => candidate.name === "sessions_spawn");
+    if (!tool) {
+      throw new Error("missing sessions_spawn tool");
+    }
+
+    const result = await tool.execute("call-agent-model-fallbacks", {
+      task: "do thing",
+    });
+    expect(result.details).toMatchObject({
+      status: "accepted",
+      modelApplied: true,
+      modelFallbacksApplied: true,
+    });
+
+    const patchCall = calls.find((call) => call.method === "sessions.patch");
+    expect(patchCall?.params).toMatchObject({
+      model: "openai/gpt-5.3-codex-high",
+      modelFallbacksOverride: ["anthropic/claude-sonnet-4-5", "anthropic/claude-opus-4-6"],
+    });
+  });
+
+  it("sessions_spawn accepts object model override with primary+fallbacks", async () => {
+    resetSubagentRegistryForTests();
+    callGatewayMock.mockReset();
+    const calls: Array<{ method?: string; params?: unknown }> = [];
+
+    callGatewayMock.mockImplementation(async (opts: unknown) => {
+      const request = opts as { method?: string; params?: unknown };
+      calls.push(request);
+      if (request.method === "sessions.patch") {
+        return { ok: true };
+      }
+      if (request.method === "agent") {
+        return { runId: "run-object-override", status: "accepted" };
+      }
+      return {};
+    });
+
+    const tool = createOpenClawTools({
+      agentSessionKey: "agent:main:main",
+      agentChannel: "discord",
+    }).find((candidate) => candidate.name === "sessions_spawn");
+    if (!tool) {
+      throw new Error("missing sessions_spawn tool");
+    }
+
+    const result = await tool.execute("call-model-object", {
+      task: "do thing",
+      model: {
+        primary: "openai/gpt-5.3-codex-high",
+        fallbacks: ["anthropic/claude-sonnet-4-5"],
+      },
+    });
+    expect(result.details).toMatchObject({
+      status: "accepted",
+      modelApplied: true,
+      modelFallbacksApplied: true,
+    });
+
+    const patchCall = calls.find((call) => call.method === "sessions.patch");
+    expect(patchCall?.params).toMatchObject({
+      model: "openai/gpt-5.3-codex-high",
+      modelFallbacksOverride: ["anthropic/claude-sonnet-4-5"],
+    });
+  });
+
   it("sessions_spawn skips invalid model overrides and continues", async () => {
     resetSubagentRegistryForTests();
     callGatewayMock.mockReset();

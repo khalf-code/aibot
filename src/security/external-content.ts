@@ -70,9 +70,10 @@ export type ExternalContentSource =
   | "channel_metadata"
   | "web_search"
   | "web_fetch"
-  | "unknown";
+  | "unknown"
+  | (string & {});
 
-const EXTERNAL_SOURCE_LABELS: Record<ExternalContentSource, string> = {
+const EXTERNAL_SOURCE_LABELS: Record<string, string> = {
   email: "Email",
   webhook: "Webhook",
   api: "API",
@@ -107,7 +108,7 @@ function foldMarkerText(input: string): string {
   return input.replace(/[\uFF21-\uFF3A\uFF41-\uFF5A\uFF1C\uFF1E]/g, (char) => foldMarkerChar(char));
 }
 
-function replaceMarkers(content: string): string {
+export function replaceMarkers(content: string): string {
   const folded = foldMarkerText(content);
   if (!/external_untrusted_content/i.test(folded)) {
     return content;
@@ -180,7 +181,7 @@ export function wrapExternalContent(content: string, options: WrapExternalConten
   const { source, sender, subject, includeWarning = true } = options;
 
   const sanitized = replaceMarkers(content);
-  const sourceLabel = EXTERNAL_SOURCE_LABELS[source] ?? "External";
+  const sourceLabel = (EXTERNAL_SOURCE_LABELS[source] ?? source) || "External";
   const metadataLines: string[] = [`Source: ${sourceLabel}`];
 
   if (sender) {

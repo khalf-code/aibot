@@ -12,6 +12,8 @@ vi.mock("../auto-reply/skill-commands.js", () => ({
   listSkillCommandsForAgents,
 }));
 
+type TelegramMenuCommand = { command: string; description: string };
+
 describe("registerTelegramNativeCommands", () => {
   beforeEach(() => {
     listSkillCommandsForAgents.mockReset();
@@ -79,40 +81,113 @@ describe("registerTelegramNativeCommands", () => {
     expect(listSkillCommandsForAgents).toHaveBeenCalledWith({ cfg });
   });
 
-  it("truncates Telegram command registration to 100 commands", () => {
+  it("registers default and private command scopes with different command sets", () => {
+    listSkillCommandsForAgents.mockReturnValue([
+      {
+        name: "skill_alert",
+        skillName: "skill-alert",
+        description: "Skill alert",
+      },
+    ]);
+
     const cfg: OpenClawConfig = {
-      commands: { native: false },
-    };
-    const customCommands = Array.from({ length: 120 }, (_, index) => ({
-      command: `cmd_${index}`,
-      description: `Command ${index}`,
-    }));
-    const setMyCommands = vi.fn().mockResolvedValue(undefined);
-    const runtimeLog = vi.fn();
-
-    registerTelegramNativeCommands({
-      ...buildParams(cfg),
-      bot: {
-        api: {
-          setMyCommands,
-          sendMessage: vi.fn().mockResolvedValue(undefined),
+      channels: {
+        telegram: {
+          customCommands: [{ command: "ops_help", description: "Ops helper" }],
         },
-        command: vi.fn(),
-      } as unknown as Parameters<typeof registerTelegramNativeCommands>[0]["bot"],
-      runtime: { log: runtimeLog } as RuntimeEnv,
-      telegramCfg: { customCommands } as TelegramAccountConfig,
-      nativeEnabled: false,
-      nativeSkillsEnabled: false,
-    });
+      },
+    };
+    const params = buildParams(cfg, "bot-a");
+    params.telegramCfg = {
+      customCommands: [{ command: "ops_help", description: "Ops helper" }],
+    } as TelegramAccountConfig;
 
-    const registeredCommands = setMyCommands.mock.calls[0]?.[0] as Array<{
-      command: string;
-      description: string;
-    }>;
-    expect(registeredCommands).toHaveLength(100);
-    expect(registeredCommands).toEqual(customCommands.slice(0, 100));
-    expect(runtimeLog).toHaveBeenCalledWith(
-      "telegram: truncating 120 commands to 100 (Telegram Bot API limit)",
+    registerTelegramNativeCommands(params);
+
+    const setMyCommands = (
+      params.bot as unknown as { api: { setMyCommands: ReturnType<typeof vi.fn> } }
+    ).api.setMyCommands;
+
+    expect(setMyCommands).toHaveBeenCalledTimes(2);
+
+    const calls = setMyCommands.mock.calls as Array<
+      [TelegramMenuCommand[], { scope?: { type?: string } } | undefined]
+    >;
+    const defaultScopeCall = calls.find(([, options]) => options?.scope?.type === "default");
+    const privateScopeCall = calls.find(
+      ([, options]) => options?.scope?.type === "all_private_chats",
     );
+
+    expect(defaultScopeCall).toBeTruthy();
+    expect(privateScopeCall).toBeTruthy();
+
+    const defaultCommands = defaultScopeCall?.[0] ?? [];
+    const privateCommands = privateScopeCall?.[0] ?? [];
+
+    expect(defaultCommands).toContainEqual({ command: "ops_help", description: "Ops helper" });
+    expect(defaultCommands.some((command) => command.command === "skill_alert")).toBe(false);
+
+    expect(privateCommands).toContainEqual({ command: "ops_help", description: "Ops helper" });
+    expect(privateCommands).toContainEqual({ command: "skill_alert", description: "Skill alert" });
+  });
+
+  it("caps private command scope at Telegram limit while keeping explicit commands", () => {
+    listSkillCommandsForAgents.mockReturnValue(
+      Array.from({ length: 120 }, (_, index) => ({
+        name: `skill_${index + 1}`,
+        skillName: `skill-${index + 1}`,
+        description: `Skill ${index + 1}`,
+      })),
+    );
+
+    const cfg: OpenClawConfig = {
+      channels: {
+        telegram: {
+          customCommands: [{ command: "ops_help", description: "Ops helper" }],
+        },
+      },
+    };
+    const params = buildParams(cfg, "bot-a");
+    params.telegramCfg = {
+      customCommands: [{ command: "ops_help", description: "Ops helper" }],
+    } as TelegramAccountConfig;
+
+    registerTelegramNativeCommands(params);
+
+    const setMyCommands = (
+      params.bot as unknown as { api: { setMyCommands: ReturnType<typeof vi.fn> } }
+    ).api.setMyCommands;
+    const calls = setMyCommands.mock.calls as Array<
+      [TelegramMenuCommand[], { scope?: { type?: string } } | undefined]
+    >;
+    const privateScopeCall = calls.find(
+      ([, options]) => options?.scope?.type === "all_private_chats",
+    );
+
+    const registered = privateScopeCall?.[0] ?? [];
+
+    expect(registered).toHaveLength(37);
+    expect(registered).toContainEqual({ command: "ops_help", description: "Ops helper" });
+  });
+
+  it("clears commands for both scopes when deleteMyCommands is available", async () => {
+    const cfg: OpenClawConfig = {};
+    const params = buildParams(cfg, "bot-a");
+    const deleteMyCommands = vi.fn().mockResolvedValue(undefined);
+    (
+      params.bot as unknown as {
+        api: { deleteMyCommands?: ReturnType<typeof vi.fn> };
+      }
+    ).api.deleteMyCommands = deleteMyCommands;
+
+    registerTelegramNativeCommands(params);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(deleteMyCommands).toHaveBeenCalledTimes(2);
+    expect(deleteMyCommands).toHaveBeenCalledWith({ scope: { type: "default" } });
+    expect(deleteMyCommands).toHaveBeenCalledWith({
+      scope: { type: "all_private_chats" },
+    });
   });
 });

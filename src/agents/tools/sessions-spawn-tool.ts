@@ -10,6 +10,7 @@ import {
   normalizeAgentId,
   parseAgentSessionKey,
 } from "../../routing/session-key.js";
+import { detectSuspiciousPatterns, wrapExternalContent } from "../../security/external-content.js";
 import { normalizeDeliveryContext } from "../../utils/delivery-context.js";
 import { resolveAgentConfig } from "../agent-scope.js";
 import { AGENT_LANE_SUBAGENT } from "../lanes.js";
@@ -27,7 +28,15 @@ const SessionsSpawnToolSchema = Type.Object({
   task: Type.String(),
   label: Type.Optional(Type.String()),
   agentId: Type.Optional(Type.String()),
-  model: Type.Optional(Type.String()),
+  model: Type.Optional(
+    Type.Union([
+      Type.String(),
+      Type.Object({
+        primary: Type.Optional(Type.String()),
+        fallbacks: Type.Optional(Type.Array(Type.String())),
+      }),
+    ]),
+  ),
   thinking: Type.Optional(Type.String()),
   runTimeoutSeconds: Type.Optional(Type.Number({ minimum: 0 })),
   // Back-compat alias. Prefer runTimeoutSeconds.
@@ -50,19 +59,30 @@ function splitModelRef(ref?: string) {
   return { provider: undefined, model: trimmed };
 }
 
-function normalizeModelSelection(value: unknown): string | undefined {
+function normalizeModelSelection(value: unknown): {
+  primary?: string;
+  fallbacks?: string[];
+  hasFallbacksOverride: boolean;
+} {
   if (typeof value === "string") {
     const trimmed = value.trim();
-    return trimmed || undefined;
+    return { primary: trimmed || undefined, hasFallbacksOverride: false };
   }
   if (!value || typeof value !== "object") {
-    return undefined;
+    return { hasFallbacksOverride: false };
   }
-  const primary = (value as { primary?: unknown }).primary;
-  if (typeof primary === "string" && primary.trim()) {
-    return primary.trim();
-  }
-  return undefined;
+
+  const raw = value as { primary?: unknown; fallbacks?: unknown };
+  const primary =
+    typeof raw.primary === "string" && raw.primary.trim() ? raw.primary.trim() : undefined;
+  const hasFallbacksOverride = Array.isArray(raw.fallbacks);
+  const fallbacks = hasFallbacksOverride
+    ? (raw.fallbacks as unknown[])
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry: string) => entry.trim())
+        .filter(Boolean)
+    : undefined;
+  return { primary, fallbacks, hasFallbacksOverride };
 }
 
 export function createSessionsSpawnTool(opts?: {
@@ -87,9 +107,17 @@ export function createSessionsSpawnTool(opts?: {
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
       const task = readStringParam(params, "task", { required: true });
+      const suspiciousHits = detectSuspiciousPatterns(task);
+      const sanitizedTask =
+        suspiciousHits.length > 0
+          ? wrapExternalContent(task, {
+              source: "subagent:task",
+              includeWarning: true,
+            })
+          : task;
       const label = typeof params.label === "string" ? params.label.trim() : "";
       const requestedAgentId = readStringParam(params, "agentId");
-      const modelOverride = readStringParam(params, "model");
+      const modelOverride = params.model;
       const thinkingOverrideRaw = readStringParam(params, "thinking");
       const cleanup =
         params.cleanup === "keep" || params.cleanup === "delete" ? params.cleanup : "keep";
@@ -115,6 +143,7 @@ export function createSessionsSpawnTool(opts?: {
       })();
       let modelWarning: string | undefined;
       let modelApplied = false;
+      let modelFallbacksApplied = false;
 
       const cfg = loadConfig();
       const { mainKey, alias } = resolveMainSessionAlias(cfg);
@@ -168,10 +197,26 @@ export function createSessionsSpawnTool(opts?: {
       const childSessionKey = `agent:${targetAgentId}:subagent:${crypto.randomUUID()}`;
       const spawnedByKey = requesterInternalKey;
       const targetAgentConfig = resolveAgentConfig(cfg, targetAgentId);
-      const resolvedModel =
-        normalizeModelSelection(modelOverride) ??
-        normalizeModelSelection(targetAgentConfig?.subagents?.model) ??
-        normalizeModelSelection(cfg.agents?.defaults?.subagents?.model);
+      const modelSelections = [
+        normalizeModelSelection(modelOverride),
+        normalizeModelSelection(targetAgentConfig?.subagents?.model),
+        normalizeModelSelection(cfg.agents?.defaults?.subagents?.model),
+      ];
+      let resolvedModel: string | undefined;
+      let resolvedModelFallbacksOverride: string[] | undefined;
+      let hasModelFallbacksOverride = false;
+      for (const selection of modelSelections) {
+        if (!resolvedModel && selection.primary) {
+          resolvedModel = selection.primary;
+        }
+        if (!hasModelFallbacksOverride && selection.hasFallbacksOverride) {
+          hasModelFallbacksOverride = true;
+          resolvedModelFallbacksOverride = selection.fallbacks ?? [];
+        }
+        if (resolvedModel && hasModelFallbacksOverride) {
+          break;
+        }
+      }
 
       const resolvedThinkingDefaultRaw =
         readStringParam(targetAgentConfig?.subagents ?? {}, "thinking") ??
@@ -191,14 +236,21 @@ export function createSessionsSpawnTool(opts?: {
         }
         thinkingOverride = normalized;
       }
-      if (resolvedModel) {
+      if (resolvedModel || hasModelFallbacksOverride) {
         try {
           await callGateway({
             method: "sessions.patch",
-            params: { key: childSessionKey, model: resolvedModel },
+            params: {
+              key: childSessionKey,
+              ...(resolvedModel ? { model: resolvedModel } : {}),
+              ...(hasModelFallbacksOverride
+                ? { modelFallbacksOverride: resolvedModelFallbacksOverride ?? [] }
+                : {}),
+            },
             timeoutMs: 10_000,
           });
-          modelApplied = true;
+          modelApplied = Boolean(resolvedModel);
+          modelFallbacksApplied = hasModelFallbacksOverride;
         } catch (err) {
           const messageText =
             err instanceof Error ? err.message : typeof err === "string" ? err : "error";
@@ -212,6 +264,8 @@ export function createSessionsSpawnTool(opts?: {
             });
           }
           modelWarning = messageText;
+          modelApplied = false;
+          modelFallbacksApplied = false;
         }
       }
       if (thinkingOverride !== undefined) {
@@ -239,7 +293,7 @@ export function createSessionsSpawnTool(opts?: {
         requesterOrigin,
         childSessionKey,
         label: label || undefined,
-        task,
+        task: sanitizedTask,
       });
 
       const childIdem = crypto.randomUUID();
@@ -248,7 +302,7 @@ export function createSessionsSpawnTool(opts?: {
         const response = await callGateway<{ runId: string }>({
           method: "agent",
           params: {
-            message: task,
+            message: sanitizedTask,
             sessionKey: childSessionKey,
             channel: requesterOrigin?.channel,
             to: requesterOrigin?.to ?? undefined,
@@ -289,7 +343,7 @@ export function createSessionsSpawnTool(opts?: {
         requesterSessionKey: requesterInternalKey,
         requesterOrigin,
         requesterDisplayKey,
-        task,
+        task: sanitizedTask,
         cleanup,
         label: label || undefined,
         runTimeoutSeconds,
@@ -300,6 +354,7 @@ export function createSessionsSpawnTool(opts?: {
         childSessionKey,
         runId: childRunId,
         modelApplied: resolvedModel ? modelApplied : undefined,
+        modelFallbacksApplied: hasModelFallbacksOverride ? modelFallbacksApplied : undefined,
         warning: modelWarning,
       });
     },

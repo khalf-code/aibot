@@ -61,6 +61,7 @@ export type FollowupRun = {
     skillsSnapshot?: SkillSnapshot;
     provider: string;
     model: string;
+    fallbacksOverride?: string[];
     authProfileId?: string;
     authProfileIdSource?: "auto" | "user";
     thinkLevel?: ThinkLevel;

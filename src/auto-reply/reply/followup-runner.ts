@@ -130,10 +130,15 @@ export function createFollowupRunner(params: {
           provider: queued.run.provider,
           model: queued.run.model,
           agentDir: queued.run.agentDir,
-          fallbacksOverride: resolveAgentModelFallbacksOverride(
-            queued.run.config,
-            resolveAgentIdFromSessionKey(queued.run.sessionKey),
-          ),
+          fallbacksOverride:
+            (sessionKey
+              ? sessionStore?.[sessionKey]?.modelFallbacksOverride
+              : sessionEntry?.modelFallbacksOverride) ??
+            queued.run.fallbacksOverride ??
+            resolveAgentModelFallbacksOverride(
+              queued.run.config,
+              resolveAgentIdFromSessionKey(queued.run.sessionKey),
+            ),
           run: (provider, model) => {
             const authProfileId =
               provider === queued.run.provider ? queued.run.authProfileId : undefined;

@@ -101,10 +101,15 @@ export async function runMemoryFlushIfNeeded(params: {
       provider: params.followupRun.run.provider,
       model: params.followupRun.run.model,
       agentDir: params.followupRun.run.agentDir,
-      fallbacksOverride: resolveAgentModelFallbacksOverride(
-        params.followupRun.run.config,
-        resolveAgentIdFromSessionKey(params.followupRun.run.sessionKey),
-      ),
+      fallbacksOverride:
+        (params.sessionKey
+          ? params.sessionStore?.[params.sessionKey]?.modelFallbacksOverride
+          : params.sessionEntry?.modelFallbacksOverride) ??
+        params.followupRun.run.fallbacksOverride ??
+        resolveAgentModelFallbacksOverride(
+          params.followupRun.run.config,
+          resolveAgentIdFromSessionKey(params.followupRun.run.sessionKey),
+        ),
       run: (provider, model) => {
         const authProfileId =
           provider === params.followupRun.run.provider

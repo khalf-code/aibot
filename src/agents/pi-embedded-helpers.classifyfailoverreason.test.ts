@@ -16,6 +16,7 @@ describe("classifyFailoverReason", () => {
     expect(classifyFailoverReason("no api key found")).toBe("auth");
     expect(classifyFailoverReason("429 too many requests")).toBe("rate_limit");
     expect(classifyFailoverReason("resource has been exhausted")).toBe("rate_limit");
+    expect(classifyFailoverReason("503 No available providers")).toBe("rate_limit");
     expect(
       classifyFailoverReason(
         '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}',

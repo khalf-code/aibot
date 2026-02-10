@@ -33,6 +33,7 @@ import { recordChannelActivity } from "../infra/channel-activity.js";
 import { upsertChannelPairingRequest } from "../pairing/pairing-store.js";
 import { resolveAgentRoute } from "../routing/resolve-route.js";
 import { resolveThreadSessionKeys } from "../routing/session-key.js";
+import { buildUntrustedChannelMetadata } from "../security/channel-metadata.js";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
 import {
   firstDefined,
@@ -583,6 +584,22 @@ export const buildTelegramMessageContext = async ({
     ConversationLabel: conversationLabel,
     GroupSubject: isGroup ? (msg.chat.title ?? undefined) : undefined,
     GroupSystemPrompt: isGroup ? groupSystemPrompt : undefined,
+    UntrustedContext: isGroup
+      ? (() => {
+          const topicName = msg.reply_to_message?.forum_topic_created?.name ?? undefined;
+          const metadata = buildUntrustedChannelMetadata({
+            source: "telegram",
+            label: "Telegram group metadata",
+            entries: [
+              msg.chat.title ?? undefined,
+              topicName,
+              senderName,
+              senderUsername || undefined,
+            ],
+          });
+          return metadata ? [metadata] : undefined;
+        })()
+      : undefined,
     SenderName: senderName,
     SenderId: senderId || undefined,
     SenderUsername: senderUsername || undefined,

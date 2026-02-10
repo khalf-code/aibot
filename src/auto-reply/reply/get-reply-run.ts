@@ -385,6 +385,7 @@ export async function runPreparedReply(
       skillsSnapshot,
       provider,
       model,
+      fallbacksOverride: sessionEntry?.modelFallbacksOverride,
       authProfileId,
       authProfileIdSource,
       thinkLevel: resolvedThinkLevel,

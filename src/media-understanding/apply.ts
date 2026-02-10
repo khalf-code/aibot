@@ -22,6 +22,7 @@ import {
   normalizeMimeList,
   normalizeMimeType,
 } from "../media/input-files.js";
+import { detectSuspiciousPatterns, wrapExternalContent } from "../security/external-content.js";
 import { resolveAttachmentKind } from "./attachments.js";
 import { runWithConcurrency } from "./concurrency.js";
 import {
@@ -507,13 +508,21 @@ export async function applyMediaUnderstanding(params: {
       const audioOutputs = outputs.filter((output) => output.kind === "audio.transcription");
       if (audioOutputs.length > 0) {
         const transcript = formatAudioTranscripts(audioOutputs);
-        ctx.Transcript = transcript;
+        const asrHits = detectSuspiciousPatterns(transcript);
+        const safeTranscript =
+          asrHits.length > 0
+            ? wrapExternalContent(transcript, {
+                source: "asr:transcription",
+                includeWarning: true,
+              })
+            : transcript;
+        ctx.Transcript = safeTranscript;
         if (originalUserText) {
           ctx.CommandBody = originalUserText;
           ctx.RawBody = originalUserText;
         } else {
-          ctx.CommandBody = transcript;
-          ctx.RawBody = transcript;
+          ctx.CommandBody = safeTranscript;
+          ctx.RawBody = safeTranscript;
         }
       } else if (originalUserText) {
         ctx.CommandBody = originalUserText;

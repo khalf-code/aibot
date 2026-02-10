@@ -12,6 +12,7 @@ import { callGateway } from "../gateway/call.js";
 import { formatDurationCompact } from "../infra/format-time/format-duration.ts";
 import { normalizeMainKey } from "../routing/session-key.js";
 import { defaultRuntime } from "../runtime.js";
+import { replaceMarkers } from "../security/external-content.js";
 import {
   type DeliveryContext,
   deliveryContextFromSession,
@@ -316,13 +317,14 @@ export function buildSubagentSystemPrompt(params: {
     typeof params.task === "string" && params.task.trim()
       ? params.task.replace(/\s+/g, " ").trim()
       : "{{TASK_DESCRIPTION}}";
+  const safeTaskText = replaceMarkers(taskText);
   const lines = [
     "# Subagent Context",
     "",
     "You are a **subagent** spawned by the main agent for a specific task.",
     "",
     "## Your Role",
-    `- You were created to handle: ${taskText}`,
+    `- You were created to handle: ${safeTaskText}`,
     "- Complete this task. That's your entire purpose.",
     "- You are NOT the main agent. Don't try to be.",
     "",

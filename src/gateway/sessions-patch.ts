@@ -58,6 +58,26 @@ function normalizeExecAsk(raw: string): "off" | "on-miss" | "always" | undefined
   return undefined;
 }
 
+function normalizeModelFallbacksOverride(
+  raw: unknown,
+): { ok: true; value: string[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw)) {
+    return { ok: false, error: "invalid modelFallbacksOverride: expected an array" };
+  }
+  const normalized: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") {
+      return { ok: false, error: "invalid modelFallbacksOverride: expected string entries" };
+    }
+    const trimmed = entry.trim();
+    if (!trimmed) {
+      return { ok: false, error: "invalid modelFallbacksOverride: entries must be non-empty" };
+    }
+    normalized.push(trimmed);
+  }
+  return { ok: true, value: normalized };
+}
+
 export async function applySessionsPatchToStore(params: {
   cfg: OpenClawConfig;
   store: Record<string, SessionEntry>;
@@ -292,6 +312,19 @@ export async function applySessionsPatchToStore(params: {
           isDefault,
         },
       });
+    }
+  }
+
+  if ("modelFallbacksOverride" in patch) {
+    const raw = patch.modelFallbacksOverride;
+    if (raw === null) {
+      delete next.modelFallbacksOverride;
+    } else if (raw !== undefined) {
+      const normalized = normalizeModelFallbacksOverride(raw);
+      if (!normalized.ok) {
+        return invalid(normalized.error);
+      }
+      next.modelFallbacksOverride = normalized.value;
     }
   }
 

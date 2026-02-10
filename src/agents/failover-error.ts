@@ -151,7 +151,7 @@ export function resolveFailoverReasonFromError(err: unknown): FailoverReason | n
   if (status === 402) {
     return "billing";
   }
-  if (status === 429) {
+  if (status === 429 || status === 503) {
     return "rate_limit";
   }
   if (status === 401 || status === 403) {
