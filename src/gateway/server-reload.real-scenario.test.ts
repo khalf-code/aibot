@@ -20,106 +20,62 @@ describe("real scenario: config change during message processing", () => {
     clearAllDispatchers();
   });
 
-  it("should NOT restart gateway before replies are sent", async () => {
+  it("should NOT restart gateway while reply delivery is in flight", async () => {
     const { createReplyDispatcher } = await import("../auto-reply/reply/reply-dispatcher.js");
     const { getTotalPendingReplies } = await import("../auto-reply/reply/dispatcher-registry.js");
 
-    // Simulate the REAL flow that happens in production
-    const events: Array<{ time: number; event: string }> = [];
-    const startTime = Date.now();
-    const log = (event: string) => events.push({ time: Date.now() - startTime, event });
-
-    // Track if deliver was called (simulates RPC connection status)
     let rpcConnected = true;
     const deliveredReplies: string[] = [];
 
-    // Step 1: Message received — create dispatcher (registers with pending=1)
-    log("message-received");
+    // Create dispatcher with slow delivery (simulates real network delay)
     const dispatcher = createReplyDispatcher({
       deliver: async (payload) => {
-        log(`deliver-called: rpc=${rpcConnected}`);
         if (!rpcConnected) {
           const error = "Error: imsg rpc not running";
           replyErrors.push(error);
-          log(`deliver-failed: ${error}`);
           throw new Error(error);
         }
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Slow delivery — restart checks will run during this window
+        await new Promise((resolve) => setTimeout(resolve, 500));
         deliveredReplies.push(payload.text ?? "");
-        log(`deliver-success: ${payload.text}`);
       },
       onError: (err) => {
-        log(`onError: ${String(err)}`);
+        // Swallow delivery errors so the test can assert on replyErrors
       },
     });
 
-    log(`initial-state: pending=${getTotalPendingReplies()}`);
+    // Enqueue reply and immediately clear the reservation.
+    // This is the critical sequence: after markComplete(), the ONLY thing
+    // keeping pending > 0 is the in-flight delivery itself.
+    dispatcher.sendFinalReply({ text: "Configuration updated!" });
+    dispatcher.markComplete();
 
-    // Step 2: Simulate command processing (async, like real agent)
-    const processCommand = async () => {
-      log("command-start");
-      // Simulate agent thinking time
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      log("command-generating-reply");
-      // Enqueue reply
-      dispatcher.sendFinalReply({ text: "Configuration updated!" });
-      log(`command-reply-enqueued: pending=${getTotalPendingReplies()}`);
+    // At this point: reservation cleared, but delivery is in flight.
+    // pending should be 1 (the enqueued reply being delivered).
+    const pendingDuringDelivery = getTotalPendingReplies();
+    expect(pendingDuringDelivery).toBe(1);
+
+    // Simulate restart checks while delivery is in progress.
+    // If the tracking is broken, pending would be 0 and we'd restart.
+    let restartTriggered = false;
+    for (let i = 0; i < 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      log("command-finish");
-    };
-
-    // Start command processing (don't await yet - it runs in background)
-    const commandPromise = processCommand();
-
-    // Step 3: Simulate config change DURING command processing
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    log(`config-change-detected: pending=${getTotalPendingReplies()}`);
-
-    // Step 4: Simulate restart deferral check
-    const checkRestart = () => {
       const pending = getTotalPendingReplies();
-      log(`restart-check: pending=${pending}`);
-      return pending;
-    };
-
-    // THIS IS THE CRITICAL CHECK - if pending becomes 0 before replies sent, restart proceeds
-    let totalActive = checkRestart();
-    expect(totalActive).toBeGreaterThan(0); // MUST be > 0 to defer restart
-
-    // Step 5: Simulate periodic restart checks (500ms intervals)
-    const checkInterval = 500;
-    const maxChecks = 5;
-    for (let i = 0; i < maxChecks; i++) {
-      await new Promise((resolve) => setTimeout(resolve, checkInterval));
-      totalActive = checkRestart();
-
-      // If total becomes 0, gateway would restart here
-      if (totalActive === 0) {
-        log("RESTART-TRIGGERED");
-        rpcConnected = false; // Simulate RPC dying
+      if (pending === 0) {
+        restartTriggered = true;
+        rpcConnected = false;
         break;
       }
     }
 
-    // Step 6: Wait for command to finish
-    await commandPromise;
-
-    // Step 7: Mark complete and wait for idle
-    dispatcher.markComplete();
-    log(`after-markComplete: pending=${getTotalPendingReplies()}`);
-
+    // Wait for delivery to complete
     await dispatcher.waitForIdle();
-    log(`after-waitForIdle: pending=${getTotalPendingReplies()}`);
 
-    // ASSERTIONS
-    console.log("\n=== Event Timeline ===");
-    events.forEach(({ time, event }) => {
-      console.log(`T+${time.toString().padStart(4, " ")}ms: ${event}`);
-    });
-    console.log("===================\n");
+    // Now pending should be 0 — restart can proceed
+    expect(getTotalPendingReplies()).toBe(0);
 
-    // CRITICAL: No reply errors should occur
+    // CRITICAL: delivery must have succeeded without RPC being killed
+    expect(restartTriggered).toBe(false);
     expect(replyErrors).toEqual([]);
     expect(deliveredReplies).toEqual(["Configuration updated!"]);
   });
