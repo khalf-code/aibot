@@ -40,6 +40,8 @@ Docs: https://docs.openclaw.ai
 - CLI: sort commands alphabetically in help output. (#8068) Thanks @deepsoumya617.
 - CI: optimize pipeline throughput (macOS consolidation, Windows perf, workflow concurrency). (#10784) Thanks @mcaxtr.
 - Agents: bump pi-mono to 0.52.7; add embedded forward-compat fallback for Opus 4.6 model ids.
+- Android: add timeout constant and exponential backoff to gateway discovery; prevents freezes when gateways are offline.
+- Logging: migrate from raw console calls to structured subsystem loggers; enforce via test and oxlint rule.
 
 ### Added
 
