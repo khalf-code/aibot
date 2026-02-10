@@ -21,6 +21,8 @@ const hookMocks = vi.hoisted(() => ({
   runner: {
     hasHooks: vi.fn(() => false),
     runMessageReceived: vi.fn(async () => {}),
+    runMessageSending: vi.fn(async () => undefined),
+    runMessageSent: vi.fn(async () => {}),
   },
 }));
 
@@ -76,6 +78,9 @@ describe("dispatchReplyFromConfig", () => {
     hookMocks.runner.hasHooks.mockReset();
     hookMocks.runner.hasHooks.mockReturnValue(false);
     hookMocks.runner.runMessageReceived.mockReset();
+    hookMocks.runner.runMessageSending.mockReset();
+    hookMocks.runner.runMessageSending.mockResolvedValue(undefined);
+    hookMocks.runner.runMessageSent.mockReset();
   });
   it("does not route when Provider matches OriginatingChannel (even if Surface is missing)", async () => {
     mocks.tryFastAbortFromMessage.mockResolvedValue({
@@ -439,5 +444,114 @@ describe("dispatchReplyFromConfig", () => {
         reason: "duplicate",
       }),
     );
+  });
+
+  describe("message_sending hook", () => {
+    it("calls runMessageSending before final reply and allows content modification", async () => {
+      hookMocks.runner.hasHooks.mockImplementation((name: string) => name === "message_sending");
+      hookMocks.runner.runMessageSending.mockResolvedValue({
+        content: "modified reply",
+      });
+      mocks.tryFastAbortFromMessage.mockResolvedValue({
+        handled: false,
+        aborted: false,
+      });
+
+      const cfg = {} as OpenClawConfig;
+      const dispatcher = createDispatcher();
+      const ctx = buildTestCtx({ Provider: "telegram", From: "user1" });
+      const replyResolver = async () => ({ text: "original reply" }) satisfies ReplyPayload;
+
+      await dispatchReplyFromConfig({ ctx, cfg, dispatcher, replyResolver });
+
+      expect(hookMocks.runner.runMessageSending).toHaveBeenCalledTimes(1);
+      expect(hookMocks.runner.runMessageSending).toHaveBeenCalledWith(
+        expect.objectContaining({ content: "original reply" }),
+        expect.objectContaining({ channelId: expect.any(String) }),
+      );
+      expect(dispatcher.sendFinalReply).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "modified reply" }),
+      );
+    });
+
+    it("cancels reply when message_sending hook returns cancel: true", async () => {
+      hookMocks.runner.hasHooks.mockImplementation((name: string) => name === "message_sending");
+      hookMocks.runner.runMessageSending.mockResolvedValue({ cancel: true });
+      mocks.tryFastAbortFromMessage.mockResolvedValue({
+        handled: false,
+        aborted: false,
+      });
+
+      const cfg = {} as OpenClawConfig;
+      const dispatcher = createDispatcher();
+      const ctx = buildTestCtx({ Provider: "telegram", From: "user1" });
+      const replyResolver = async () => ({ text: "should not send" }) satisfies ReplyPayload;
+
+      await dispatchReplyFromConfig({ ctx, cfg, dispatcher, replyResolver });
+
+      expect(hookMocks.runner.runMessageSending).toHaveBeenCalledTimes(1);
+      expect(dispatcher.sendFinalReply).not.toHaveBeenCalled();
+    });
+
+    it("does not call message_sending when no hooks are registered", async () => {
+      hookMocks.runner.hasHooks.mockReturnValue(false);
+      mocks.tryFastAbortFromMessage.mockResolvedValue({
+        handled: false,
+        aborted: false,
+      });
+
+      const cfg = {} as OpenClawConfig;
+      const dispatcher = createDispatcher();
+      const ctx = buildTestCtx({ Provider: "telegram", From: "user1" });
+      const replyResolver = async () => ({ text: "hello" }) satisfies ReplyPayload;
+
+      await dispatchReplyFromConfig({ ctx, cfg, dispatcher, replyResolver });
+
+      expect(hookMocks.runner.runMessageSending).not.toHaveBeenCalled();
+      expect(dispatcher.sendFinalReply).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("message_sent hook", () => {
+    it("calls runMessageSent after successful delivery", async () => {
+      hookMocks.runner.hasHooks.mockImplementation((name: string) => name === "message_sent");
+      mocks.tryFastAbortFromMessage.mockResolvedValue({
+        handled: false,
+        aborted: false,
+      });
+
+      const cfg = {} as OpenClawConfig;
+      const dispatcher = createDispatcher();
+      const ctx = buildTestCtx({ Provider: "discord", From: "user1" });
+      const replyResolver = async () => ({ text: "hello" }) satisfies ReplyPayload;
+
+      await dispatchReplyFromConfig({ ctx, cfg, dispatcher, replyResolver });
+
+      expect(hookMocks.runner.runMessageSent).toHaveBeenCalledTimes(1);
+      expect(hookMocks.runner.runMessageSent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: "hello",
+          success: true,
+        }),
+        expect.objectContaining({ channelId: expect.any(String) }),
+      );
+    });
+
+    it("does not call message_sent when no hooks are registered", async () => {
+      hookMocks.runner.hasHooks.mockReturnValue(false);
+      mocks.tryFastAbortFromMessage.mockResolvedValue({
+        handled: false,
+        aborted: false,
+      });
+
+      const cfg = {} as OpenClawConfig;
+      const dispatcher = createDispatcher();
+      const ctx = buildTestCtx({ Provider: "telegram", From: "user1" });
+      const replyResolver = async () => ({ text: "hello" }) satisfies ReplyPayload;
+
+      await dispatchReplyFromConfig({ ctx, cfg, dispatcher, replyResolver });
+
+      expect(hookMocks.runner.runMessageSent).not.toHaveBeenCalled();
+    });
   });
 });
