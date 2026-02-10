@@ -2,6 +2,7 @@ import type { SessionEntry } from "../../config/sessions.js";
 import type { CommandHandler } from "./commands-types.js";
 import { abortEmbeddedPiRun } from "../../agents/pi-embedded.js";
 import { updateSessionStore } from "../../config/sessions.js";
+import { resolveAgentIdFromSessionKey } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
 import { createInternalHookEvent, triggerInternalHook } from "../../hooks/internal-hooks.js";
 import { scheduleGatewaySigusr1Restart, triggerOpenClawRestart } from "../../infra/restart.js";
@@ -162,13 +163,14 @@ export const handleUsageCommand: CommandHandler = async (params, allowTextComman
   const rawArgs = normalized === "/usage" ? "" : normalized.slice("/usage".length).trim();
   const requested = rawArgs ? normalizeUsageDisplay(rawArgs) : undefined;
   if (rawArgs.toLowerCase().startsWith("cost")) {
+    const agentId = resolveAgentIdFromSessionKey(params.sessionKey);
     const sessionSummary = await loadSessionCostSummary({
       sessionId: params.sessionEntry?.sessionId,
       sessionEntry: params.sessionEntry,
       sessionFile: params.sessionEntry?.sessionFile,
       config: params.cfg,
     });
-    const summary = await loadCostUsageSummary({ days: 30, config: params.cfg });
+    const summary = await loadCostUsageSummary({ days: 30, config: params.cfg, agentId });
 
     const sessionCost = formatUsd(sessionSummary?.totalCost);
     const sessionTokens = sessionSummary?.totalTokens

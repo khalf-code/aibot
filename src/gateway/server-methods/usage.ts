@@ -12,6 +12,7 @@ import type {
 } from "../../infra/session-cost-usage.js";
 import type { GatewayRequestHandlers } from "./types.js";
 import { loadConfig } from "../../config/config.js";
+import { resolveMainSessionKey } from "../../config/sessions/main-session.js";
 import { resolveSessionFilePath } from "../../config/sessions/paths.js";
 import { loadProviderUsageSummary } from "../../infra/provider-usage.js";
 import {
@@ -139,8 +140,9 @@ async function loadCostUsageSummaryCached(params: {
   startMs: number;
   endMs: number;
   config: ReturnType<typeof loadConfig>;
+  agentId?: string;
 }): Promise<CostUsageSummary> {
-  const cacheKey = `${params.startMs}-${params.endMs}`;
+  const cacheKey = `${params.startMs}-${params.endMs}-${params.agentId ?? "default"}`;
   const now = Date.now();
   const cached = costUsageCache.get(cacheKey);
   if (cached?.summary && cached.updatedAt && now - cached.updatedAt < COST_USAGE_CACHE_TTL_MS) {
@@ -159,6 +161,7 @@ async function loadCostUsageSummaryCached(params: {
     startMs: params.startMs,
     endMs: params.endMs,
     config: params.config,
+    agentId: params.agentId,
   })
     .then((summary) => {
       costUsageCache.set(cacheKey, { summary, updatedAt: Date.now() });
@@ -187,6 +190,27 @@ async function loadCostUsageSummaryCached(params: {
   return await inFlight;
 }
 
+function resolveUsageCostAgentId(params: unknown, config: ReturnType<typeof loadConfig>): string {
+  const record = params as Record<string, unknown> | undefined;
+  const explicitAgentId = typeof record?.agentId === "string" ? record.agentId.trim() : "";
+  if (explicitAgentId) {
+    return explicitAgentId;
+  }
+
+  const keyCandidates = [record?.key, record?.sessionKey];
+  for (const candidate of keyCandidates) {
+    if (typeof candidate !== "string" || !candidate.trim()) {
+      continue;
+    }
+    const parsed = parseAgentSessionKey(candidate.trim());
+    if (parsed?.agentId) {
+      return parsed.agentId;
+    }
+  }
+
+  return parseAgentSessionKey(resolveMainSessionKey(config))?.agentId ?? "main";
+}
+
 // Exposed for unit tests (kept as a single export to avoid widening the public API surface).
 export const __test = {
   parseDateToMs,
@@ -194,6 +218,7 @@ export const __test = {
   parseDateRange,
   discoverAllSessionsForUsage,
   loadCostUsageSummaryCached,
+  resolveUsageCostAgentId,
   costUsageCache,
 };
 
@@ -264,7 +289,8 @@ export const usageHandlers: GatewayRequestHandlers = {
       endDate: params?.endDate,
       days: params?.days,
     });
-    const summary = await loadCostUsageSummaryCached({ startMs, endMs, config });
+    const agentId = resolveUsageCostAgentId(params, config);
+    const summary = await loadCostUsageSummaryCached({ startMs, endMs, config, agentId });
     respond(true, summary, undefined);
   },
   "sessions.usage": async ({ respond, params }) => {
