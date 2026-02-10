@@ -139,7 +139,17 @@ Once verified, the bot can decrypt messages in encrypted rooms.
 ## Routing model
 
 - Replies always go back to Matrix.
-- DMs share the agent's main session; rooms map to group sessions.
+
+By default (`channels.matrix.sessionScope = "legacy"`):
+
+- DMs share the agent's main session (routed by sender ID).
+- Rooms map to group sessions (routed by room ID).
+
+If you want **one session per Matrix room**, including 2-member rooms / DM-like rooms, set:
+
+- `channels.matrix.sessionScope = "room"`
+
+In `"room"` mode, all inbound messages are routed by room ID (unique session key per room).
 
 ## Access control (DMs)
 
