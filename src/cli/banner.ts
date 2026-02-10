@@ -31,7 +31,7 @@ function splitGraphemes(value: string): string[] {
 const hasJsonFlag = (argv: string[]) =>
   argv.some((arg) => arg === "--json" || arg.startsWith("--json="));
 
-const hasVersionFlag = (argv: string[]) =>
+const hasBannerVersionFlag = (argv: string[]) =>
   argv.some((arg) => arg === "--version" || arg === "-V" || arg === "-v");
 
 export function formatCliBannerLine(version: string, options: BannerOptions = {}): string {
@@ -119,7 +119,7 @@ export function emitCliBanner(version: string, options: BannerOptions = {}) {
   if (hasJsonFlag(argv)) {
     return;
   }
-  if (hasVersionFlag(argv)) {
+  if (hasBannerVersionFlag(argv)) {
     return;
   }
   const line = formatCliBannerLine(version, options);
