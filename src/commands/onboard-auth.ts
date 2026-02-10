@@ -21,15 +21,17 @@ export {
   applyOpenrouterProviderConfig,
   applySyntheticConfig,
   applySyntheticProviderConfig,
+  applyTogetherConfig,
+  applyTogetherProviderConfig,
   applyVeniceConfig,
   applyVeniceProviderConfig,
   applyVercelAiGatewayConfig,
   applyVercelAiGatewayProviderConfig,
+  applyXaiConfig,
+  applyXaiProviderConfig,
   applyXiaomiConfig,
   applyXiaomiProviderConfig,
   applyZaiConfig,
-  applyXaiConfig,
-  applyXaiProviderConfig,
 } from "./onboard-auth.config-core.js";
 export {
   applyMinimaxApiConfig,
@@ -58,6 +60,7 @@ export {
   setOpencodeZenApiKey,
   setOpenrouterApiKey,
   setSyntheticApiKey,
+  setTogetherApiKey,
   setVeniceApiKey,
   setVercelAiGatewayApiKey,
   setXiaomiApiKey,
@@ -68,6 +71,7 @@ export {
   XIAOMI_DEFAULT_MODEL_REF,
   ALIYUN_BAILIAN_DEFAULT_MODEL_REF,
   ZAI_DEFAULT_MODEL_REF,
+  TOGETHER_DEFAULT_MODEL_REF,
   XAI_DEFAULT_MODEL_REF,
 } from "./onboard-auth.credentials.js";
 export {
