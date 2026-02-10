@@ -1,9 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import lockfile from "proper-lockfile";
-import { resolveOAuthDir, resolveStateDir } from "../config/paths.js";
+import { resolveCredentialsDir } from "../config/paths.js";
 import {
   decodeBase32,
   encodeBase32,
@@ -50,11 +49,6 @@ type TotpStore = {
 };
 
 const EMPTY_STORE: TotpStore = { version: 1, users: [], sessions: [], rateLimits: [] };
-
-function resolveCredentialsDir(env: NodeJS.ProcessEnv = process.env): string {
-  const stateDir = resolveStateDir(env, os.homedir);
-  return resolveOAuthDir(env, stateDir);
-}
 
 function resolveTotpStorePath(env: NodeJS.ProcessEnv = process.env): string {
   return path.join(resolveCredentialsDir(env), "telegram-totp.json");
@@ -184,7 +178,7 @@ export async function isUserEnrolled(
 }
 
 /** Check rate limit. Returns true if the attempt is allowed. */
-export async function checkRateLimit(
+export async function checkTotpRateLimit(
   userId: string,
   maxAttempts: number,
   windowSec: number,

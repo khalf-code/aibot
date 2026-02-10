@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { timingSafeEqual } from "node:crypto";
 import type { PluginHttpRouteRegistration, PluginRegistry } from "./registry.js";
+import { safeEqual } from "../infra/safe-equal.js";
 import { normalizePluginHttpPath } from "./http-path.js";
 import { requireActivePluginRegistry } from "./runtime.js";
 
@@ -9,15 +9,8 @@ export type PluginHttpRouteHandler = (
   res: ServerResponse,
 ) => Promise<void> | void;
 
-/** @internal Exported for testing only. */
-export function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) {
-    return false;
-  }
-  return timingSafeEqual(bufA, bufB);
-}
+// Re-export for existing tests.
+export { safeEqual } from "../infra/safe-equal.js";
 
 function createAuthGuardedHandler(handler: PluginHttpRouteHandler): PluginHttpRouteHandler {
   return async (req, res) => {

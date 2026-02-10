@@ -1,6 +1,6 @@
 import type { TelegramTotpConfig } from "../config/types.telegram.js";
 import {
-  checkRateLimit,
+  checkTotpRateLimit,
   hasValidSession,
   isUserEnrolled,
   verifyAndCreateSession,
@@ -45,7 +45,7 @@ export async function checkTotpGate(params: {
   const trimmed = messageText.trim();
   if (CODE_PATTERN.test(trimmed)) {
     // Check rate limit first
-    const allowed = await checkRateLimit(telegramUserId, maxAttempts, rateLimitWindow);
+    const allowed = await checkTotpRateLimit(telegramUserId, maxAttempts, rateLimitWindow);
     if (!allowed) {
       return { action: "rate_limited" };
     }

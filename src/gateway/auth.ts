@@ -1,6 +1,6 @@
 import type { IncomingMessage } from "node:http";
-import { timingSafeEqual } from "node:crypto";
 import type { GatewayAuthConfig, GatewayTailscaleMode } from "../config/config.js";
+import { safeEqual } from "../infra/safe-equal.js";
 import { readTailscaleWhoisIdentity, type TailscaleWhoisIdentity } from "../infra/tailscale.js";
 import { logWarn } from "../logger.js";
 import { isTrustedProxyAddress, parseForwardedForClientIp, resolveGatewayClientIp } from "./net.js";
@@ -32,15 +32,6 @@ type TailscaleUser = {
 };
 
 type TailscaleWhoisLookup = (ip: string) => Promise<TailscaleWhoisIdentity | null>;
-
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) {
-    return false;
-  }
-  return timingSafeEqual(bufA, bufB);
-}
 
 function normalizeLogin(login: string): string {
   return login.trim().toLowerCase();
