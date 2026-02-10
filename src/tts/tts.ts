@@ -34,6 +34,12 @@ import { normalizeChannelId } from "../channels/plugins/index.js";
 import { logVerbose } from "../globals.js";
 import { isVoiceCompatibleAudio } from "../media/audio.js";
 import { CONFIG_DIR, resolveUserPath } from "../utils.js";
+import {
+  callTypecast,
+  callTypecastTelephony,
+  resolveTypecastDefaults,
+  type ResolvedTypecastConfig,
+} from "./typecast.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_TTS_MAX_LENGTH = 1500;
@@ -63,6 +69,7 @@ const TELEGRAM_OUTPUT = {
   // ElevenLabs output formats use codec_sample_rate_bitrate naming.
   // Opus @ 48kHz/64kbps is a good voice-note tradeoff for Telegram.
   elevenlabs: "opus_48000_64",
+  typecast: "mp3" as const,
   extension: ".opus",
   voiceCompatible: true,
 };
@@ -70,6 +77,7 @@ const TELEGRAM_OUTPUT = {
 const DEFAULT_OUTPUT = {
   openai: "mp3" as const,
   elevenlabs: "mp3_44100_128",
+  typecast: "mp3" as const,
   extension: ".mp3",
   voiceCompatible: false,
 };
@@ -109,6 +117,7 @@ export type ResolvedTtsConfig = {
     model: string;
     voice: string;
   };
+  typecast: ResolvedTypecastConfig;
   edge: {
     enabled: boolean;
     voice: string;
@@ -283,6 +292,7 @@ export function resolveTtsConfig(cfg: OpenClawConfig): ResolvedTtsConfig {
       model: raw.openai?.model ?? DEFAULT_OPENAI_MODEL,
       voice: raw.openai?.voice ?? DEFAULT_OPENAI_VOICE,
     },
+    typecast: resolveTypecastDefaults(raw.typecast),
     edge: {
       enabled: raw.edge?.enabled ?? true,
       voice: raw.edge?.voice?.trim() || DEFAULT_EDGE_VOICE,
@@ -498,10 +508,13 @@ export function resolveTtsApiKey(
   if (provider === "openai") {
     return config.openai.apiKey || process.env.OPENAI_API_KEY;
   }
+  if (provider === "typecast") {
+    return config.typecast.apiKey || process.env.TYPECAST_API_KEY;
+  }
   return undefined;
 }
 
-export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge"] as const;
+export const TTS_PROVIDERS = ["openai", "elevenlabs", "typecast", "edge"] as const;
 
 export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
   return [primary, ...TTS_PROVIDERS.filter((provider) => provider !== primary)];
@@ -633,8 +646,8 @@ function parseTtsDirectives(
             if (!policy.allowProvider) {
               break;
             }
-            if (rawValue === "openai" || rawValue === "elevenlabs" || rawValue === "edge") {
-              overrides.provider = rawValue;
+            if ((TTS_PROVIDERS as readonly string[]).includes(rawValue)) {
+              overrides.provider = rawValue as TtsProvider;
             } else {
               warnings.push(`unsupported provider "${rawValue}"`);
             }
@@ -1285,6 +1298,14 @@ export async function textToSpeech(params: {
           voiceSettings,
           timeoutMs: config.timeoutMs,
         });
+      } else if (provider === "typecast") {
+        audioBuffer = await callTypecast(
+          config.typecast,
+          params.text,
+          apiKey,
+          output.typecast,
+          config.timeoutMs,
+        );
       } else {
         const openaiModelOverride = params.overrides?.openai?.model;
         const openaiVoiceOverride = params.overrides?.openai?.voice;
@@ -1310,7 +1331,12 @@ export async function textToSpeech(params: {
         audioPath,
         latencyMs,
         provider,
-        outputFormat: provider === "openai" ? output.openai : output.elevenlabs,
+        outputFormat:
+          provider === "elevenlabs"
+            ? output.elevenlabs
+            : provider === "typecast"
+              ? output.typecast
+              : output.openai,
         voiceCompatible: output.voiceCompatible,
       };
     } catch (err) {
@@ -1388,7 +1414,22 @@ export async function textToSpeechTelephony(params: {
           sampleRate: output.sampleRate,
         };
       }
-
+      if (provider === "typecast") {
+        const { audioBuffer, sampleRate } = await callTypecastTelephony(
+          config.typecast,
+          params.text,
+          apiKey,
+          config.timeoutMs,
+        );
+        return {
+          success: true,
+          audioBuffer,
+          latencyMs: Date.now() - providerStart,
+          provider,
+          outputFormat: "wav",
+          sampleRate,
+        };
+      }
       const output = TELEPHONY_OUTPUT.openai;
       const audioBuffer = await openaiTTS({
         text: params.text,
