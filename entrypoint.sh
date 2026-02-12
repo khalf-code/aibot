@@ -2,28 +2,30 @@
 
 set -e
 
-# Créer le dossier de config
 mkdir -p ~/.openclaw
 
-# Générer la config (format v2 : identity.theme pour le system prompt)
 cat > ~/.openclaw/openclaw.json << JSONEOF
 {
-  "identity": {
-    "name": "Agent",
-    "theme": "${SYSTEM_PROMPT:-You are a helpful assistant.}"
-  },
   "agents": {
     "defaults": {
       "model": {
         "primary": "${MODEL_ID:-openai/gpt-4o}"
       }
-    }
+    },
+    "list": [
+      {
+        "id": "main",
+        "identity": {
+          "name": "Agent",
+          "theme": "${SYSTEM_PROMPT:-You are a helpful assistant.}"
+        }
+      }
+    ]
   },
   "channels": {}
 }
 JSONEOF
 
-# Injecter config Telegram si le token existe
 if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
   node -e "
     const fs = require('fs');
@@ -34,7 +36,6 @@ if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
   "
 fi
 
-# Injecter config Discord si le token existe
 if [ -n "$DISCORD_BOT_TOKEN" ]; then
   node -e "
     const fs = require('fs');
@@ -45,7 +46,6 @@ if [ -n "$DISCORD_BOT_TOKEN" ]; then
   "
 fi
 
-# Injecter config Slack si les tokens existent
 if [ -n "$SLACK_BOT_TOKEN" ]; then
   node -e "
     const fs = require('fs');
@@ -60,5 +60,4 @@ echo "=== OpenClaw config generated ==="
 cat ~/.openclaw/openclaw.json
 echo "================================="
 
-# Lancer OpenClaw
 exec node /app/openclaw.mjs gateway --allow-unconfigured --bind lan --port ${PORT:-10000}
