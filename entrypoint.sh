@@ -60,5 +60,4 @@ echo "=== OpenClaw config generated ==="
 cat ~/.openclaw/openclaw.json
 echo "================================="
 
-exec node /app/openclaw.mjs gateway --allow-unconfigured --bind 0.0.0.0 --port ${PORT:-10000}
-
+exec node /app/openclaw.mjs gateway --allow-unconfigured --bind lan --port ${PORT:-10000}
