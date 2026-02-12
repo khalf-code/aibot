@@ -30,6 +30,12 @@ ENV CLAWDBOT_PREFER_PNPM=1
 RUN pnpm ui:install
 RUN pnpm ui:build
 
+#ENV NODE_ENV=production
+
+#CMD ["node", "dist/index.js"]
 ENV NODE_ENV=production
 
-CMD ["node", "dist/index.js"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
