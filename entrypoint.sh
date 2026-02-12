@@ -1,17 +1,18 @@
 #!/bin/sh
+
 set -e
 
 # Créer le dossier de config
 mkdir -p ~/.openclaw
 
-# Générer la config de base
+# Générer la config de base (format v2 : pas de "agent", tout dans "agents.defaults")
 cat > ~/.openclaw/openclaw.json << JSONEOF
 {
-  "agent": {
-    "model": "${MODEL_ID:-anthropic/claude-opus-4-5}"
-  },
   "agents": {
     "defaults": {
+      "model": {
+        "primary": "${MODEL_ID:-openai/gpt-4o}"
+      },
       "systemPrompt": "${SYSTEM_PROMPT:-You are a helpful assistant.}"
     }
   },
