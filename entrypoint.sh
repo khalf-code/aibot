@@ -60,4 +60,6 @@ echo "=== OpenClaw config generated ==="
 cat ~/.openclaw/openclaw.json
 echo "================================="
 
-exec node /app/openclaw.mjs gateway --allow-unconfigured --bind lan --port ${PORT:-10000}
+GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-default-gateway-token-$(echo $AGENT_ID | cut -c1-8)}"
+
+exec node /app/openclaw.mjs gateway --allow-unconfigured --bind lan --port ${PORT:-10000} --token "$GATEWAY_TOKEN"
