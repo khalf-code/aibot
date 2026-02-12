@@ -1,7 +1,5 @@
 #!/bin/sh
-
 set -e
-
 mkdir -p ~/.openclaw
 
 cat > ~/.openclaw/openclaw.json << JSONEOF
@@ -15,7 +13,10 @@ cat > ~/.openclaw/openclaw.json << JSONEOF
       "10.0.0.0/8",
       "172.16.0.0/12",
       "192.168.0.0/16"
-    ]
+    ],
+    "controlUi": {
+      "allowInsecureAuth": true
+    }
   },
   "agents": {
     "defaults": {
@@ -72,5 +73,4 @@ cat ~/.openclaw/openclaw.json
 echo "================================="
 
 GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-default-gateway-token-$(echo $AGENT_ID | cut -c1-8)}"
-
 exec node /app/openclaw.mjs gateway --allow-unconfigured --bind lan --port ${PORT:-10000} --token "$GATEWAY_TOKEN"
