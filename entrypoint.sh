@@ -5,15 +5,18 @@ set -e
 # Créer le dossier de config
 mkdir -p ~/.openclaw
 
-# Générer la config de base (format v2 : pas de "agent", tout dans "agents.defaults")
+# Générer la config (format v2 : identity.theme pour le system prompt)
 cat > ~/.openclaw/openclaw.json << JSONEOF
 {
+  "identity": {
+    "name": "Agent",
+    "theme": "${SYSTEM_PROMPT:-You are a helpful assistant.}"
+  },
   "agents": {
     "defaults": {
       "model": {
         "primary": "${MODEL_ID:-openai/gpt-4o}"
-      },
-      "systemPrompt": "${SYSTEM_PROMPT:-You are a helpful assistant.}"
+      }
     }
   },
   "channels": {}
