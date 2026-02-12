@@ -1,11 +1,11 @@
 #!/bin/sh
 set -e
 
-# Créer le dossier de config Clawdbot
-mkdir -p /root/.clawdbot
+# Créer le dossier de config
+mkdir -p ~/.openclaw
 
 # Générer la config de base
-cat > /root/.clawdbot/clawdbot.json << JSONEOF
+cat > ~/.openclaw/openclaw.json << JSONEOF
 {
   "agent": {
     "model": "${MODEL_ID:-anthropic/claude-opus-4-5}"
@@ -23,9 +23,10 @@ JSONEOF
 if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
   node -e "
     const fs = require('fs');
-    const cfg = JSON.parse(fs.readFileSync('/root/.clawdbot/clawdbot.json'));
+    const p = require('os').homedir() + '/.openclaw/openclaw.json';
+    const cfg = JSON.parse(fs.readFileSync(p));
     cfg.channels.telegram = { botToken: process.env.TELEGRAM_BOT_TOKEN };
-    fs.writeFileSync('/root/.clawdbot/clawdbot.json', JSON.stringify(cfg, null, 2));
+    fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
   "
 fi
 
@@ -33,9 +34,10 @@ fi
 if [ -n "$DISCORD_BOT_TOKEN" ]; then
   node -e "
     const fs = require('fs');
-    const cfg = JSON.parse(fs.readFileSync('/root/.clawdbot/clawdbot.json'));
+    const p = require('os').homedir() + '/.openclaw/openclaw.json';
+    const cfg = JSON.parse(fs.readFileSync(p));
     cfg.channels.discord = { token: process.env.DISCORD_BOT_TOKEN };
-    fs.writeFileSync('/root/.clawdbot/clawdbot.json', JSON.stringify(cfg, null, 2));
+    fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
   "
 fi
 
@@ -43,15 +45,16 @@ fi
 if [ -n "$SLACK_BOT_TOKEN" ]; then
   node -e "
     const fs = require('fs');
-    const cfg = JSON.parse(fs.readFileSync('/root/.clawdbot/clawdbot.json'));
+    const p = require('os').homedir() + '/.openclaw/openclaw.json';
+    const cfg = JSON.parse(fs.readFileSync(p));
     cfg.channels.slack = { botToken: process.env.SLACK_BOT_TOKEN, appToken: process.env.SLACK_APP_TOKEN || '' };
-    fs.writeFileSync('/root/.clawdbot/clawdbot.json', JSON.stringify(cfg, null, 2));
+    fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
   "
 fi
 
-echo "=== Clawdbot config generated ==="
-cat /root/.clawdbot/clawdbot.json
+echo "=== OpenClaw config generated ==="
+cat ~/.openclaw/openclaw.json
 echo "================================="
 
-# Lancer Clawdbot
-exec node dist/index.js
+# Lancer OpenClaw
+exec node /app/openclaw.mjs gateway --allow-unconfigured --bind lan --port ${PORT:-10000}
